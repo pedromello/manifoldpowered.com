@@ -1,5 +1,7 @@
 # Manifold
 
+🌍 **Language:** English | [Português (Brasil)](./README.pt-BR.md)
+
 **Manifold** is the infrastructure that powers multiple independent game stores through a shared backend.
 
 Just like **Valve** created **Steam**, Manifold enables anyone to create their own version of Steam — called an **Outlet** — while remaining fully interoperable with every other Outlet in the network.
