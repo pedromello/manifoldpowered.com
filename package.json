@@ -1,0 +1,25 @@
+{
+  "name": "manifoldpowered.com",
+  "version": "1.0.0",
+  "description": "🌍 **Idioma:** Português (Brasil) | [English](./README.md)",
+  "homepage": "https://github.com/pedromello/manifoldpowered.com#readme",
+  "bugs": {
+    "url": "https://github.com/pedromello/manifoldpowered.com/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedromello/manifoldpowered.com.git"
+  },
+  "license": "ISC",
+  "author": "Pedro Mello",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "^13.1.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
