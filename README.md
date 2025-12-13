@@ -80,8 +80,22 @@ This enables:
 
 ## 🧠 Philosophy
 
-Manifold is built on the idea that:
-> **Infrastructure should be shared. Identity should be free.**
+Manifold is built on the idea that nearly every part of game development has already been democratized.
+
+Game engines are open or widely accessible.
+Art, design, and audio tools offer powerful solutions — many of them free.
+Knowledge is broadly available.
+
+What remains centralized is distribution.
+
+Game distribution is still controlled, proprietary, and owned by a small number of platforms.
+This creates an imbalance: developers are free to create, but not free to distribute.
+
+We believe that just as development tools evolved into open and shared infrastructure, distribution must follow the same path.
+
+Manifold exists to turn distribution into infrastructure:
+shared, interoperable, and accessible —
+not the exclusive property of a single platform.
 
 ---
 

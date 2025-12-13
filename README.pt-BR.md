@@ -80,9 +80,23 @@ Isso possibilita:
 
 ## 🧠 Filosofia
 
-A Manifold é construída com base na ideia de que:
+A Manifold nasce da ideia de que quase todas as etapas do desenvolvimento de jogos já foram democratizadas.
 
-> **Infraestrutura deve ser compartilhada. Identidade deve ser livre.**
+Hoje, engines são abertas ou acessíveis.
+Ferramentas de arte, design e áudio oferecem soluções poderosas — muitas delas gratuitas.
+O conhecimento está amplamente disponível.
+
+O que ainda permanece centralizado é a distribuição.
+
+A distribuição de jogos continua sendo controlada, proprietária e concentrada nas mãos de poucos.
+E isso cria uma assimetria: desenvolvedores têm liberdade para criar, mas não para distribuir.
+
+Acreditamos que, assim como as ferramentas de desenvolvimento evoluíram para modelos abertos e compartilhados, a distribuição também precisa seguir esse caminho.
+
+A Manifold existe para transformar a distribuição em infraestrutura:
+compartilhada, interoperável e acessível —
+não como propriedade exclusiva de uma única plataforma.
+
 
 ---
 
