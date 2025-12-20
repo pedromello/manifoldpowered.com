@@ -15,6 +15,7 @@ Manifold is a platform that allows creators, studios, communities, and companies
 Each store created with Manifold is called an **Outlet**.
 
 Outlets are:
+
 - Visually and operationally independent
 - Powered by the same backend
 - Fully interoperable with each other
@@ -28,10 +29,12 @@ A player can buy a game on one Outlet and download it on another — without los
 In engineering, a **manifold** distributes a flow into multiple **outlets**.
 
 In Manifold:
+
 - **Manifold** is the distributor
 - **Outlets** are the distribution points
 
 Each Outlet is a full-featured game store:
+
 - Custom branding and identity
 - Its own community and curation
 - Shared library, purchases, and save data
@@ -63,6 +66,7 @@ Traditional game stores are siloed.
 Manifold breaks those silos by separating **platform infrastructure** from **store identity**.
 
 This enables:
+
 - More freedom for creators
 - More choice for players
 - A healthier, interconnected ecosystem
