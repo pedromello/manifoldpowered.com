@@ -14,7 +14,8 @@
   "author": "Pedro Mello",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "dev": "next dev",
     "lint:check": "prettier --check .",
     "lint:fix": "prettier --write ."
@@ -25,6 +26,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "jest": "^29.6.2",
     "prettier": "^3.7.4"
   }
 }
