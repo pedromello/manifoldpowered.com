@@ -2,9 +2,7 @@ export default function Home() {
   return (
     <div className="container">
       <main className="content">
-        <h1 className="title">
-          Manifold
-        </h1>
+        <h1 className="title">Manifold</h1>
         <h2 className="subtitle">
           The Shared Infrastructure for the Next Generation of Game Stores.
         </h2>
@@ -31,7 +29,9 @@ export default function Home() {
           </p>
 
           <div className="section">
-            <h2 className="section-header">1. For Developers: Reach Niche Markets</h2>
+            <h2 className="section-header">
+              1. For Developers: Reach Niche Markets
+            </h2>
             <p>
               Stop relying on a single algorithm to find your audience. Upload
               your game to the Manifold network once, and make it available to
@@ -41,7 +41,9 @@ export default function Home() {
           </div>
 
           <div className="section">
-            <h2 className="section-header">2. For Curators & Communities: Build Your Outlet</h2>
+            <h2 className="section-header">
+              2. For Curators & Communities: Build Your Outlet
+            </h2>
             <p>
               Turn your community into a storefront. Whether you are a streamer,
               a clan, or a genre enthusiast, you can launch a branded game
@@ -51,7 +53,9 @@ export default function Home() {
           </div>
 
           <div className="section">
-            <h2 className="section-header">3. For Players: One Unified Library</h2>
+            <h2 className="section-header">
+              3. For Players: One Unified Library
+            </h2>
             <p>
               Freedom of choice without fragmentation. A game bought in a
               "Horror Niche Store" and a game bought in a "Cozy RPG Store" both
@@ -170,9 +174,9 @@ export default function Home() {
           border-top: 1px solid #eee;
           padding-top: 2rem;
         }
-        
+
         .spacing-top {
-           margin-top: 1rem;
+          margin-top: 1rem;
         }
 
         .actions {
@@ -218,7 +222,7 @@ export default function Home() {
           .intro {
             font-size: 1.1rem;
           }
-          
+
           .text {
             font-size: 1rem;
           }
@@ -233,7 +237,8 @@ export default function Home() {
         }
 
         body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          font-family:
+            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
             "Helvetica Neue", Arial, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
