@@ -9,3 +9,7 @@ build
 
 # VSCode
 .vscode
+
+/generated/prisma
+
+.env
