@@ -1,4 +1,4 @@
-import { prisma } from "../../../../infra/database";
+import { prisma } from "infra/database";
 
 async function status(req: any, res: any) {
   await prisma.$connect();
