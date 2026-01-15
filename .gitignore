@@ -11,3 +11,5 @@ build
 .vscode
 
 /generated/prisma
+
+.env
