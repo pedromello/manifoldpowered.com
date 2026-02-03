@@ -3,12 +3,24 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+let connectionString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
+
+if (process.env["POSTGRES_PORT"]) {
+  connectionString += `:${process.env["POSTGRES_PORT"]}`;
+}
+
+connectionString += `/${process.env["POSTGRES_DB"]}?schema=public`;
+
+if (process.env.NODE_ENV === "production") {
+  connectionString += "&sslmode=require";
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}:${process.env["POSTGRES_PORT"]}/${process.env["POSTGRES_DB"]}?schema=public`,
+    url: connectionString,
   },
 });
