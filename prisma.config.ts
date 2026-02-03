@@ -11,8 +11,6 @@ if (process.env["POSTGRES_PORT"]) {
 
 connectionString += `/${process.env["POSTGRES_DB"]}?schema=public`;
 
-console.log(process.env.NODE_ENV);
-console.log(process.env.NODE_ENV === "production");
 if (process.env.NODE_ENV === "production") {
   connectionString += "&sslmode=require";
 }
