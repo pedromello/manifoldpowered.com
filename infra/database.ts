@@ -2,13 +2,11 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "generated/prisma/client";
 
-let connectionString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
+let connectionString = process.env.DATABASE_URL;
 
-if (process.env["POSTGRES_PORT"]) {
-    connectionString += `:${process.env["POSTGRES_PORT"]}`;
+if (!connectionString) {
+    throw new Error("DATABASE_URL is not defined");
 }
-
-connectionString += `/${process.env["POSTGRES_DB"]}?schema=public`;
 
 if (process.env.NODE_ENV === "production") {
     connectionString += "&sslmode=require";
@@ -17,4 +15,8 @@ if (process.env.NODE_ENV === "production") {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-export { prisma };
+const cleanDatabase = async () => {
+    await prisma.$executeRaw`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`;
+};
+
+export { prisma, cleanDatabase };

@@ -2,14 +2,18 @@
 // npm install --save-dev prisma dotenv
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
+import dotenv from "dotenv";
+import dotenvExpand from "dotenv-expand"
 
-let connectionString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
+dotenvExpand.expand(dotenv.config({
+  path: ".env.development",
+}));
 
-if (process.env["POSTGRES_PORT"]) {
-  connectionString += `:${process.env["POSTGRES_PORT"]}`;
+let connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined");
 }
-
-connectionString += `/${process.env["POSTGRES_DB"]}?schema=public`;
 
 if (process.env.NODE_ENV === "production") {
   connectionString += "&sslmode=require";
