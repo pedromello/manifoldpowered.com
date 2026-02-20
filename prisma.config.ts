@@ -9,16 +9,20 @@ dotenvExpand.expand(dotenv.config({
   path: ".env.development",
 }));
 
-let connectionString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
+let baseString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
 
 if (process.env["POSTGRES_PORT"]) {
-  connectionString += `:${process.env["POSTGRES_PORT"]}`;
+  baseString += `:${process.env["POSTGRES_PORT"]}`;
 }
 
-connectionString += `/${process.env["POSTGRES_DB"]}?schema=public`;
+// Note: ?schema=public is NOT used here — Prisma 7's prisma.config.ts parses
+// the URL differently and including it corrupts the shadow database schema path.
+let connectionString = `${baseString}/${process.env["POSTGRES_DB"]}`;
+let shadowDatabaseConnectionString = `${baseString}/${process.env["POSTGRES_DB"]}_shadow`;
 
 if (process.env.NODE_ENV === "production") {
-  connectionString += "&sslmode=require";
+  connectionString += "?sslmode=require";
+  shadowDatabaseConnectionString += "?sslmode=require";
 }
 
 export default defineConfig({
@@ -28,5 +32,6 @@ export default defineConfig({
   },
   datasource: {
     url: connectionString,
+    shadowDatabaseUrl: shadowDatabaseConnectionString,
   },
 });

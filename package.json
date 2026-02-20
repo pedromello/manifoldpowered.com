@@ -22,7 +22,10 @@
     "services:down": "docker compose -f infra/compose.yaml down",
     "build": "next build",
     "lint:check": "prettier --check .",
-    "lint:fix": "prettier --write ."
+    "lint:fix": "prettier --write .",
+    "prisma:generate": "npx prisma generate",
+    "migrate:deploy": "npx prisma migrate deploy",
+    "migrate:dev": "npx prisma migrate dev"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.0",
