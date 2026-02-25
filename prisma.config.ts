@@ -18,11 +18,9 @@ if (process.env["POSTGRES_PORT"]) {
 // Note: ?schema=public is NOT used here — Prisma 7's prisma.config.ts parses
 // the URL differently and including it corrupts the shadow database schema path.
 let connectionString = `${baseString}/${process.env["POSTGRES_DB"]}`;
-let shadowDatabaseConnectionString = `${baseString}/${process.env["POSTGRES_DB"]}_shadow`;
 
 if (process.env.NODE_ENV === "production") {
   connectionString += "?sslmode=require";
-  shadowDatabaseConnectionString += "?sslmode=require";
 }
 
 export default defineConfig({
@@ -32,6 +30,5 @@ export default defineConfig({
   },
   datasource: {
     url: connectionString,
-    shadowDatabaseUrl: shadowDatabaseConnectionString,
   },
 });
