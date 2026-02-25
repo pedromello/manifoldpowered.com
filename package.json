@@ -16,8 +16,8 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "dev": "npm run services:up && next dev",
-    "services:up": "docker compose -f infra/compose.yaml up -d && npx prisma generate",
+    "dev": "npm run services:up && npm run wait-for-postgres && npm run prisma:generate && npm run migrate:dev && next dev",
+    "services:up": "docker compose -f infra/compose.yaml up -d",
     "services:stop": "docker compose -f infra/compose.yaml stop",
     "services:down": "docker compose -f infra/compose.yaml down",
     "build": "next build",
@@ -25,7 +25,8 @@
     "lint:fix": "prettier --write .",
     "prisma:generate": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
-    "migrate:dev": "npx prisma migrate dev"
+    "migrate:dev": "npx prisma migrate dev",
+    "wait-for-postgres": "node infra/scripts/wait-for-postgres.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.0",
