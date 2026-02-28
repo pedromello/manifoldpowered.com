@@ -10,7 +10,7 @@ async function waitForAllServices() {
                 console.log("Web server is not ready");
                 throw new Error("Web server is not ready");
             }
-        }, { retries: 10, maxTimeout: 1000 });
+        }, { retries: 100, maxTimeout: 1000 });
     }
 }
 
