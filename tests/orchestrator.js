@@ -1,6 +1,6 @@
-const retry = require("async-retry");
+import retry from "async-retry";
 
-async function waitForAllServices() {
+const waitForAllServices = async () => {
   await waitForWebServer();
 
   async function waitForWebServer() {
@@ -14,8 +14,10 @@ async function waitForAllServices() {
       { retries: 100, maxTimeout: 1000 },
     );
   }
-}
+};
 
-export default {
+const orchestrator = {
   waitForAllServices,
 };
+
+export default orchestrator;

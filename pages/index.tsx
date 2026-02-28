@@ -15,7 +15,7 @@ export default function Home() {
 
         <div className="text">
           <p>
-            Game development has been democratized. Distribution hasn't.
+            Game development has been democratized. Distribution hasn&apos;t.
             Engines, assets, and learning resources are now accessible to
             everyone. Yet, when it comes to selling, the industry still relies
             on centralized monopolies.
@@ -23,9 +23,9 @@ export default function Home() {
 
           <p>
             Manifold changes this. We are building a modular distribution layer.
-            We treat the "store backend" as shared infrastructure, allowing
-            multiple independent storefronts to exist, grow, and connect without
-            building everything from scratch.
+            We treat the &quot;store backend&quot; as shared infrastructure,
+            allowing multiple independent storefronts to exist, grow, and
+            connect without building everything from scratch.
           </p>
 
           <div className="section">
@@ -58,9 +58,9 @@ export default function Home() {
             </h2>
             <p>
               Freedom of choice without fragmentation. A game bought in a
-              "Horror Niche Store" and a game bought in a "Cozy RPG Store" both
-              live in the same Manifold player library. Buy anywhere, play
-              everywhere.
+              &quot;Horror Niche Store&quot; and a game bought in a &quot;Cozy
+              RPG Store&quot; both live in the same Manifold player library. Buy
+              anywhere, play everywhere.
             </p>
           </div>
 
