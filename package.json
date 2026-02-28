@@ -14,7 +14,7 @@
   "author": "Pedro Mello",
   "main": "index.js",
   "scripts": {
-    "test": "npm run services:up && concurrently -n next,jest --hide next -k -s command-jest \"next dev\" \"jest --runInBand\"",
+    "test": "npm run services:up && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
     "test:watch": "jest --watch",
     "dev": "npm run services:up && npm run wait-for-postgres && npm run prisma:generate && npm run migrate:dev && next dev",
     "services:up": "docker compose -f infra/compose.yaml up -d",
