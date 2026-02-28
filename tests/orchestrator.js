@@ -9,7 +9,7 @@ async function waitForAllServices() {
             if (response.status !== 200) {
                 throw new Error("Web server is not ready");
             }
-        }, { retries: 10 });
+        }, { retries: 100, maxTimeout: 1000 });
     }
 }
 
