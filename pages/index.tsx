@@ -23,9 +23,9 @@ export default function Home() {
 
           <p>
             Manifold changes this. We are building a modular distribution layer.
-            We treat the &quot;store backend&quot; as shared infrastructure, allowing
-            multiple independent storefronts to exist, grow, and connect without
-            building everything from scratch.
+            We treat the &quot;store backend&quot; as shared infrastructure,
+            allowing multiple independent storefronts to exist, grow, and
+            connect without building everything from scratch.
           </p>
 
           <div className="section">
@@ -58,9 +58,9 @@ export default function Home() {
             </h2>
             <p>
               Freedom of choice without fragmentation. A game bought in a
-              &quot;Horror Niche Store&quot; and a game bought in a &quot;Cozy RPG Store&quot; both
-              live in the same Manifold player library. Buy anywhere, play
-              everywhere.
+              &quot;Horror Niche Store&quot; and a game bought in a &quot;Cozy
+              RPG Store&quot; both live in the same Manifold player library. Buy
+              anywhere, play everywhere.
             </p>
           </div>
 
