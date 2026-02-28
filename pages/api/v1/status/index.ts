@@ -1,7 +1,8 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
+import { NextApiRequest, NextApiResponse } from "next";
 
-async function status(req: any, res: any) {
+async function status(req: NextApiRequest, res: NextApiResponse) {
   const updatedAt = new Date().toISOString();
 
   const dbVersionResult = await prisma.$queryRaw<{
