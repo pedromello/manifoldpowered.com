@@ -3,11 +3,13 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 import dotenv from "dotenv";
-import dotenvExpand from "dotenv-expand"
+import dotenvExpand from "dotenv-expand";
 
-dotenvExpand.expand(dotenv.config({
-  path: ".env.development",
-}));
+dotenvExpand.expand(
+  dotenv.config({
+    path: ".env.development",
+  }),
+);
 
 let baseString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
 
