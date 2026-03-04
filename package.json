@@ -17,10 +17,11 @@
   "scripts": {
     "test": "npm run services:up && npm run prisma:generate && npm run migrate:dev && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
     "test:watch": "jest --watch",
-    "dev": "npm run services:up && npm run wait-for-postgres && npm run prisma:generate && npm run migrate:dev && next dev",
+    "dev": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && next dev",
     "services:up": "docker compose -f infra/compose.yaml up -d",
     "services:stop": "docker compose -f infra/compose.yaml stop",
     "services:down": "docker compose -f infra/compose.yaml down",
+    "services:wait:database": "node infra/scripts/wait-for-postgres.js",
     "build": "next build",
     "lint:prettier:check": "prettier --check .",
     "lint:prettier:fix": "prettier --write .",
@@ -29,7 +30,6 @@
     "prisma:generate": "npx prisma generate",
     "migrate:deploy": "npx prisma migrate deploy",
     "migrate:dev": "npx prisma migrate dev",
-    "wait-for-postgres": "node infra/scripts/wait-for-postgres.js",
     "prepare": "husky",
     "commit": "cz"
   },
