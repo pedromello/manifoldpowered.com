@@ -17,8 +17,8 @@ if (process.env.NODE_ENV === "production") {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-const cleanDatabase = async () => {
+const clearDatabase = async () => {
   await prisma.$executeRaw`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`;
 };
 
-export { prisma, cleanDatabase };
+export { prisma, clearDatabase };

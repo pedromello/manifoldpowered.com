@@ -1,4 +1,5 @@
 import retry from "async-retry";
+import * as database from "infra/database";
 
 const waitForAllServices = async () => {
   await waitForWebServer();
@@ -16,8 +17,13 @@ const waitForAllServices = async () => {
   }
 };
 
+const clearDatabase = async () => {
+  await database.clearDatabase();
+};
+
 const orchestrator = {
   waitForAllServices,
+  clearDatabase,
 };
 
 export default orchestrator;
