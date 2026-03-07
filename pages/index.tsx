@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default function Home() {
   return (
     <div className="container">
@@ -26,6 +28,13 @@ export default function Home() {
               those who sell, and those who play. Here is how the infrastructure
               works for each party:
             </p>
+
+            <Image
+              src="/images/manifold-diagram.png"
+              alt="How Manifold Works"
+              width={1024}
+              height={768}
+            />
 
             <div className="section">
               <h3 className="section-subheader">
