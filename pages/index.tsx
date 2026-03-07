@@ -29,12 +29,15 @@ export default function Home() {
               works for each party:
             </p>
 
-            <Image
-              src="/images/manifold-diagram.png"
-              alt="How Manifold Works"
-              width={1024}
-              height={768}
-            />
+            <div className="diagram-wrapper">
+              <Image
+                src="/images/manifold-diagram-hd.png"
+                alt="How Manifold Works"
+                width={1920}
+                height={1440}
+                className="diagram-image"
+              />
+            </div>
 
             <div className="section">
               <h3 className="section-subheader">
@@ -172,7 +175,7 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           padding: 3rem 2rem;
-          background: #fafafa;
+          background: var(--bg-primary);
         }
 
         .content {
@@ -185,7 +188,7 @@ export default function Home() {
           font-weight: 700;
           line-height: 1.2;
           margin-bottom: 1.5rem;
-          color: #000;
+          color: var(--color-black);
           letter-spacing: -0.03em;
         }
 
@@ -194,24 +197,26 @@ export default function Home() {
           font-weight: 600;
           line-height: 1.2;
           margin-bottom: 1.5rem;
-          color: #000;
+          color: var(--text-primary);
           letter-spacing: -0.03em;
+          opacity: 0.9;
         }
 
         .intro {
           font-size: 1.25rem;
           line-height: 1.6;
-          color: #444;
+          color: var(--text-primary);
           margin-bottom: 2.5rem;
           font-weight: 500;
+          opacity: 0.85;
         }
 
         .status-warning {
           margin-bottom: 1.25rem;
           padding: 0.75rem 1rem;
-          border: 1px solid #ffb86b;
-          background: #fff4e5;
-          color: #7a4100;
+          border: 1px solid var(--color-indigo-light);
+          background: var(--color-indigo-lighter);
+          color: var(--text-primary);
           border-radius: 8px;
           font-weight: 600;
           line-height: 1.5;
@@ -220,7 +225,7 @@ export default function Home() {
         .text {
           font-size: 1.1rem;
           line-height: 1.7;
-          color: #333;
+          color: var(--text-primary);
         }
 
         .text p {
@@ -235,6 +240,24 @@ export default function Home() {
           margin-bottom: 0.8rem;
         }
 
+        .diagram-wrapper {
+          width: calc(100vw - 4rem);
+          max-width: 1080px;
+          position: relative;
+          left: 50%;
+          transform: translateX(-50%);
+          margin: 3.5rem 0;
+          display: flex;
+          justify-content: center;
+        }
+
+        .diagram-wrapper :global(.diagram-image) {
+          width: 100%;
+          height: auto;
+          border-radius: 12px;
+          box-shadow: 0 12px 40px rgba(53, 34, 89, 0.15);
+        }
+
         .section {
           margin-top: 2.5rem;
           margin-bottom: 2.5rem;
@@ -244,21 +267,22 @@ export default function Home() {
           font-size: 1.25rem;
           font-weight: 600;
           margin-bottom: 0.75rem;
-          color: #000;
+          color: var(--color-black);
         }
 
         .section-subheader {
           font-size: 1.1rem;
           font-weight: 600;
           margin-bottom: 0.75rem;
-          color: #111;
+          color: var(--text-primary);
         }
 
         .closing {
           margin-top: 3.5rem;
-          color: #666;
-          border-top: 1px solid #eee;
+          color: var(--text-primary);
+          border-top: 1px solid var(--color-indigo-light);
           padding-top: 2rem;
+          opacity: 0.8;
         }
 
         .spacing-top {
@@ -278,21 +302,21 @@ export default function Home() {
           justify-content: center;
           gap: 0.625rem;
           padding: 0.875rem 1.5rem;
-          color: #000;
+          color: var(--text-primary);
           font-weight: 500;
           font-size: 0.95rem;
           text-decoration: none;
-          background: #fff;
-          border: 2px solid #000;
+          background: var(--bg-primary);
+          border: 2px solid var(--text-primary);
           border-radius: 8px;
           transition: all 0.2s ease;
         }
 
         .cta:hover {
-          background: #000;
-          color: #fff;
+          background: var(--text-primary);
+          color: var(--bg-primary);
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 12px rgba(53, 34, 89, 0.2);
         }
 
         .cta svg {
@@ -316,6 +340,17 @@ export default function Home() {
       `}</style>
 
       <style jsx global>{`
+        :root {
+          --color-black: #000000;
+          --color-purple-dark: #352259;
+          --color-indigo-light: #d6cdff;
+          --color-indigo-lighter: #e5dfff;
+          --color-orange-light: #fffbf6;
+
+          --bg-primary: var(--color-orange-light);
+          --text-primary: var(--color-purple-dark);
+        }
+
         * {
           box-sizing: border-box;
           margin: 0;
@@ -328,6 +363,8 @@ export default function Home() {
             "Helvetica Neue", Arial, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+          background-color: var(--bg-primary);
+          color: var(--text-primary);
         }
       `}</style>
     </div>
