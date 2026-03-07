@@ -2,6 +2,9 @@
 
 🌍 **Language:** English | [Português (Brasil)](./README.pt-BR.md)
 
+> [!WARNING]
+> **Project status: pre-release.** Manifold is in active development. This repository presents the vision and technical direction; no production-ready product is available yet.
+
 **Manifold** is the infrastructure that powers multiple independent game stores through a shared backend.
 
 Just like **Valve** created **Steam**, Manifold enables anyone to create their own version of Steam — called an **Outlet** — while remaining fully interoperable with every other Outlet in the network.
@@ -21,6 +24,33 @@ Outlets are:
 - Fully interoperable with each other
 
 A player can buy a game on one Outlet and download it on another — without losing progress, ownership, or access.
+
+---
+
+## How Manifold Works in Practice
+
+Manifold is an ecosystem designed to connect those who create, those who sell, and those who play. Here is how the infrastructure works for each party:
+
+### 1. For Creators and Communities: A New Revenue Stream and Engagement Hub
+
+Have you ever imagined having your own official game store? Most creators and communities have not even considered this possibility, but Manifold makes it a reality. It is your chance to create a new source of extra income and an exclusive space to interact with your fans. Instead of just recommending a game in your video or Discord server, you can sell it directly to your audience.
+
+- **The Use Case:** Imagine you are a content creator focused on _Cozy Games_. You can use Manifold to open your own official storefront. You handpick which games from our ecosystem you want to sell to your audience.
+- **The Result:** Your store will only feature farming sims, puzzles, and relaxing narratives. No horror or violent games will ever appear on your storefront. You monetize your influence by earning a share from the games your community would buy anyway, while we handle all the invisible technical infrastructure.
+
+### 2. For Developers: One Upload, Hundreds of Storefronts
+
+Expanding your game's reach should not mean managing dozens of different distribution dashboards or fighting a single algorithm.
+
+- **The Use Case:** You just finished your indie game and want maximum distribution. Instead of knocking on every door, you upload your game **just once** to the Manifold dashboard.
+- **The Result:** Once approved, your game becomes available in our central catalog (the backend). From that moment on, any niche store in the network interested in your game's genre can add it to their storefront. Your game gains massive reach and connects with highly engaged audiences without any extra effort on your part.
+
+### 3. For Players: Freedom of Choice, Unified Library
+
+You should not have to fragment your games across multiple launchers just because you wanted to support different communities.
+
+- **The Use Case:** You bought a farming simulator from your favorite _Cozy Games_ streamer's store, and the following week, you bought a shooter from your e-sports clan's FPS-focused store.
+- **The Result:** It does not matter which Outlet (store) you bought them from. Every game you purchase within the Manifold ecosystem goes straight to your **single, centralized library**. One login gives you full access to all your games and saved progress in one place.
 
 ---
 
