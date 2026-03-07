@@ -31,6 +31,8 @@ A player can buy a game on one Outlet and download it on another — without los
 
 Manifold is an ecosystem designed to connect those who create, those who sell, and those who play. Here is how the infrastructure works for each party:
 
+<img width="1080" height="810" alt="Manifold - Diagram" src="https://github.com/user-attachments/assets/91c30ea2-eeed-4d52-a130-97f7fb809ae4" />
+
 ### 1. For Creators and Communities: A New Revenue Stream and Engagement Hub
 
 Have you ever imagined having your own official game store? Most creators and communities have not even considered this possibility, but Manifold makes it a reality. It is your chance to create a new source of extra income and an exclusive space to interact with your fans. Instead of just recommending a game in your video or Discord server, you can sell it directly to your audience.

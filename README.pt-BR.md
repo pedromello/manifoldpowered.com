@@ -31,6 +31,8 @@ Um jogador pode comprar um jogo em uma Outlet e baixá-lo em outra — sem perde
 
 O Manifold é um ecossistema projetado para conectar quem cria, quem vende e quem joga. Veja como a infraestrutura funciona para cada parte:
 
+<img width="1080" height="810" alt="Manifold - Diagrama" src="https://github.com/user-attachments/assets/70a621af-710d-4a33-b4d1-a3f49d7b4c1a" />
+
 ### 1. Para Criadores e Comunidades: Uma Nova Fonte de Renda e Engajamento
 
 Você já imaginou ter a sua própria loja oficial de jogos? A maioria dos criadores e comunidades nem cogita essa possibilidade, mas o Manifold transforma isso em realidade. É a sua chance de criar uma nova fonte de renda extra e um espaço exclusivo de interação com seus fãs. Em vez de apenas indicar um jogo no seu vídeo ou servidor do Discord, você pode vendê-lo diretamente para a sua audiência.
