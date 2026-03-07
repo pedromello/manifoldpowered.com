@@ -7,6 +7,11 @@ export default function Home() {
           The Shared Infrastructure for the Next Generation of Game Stores.
         </h2>
 
+        <p className="status-warning" role="alert">
+          Project status: pre-release. Manifold is in active development and no
+          production-ready product is available yet.
+        </p>
+
         <p className="intro">
           Manifold is an open-source infrastructure that allows
           anyone—communities, streamers, and curators—to launch their own
@@ -14,54 +19,100 @@ export default function Home() {
         </p>
 
         <div className="text">
-          <p>
-            Game development has been democratized. Distribution hasn&apos;t.
-            Engines, assets, and learning resources are now accessible to
-            everyone. Yet, when it comes to selling, the industry still relies
-            on centralized monopolies.
-          </p>
-
-          <p>
-            Manifold changes this. We are building a modular distribution layer.
-            We treat the &quot;store backend&quot; as shared infrastructure,
-            allowing multiple independent storefronts to exist, grow, and
-            connect without building everything from scratch.
-          </p>
-
-          <div className="section">
-            <h2 className="section-header">
-              1. For Developers: Reach Niche Markets
-            </h2>
+          <div className="language-block">
+            <h2 className="section-header">How Manifold Works in Practice</h2>
             <p>
-              Stop relying on a single algorithm to find your audience. Upload
-              your game to the Manifold network once, and make it available to
-              hundreds of niche stores (Outlets) curated by people who actually
-              understand your genre.
+              Manifold is an ecosystem designed to connect those who create,
+              those who sell, and those who play. Here is how the infrastructure
+              works for each party:
             </p>
-          </div>
 
-          <div className="section">
-            <h2 className="section-header">
-              2. For Curators & Communities: Build Your Outlet
-            </h2>
-            <p>
-              Turn your community into a storefront. Whether you are a streamer,
-              a clan, or a genre enthusiast, you can launch a branded game
-              store. You curate the games; we handle the heavy lifting (hosting,
-              payments, and accounts).
-            </p>
-          </div>
+            <div className="section">
+              <h3 className="section-subheader">
+                1. For Creators and Communities: A New Revenue Stream and
+                Engagement Hub
+              </h3>
+              <p>
+                Have you ever imagined having your own official game store? Most
+                creators and communities haven&apos;t even considered this
+                possibility, but Manifold makes it a reality. It&apos;s your
+                chance to create a new source of extra income and an exclusive
+                space to interact with your fans. Instead of just recommending a
+                game in your video or Discord server, you can sell it directly
+                to your audience.
+              </p>
+              <ul>
+                <li>
+                  <strong>The Use Case:</strong> Imagine you are a content
+                  creator focused on <em>Cozy Games</em>. You can use Manifold
+                  to open your own official storefront. You handpick which games
+                  from our ecosystem you want to sell to your audience.
+                </li>
+                <li>
+                  <strong>The Result:</strong> Your store will only feature
+                  farming sims, puzzles, and relaxing narratives. No horror or
+                  violent games will ever appear on your storefront. You
+                  monetize your influence by earning a share from the games your
+                  community would buy anyway, while we handle all the invisible
+                  technical infrastructure.
+                </li>
+              </ul>
+            </div>
 
-          <div className="section">
-            <h2 className="section-header">
-              3. For Players: One Unified Library
-            </h2>
-            <p>
-              Freedom of choice without fragmentation. A game bought in a
-              &quot;Horror Niche Store&quot; and a game bought in a &quot;Cozy
-              RPG Store&quot; both live in the same Manifold player library. Buy
-              anywhere, play everywhere.
-            </p>
+            <div className="section">
+              <h3 className="section-subheader">
+                2. For Developers: One Upload, Hundreds of Storefronts
+              </h3>
+              <p>
+                Expanding your game&apos;s reach shouldn&apos;t mean managing
+                dozens of different distribution dashboards or fighting a single
+                algorithm.
+              </p>
+              <ul>
+                <li>
+                  <strong>The Use Case:</strong> You just finished your indie
+                  game and want maximum distribution. Instead of knocking on
+                  every door, you upload your game <strong>just once</strong> to
+                  the Manifold dashboard.
+                </li>
+                <li>
+                  <strong>The Result:</strong> Once approved, your game becomes
+                  available in our central catalog (the backend). From that
+                  moment on, any niche store in the network interested in your
+                  game&apos;s genre can add it to their storefront. Your game
+                  gains massive reach and connects with highly engaged audiences
+                  without any extra effort on your part.
+                </li>
+              </ul>
+            </div>
+
+            <div className="section">
+              <h3 className="section-subheader">
+                3. For Players: Freedom of Choice, Unified Library
+              </h3>
+              <p>
+                You shouldn&apos;t have to fragment your games across multiple
+                launchers just because you wanted to support different
+                communities.
+              </p>
+              <ul>
+                <li>
+                  <strong>The Use Case:</strong> You bought a farming simulator
+                  from your favorite <em>Cozy Games</em> streamer&apos;s store,
+                  and the following week, you bought a shooter from your
+                  e-sports clan&apos;s FPS-focused store.
+                </li>
+                <li>
+                  <strong>The Result:</strong> It doesn&apos;t matter which
+                  &quot;Outlet&quot; (store) you bought them from. Every game
+                  you purchase within the Manifold ecosystem goes straight to
+                  your
+                  <strong>single, centralized library</strong>. One login gives
+                  you full access to all your games and saved progress in one
+                  place.
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div className="closing">
@@ -142,8 +193,19 @@ export default function Home() {
           font-size: 1.25rem;
           line-height: 1.6;
           color: #444;
-          margin-bottom: 3rem;
+          margin-bottom: 2.5rem;
           font-weight: 500;
+        }
+
+        .status-warning {
+          margin-bottom: 1.25rem;
+          padding: 0.75rem 1rem;
+          border: 1px solid #ffb86b;
+          background: #fff4e5;
+          color: #7a4100;
+          border-radius: 8px;
+          font-weight: 600;
+          line-height: 1.5;
         }
 
         .text {
@@ -156,6 +218,14 @@ export default function Home() {
           margin-bottom: 1.5rem;
         }
 
+        .text ul {
+          margin: 0.75rem 0 0 1.25rem;
+        }
+
+        .text li {
+          margin-bottom: 0.8rem;
+        }
+
         .section {
           margin-top: 2.5rem;
           margin-bottom: 2.5rem;
@@ -166,6 +236,13 @@ export default function Home() {
           font-weight: 600;
           margin-bottom: 0.75rem;
           color: #000;
+        }
+
+        .section-subheader {
+          font-size: 1.1rem;
+          font-weight: 600;
+          margin-bottom: 0.75rem;
+          color: #111;
         }
 
         .closing {
