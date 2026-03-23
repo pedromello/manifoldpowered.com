@@ -16,7 +16,7 @@ const StatusPage = () => {
       <DatabaseStatus />
     </>
   );
-}
+};
 
 const UpdatedAt = () => {
   const { data, error, isLoading } = useSWR("/api/v1/status", fetchAPI, {
@@ -38,7 +38,7 @@ const UpdatedAt = () => {
       <p>Last updated at: {updatedAtText}</p>
     </>
   );
-}
+};
 
 const DatabaseStatus = () => {
   const { data, error, isLoading } = useSWR("/api/v1/status", fetchAPI, {
@@ -58,6 +58,6 @@ const DatabaseStatus = () => {
       )}
     </>
   );
-}
+};
 
 export default StatusPage;
