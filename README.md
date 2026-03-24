@@ -1,3 +1,5 @@
+<img src="./public/images/brand/manifold-logo.png" alt="Manifold" height="80">
+
 # Manifold
 
 🌍 **Language:** English | [Português (Brasil)](./README.pt-BR.md)
