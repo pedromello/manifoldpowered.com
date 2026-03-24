@@ -1,46 +1,58 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
-import { InternalServerError } from "infra/errors";
+import { InternalServerError, MethodNotAllowedError } from "infra/errors";
 import { NextApiRequest, NextApiResponse } from "next";
+import { createRouter } from "next-connect";
 
-async function status(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    const updatedAt = new Date().toISOString();
+const router = createRouter<NextApiRequest, NextApiResponse>();
+router.get(getHandler);
 
-    const dbVersionResult = await prisma.$queryRaw<{
-      server_version: string;
-    }>`SHOW server_version;`;
-    const dbVersion = dbVersionResult[0].server_version;
+const onNoMatchHandler = (req: NextApiRequest, res: NextApiResponse) => {
+  const publicErrorObject = new MethodNotAllowedError();
+  res.status(publicErrorObject.statusCode).json(publicErrorObject);
+};
 
-    const dbMaxConnectionsResult = await prisma.$queryRaw<{
-      max_connections: string;
-    }>`SHOW max_connections;`;
-    const dbMaxConnections = dbMaxConnectionsResult[0].max_connections;
-
-    const databaseName = process.env.POSTGRES_DB;
-
-    const dbOpenConnectionsResult = await prisma.$queryRaw(
-      Prisma.sql`SELECT COUNT(*) as count FROM pg_stat_activity WHERE datname = ${databaseName};`,
-    );
-    const dbOpenConnections = Number(dbOpenConnectionsResult[0].count);
-
-    res.status(200).json({
-      updated_at: updatedAt,
-      dependencies: {
-        database: {
-          version: dbVersion,
-          max_connections: parseInt(dbMaxConnections),
-          open_connections: dbOpenConnections,
-        },
-      },
-    });
-  } catch (error) {
-    const publicErrorObject = new InternalServerError({
-      cause: error,
-    });
-    console.error(publicErrorObject);
-    res.status(publicErrorObject.statusCode).json(publicErrorObject);
-  }
+const onErrorHandler = (error: Error, req: NextApiRequest, res: NextApiResponse) => {
+  const publicErrorObject = new InternalServerError({
+    cause: error,
+  });
+  console.error(publicErrorObject);
+  res.status(publicErrorObject.statusCode).json(publicErrorObject);
 }
 
-export default status;
+export default router.handler({
+  onNoMatch: onNoMatchHandler,
+  onError: onErrorHandler
+});
+
+async function getHandler(req: NextApiRequest, res: NextApiResponse) {
+  const updatedAt = new Date().toISOString();
+
+  const dbVersionResult = await prisma.$queryRaw<{
+    server_version: string;
+  }>`SHOW server_version;`;
+  const dbVersion = dbVersionResult[0].server_version;
+
+  const dbMaxConnectionsResult = await prisma.$queryRaw<{
+    max_connections: string;
+  }>`SHOW max_connections;`;
+  const dbMaxConnections = dbMaxConnectionsResult[0].max_connections;
+
+  const databaseName = process.env.POSTGRES_DB;
+
+  const dbOpenConnectionsResult = await prisma.$queryRaw(
+    Prisma.sql`SELECT COUNT(*) as count FROM pg_stat_activity WHERE datname = ${databaseName};`,
+  );
+  const dbOpenConnections = Number(dbOpenConnectionsResult[0].count);
+
+  res.status(200).json({
+    updated_at: updatedAt,
+    dependencies: {
+      database: {
+        version: dbVersion,
+        max_connections: parseInt(dbMaxConnections),
+        open_connections: dbOpenConnections,
+      },
+    },
+  });
+}
