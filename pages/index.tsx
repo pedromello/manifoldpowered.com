@@ -9,10 +9,10 @@ export default function Home() {
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
       <main className="content">
-        <img 
-          src="/images/brand/manifold-logo.png" 
-          alt="Manifold Logo" 
-          className="logo" 
+        <img
+          src="/images/brand/manifold-logo.png"
+          alt="Manifold Logo"
+          className="logo"
         />
         <h1 className="title">Manifold</h1>
         <h2 className="subtitle">

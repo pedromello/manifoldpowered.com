@@ -24,7 +24,9 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const databaseName = process.env.POSTGRES_DB;
 
-  const dbOpenConnectionsResult = await queryRaw<{ count: string }>(Prisma.sql`SELECT COUNT(*) as count FROM pg_stat_activity WHERE datname = ${databaseName};`);
+  const dbOpenConnectionsResult = await queryRaw<{ count: string }>(
+    Prisma.sql`SELECT COUNT(*) as count FROM pg_stat_activity WHERE datname = ${databaseName};`,
+  );
   const dbOpenConnections = Number(dbOpenConnectionsResult[0].count);
 
   res.status(200).json({

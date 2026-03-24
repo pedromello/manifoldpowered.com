@@ -26,7 +26,10 @@ const queryRaw = async <T>(query: Prisma.Sql) => {
   try {
     return await prisma.$queryRaw<T>(query);
   } catch (error) {
-    throw new ServiceError({ message: "Database connection or query failed", cause: error });
+    throw new ServiceError({
+      message: "Database connection or query failed",
+      cause: error,
+    });
   }
 };
 
