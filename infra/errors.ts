@@ -7,7 +7,7 @@ export class InternalServerError extends Error {
     statusCode,
     action,
   }: {
-    cause: any;
+    cause: unknown;
     statusCode?: number;
     action?: string;
   }) {
@@ -52,7 +52,7 @@ export class ServiceError extends Error {
   public statusCode: number;
   public action: string;
 
-  constructor({ message, cause }: { message?: string; cause?: any }) {
+  constructor({ message, cause }: { message?: string; cause?: unknown }) {
     super(message || "Service unavailable", { cause });
     this.name = "ServiceError";
     this.statusCode = 503;

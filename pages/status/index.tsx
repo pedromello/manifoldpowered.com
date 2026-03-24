@@ -19,7 +19,7 @@ const StatusPage = () => {
 };
 
 const UpdatedAt = () => {
-  const { data, error, isLoading } = useSWR("/api/v1/status", fetchAPI, {
+  const { data, error } = useSWR("/api/v1/status", fetchAPI, {
     refreshInterval: 2000,
   });
 
