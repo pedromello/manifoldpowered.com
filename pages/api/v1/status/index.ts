@@ -1,29 +1,13 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
-import { InternalServerError, MethodNotAllowedError } from "infra/errors";
 import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
+import controller from "infra/controller";
 
 const router = createRouter<NextApiRequest, NextApiResponse>();
 router.get(getHandler);
 
-const onNoMatchHandler = (req: NextApiRequest, res: NextApiResponse) => {
-  const publicErrorObject = new MethodNotAllowedError();
-  res.status(publicErrorObject.statusCode).json(publicErrorObject);
-};
-
-const onErrorHandler = (error: Error, req: NextApiRequest, res: NextApiResponse) => {
-  const publicErrorObject = new InternalServerError({
-    cause: error,
-  });
-  console.error(publicErrorObject);
-  res.status(publicErrorObject.statusCode).json(publicErrorObject);
-}
-
-export default router.handler({
-  onNoMatch: onNoMatchHandler,
-  onError: onErrorHandler
-});
+export default router.handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const updatedAt = new Date().toISOString();
