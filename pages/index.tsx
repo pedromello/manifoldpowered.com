@@ -1,9 +1,19 @@
+import Head from "next/head";
 import Image from "next/image";
 
 export default function Home() {
   return (
     <div className="container">
+      <Head>
+        <title>Manifold</title>
+        <link rel="icon" href="/images/brand/manifold-ico.ico" />
+      </Head>
       <main className="content">
+        <img
+          src="/images/brand/manifold-logo.png"
+          alt="Manifold Logo"
+          className="logo"
+        />
         <h1 className="title">Manifold</h1>
         <h2 className="subtitle">
           The Shared Infrastructure for the Next Generation of Game Stores.
@@ -181,6 +191,14 @@ export default function Home() {
         .content {
           max-width: 680px;
           width: 100%;
+        }
+
+        .logo {
+          display: block;
+          max-width: 100%;
+          height: auto;
+          max-height: 80px;
+          margin-bottom: 1.5rem;
         }
 
         .title {
