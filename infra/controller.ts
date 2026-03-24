@@ -6,9 +6,10 @@ const onNoMatchHandler = (req: NextApiRequest, res: NextApiResponse) => {
     res.status(publicErrorObject.statusCode).json(publicErrorObject);
 };
 
-const onErrorHandler = (error: Error, req: NextApiRequest, res: NextApiResponse) => {
+const onErrorHandler = (error: Error & { statusCode?: number }, req: NextApiRequest, res: NextApiResponse) => {
     const publicErrorObject = new InternalServerError({
         cause: error,
+        statusCode: error.statusCode
     });
     console.error(publicErrorObject);
     res.status(publicErrorObject.statusCode).json(publicErrorObject);

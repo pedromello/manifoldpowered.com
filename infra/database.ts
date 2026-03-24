@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "generated/prisma/client";
+import { Prisma, PrismaClient } from "generated/prisma/client";
+import { ServiceError } from "./errors";
 
 let connectionString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
 
@@ -21,4 +22,12 @@ const clearDatabase = async () => {
   await prisma.$executeRaw`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`;
 };
 
-export { prisma, clearDatabase };
+const queryRaw = async <T>(query: Prisma.Sql) => {
+  try {
+    return await prisma.$queryRaw<T>(query);
+  } catch (error) {
+    throw new ServiceError({ message: "Database connection or query failed", cause: error });
+  }
+};
+
+export { prisma, clearDatabase, queryRaw };
