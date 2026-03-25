@@ -2,21 +2,21 @@ import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function Home() {
+export default function Developers() {
   return (
     <div className="liquid-container">
       <Head>
-        <title>Manifold | Open-Source Game Distribution for Communities</title>
+        <title>Manifold for Developers | Multiply Your Organic Reach</title>
         <meta
           name="description"
-          content="Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries."
+          content="Publish your game once and let thousands of passionate creators champion it. Manifold connects your game directly to communities."
         />
 
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Manifold | Own Your Game Store" />
+        <meta property="og:title" content="Manifold for Developers" />
         <meta
           property="og:description"
-          content="We don't need another corporate storefront. Launch your community's official game distribution platform today."
+          content="Distribute your game through communities, not corporate algorithms."
         />
         <meta name="twitter:card" content="summary_large_image" />
 
@@ -33,15 +33,15 @@ export default function Home() {
 
           <div className="badge">
             <span className="dot"></span>
-            Project status: open-source pre-release
+            Open-source infrastructure
           </div>
 
           <div className="hero-content">
             <h1 className="massive-title">MANIFOLD</h1>
             <p className="hero-subtitle">
-              Empowering communities to own their game distribution. Start your
-              own storefront, curate games for your audience, and earn revenue
-              without depending on corporate intermediaries.
+              Launch once, distribute everywhere. Multiply your organic reach
+              across thousands of community-driven storefronts without paying
+              for algorithm visibility.
             </p>
           </div>
 
@@ -59,11 +59,12 @@ export default function Home() {
 
         <section className="intro-layer">
           <h2 className="manifesto">
-            We don&apos;t need another corporate storefront. <br />
+            Stop relying on a single top-heavy storefront.
+            <br />
             <strong>
-              Manifold gives the gaming community the power to distribute games
-              on their own terms. A fully open-source infrastructure for
-              creators to launch verified stores in minutes.
+              When you publish your game on Manifold, you plug into an expanding
+              network of passionate streamers, curators, and communities ready
+              to sell your game for you.
             </strong>
           </h2>
         </section>
@@ -71,44 +72,45 @@ export default function Home() {
         <section className="features-layer">
           <div className="feature-card offset-left">
             <div className="feature-glow"></div>
-            <h3 className="feature-title">Your Community, Your Store</h3>
+            <h3 className="feature-title">Audience-First Discovery</h3>
             <p className="feature-desc">
-              Stop sending your audience away to generic algorithms. With
-              Manifold, you open a verified, branded storefront in minutes.
-              Handpick the catalog that fits your community&apos;s vibe
-              perfectly, whether it&apos;s indie cozy games or hardcore
-              competitive shooters.
+              Instead of fighting thousands of other titles on a single front
+              page, your game is placed directly into highly targeted, niche
+              storefronts. From cozy RPG curators to hardcore FPS streamers, the
+              right audience discovers your game organically.
             </p>
           </div>
 
           <div className="feature-card offset-right">
             <div className="feature-glow"></div>
-            <h3 className="feature-title">Monetize Your Influence</h3>
+            <h3 className="feature-title">Fair Revenue, No Monopolies</h3>
             <p className="feature-desc">
-              When your fans buy a game they discovered through your streams or
-              reviews, you earn a direct revenue share. We provide the
-              open-source infrastructure to make it secure, you provide the
-              curation and the genuine recommendation.
+              We provide the open-source infrastructure; you keep the
+              lion&apos;s share. When a creator sells your game, the revenue is
+              split transparently between you, the community that championed
+              your title, and a small Manifold fee. No massive corporate cuts
+              for &quot;platform hosting&quot;.
             </p>
           </div>
 
           <div className="feature-card offset-center">
             <div className="feature-glow"></div>
-            <h3 className="feature-title">Frictionless Infrastructure</h3>
+            <h3 className="feature-title">Zero Extra Integration</h3>
             <p className="feature-desc">
-              You don&apos;t need to be a developer to sell games. Manifold
-              handles the payment processing integrations, secure game
-              downloads, and heavy lifting. You just build your community and
-              share the games you love.
+              You don&apos;t need a custom SDK for every creator store. Upload
+              your build once, and it instantly populates the Manifold registry,
+              available for any verified creator to add to their library to
+              sell.
             </p>
           </div>
         </section>
 
         <section className="cta-layer">
-          <h2 className="cta-heading">Reclaim Distribution</h2>
+          <h2 className="cta-heading">Ready to Plug In?</h2>
           <p className="cta-text">
-            Manifold is an open framework currently in active development. Be
-            among the first to break the mold and reshape how games are sold.
+            Manifold is built on open protocols. Reach out to get access to the
+            developer dashboard preview and help shape the future of game
+            distribution.
           </p>
 
           <div className="action-buttons">
@@ -127,14 +129,14 @@ export default function Home() {
               >
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
-              View on GitHub
+              View Open Source
             </a>
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLScYuPMblNZLzKLLnZ6enRJ0n3_Jqvx7V9veNiesVlE4QJo3eg/viewform?usp=dialog"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-liquid primary"
-              aria-label="Follow Development"
+              aria-label="Join Developer Waitlist"
             >
               <svg
                 width="24"
@@ -144,21 +146,16 @@ export default function Home() {
               >
                 <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
               </svg>
-              Early Access
+              Developer Waitlist
             </a>
           </div>
 
           <div className="audience-branching">
             <div className="branch-card">
-              <h4>Are you a Game Developer?</h4>
-              <p>
-                Learn how Manifold multiplies your organic reach across the
-                world by connecting you with creators.
-              </p>
-              <Link href="/developers" legacyBehavior>
-                <a className="branch-link">
-                  Discover Developer Benefits &rarr;
-                </a>
+              <h4>Are you a Creator?</h4>
+              <p>Looking to launch a curated game store for your community?</p>
+              <Link href="/" legacyBehavior>
+                <a className="branch-link">Discover Creator Benefits &rarr;</a>
               </Link>
             </div>
             <div className="branch-card">
@@ -208,7 +205,7 @@ export default function Home() {
           z-index: 1;
           max-width: 1400px;
           margin: 0 auto;
-          padding: 4rem 2rem;
+          padding: 2rem 2rem 4rem 2rem;
           display: flex;
           flex-direction: column;
           gap: 12vh;
@@ -280,7 +277,7 @@ export default function Home() {
         }
 
         .massive-title {
-          font-size: clamp(4rem, 15vw, 15rem);
+          font-size: clamp(3.5rem, 12vw, 15rem);
           font-weight: 800;
           line-height: 0.85;
           letter-spacing: -0.05em;
@@ -458,7 +455,6 @@ export default function Home() {
           line-height: 1.6;
         }
 
-        /* Action Buttons */
         .action-buttons {
           display: flex;
           justify-content: center;
@@ -498,7 +494,6 @@ export default function Home() {
           box-shadow: 0 10px 40px rgba(53, 34, 89, 0.3);
         }
 
-        /* Audience Branching Structure */
         .audience-branching {
           display: flex;
           justify-content: center;

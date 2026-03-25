@@ -13,3 +13,5 @@ build
 /generated/prisma
 
 .env
+
+.agent
