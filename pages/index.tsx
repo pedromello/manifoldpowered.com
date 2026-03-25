@@ -16,33 +16,35 @@ export default function Home() {
         />
         <h1 className="title">Manifold</h1>
         <h2 className="subtitle">
-          The Shared Infrastructure for the Next Generation of Game Stores.
+          The foundational platform for the next generation of digital game
+          stores.
         </h2>
 
         <p className="status-warning" role="alert">
-          Project status: pre-release. Manifold is in active development and no
-          production-ready product is available yet.
+          Project status: pre-release. Manifold is in active development and
+          does not yet have a final version open to the public.
         </p>
 
         <p className="intro">
-          Manifold is an open-source infrastructure that allows
-          anyone—communities, streamers, and curators—to launch their own
-          digital game store. Developers upload once; Outlets sell everywhere.
+          Manifold allows anyone (communities, streamers, and curators) to
+          create their own game store (called Outlets) simply and directly. Game
+          Developers publish their games once and multiply their reach through
+          endless storefronts.
         </p>
 
         <div className="text">
           <div className="language-block">
-            <h2 className="section-header">How Manifold Works in Practice</h2>
+            <h2 className="section-header">How Manifold Changes the Game</h2>
             <p>
-              Manifold is an ecosystem designed to connect those who create,
-              those who sell, and those who play. Here is how the infrastructure
-              works for each party:
+              We connect those who develop, those who sell, and those who play
+              in a single, integrated ecosystem. Here are the benefits for
+              everyone:
             </p>
 
             <div className="diagram-wrapper">
               <Image
                 src="/images/manifold-diagram-hd.png"
-                alt="How Manifold Works"
+                alt="Manifold Diagram"
                 width={1920}
                 height={1440}
                 className="diagram-image"
@@ -51,87 +53,79 @@ export default function Home() {
 
             <div className="section">
               <h3 className="section-subheader">
-                1. For Creators and Communities: A New Revenue Stream and
-                Engagement Hub
+                1. For Content Creators: A New Revenue Stream
               </h3>
               <p>
-                Have you ever imagined having your own official game store? Most
-                creators and communities haven&apos;t even considered this
-                possibility, but Manifold makes it a reality. It&apos;s your
-                chance to create a new source of extra income and an exclusive
-                space to interact with your fans. Instead of just recommending a
-                game in your video or Discord server, you can sell it directly
-                to your audience.
+                Have you ever imagined having your own official game store?
+                Manifold makes it a reality. It&apos;s your chance to create a
+                new revenue stream and an authentic space for your audience.
+                Instead of just recommending a game, you can sell it directly to
+                your fans.
               </p>
               <ul>
                 <li>
-                  <strong>The Use Case:</strong> Imagine you are a content
-                  creator focused on <em>Cozy Games</em>. You can use Manifold
-                  to open your own official storefront. You handpick which games
-                  from our ecosystem you want to sell to your audience.
+                  <strong>The Scenario:</strong> Imagine you focus on{" "}
+                  <em>cozy games</em>. You open your own storefront on Manifold,
+                  handpicking which titles from our catalog best match your
+                  viewers.
                 </li>
                 <li>
-                  <strong>The Result:</strong> Your store will only feature
-                  farming sims, puzzles, and relaxing narratives. No horror or
-                  violent games will ever appear on your storefront. You
-                  monetize your influence by earning a share from the games your
-                  community would buy anyway, while we handle all the invisible
-                  technical infrastructure.
+                  <strong>The Benefit:</strong> Your store will only feature the
+                  curation your community loves. You monetize your influence by
+                  earning a share of the sales, while we handle all the
+                  security, payments, and game delivery.
                 </li>
               </ul>
             </div>
 
             <div className="section">
               <h3 className="section-subheader">
-                2. For Developers: One Upload, Hundreds of Storefronts
+                2. For Developers: More Reach, Less Effort
               </h3>
               <p>
-                Expanding your game&apos;s reach shouldn&apos;t mean managing
-                dozens of different distribution dashboards or fighting a single
-                algorithm.
+                Expanding your game&apos;s audience shouldn&apos;t mean managing
+                dozens of different platforms or begging for visibility against
+                a single algorithm.
               </p>
               <ul>
                 <li>
-                  <strong>The Use Case:</strong> You just finished your indie
-                  game and want maximum distribution. Instead of knocking on
-                  every door, you upload your game <strong>just once</strong> to
-                  the Manifold dashboard.
+                  <strong>The Scenario:</strong> You&apos;ve launched your indie
+                  game and want maximum conversion. Instead of knocking on every
+                  distributor&apos;s door, you publish your game{" "}
+                  <strong>just once</strong> on Manifold.
                 </li>
                 <li>
-                  <strong>The Result:</strong> Once approved, your game becomes
-                  available in our central catalog (the backend). From that
-                  moment on, any niche store in the network interested in your
-                  game&apos;s genre can add it to their storefront. Your game
-                  gains massive reach and connects with highly engaged audiences
-                  without any extra effort on your part.
+                  <strong>The Benefit:</strong> Once approved, your game becomes
+                  available to thousands of niche stores. Segmented storefronts
+                  that love your game&apos;s genre can start selling it
+                  immediately. You find engaged fans and generate organic sales
+                  without any extra work.
                 </li>
               </ul>
             </div>
 
             <div className="section">
               <h3 className="section-subheader">
-                3. For Players: Freedom of Choice, Unified Library
+                3. For Players: Your Games in One Place
               </h3>
               <p>
-                You shouldn&apos;t have to fragment your games across multiple
-                launchers just because you wanted to support different
-                communities.
+                You shouldn&apos;t be forced to install dozens of different
+                launchers just because you decided to support different
+                creators.
               </p>
               <ul>
                 <li>
-                  <strong>The Use Case:</strong> You bought a farming simulator
-                  from your favorite <em>Cozy Games</em> streamer&apos;s store,
-                  and the following week, you bought a shooter from your
-                  e-sports clan&apos;s FPS-focused store.
+                  <strong>The Scenario:</strong> You bought a farming game from
+                  your favorite streamer&apos;s store. A week later, you bought
+                  an FPS from your e-sports team&apos;s store.
                 </li>
                 <li>
-                  <strong>The Result:</strong> It doesn&apos;t matter which
-                  &quot;Outlet&quot; (store) you bought them from. Every game
-                  you purchase within the Manifold ecosystem goes straight to
-                  your
-                  <strong>single, centralized library</strong>. One login gives
-                  you full access to all your games and saved progress in one
-                  place.
+                  <strong>The Benefit:</strong> It doesn&apos;t matter which
+                  partner you bought from. All games acquired in the Manifold
+                  ecosystem are available in your{" "}
+                  <strong>single, centralized library</strong>. With just one
+                  login, you download your games and seamlessly sync your
+                  progress.
                 </li>
               </ul>
             </div>
@@ -139,9 +133,9 @@ export default function Home() {
 
           <div className="closing">
             <p>
-              We are at the beginning. Manifold is currently in active
-              development, built in public by developers who believe creating a
-              game should be harder than distributing it.
+              We are just getting started. Manifold is being built in public by
+              people who believe that creating an amazing game should be harder
+              than distributing it.
             </p>
             <p className="spacing-top">
               We are looking for early adopters, contributors, and dreamers.
