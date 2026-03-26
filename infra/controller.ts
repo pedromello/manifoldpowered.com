@@ -1,5 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { InternalServerError, MethodNotAllowedError } from "./errors";
+import {
+  InternalServerError,
+  MethodNotAllowedError,
+  ValidationError,
+} from "./errors";
 
 const onNoMatchHandler = (req: NextApiRequest, res: NextApiResponse) => {
   const publicErrorObject = new MethodNotAllowedError();
@@ -11,6 +15,10 @@ const onErrorHandler = (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  if (error instanceof ValidationError) {
+    return res.status(error.statusCode).json(error);
+  }
+
   const publicErrorObject = new InternalServerError({
     cause: error,
     statusCode: error.statusCode,

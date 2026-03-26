@@ -17,3 +17,23 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id String @id @default(uuid())
+  // For reference, github limits size to 39 characters
+  username String @unique @db.VarChar(30)
+
+  // Why 234 characters? https://stackoverflow.com/a/1199238
+  email String @unique @db.VarChar(234)
+
+  // Why 72 characters? https://security.stackexchange.com/q/39849
+  password String @db.VarChar(72)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("users")
+
+  @@index([username])
+  @@index([email])
+}
