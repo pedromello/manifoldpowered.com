@@ -147,7 +147,7 @@ This project lives at:
 
 ## 📄 License
 
-TBD
+MIT
 
 ---
 

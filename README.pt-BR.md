@@ -147,7 +147,7 @@ Este projeto está disponível em:
 
 ## 📄 Licença
 
-A definir.
+MIT
 
 ---
 
