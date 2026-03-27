@@ -25,6 +25,7 @@
     "services:wait:database": "node infra/scripts/wait-for-postgres.js",
     "migrate:deploy": "npx prisma migrate deploy",
     "migrate:dev": "npx prisma migrate dev",
+    "migrate:create": "npx prisma migrate dev --create-only",
     "prisma:generate": "npx prisma generate",
     "build": "next build",
     "lint:prettier:check": "prettier --check .",
