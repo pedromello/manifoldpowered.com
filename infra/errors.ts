@@ -97,3 +97,32 @@ export class ValidationError extends Error {
     };
   }
 }
+
+export class NotFoundError extends Error {
+  public statusCode: number;
+  public action: string;
+
+  constructor({
+    message,
+    cause,
+    action,
+  }: {
+    message?: string;
+    cause?: unknown;
+    action?: string;
+  }) {
+    super(message || "Not found", { cause });
+    this.name = "NotFoundError";
+    this.statusCode = 404;
+    this.action = action || "Try another identifier";
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}
