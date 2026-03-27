@@ -9,27 +9,32 @@ beforeAll(async () => {
 describe("GET /api/v1/users/[username]", () => {
   describe("Anonymous user", () => {
     test("With exact case match", async () => {
-
       // Create a user
-      const createUserResponse = await fetch("http://localhost:3000/api/v1/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const createUserResponse = await fetch(
+        "http://localhost:3000/api/v1/users",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "same-case",
+            email: "same-case@pedro.tec.br",
+            password: "password",
+          }),
         },
-        body: JSON.stringify({
-          username: "same-case",
-          email: "same-case@pedro.tec.br",
-          password: "password",
-        }),
-      });
+      );
       expect(createUserResponse.status).toBe(201);
 
-      const response = await fetch("http://localhost:3000/api/v1/users/same-case", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
+      const response = await fetch(
+        "http://localhost:3000/api/v1/users/same-case",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
       expect(response.status).toBe(200);
 
       const responseBody = await response.json();
@@ -48,27 +53,32 @@ describe("GET /api/v1/users/[username]", () => {
     });
 
     test("With different case match", async () => {
-
       // Create a user
-      const createUserResponse = await fetch("http://localhost:3000/api/v1/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const createUserResponse = await fetch(
+        "http://localhost:3000/api/v1/users",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "Same-User",
+            email: "same-user@pedro.tec.br",
+            password: "password",
+          }),
         },
-        body: JSON.stringify({
-          username: "Same-User",
-          email: "same-user@pedro.tec.br",
-          password: "password",
-        }),
-      });
+      );
       expect(createUserResponse.status).toBe(201);
 
-      const response = await fetch("http://localhost:3000/api/v1/users/same-user", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
+      const response = await fetch(
+        "http://localhost:3000/api/v1/users/same-user",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
       expect(response.status).toBe(200);
 
       const responseBody = await response.json();
@@ -88,12 +98,15 @@ describe("GET /api/v1/users/[username]", () => {
     });
 
     test("With non-existent username", async () => {
-      const response = await fetch("http://localhost:3000/api/v1/users/non-existent", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        }
-      });
+      const response = await fetch(
+        "http://localhost:3000/api/v1/users/non-existent",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
       expect(response.status).toBe(404);
 
       const responseBody = await response.json();
