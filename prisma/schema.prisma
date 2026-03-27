@@ -5,15 +5,34 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-  engineType = "client"
-  runtime = "nodejs"
-  moduleFormat = "esm"
+  provider               = "prisma-client"
+  output                 = "../generated/prisma"
+  engineType             = "client"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
   generatedFileExtension = "ts"
-  importFileExtension = "ts"
+  importFileExtension    = "ts"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id       String @id @default(uuid())
+  // For reference, github limits size to 39 characters
+  username String @unique @db.VarChar(30)
+
+  // Why 234 characters? https://stackoverflow.com/a/1199238
+  email String @unique @db.VarChar(234)
+
+  // Why 60 characters? https://security.stackexchange.com/q/39849
+  password String @db.VarChar(60)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
 }

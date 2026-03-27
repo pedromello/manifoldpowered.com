@@ -22,6 +22,20 @@ const clearDatabase = async () => {
   await prisma.$executeRaw`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`;
 };
 
+const clearDatabaseRows = async () => {
+  const tables = await prisma.$queryRawUnsafe<Array<{ tablename: string }>>(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != '_prisma_migrations';`,
+  );
+
+  for (const table of tables) {
+    if (table.tablename) {
+      await prisma.$executeRawUnsafe(
+        `TRUNCATE TABLE "public"."${table.tablename}" CASCADE;`,
+      );
+    }
+  }
+};
+
 const queryRaw = async <T>(query: Prisma.Sql) => {
   try {
     return await prisma.$queryRaw<T>(query);
@@ -33,4 +47,4 @@ const queryRaw = async <T>(query: Prisma.Sql) => {
   }
 };
 
-export { prisma, clearDatabase, queryRaw };
+export { prisma, clearDatabase, clearDatabaseRows, queryRaw };

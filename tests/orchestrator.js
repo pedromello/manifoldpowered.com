@@ -21,9 +21,14 @@ const clearDatabase = async () => {
   await database.clearDatabase();
 };
 
+const clearDatabaseRows = async () => {
+  await database.clearDatabaseRows();
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
+  clearDatabaseRows,
 };
 
 export default orchestrator;
