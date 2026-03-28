@@ -1,4 +1,5 @@
 import { prisma } from "infra/database";
+import password from "models/password";
 import { NotFoundError, ValidationError } from "infra/errors";
 
 interface CreateUserDto {
@@ -10,6 +11,7 @@ interface CreateUserDto {
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
   await validateUniqueUsername(createUserDto.username);
+  await hashPasswordInObject(createUserDto);
 
   return prisma.user.create({
     data: {
@@ -52,6 +54,13 @@ const validateUniqueUsername = async (username: string) => {
   }
 
   return true;
+};
+
+const hashPasswordInObject = async (userDto: CreateUserDto) => {
+  const hashedPassword = await password.hash(userDto.password);
+  userDto.password = hashedPassword;
+
+  return userDto;
 };
 
 const findOneByUsername = async (username: string) => {
