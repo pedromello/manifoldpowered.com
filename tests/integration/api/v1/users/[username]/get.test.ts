@@ -9,22 +9,9 @@ beforeAll(async () => {
 describe("GET /api/v1/users/[username]", () => {
   describe("Anonymous user", () => {
     test("With exact case match", async () => {
-      // Create a user
-      const createUserResponse = await fetch(
-        "http://localhost:3000/api/v1/users",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: "same-case",
-            email: "same-case@pedro.tec.br",
-            password: "password",
-          }),
-        },
-      );
-      expect(createUserResponse.status).toBe(201);
+      const user = await orchestrator.createUser({
+        username: "same-case",
+      });
 
       const response = await fetch(
         "http://localhost:3000/api/v1/users/same-case",
@@ -41,8 +28,8 @@ describe("GET /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: "same-case",
-        email: "same-case@pedro.tec.br",
-        password: "password",
+        email: user.email,
+        password: responseBody.password,
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
@@ -53,25 +40,12 @@ describe("GET /api/v1/users/[username]", () => {
     });
 
     test("With different case match", async () => {
-      // Create a user
-      const createUserResponse = await fetch(
-        "http://localhost:3000/api/v1/users",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: "Same-User",
-            email: "same-user@pedro.tec.br",
-            password: "password",
-          }),
-        },
-      );
-      expect(createUserResponse.status).toBe(201);
+      const user = await orchestrator.createUser({
+        username: "Same-User",
+      });
 
       const response = await fetch(
-        "http://localhost:3000/api/v1/users/same-user",
+        "http://localhost:3000/api/v1/users/saMe-usEr",
         {
           method: "GET",
           headers: {
@@ -86,8 +60,8 @@ describe("GET /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: "same-user",
-        email: "same-user@pedro.tec.br",
-        password: "password",
+        email: user.email,
+        password: responseBody.password,
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });

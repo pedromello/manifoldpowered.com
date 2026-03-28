@@ -1,5 +1,7 @@
 import retry from "async-retry";
 import * as database from "infra/database";
+import user from "models/user";
+import { faker } from "@faker-js/faker";
 
 const waitForAllServices = async () => {
   await waitForWebServer();
@@ -25,10 +27,20 @@ const clearDatabaseRows = async () => {
   await database.clearDatabaseRows();
 };
 
+const createUser = async (userDto = {}) => {
+  return user.create({
+    username:
+      userDto.username || faker.internet.username().replace(/[_.-]/g, ""),
+    email: userDto.email || faker.internet.email(),
+    password: userDto.password || faker.internet.password(),
+  });
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
   clearDatabaseRows,
+  createUser,
 };
 
 export default orchestrator;
