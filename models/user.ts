@@ -8,6 +8,12 @@ interface CreateUserDto {
   password: string;
 }
 
+interface UpdateUserDto {
+  username?: string;
+  email?: string;
+  password?: string;
+}
+
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
   await validateUniqueUsername(createUserDto.username);
@@ -56,7 +62,7 @@ const validateUniqueUsername = async (username: string) => {
   return true;
 };
 
-const hashPasswordInObject = async (userDto: CreateUserDto) => {
+const hashPasswordInObject = async (userDto: CreateUserDto | UpdateUserDto) => {
   const hashedPassword = await password.hash(userDto.password);
   userDto.password = hashedPassword;
 
@@ -80,9 +86,43 @@ const findOneByUsername = async (username: string) => {
   return user;
 };
 
+const updateByUsername = async (
+  username: string,
+  userUpdateDto: UpdateUserDto,
+) => {
+  if (userUpdateDto.username) {
+    await validateUniqueUsername(userUpdateDto.username);
+  }
+
+  if (userUpdateDto.email) {
+    await validateUniqueEmail(userUpdateDto.email);
+  }
+
+  if (userUpdateDto.password) {
+    await hashPasswordInObject(userUpdateDto);
+  }
+
+  const user = await findOneByUsername(username);
+
+  return update(user.id, userUpdateDto);
+};
+
+const update = async (id: string, userUpdateDto: UpdateUserDto) => {
+  const updatedUser = await prisma.user.update({
+    where: {
+      id,
+    },
+    data: userUpdateDto,
+  });
+
+  return updatedUser;
+};
+
 const user = {
   create,
   findOneByUsername,
+  updateByUsername,
+  update,
 };
 
 export default user;
