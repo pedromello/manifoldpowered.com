@@ -36,3 +36,17 @@ model User {
   @@index([email])
   @@map("users")
 }
+
+model Session {
+  id         String   @id @default(uuid())
+  token      String   @unique @db.VarChar(96)
+  // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
+  user_id    String
+  expires_at DateTime
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("sessions")
+}
