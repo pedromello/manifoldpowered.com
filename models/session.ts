@@ -50,8 +50,21 @@ async function findOneValidByToken(token: string) {
     return foundSession;
 }
 
+async function expireById(sessionId: string) {
+    const oneYearInMilliseconds = 1000 * 60 * 60 * 24 * 365;
+    const expiredSession = await prisma.session.update({
+        where: {
+            id: sessionId,
+        },
+        data: {
+            expires_at: new Date(Date.now() - oneYearInMilliseconds),
+        },
+    });
+    return expiredSession;
+}
 
 
-const session = { create, renew, findOneValidByToken, EXPIRATION_IN_MILLISECONDS };
+
+const session = { create, renew, findOneValidByToken, expireById, EXPIRATION_IN_MILLISECONDS };
 
 export default session;
