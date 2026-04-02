@@ -4,7 +4,6 @@ import controller from "infra/controller";
 import authentication from "models/authentication";
 import session from "models/session";
 
-
 const router = createRouter<NextApiRequest, NextApiResponse>();
 router.post(postHandler);
 router.delete(deleteHandler);

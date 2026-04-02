@@ -4,20 +4,20 @@ import session from "models/session";
 import setCookieParser from "set-cookie-parser";
 
 const DO_NOT_FAKE_TIMERS_FOR_PRISMA: FakeableAPI[] = [
-  'hrtime',
-  'nextTick',
-  'performance',
-  'queueMicrotask',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'requestIdleCallback',
-  'cancelIdleCallback',
-  'setImmediate',
-  'clearImmediate',
-  'setInterval',
-  'clearInterval',
-  'setTimeout',
-  'clearTimeout',
+  "hrtime",
+  "nextTick",
+  "performance",
+  "queueMicrotask",
+  "requestAnimationFrame",
+  "cancelAnimationFrame",
+  "requestIdleCallback",
+  "cancelIdleCallback",
+  "setImmediate",
+  "clearImmediate",
+  "setInterval",
+  "clearInterval",
+  "setTimeout",
+  "clearTimeout",
 ];
 
 beforeAll(async () => {
@@ -29,7 +29,7 @@ describe("DELETE /api/v1/sessions", () => {
   describe("Default user", () => {
     test("With valid session", async () => {
       const createdUser = await orchestrator.createUser({
-        username: "UserWithValidSession"
+        username: "UserWithValidSession",
       });
 
       const createdSession = await orchestrator.createSession(createdUser.id);
@@ -37,7 +37,7 @@ describe("DELETE /api/v1/sessions", () => {
       const response = await fetch("http://localhost:3000/api/v1/sessions", {
         method: "DELETE",
         headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+          Cookie: `session_id=${createdSession.token}`,
         },
       });
       // Return assertions
@@ -76,11 +76,14 @@ describe("DELETE /api/v1/sessions", () => {
       });
 
       // Now it should not be possible use the session again
-      const doubleCheckResponse = await fetch("http://localhost:3000/api/v1/user", {
-        headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+      const doubleCheckResponse = await fetch(
+        "http://localhost:3000/api/v1/user",
+        {
+          headers: {
+            Cookie: `session_id=${createdSession.token}`,
+          },
         },
-      });
+      );
       expect(doubleCheckResponse.status).toBe(401);
     });
 
@@ -88,7 +91,7 @@ describe("DELETE /api/v1/sessions", () => {
       const response = await fetch("http://localhost:3000/api/v1/sessions", {
         method: "DELETE",
         headers: {
-          "Cookie": `session_id=${crypto.randomUUID()}`,
+          Cookie: `session_id=${crypto.randomUUID()}`,
         },
       });
       expect(response.status).toBe(401);
@@ -105,11 +108,11 @@ describe("DELETE /api/v1/sessions", () => {
     test("With expired session", async () => {
       jest.useFakeTimers({
         now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
-        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA
+        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
       const createdUser = await orchestrator.createUser({
-        username: "UserWithExpiredSession"
+        username: "UserWithExpiredSession",
       });
       const createdSession = await orchestrator.createSession(createdUser.id);
 
@@ -118,7 +121,7 @@ describe("DELETE /api/v1/sessions", () => {
       const response = await fetch("http://localhost:3000/api/v1/sessions", {
         method: "DELETE",
         headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+          Cookie: `session_id=${createdSession.token}`,
         },
       });
       expect(response.status).toBe(401);
@@ -133,4 +136,3 @@ describe("DELETE /api/v1/sessions", () => {
     });
   });
 });
-

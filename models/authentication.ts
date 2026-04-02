@@ -1,9 +1,11 @@
-
 import user from "./user";
 import password from "./password";
 import { UnauthorizedError } from "infra/errors";
 
-async function getAuthenticatedUser(providedEmail: string, providedPassword: string) {
+async function getAuthenticatedUser(
+  providedEmail: string,
+  providedPassword: string,
+) {
   try {
     const userFound = await findUserByEmail(providedEmail);
     await validatePassword(providedPassword, userFound.password);
@@ -30,10 +32,16 @@ async function getAuthenticatedUser(providedEmail: string, providedPassword: str
       });
     }
   }
-};
+}
 
-async function validatePassword(providedPassword: string, storedPassword: string) {
-  const isPasswordValid = await password.compare(providedPassword, storedPassword);
+async function validatePassword(
+  providedPassword: string,
+  storedPassword: string,
+) {
+  const isPasswordValid = await password.compare(
+    providedPassword,
+    storedPassword,
+  );
   if (!isPasswordValid) {
     throw new UnauthorizedError({
       message: "Invalid password",

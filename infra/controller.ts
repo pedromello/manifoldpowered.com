@@ -29,7 +29,7 @@ const onErrorHandler = (
   }
 
   const publicErrorObject = new InternalServerError({
-    cause: error
+    cause: error,
   });
   console.error(publicErrorObject);
   res.status(publicErrorObject.statusCode).json(publicErrorObject);
@@ -63,7 +63,7 @@ const controller = {
     onError: onErrorHandler,
   },
   setSessionCookie,
-  clearSessionCookie
+  clearSessionCookie,
 };
 
 export default controller;

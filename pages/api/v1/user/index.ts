@@ -27,7 +27,10 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const foundUser = await user.findOneById(validSession.user_id);
 
   // Disallow caching for this endpoint
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, max-age=0",
+  );
 
   return res.status(200).json(foundUser);
 }

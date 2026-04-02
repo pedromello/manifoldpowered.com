@@ -4,20 +4,20 @@ import session from "models/session";
 import setCookieParser from "set-cookie-parser";
 
 const DO_NOT_FAKE_TIMERS_FOR_PRISMA: FakeableAPI[] = [
-  'hrtime',
-  'nextTick',
-  'performance',
-  'queueMicrotask',
-  'requestAnimationFrame',
-  'cancelAnimationFrame',
-  'requestIdleCallback',
-  'cancelIdleCallback',
-  'setImmediate',
-  'clearImmediate',
-  'setInterval',
-  'clearInterval',
-  'setTimeout',
-  'clearTimeout',
+  "hrtime",
+  "nextTick",
+  "performance",
+  "queueMicrotask",
+  "requestAnimationFrame",
+  "cancelAnimationFrame",
+  "requestIdleCallback",
+  "cancelIdleCallback",
+  "setImmediate",
+  "clearImmediate",
+  "setInterval",
+  "clearInterval",
+  "setTimeout",
+  "clearTimeout",
 ];
 
 beforeAll(async () => {
@@ -29,7 +29,7 @@ describe("GET /api/v1/user", () => {
   describe("Default user", () => {
     test("With valid session should return 200 OK", async () => {
       const createdUser = await orchestrator.createUser({
-        username: "UserWithValidSession"
+        username: "UserWithValidSession",
       });
 
       const createdSession = await orchestrator.createSession(createdUser.id);
@@ -37,14 +37,16 @@ describe("GET /api/v1/user", () => {
       const response = await fetch("http://localhost:3000/api/v1/user", {
         method: "GET",
         headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+          Cookie: `session_id=${createdSession.token}`,
         },
       });
       // Return assertions
       expect(response.status).toBe(200);
 
       const cacheControl = response.headers.get("Cache-Control");
-      expect(cacheControl).toBe("no-store, no-cache, must-revalidate, max-age=0");
+      expect(cacheControl).toBe(
+        "no-store, no-cache, must-revalidate, max-age=0",
+      );
 
       const responseBody = await response.json();
       expect(responseBody).toEqual({
@@ -61,7 +63,9 @@ describe("GET /api/v1/user", () => {
       expect(Date.parse(responseBody.updated_at)).not.toBeNaN();
 
       // Session assertions
-      const renewedSession = await session.findOneValidByToken(createdSession.token);
+      const renewedSession = await session.findOneValidByToken(
+        createdSession.token,
+      );
       expect(renewedSession.id).toBe(createdSession.id);
       expect(renewedSession.user_id).toBe(createdUser.id);
 
@@ -84,11 +88,11 @@ describe("GET /api/v1/user", () => {
     test("With a valid session that is about to expire should return 200 OK", async () => {
       jest.useFakeTimers({
         now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS + 30000), // Advancing 30 seconds so the session is not expired yet (30 seconds before the expiration)
-        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA
+        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
       const createdUser = await orchestrator.createUser({
-        username: "UserWithSessionAboutToExpire"
+        username: "UserWithSessionAboutToExpire",
       });
 
       const createdSession = await orchestrator.createSession(createdUser.id);
@@ -100,7 +104,7 @@ describe("GET /api/v1/user", () => {
       const response = await fetch("http://localhost:3000/api/v1/user", {
         method: "GET",
         headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+          Cookie: `session_id=${createdSession.token}`,
         },
       });
       expect(response.status).toBe(200);
@@ -110,7 +114,7 @@ describe("GET /api/v1/user", () => {
       const response = await fetch("http://localhost:3000/api/v1/user", {
         method: "GET",
         headers: {
-          "Cookie": `session_id=${crypto.randomUUID()}`,
+          Cookie: `session_id=${crypto.randomUUID()}`,
         },
       });
       expect(response.status).toBe(401);
@@ -142,11 +146,11 @@ describe("GET /api/v1/user", () => {
     test("With expired session should return 401 Unauthorized", async () => {
       jest.useFakeTimers({
         now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
-        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA
+        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
       const createdUser = await orchestrator.createUser({
-        username: "UserWithExpiredSession"
+        username: "UserWithExpiredSession",
       });
       const createdSession = await orchestrator.createSession(createdUser.id);
 
@@ -155,7 +159,7 @@ describe("GET /api/v1/user", () => {
       const response = await fetch("http://localhost:3000/api/v1/user", {
         method: "GET",
         headers: {
-          "Cookie": `session_id=${createdSession.token}`,
+          Cookie: `session_id=${createdSession.token}`,
         },
       });
       expect(response.status).toBe(401);
@@ -170,4 +174,3 @@ describe("GET /api/v1/user", () => {
     });
   });
 });
-
