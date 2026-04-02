@@ -6,6 +6,8 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "./errors";
+import session from "models/session";
+import * as cookie from "cookie";
 
 const onNoMatchHandler = (req: NextApiRequest, res: NextApiResponse) => {
   const publicErrorObject = new MethodNotAllowedError();
@@ -28,11 +30,23 @@ const onErrorHandler = (
   res.status(publicErrorObject.statusCode).json(publicErrorObject);
 };
 
+async function setSessionCookie(res: NextApiResponse, token: string) {
+  const setCookie = cookie.serialize("session_id", token, {
+    path: "/",
+    maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000, // In seconds
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+  });
+
+  res.setHeader("Set-Cookie", setCookie);
+}
+
 const controller = {
   errorHandlers: {
     onNoMatch: onNoMatchHandler,
     onError: onErrorHandler,
   },
+  setSessionCookie,
 };
 
 export default controller;
