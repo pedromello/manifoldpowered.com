@@ -22,10 +22,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const validSession = await session.findOneValidByToken(sessionToken);
   const renewedSession = await session.renew(validSession.id);
+  controller.setSessionCookie(res, renewedSession.token);
 
   const foundUser = await user.findOneById(validSession.user_id);
 
-  controller.setSessionCookie(res, renewedSession.token);
+  // Disallow caching for this endpoint
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
 
   return res.status(200).json(foundUser);
 }
