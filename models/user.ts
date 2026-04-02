@@ -103,6 +103,23 @@ const findOneByEmail = async (email: string) => {
   return user;
 };
 
+const findOneById = async (id: string) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundError({
+      message: `User with id ${id} not found`,
+      action: "Try another id",
+    });
+  }
+
+  return user;
+};
+
 const updateByUsername = async (
   username: string,
   userUpdateDto: UpdateUserDto,
@@ -137,6 +154,7 @@ const update = async (id: string, userUpdateDto: UpdateUserDto) => {
 
 const user = {
   create,
+  findOneById,
   findOneByUsername,
   findOneByEmail,
   updateByUsername,
