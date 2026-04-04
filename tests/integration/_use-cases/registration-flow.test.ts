@@ -50,13 +50,16 @@ describe("Use case: Registration Flow (all successful)", () => {
     expect(lastEmail.subject).toBe("Activate your account at Manifold!");
     expect(lastEmail.text).toContain("registration-flow");
 
-    const activationObj = await activation.findByUserId(newUser.id);
+    const activationId = orchestrator.extractUUID(lastEmail.text);
+    expect(lastEmail.text).toContain(
+      `${webserver.getOrigin()}/signup/activate/${activationId}`,
+    );
+
+    const activationObj = await activation.findOneValidById(activationId);
 
     expect(activationObj.user_id).toBe(newUser.id);
+    expect(activationObj.used_at).toBeNull();
     expect(activationObj.expires_at.getTime()).toBeGreaterThan(Date.now());
-    expect(lastEmail.text).toContain(
-      `${webserver.getOrigin()}/signup/activate/${activationObj.id}`,
-    );
   });
 
   test("Activate account", async () => {});
