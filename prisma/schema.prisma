@@ -29,6 +29,8 @@ model User {
   // Why 60 characters? https://security.stackexchange.com/q/39849
   password String @db.VarChar(60)
 
+  features String[] @default([])
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
