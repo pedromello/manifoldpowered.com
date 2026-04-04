@@ -3,6 +3,8 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import authentication from "models/authentication";
 import session from "models/session";
+import authorization from "models/authorization";
+import { ForbiddenError } from "infra/errors";
 
 const router = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -19,6 +21,13 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     userAuthDto.email,
     userAuthDto.password,
   );
+
+  if (!authorization.can(authUser, "create:session")) {
+    throw new ForbiddenError({
+      message: "You do not have permission to login",
+      action: "Contact support if you believe this is an error",
+    });
+  }
 
   const newSession = await session.create(authUser.id);
 

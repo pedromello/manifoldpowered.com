@@ -3,6 +3,7 @@ import * as database from "infra/database";
 import user from "models/user";
 import session from "models/session";
 import { faker } from "@faker-js/faker";
+import activation from "models/activation";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -52,6 +53,10 @@ const createUser = async (userDto = {}) => {
   });
 };
 
+const activateUser = async (userId) => {
+  return activation.activateUserByUserId(userId);
+};
+
 const createSession = async (userId) => {
   return session.create(userId);
 };
@@ -94,6 +99,7 @@ const orchestrator = {
   clearDatabase,
   clearDatabaseRows,
   createUser,
+  activateUser,
   createSession,
   deleteAllEmails,
   getLastEmail,
