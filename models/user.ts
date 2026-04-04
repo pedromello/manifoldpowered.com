@@ -6,26 +6,36 @@ interface CreateUserDto {
   username: string;
   email: string;
   password: string;
+  features?: string[];
 }
 
 interface UpdateUserDto {
   username?: string;
   email?: string;
   password?: string;
+  features?: string[];
 }
 
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
   await validateUniqueUsername(createUserDto.username);
   await hashPasswordInObject(createUserDto);
+  injectDefaultFeaturesInObject(createUserDto);
 
   return prisma.user.create({
     data: {
       username: createUserDto.username.toLowerCase().trim(),
       email: createUserDto.email.toLowerCase().trim(),
       password: createUserDto.password,
+      features: createUserDto.features,
     },
   });
+
+  function injectDefaultFeaturesInObject(
+    userDto: CreateUserDto | UpdateUserDto,
+  ) {
+    userDto.features = ["read:activation_token"];
+  }
 };
 
 const validateUniqueEmail = async (email: string) => {

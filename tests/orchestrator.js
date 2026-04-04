@@ -70,6 +70,10 @@ const getLastEmail = async () => {
 
   const lastEmail = emailList.pop();
 
+  if (!lastEmail) {
+    return null;
+  }
+
   const emailContentResponse = await fetch(
     `${EMAIL_HTTP_URL}/messages/${lastEmail.id}.plain`,
   );

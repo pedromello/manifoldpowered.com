@@ -52,3 +52,17 @@ model Session {
   @@index([expires_at])
   @@map("sessions")
 }
+
+model UserActivationToken {
+  id         String   @id @default(uuid())
+  used_at    DateTime?
+  // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
+  user_id    String
+  expires_at DateTime
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("user_activation_tokens")
+}
