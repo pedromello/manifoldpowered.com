@@ -3,6 +3,7 @@ import { prisma } from "infra/database";
 import email from "infra/email";
 import { NotFoundError } from "infra/errors";
 import webserver from "infra/webserver";
+import user from "models/user";
 
 const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 15; // 15 minutes
 
@@ -48,10 +49,27 @@ async function findOneValidById(activationId: string) {
   return foundActivation;
 }
 
+async function markAsUsed(activationId: string) {
+  return prisma.userActivationToken.update({
+    where: {
+      id: activationId,
+    },
+    data: {
+      used_at: new Date(),
+    },
+  });
+}
+
+async function activateUserByUserId(userId: string) {
+  return await user.setFeatures(userId, ["create:session"]);
+}
+
 const activation = {
   create,
   sendEmailToUser,
   findOneValidById,
+  markAsUsed,
+  activateUserByUserId,
 };
 
 export default activation;
