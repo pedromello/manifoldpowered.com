@@ -32,6 +32,8 @@ describe("GET /api/v1/user", () => {
         username: "UserWithValidSession",
       });
 
+      await orchestrator.activateUser(createdUser.id);
+
       const createdSession = await orchestrator.createSession(createdUser.id);
 
       const response = await fetch("http://localhost:3000/api/v1/user", {
@@ -54,7 +56,7 @@ describe("GET /api/v1/user", () => {
         username: createdUser.username,
         email: createdUser.email,
         password: createdUser.password,
-        features: ["read:activation_token"],
+        features: ["create:session", "read:session"],
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
@@ -96,6 +98,8 @@ describe("GET /api/v1/user", () => {
         username: "UserWithSessionAboutToExpire",
       });
 
+      await orchestrator.activateUser(createdUser.id);
+
       const createdSession = await orchestrator.createSession(createdUser.id);
 
       jest.useRealTimers();
@@ -129,18 +133,18 @@ describe("GET /api/v1/user", () => {
       });
     });
 
-    test("Without session should return 401 Unauthorized", async () => {
+    test("Without session should return 403 Forbidden", async () => {
       const response = await fetch("http://localhost:3000/api/v1/user", {
         method: "GET",
       });
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(403);
 
       const responseBody = await response.json();
       expect(responseBody).toEqual({
-        name: "UnauthorizedError",
-        message: "User does not have a valid session",
-        action: "Check if user is logged in and try again",
-        status_code: 401,
+        name: "ForbiddenError",
+        message: "You do not have permission to perform this action",
+        action: "Verify your user has the following features: read:session",
+        status_code: 403,
       });
     });
 

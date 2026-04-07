@@ -61,7 +61,7 @@ async function markAsUsed(activationId: string) {
 }
 
 async function activateUserByUserId(userId: string) {
-  return await user.setFeatures(userId, ["create:session"]);
+  return await user.setFeatures(userId, ["create:session", "read:session"]);
 }
 
 const activation = {

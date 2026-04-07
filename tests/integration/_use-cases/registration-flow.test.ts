@@ -12,6 +12,7 @@ beforeAll(async () => {
 
 let newUser: User;
 let activationId: string;
+let sessionId: string;
 
 describe("Use case: Registration Flow (all successful)", () => {
   test("Create a user account", async () => {
@@ -92,7 +93,7 @@ describe("Use case: Registration Flow (all successful)", () => {
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
       password: newUser.password,
-      features: ["create:session"],
+      features: ["create:session", "read:session"],
       created_at: activatedUser.created_at,
       updated_at: activatedUser.updated_at,
     });
@@ -114,7 +115,28 @@ describe("Use case: Registration Flow (all successful)", () => {
 
     const loginResponseJson = await loginResponse.json();
     expect(loginResponseJson.user_id).toBe(newUser.id);
+    sessionId = loginResponseJson.token;
   });
 
-  test("Get user profile", async () => {});
+  test("Get user profile", async () => {
+    const getUserResponse = await fetch("http://localhost:3000/api/v1/user", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `session_id=${sessionId}`,
+      },
+    });
+    expect(getUserResponse.status).toBe(200);
+
+    const getUserResponseJson = await getUserResponse.json();
+    expect(getUserResponseJson).toEqual({
+      id: newUser.id,
+      username: "registration-flow",
+      email: "registration-flow@manifoldpowered.com",
+      password: newUser.password,
+      features: ["create:session", "read:session"],
+      created_at: getUserResponseJson.created_at,
+      updated_at: getUserResponseJson.updated_at,
+    });
+  });
 });

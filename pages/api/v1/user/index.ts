@@ -3,10 +3,12 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import user from "models/user";
 import session from "models/session";
-import { NotFoundError, UnauthorizedError } from "infra/errors";
+import { UnauthorizedError } from "infra/errors";
 
 const router = createRouter<NextApiRequest, NextApiResponse>();
-router.get(getHandler);
+
+router.use(controller.injectAnonymousOrUser);
+router.get(controller.canRequest("read:session"), getHandler);
 
 export default router.handler(controller.errorHandlers);
 
