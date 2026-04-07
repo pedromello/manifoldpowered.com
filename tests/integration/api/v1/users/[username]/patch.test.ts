@@ -101,6 +101,37 @@ describe("PATCH /api/v1/users/[username]", () => {
       });
     });
 
+    test("With user1 targeting user2", async () => {
+      const user1 = await orchestrator.createUser();
+      await orchestrator.activateUser(user1.id);
+      const sessionObj1 = await orchestrator.createSession(user1.id);
+
+      const user2 = await orchestrator.createUser();
+
+      const patchResponse = await fetch(
+        `http://localhost:3000/api/v1/users/${user2.username}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${sessionObj1.token}`,
+          },
+          body: JSON.stringify({
+            username: "uniqueuser2",
+          }),
+        },
+      );
+      expect(patchResponse.status).toBe(403);
+
+      const patchResponseBody = await patchResponse.json();
+      expect(patchResponseBody).toEqual({
+        message: "You do not have permission to update another user",
+        name: "ForbiddenError",
+        action: "Verify your user has authorization to update other users",
+        status_code: 403,
+      });
+    });
+
     test("With duplicate email", async () => {
       const user1 = await orchestrator.createUser({
         email: "testsameemail@pedro.tec.br",
