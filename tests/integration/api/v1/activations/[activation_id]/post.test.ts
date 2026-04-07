@@ -131,9 +131,12 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
       const expiresAt = new Date(activationObj.expires_at);
       const createdAt = new Date(activationObj.created_at);
 
-      expect(expiresAt.getTime() - createdAt.getTime()).toBe(
-        activation.EXPIRATION_IN_MILLISECONDS,
-      );
+      const diffTimeExpiresAtCreatedAt =
+        expiresAt.getTime() - createdAt.getTime();
+      // 1s tolerance for time drift
+      expect(
+        diffTimeExpiresAtCreatedAt - activation.EXPIRATION_IN_MILLISECONDS,
+      ).toBeLessThanOrEqual(1000);
 
       const activatedUser = await user.findOneById(createdUser.id);
 

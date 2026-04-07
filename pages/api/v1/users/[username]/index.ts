@@ -4,6 +4,8 @@ import controller from "infra/controller";
 import user from "models/user";
 
 const router = createRouter<NextApiRequest, NextApiResponse>();
+
+router.use(controller.injectAnonymousOrUser);
 router.get(getHandler);
 router.patch(patchHandler);
 
