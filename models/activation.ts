@@ -71,7 +71,11 @@ async function activateUserByUserId(userId: string) {
     });
   }
 
-  return await user.setFeatures(userId, ["create:session", "read:session"]);
+  return await user.setFeatures(userId, [
+    "create:session",
+    "read:session",
+    "update:user",
+  ]);
 }
 
 const activation = {
