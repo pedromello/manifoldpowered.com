@@ -8,8 +8,12 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   }
 
   if (feature === "update:user" && resource) {
+    authorized = false;
     const userResource = resource as User;
-    authorized = user.id === userResource.id;
+
+    if (user.id === userResource.id || can(user, "update:user:others")) {
+      authorized = true;
+    }
   }
 
   return authorized;

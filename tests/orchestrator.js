@@ -57,6 +57,10 @@ const activateUser = async (userId) => {
   return activation.activateUserByUserId(userId);
 };
 
+const addFeaturesToUser = async (userId, features) => {
+  return user.addFeatures(userId, features);
+};
+
 const createSession = async (userId) => {
   return session.create(userId);
 };
@@ -104,6 +108,7 @@ const orchestrator = {
   deleteAllEmails,
   getLastEmail,
   extractUUID,
+  addFeaturesToUser,
 };
 
 export default orchestrator;

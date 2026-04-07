@@ -175,6 +175,20 @@ const setFeatures = async (id: string, features: string[]) => {
   return updatedUser;
 };
 
+const addFeatures = async (id: string, features: string[]) => {
+  const user = await findOneById(id);
+  const updatedUser = await prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      features: [...user.features, ...features],
+    },
+  });
+
+  return updatedUser;
+};
+
 const user = {
   create,
   findOneById,
@@ -183,6 +197,7 @@ const user = {
   updateByUsername,
   update,
   setFeatures,
+  addFeatures,
 };
 
 export default user;
