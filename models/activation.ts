@@ -1,9 +1,10 @@
 import { User, UserActivationToken } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import email from "infra/email";
-import { NotFoundError } from "infra/errors";
+import { ForbiddenError, NotFoundError } from "infra/errors";
 import webserver from "infra/webserver";
 import user from "models/user";
+import authorization from "./authorization";
 
 const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 15; // 15 minutes
 
@@ -61,6 +62,15 @@ async function markAsUsed(activationId: string) {
 }
 
 async function activateUserByUserId(userId: string) {
+  const userToActivate = await user.findOneById(userId);
+
+  if (!authorization.can(userToActivate, "read:activation_token")) {
+    throw new ForbiddenError({
+      message: "You cannot use activation tokens anymore",
+      action: "Contact support if you believe this is an error",
+    });
+  }
+
   return await user.setFeatures(userId, ["create:session", "read:session"]);
 }
 
@@ -70,6 +80,7 @@ const activation = {
   findOneValidById,
   markAsUsed,
   activateUserByUserId,
+  EXPIRATION_IN_MILLISECONDS,
 };
 
 export default activation;

@@ -67,7 +67,7 @@ describe("Use case: Registration Flow (all successful)", () => {
 
   test("Activate account", async () => {
     const activateAccountResponse = await fetch(
-      `http://localhost:3000/api/v1/signup/activate/${activationId}`,
+      `http://localhost:3000/api/v1/activations/${activationId}`,
       {
         method: "PATCH",
       },
