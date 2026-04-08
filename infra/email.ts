@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { ServiceError } from "./errors";
 
 export interface MailOptions {
   from?: string;
@@ -18,7 +19,16 @@ const transporter = nodemailer.createTransport({
 });
 
 async function send(mailOptions: MailOptions) {
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    throw new ServiceError({
+      cause: error,
+      message: "Could not send email",
+      action: "Check if email service is available",
+      context: mailOptions,
+    });
+  }
 }
 
 const email = {
