@@ -6,26 +6,36 @@ interface CreateUserDto {
   username: string;
   email: string;
   password: string;
+  features?: string[];
 }
 
 interface UpdateUserDto {
   username?: string;
   email?: string;
   password?: string;
+  features?: string[];
 }
 
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
   await validateUniqueUsername(createUserDto.username);
   await hashPasswordInObject(createUserDto);
+  injectDefaultFeaturesInObject(createUserDto);
 
   return prisma.user.create({
     data: {
       username: createUserDto.username.toLowerCase().trim(),
       email: createUserDto.email.toLowerCase().trim(),
       password: createUserDto.password,
+      features: createUserDto.features,
     },
   });
+
+  function injectDefaultFeaturesInObject(
+    userDto: CreateUserDto | UpdateUserDto,
+  ) {
+    userDto.features = ["read:activation_token"];
+  }
 };
 
 const validateUniqueEmail = async (email: string) => {
@@ -152,6 +162,33 @@ const update = async (id: string, userUpdateDto: UpdateUserDto) => {
   return updatedUser;
 };
 
+const setFeatures = async (id: string, features: string[]) => {
+  const updatedUser = await prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      features,
+    },
+  });
+
+  return updatedUser;
+};
+
+const addFeatures = async (id: string, features: string[]) => {
+  const user = await findOneById(id);
+  const updatedUser = await prisma.user.update({
+    where: {
+      id,
+    },
+    data: {
+      features: [...user.features, ...features],
+    },
+  });
+
+  return updatedUser;
+};
+
 const user = {
   create,
   findOneById,
@@ -159,6 +196,8 @@ const user = {
   findOneByEmail,
   updateByUsername,
   update,
+  setFeatures,
+  addFeatures,
 };
 
 export default user;

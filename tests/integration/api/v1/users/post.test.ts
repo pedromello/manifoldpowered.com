@@ -28,8 +28,7 @@ describe("POST /api/v1/users", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: "john doe",
-        email: "test@pedro.tec.br",
-        password: responseBody.password,
+        features: ["read:activation_token"],
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
@@ -97,6 +96,39 @@ describe("POST /api/v1/users", () => {
         name: "ValidationError",
         action: "Try another email",
         status_code: 400,
+      });
+    });
+  });
+
+  describe("Authenticated user", () => {
+    test("With unique and valid data should return 403 Forbidden", async () => {
+      const authenticatedUser = await orchestrator.createUser();
+      await orchestrator.activateUser(authenticatedUser.id);
+      const authenticatedSession = await orchestrator.createSession(
+        authenticatedUser.id,
+      );
+
+      const response = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${authenticatedSession.token}`,
+        },
+        body: JSON.stringify({
+          username: "John Doe",
+          email: "test@pedro.tec.br",
+          password: "password",
+        }),
+      });
+
+      expect(response.status).toBe(403);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        message: "You do not have permission to perform this action",
+        name: "ForbiddenError",
+        action: "Verify your user has the following features: create:user",
+        status_code: 403,
       });
     });
   });

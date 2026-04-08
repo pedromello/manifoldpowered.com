@@ -3,15 +3,19 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import user from "models/user";
 import session from "models/session";
-import { NotFoundError, UnauthorizedError } from "infra/errors";
+import { UnauthorizedError } from "infra/errors";
+import authorization from "models/authorization";
 
 const router = createRouter<NextApiRequest, NextApiResponse>();
-router.get(getHandler);
+
+router.use(controller.injectAnonymousOrUser);
+router.get(controller.canRequest("read:session"), getHandler);
 
 export default router.handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const sessionToken = req.cookies.session_id;
+  const userTryingToGet = req.context?.user;
 
   if (!sessionToken) {
     throw new UnauthorizedError({
@@ -26,11 +30,17 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const foundUser = await user.findOneById(validSession.user_id);
 
+  const secureOutputValues = authorization.filterOutput(
+    userTryingToGet,
+    "read:user:self",
+    foundUser,
+  );
+
   // Disallow caching for this endpoint
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, max-age=0",
   );
 
-  return res.status(200).json(foundUser);
+  return res.status(200).json(secureOutputValues);
 }

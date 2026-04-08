@@ -3,6 +3,7 @@ import * as database from "infra/database";
 import user from "models/user";
 import session from "models/session";
 import { faker } from "@faker-js/faker";
+import activation from "models/activation";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -52,6 +53,18 @@ const createUser = async (userDto = {}) => {
   });
 };
 
+const getUserById = async (userId) => {
+  return user.findOneById(userId);
+};
+
+const activateUser = async (userId) => {
+  return activation.activateUserByUserId(userId);
+};
+
+const addFeaturesToUser = async (userId, features) => {
+  return user.addFeatures(userId, features);
+};
+
 const createSession = async (userId) => {
   return session.create(userId);
 };
@@ -70,6 +83,10 @@ const getLastEmail = async () => {
 
   const lastEmail = emailList.pop();
 
+  if (!lastEmail) {
+    return null;
+  }
+
   const emailContentResponse = await fetch(
     `${EMAIL_HTTP_URL}/messages/${lastEmail.id}.plain`,
   );
@@ -79,14 +96,24 @@ const getLastEmail = async () => {
   return lastEmail;
 };
 
+const extractUUID = (text) => {
+  const regex = /[0-9a-fA-F-]{36}/;
+  const match = text.match(regex);
+  return match ? match[0] : null;
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
   clearDatabaseRows,
   createUser,
+  activateUser,
   createSession,
   deleteAllEmails,
   getLastEmail,
+  extractUUID,
+  addFeaturesToUser,
+  getUserById,
 };
 
 export default orchestrator;

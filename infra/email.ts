@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 export interface MailOptions {
-  from: string;
+  from?: string;
   to: string;
   subject: string;
   text: string;

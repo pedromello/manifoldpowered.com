@@ -7,10 +7,10 @@ export class InternalServerError extends Error {
     statusCode,
     action,
   }: {
-    cause: unknown;
+    cause?: unknown;
     statusCode?: number;
     action?: string;
-  }) {
+  } = {}) {
     super("Internal server error", { cause });
     this.name = "InternalServerError";
     this.statusCode = statusCode || 500;
@@ -144,6 +144,35 @@ export class UnauthorizedError extends Error {
     this.name = "UnauthorizedError";
     this.statusCode = 401;
     this.action = action || "Try to log in again";
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}
+
+export class ForbiddenError extends Error {
+  public statusCode: number;
+  public action: string;
+
+  constructor({
+    message,
+    cause,
+    action,
+  }: {
+    message?: string;
+    cause?: unknown;
+    action?: string;
+  }) {
+    super(message || "Forbidden", { cause });
+    this.name = "ForbiddenError";
+    this.statusCode = 403;
+    this.action = action || "Check if you have the correct feature permissions";
   }
 
   toJSON() {
