@@ -20,6 +20,14 @@ const transporter = nodemailer.createTransport({
 
 async function send(mailOptions: MailOptions) {
   try {
+    if (!mailOptions.from && !process.env.EMAIL_FROM) {
+      throw new Error(
+        "From is not defined in mailOptions nor in env EMAIL_FROM",
+      );
+    }
+
+    mailOptions.from =
+      mailOptions.from ?? `Manifold Powered <${process.env.EMAIL_FROM}>`;
     await transporter.sendMail(mailOptions);
   } catch (error) {
     throw new ServiceError({
