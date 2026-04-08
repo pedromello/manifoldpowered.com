@@ -1,6 +1,30 @@
 import { Session, User, UserActivationToken } from "generated/prisma/client";
+import { InternalServerError } from "infra/errors";
+
+const AVAILABLE_FEATURES = [
+  // User
+  "create:user",
+  "read:user",
+  "read:user:self",
+  "update:user",
+  "update:user:others",
+
+  // Session
+  "create:session",
+  "read:session",
+
+  // Activation Token
+  "read:activation_token",
+
+  // Status
+  "read:status",
+  "read:status:all",
+];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
+  validateUser(user);
+  validateFeature(feature);
+
   let authorized = false;
 
   if (user.features?.includes(feature)) {
@@ -20,6 +44,9 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 }
 
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
+  validateUser(user);
+  validateFeature(feature);
+
   if (feature === "read:user") {
     const userOutput = resource as User;
     return {
@@ -105,6 +132,22 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   }
 
   return {};
+}
+
+function validateUser(user: Partial<User>) {
+  if (!user || !user?.features) {
+    throw new InternalServerError({
+      cause: "User should be defined and have features property",
+    });
+  }
+}
+
+function validateFeature(feature: string) {
+  if (!feature || !AVAILABLE_FEATURES.includes(feature)) {
+    throw new InternalServerError({
+      cause: `Feature ${feature} not found in available features`,
+    });
+  }
 }
 
 const authorization = {

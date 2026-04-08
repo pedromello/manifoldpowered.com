@@ -7,10 +7,10 @@ export class InternalServerError extends Error {
     statusCode,
     action,
   }: {
-    cause: unknown;
+    cause?: unknown;
     statusCode?: number;
     action?: string;
-  }) {
+  } = {}) {
     super("Internal server error", { cause });
     this.name = "InternalServerError";
     this.statusCode = statusCode || 500;
