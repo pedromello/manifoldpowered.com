@@ -35,8 +35,6 @@ describe("Use case: Registration Flow (all successful)", () => {
     expect(newUser).toEqual({
       id: newUser.id,
       username: "registration-flow",
-      email: "registration-flow@manifoldpowered.com",
-      password: newUser.password,
       features: ["read:activation_token"],
       created_at: newUser.created_at,
       updated_at: newUser.updated_at,
@@ -87,12 +85,13 @@ describe("Use case: Registration Flow (all successful)", () => {
     expect(activationObj.used_at).not.toBeNull();
 
     const activatedUser = await user.findOneById(newUser.id);
+    const newUserWithPassword = await orchestrator.getUserById(newUser.id);
 
     expect(activatedUser).toEqual({
       id: newUser.id,
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
-      password: newUser.password,
+      password: newUserWithPassword.password,
       features: ["create:session", "read:session", "update:user"],
       created_at: activatedUser.created_at,
       updated_at: activatedUser.updated_at,
@@ -133,7 +132,6 @@ describe("Use case: Registration Flow (all successful)", () => {
       id: newUser.id,
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
-      password: newUser.password,
       features: ["create:session", "read:session", "update:user"],
       created_at: getUserResponseJson.created_at,
       updated_at: getUserResponseJson.updated_at,

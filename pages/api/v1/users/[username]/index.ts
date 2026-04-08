@@ -15,10 +15,17 @@ export default router.handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { username } = req.query;
+  const userTryingToGet = req.context.user;
 
   const userFound = await user.findOneByUsername(username as string);
 
-  return res.status(200).json(userFound);
+  const secureOutputValues = authorization.filterOutput(
+    userTryingToGet,
+    "read:user",
+    userFound,
+  );
+
+  return res.status(200).json(secureOutputValues);
 }
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -40,5 +47,11 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     userUpdateDto,
   );
 
-  return res.status(200).json(updatedUser);
+  const secureOutputValues = authorization.filterOutput(
+    userTryingToPatch,
+    "read:user",
+    updatedUser,
+  );
+
+  return res.status(200).json(secureOutputValues);
 }

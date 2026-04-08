@@ -191,8 +191,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: user1.id,
         username: "uniqueuser2",
-        email: user1.email,
-        password: user1.password,
         features: ["create:session", "read:session", "update:user"],
         created_at: user1.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
@@ -230,8 +228,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: user.id,
         username: user.username,
-        email: "testemail2@pedro.tec.br",
-        password: user.password,
         features: ["create:session", "read:session", "update:user"],
         created_at: user.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
@@ -269,8 +265,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: user.id,
         username: user.username,
-        email: user.email,
-        password: patchResponseBody.password,
         features: ["create:session", "read:session", "update:user"],
         created_at: user.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
@@ -283,9 +277,11 @@ describe("PATCH /api/v1/users/[username]", () => {
         true,
       );
 
+      const updatedUser = await orchestrator.getUserById(user.id);
+
       const isPasswordValid = await password.compare(
         "new-password",
-        patchResponseBody.password,
+        updatedUser.password,
       );
       expect(isPasswordValid).toBe(true);
     });
@@ -326,8 +322,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: userToPatch.id,
         username: "changedByPrivilegedUser",
-        email: userToPatch.email,
-        password: userToPatch.password,
         features: ["create:session", "read:session", "update:user"],
         created_at: userToPatch.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,

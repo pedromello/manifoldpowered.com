@@ -53,6 +53,10 @@ const createUser = async (userDto = {}) => {
   });
 };
 
+const getUserById = async (userId) => {
+  return user.findOneById(userId);
+};
+
 const activateUser = async (userId) => {
   return activation.activateUserByUserId(userId);
 };
@@ -109,6 +113,7 @@ const orchestrator = {
   getLastEmail,
   extractUUID,
   addFeaturesToUser,
+  getUserById,
 };
 
 export default orchestrator;
