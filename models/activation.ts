@@ -20,11 +20,23 @@ async function create(userId: string) {
 async function sendEmailToUser(user: User, activation: UserActivationToken) {
   await email.send({
     to: user.email,
-    subject: "Activate your account at Manifold!",
-    text: `Welcome to Manifold, ${user.username}!
+    subject: "One step away — activate your Manifold account",
+    text: `Hey ${user.username},
 
-Click the link below to activate your account:
-${webserver.getOrigin()}/signup/activate/${activation.id}`,
+You're almost in. Confirm your email to secure your spot on the Manifold early access list!
+
+━━━ Activate your account ━━━
+
+${webserver.getOrigin()}/signup/activate/${activation.id}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you didn't create this account, you can safely ignore this email.
+
+See you on the other side,
+
+The Manifold Team
+manifoldpowered.com`,
   });
 }
 

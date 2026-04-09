@@ -51,7 +51,9 @@ describe("Use case: Registration Flow (all successful)", () => {
     expect(lastEmail.recipients[0]).toBe(
       "<registration-flow@manifoldpowered.com>",
     );
-    expect(lastEmail.subject).toBe("Activate your account at Manifold!");
+    expect(lastEmail.subject).toBe(
+      "One step away — activate your Manifold account",
+    );
     expect(lastEmail.text).toContain("registration-flow");
 
     activationId = orchestrator.extractUUID(lastEmail.text);
