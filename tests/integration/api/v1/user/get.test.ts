@@ -85,6 +85,7 @@ describe("GET /api/v1/user", () => {
         path: "/",
         maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000,
         httpOnly: true,
+        sameSite: "Lax",
       });
     });
 

@@ -59,6 +59,7 @@ function setSessionCookie(res: NextApiResponse, token: string) {
     maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000, // In seconds
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
+    sameSite: "lax",
   });
 
   res.setHeader("Set-Cookie", setCookie);
