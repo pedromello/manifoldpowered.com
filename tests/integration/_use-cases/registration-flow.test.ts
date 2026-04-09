@@ -16,17 +16,20 @@ let sessionId: string;
 
 describe("Use case: Registration Flow (all successful)", () => {
   test("Create a user account", async () => {
-    const newUserResponse = await fetch("http://localhost:3000/api/v1/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const newUserResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/users`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "registration-flow",
+          email: "registration-flow@manifoldpowered.com",
+          password: "registration-password",
+        }),
       },
-      body: JSON.stringify({
-        username: "registration-flow",
-        email: "registration-flow@manifoldpowered.com",
-        password: "registration-password",
-      }),
-    });
+    );
 
     expect(newUserResponse.status).toBe(201);
 
@@ -65,7 +68,7 @@ describe("Use case: Registration Flow (all successful)", () => {
 
   test("Activate account", async () => {
     const activateAccountResponse = await fetch(
-      `http://localhost:3000/api/v1/activations/${activationId}`,
+      `${webserver.getOrigin()}/api/v1/activations/${activationId}`,
       {
         method: "PATCH",
       },
@@ -99,16 +102,19 @@ describe("Use case: Registration Flow (all successful)", () => {
   });
 
   test("Login", async () => {
-    const loginResponse = await fetch("http://localhost:3000/api/v1/sessions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const loginResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/sessions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "registration-flow@manifoldpowered.com",
+          password: "registration-password",
+        }),
       },
-      body: JSON.stringify({
-        email: "registration-flow@manifoldpowered.com",
-        password: "registration-password",
-      }),
-    });
+    );
 
     expect(loginResponse.status).toBe(201);
 
@@ -118,13 +124,16 @@ describe("Use case: Registration Flow (all successful)", () => {
   });
 
   test("Get user profile", async () => {
-    const getUserResponse = await fetch("http://localhost:3000/api/v1/user", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: `session_id=${sessionId}`,
+    const getUserResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/user`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${sessionId}`,
+        },
       },
-    });
+    );
     expect(getUserResponse.status).toBe(200);
 
     const getUserResponseJson = await getUserResponse.json();

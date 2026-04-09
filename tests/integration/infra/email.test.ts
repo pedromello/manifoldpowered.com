@@ -49,7 +49,6 @@ describe("infra/email.ts", () => {
 
         fail("Should throw an error");
       } catch (error) {
-        console.log(error.cause);
         expect(error).toBeInstanceOf(ServiceError);
         expect(error).toHaveProperty("message", "Could not send email");
         expect(error).toHaveProperty(

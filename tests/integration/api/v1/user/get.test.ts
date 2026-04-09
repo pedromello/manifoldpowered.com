@@ -2,6 +2,7 @@ import orchestrator from "tests/orchestrator";
 import { version as uuidVersion } from "uuid";
 import session from "models/session";
 import setCookieParser from "set-cookie-parser";
+import webserver from "infra/webserver";
 
 const DO_NOT_FAKE_TIMERS_FOR_PRISMA: FakeableAPI[] = [
   "hrtime",
@@ -36,7 +37,7 @@ describe("GET /api/v1/user", () => {
 
       const createdSession = await orchestrator.createSession(createdUser.id);
 
-      const response = await fetch("http://localhost:3000/api/v1/user", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
         method: "GET",
         headers: {
           Cookie: `session_id=${createdSession.token}`,
@@ -84,12 +85,15 @@ describe("GET /api/v1/user", () => {
         path: "/",
         maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000,
         httpOnly: true,
+        sameSite: "Lax",
       });
     });
 
     test("With a valid session that is about to expire should return 200 OK", async () => {
       jest.useFakeTimers({
-        now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS + 30000), // Advancing 30 seconds so the session is not expired yet (30 seconds before the expiration)
+        now: new Date(
+          Date.now() - session.EXPIRATION_IN_MILLISECONDS + 30000,
+        ).getTime(), // Advancing 30 seconds so the session is not expired yet (30 seconds before the expiration)
         doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
@@ -105,7 +109,7 @@ describe("GET /api/v1/user", () => {
 
       expect(createdSession.expires_at > new Date()).toBe(true);
 
-      const response = await fetch("http://localhost:3000/api/v1/user", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
         method: "GET",
         headers: {
           Cookie: `session_id=${createdSession.token}`,
@@ -115,7 +119,7 @@ describe("GET /api/v1/user", () => {
     });
 
     test("With unexistent session should return 401 Unauthorized", async () => {
-      const response = await fetch("http://localhost:3000/api/v1/user", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
         method: "GET",
         headers: {
           Cookie: `session_id=${crypto.randomUUID()}`,
@@ -133,7 +137,7 @@ describe("GET /api/v1/user", () => {
     });
 
     test("Without session should return 403 Forbidden", async () => {
-      const response = await fetch("http://localhost:3000/api/v1/user", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
         method: "GET",
       });
       expect(response.status).toBe(403);
@@ -149,7 +153,9 @@ describe("GET /api/v1/user", () => {
 
     test("With expired session should return 401 Unauthorized", async () => {
       jest.useFakeTimers({
-        now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
+        now: new Date(
+          Date.now() - session.EXPIRATION_IN_MILLISECONDS,
+        ).getTime(),
         doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
@@ -160,7 +166,7 @@ describe("GET /api/v1/user", () => {
 
       jest.useRealTimers();
 
-      const response = await fetch("http://localhost:3000/api/v1/user", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
         method: "GET",
         headers: {
           Cookie: `session_id=${createdSession.token}`,

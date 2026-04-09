@@ -5,12 +5,10 @@ import user from "models/user";
 import activation from "models/activation";
 import authorization from "models/authorization";
 
-const router = createRouter<NextApiRequest, NextApiResponse>();
-
-router.use(controller.injectAnonymousOrUser);
-router.post(controller.canRequest("create:user"), postHandler);
-
-export default router.handler(controller.errorHandlers);
+export default createRouter<NextApiRequest, NextApiResponse>()
+  .use(controller.injectAnonymousOrUser)
+  .post(controller.canRequest("create:user"), postHandler)
+  .handler(controller.errorHandlers);
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const userCreateDto = req.body;

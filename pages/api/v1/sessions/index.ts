@@ -6,18 +6,16 @@ import session from "models/session";
 import authorization from "models/authorization";
 import { ForbiddenError } from "infra/errors";
 
-const router = createRouter<NextApiRequest, NextApiResponse>();
-
-router.use(controller.injectAnonymousOrUser);
-router.post(controller.canRequest("create:session"), postHandler);
-router.delete(deleteHandler);
-
-export default router.handler(controller.errorHandlers);
+export default createRouter<NextApiRequest, NextApiResponse>()
+  .use(controller.injectAnonymousOrUser)
+  .post(controller.canRequest("create:session"), postHandler)
+  .delete(deleteHandler)
+  .handler(controller.errorHandlers);
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const userAuthDto = req.body;
 
-  const authUser = await authentication.getAuthenticatedUser(
+  const authUser = await authentication.getUser(
     userAuthDto.email,
     userAuthDto.password,
   );
