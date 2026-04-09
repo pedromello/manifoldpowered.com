@@ -2,6 +2,7 @@ import orchestrator from "tests/orchestrator";
 import { version as uuidVersion } from "uuid";
 import session from "models/session";
 import setCookieParser from "set-cookie-parser";
+import webserver from "infra/webserver";
 
 const DO_NOT_FAKE_TIMERS_FOR_PRISMA: FakeableAPI[] = [
   "hrtime",
@@ -34,7 +35,7 @@ describe("DELETE /api/v1/sessions", () => {
 
       const createdSession = await orchestrator.createSession(createdUser.id);
 
-      const response = await fetch("http://localhost:3000/api/v1/sessions", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/sessions`, {
         method: "DELETE",
         headers: {
           Cookie: `session_id=${createdSession.token}`,
@@ -77,7 +78,7 @@ describe("DELETE /api/v1/sessions", () => {
 
       // Now it should not be possible use the session again
       const doubleCheckResponse = await fetch(
-        "http://localhost:3000/api/v1/user",
+        `${webserver.getOrigin()}/api/v1/user`,
         {
           headers: {
             Cookie: `session_id=${createdSession.token}`,
@@ -88,7 +89,7 @@ describe("DELETE /api/v1/sessions", () => {
     });
 
     test("With unexistent session", async () => {
-      const response = await fetch("http://localhost:3000/api/v1/sessions", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/sessions`, {
         method: "DELETE",
         headers: {
           Cookie: `session_id=${crypto.randomUUID()}`,
@@ -118,7 +119,7 @@ describe("DELETE /api/v1/sessions", () => {
 
       jest.useRealTimers();
 
-      const response = await fetch("http://localhost:3000/api/v1/sessions", {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/sessions`, {
         method: "DELETE",
         headers: {
           Cookie: `session_id=${createdSession.token}`,

@@ -4,6 +4,7 @@ import user from "models/user";
 import session from "models/session";
 import { faker } from "@faker-js/faker";
 import activation from "models/activation";
+import webserver from "infra/webserver";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -14,7 +15,7 @@ const waitForAllServices = async () => {
   async function waitForWebServer() {
     await retry(
       async () => {
-        const response = await fetch("http://localhost:3000/api/v1/status");
+        const response = await fetch(`${webserver.getOrigin()}/api/v1/status`);
         if (response.status !== 200) {
           throw new Error("Web server is not ready");
         }
