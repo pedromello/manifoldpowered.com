@@ -91,7 +91,9 @@ describe("GET /api/v1/user", () => {
 
     test("With a valid session that is about to expire should return 200 OK", async () => {
       jest.useFakeTimers({
-        now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS + 30000), // Advancing 30 seconds so the session is not expired yet (30 seconds before the expiration)
+        now: new Date(
+          Date.now() - session.EXPIRATION_IN_MILLISECONDS + 30000,
+        ).getTime(), // Advancing 30 seconds so the session is not expired yet (30 seconds before the expiration)
         doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
@@ -151,7 +153,9 @@ describe("GET /api/v1/user", () => {
 
     test("With expired session should return 401 Unauthorized", async () => {
       jest.useFakeTimers({
-        now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
+        now: new Date(
+          Date.now() - session.EXPIRATION_IN_MILLISECONDS,
+        ).getTime(),
         doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 

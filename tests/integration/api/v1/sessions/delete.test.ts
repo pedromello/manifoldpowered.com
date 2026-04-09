@@ -108,7 +108,9 @@ describe("DELETE /api/v1/sessions", () => {
 
     test("With expired session", async () => {
       jest.useFakeTimers({
-        now: new Date(Date.now() - session.EXPIRATION_IN_MILLISECONDS),
+        now: new Date(
+          Date.now() - session.EXPIRATION_IN_MILLISECONDS,
+        ).getTime(),
         doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
       });
 
