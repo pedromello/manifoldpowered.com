@@ -51,5 +51,5 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     responseObj,
   );
 
-  res.status(200).json(secureOutputValues);
+  return res.status(200).json(secureOutputValues);
 }
