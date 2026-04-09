@@ -53,7 +53,7 @@ const onErrorHandler = (
   res.status(publicErrorObject.statusCode).json(publicErrorObject);
 };
 
-async function setSessionCookie(res: NextApiResponse, token: string) {
+function setSessionCookie(res: NextApiResponse, token: string) {
   const setCookie = cookie.serialize("session_id", token, {
     path: "/",
     maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000, // In seconds
