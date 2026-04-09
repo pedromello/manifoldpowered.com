@@ -17,7 +17,7 @@ export default router.handler(controller.errorHandlers);
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const userAuthDto = req.body;
 
-  const authUser = await authentication.getAuthenticatedUser(
+  const authUser = await authentication.getUser(
     userAuthDto.email,
     userAuthDto.password,
   );
