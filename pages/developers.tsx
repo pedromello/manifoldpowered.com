@@ -1,8 +1,12 @@
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+import EarlyAccessModal from "components/EarlyAccessModal";
 
 export default function Developers() {
+  const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
+
   return (
     <div className="liquid-container">
       <Head>
@@ -131,12 +135,11 @@ export default function Developers() {
               </svg>
               View Open Source
             </a>
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLScYuPMblNZLzKLLnZ6enRJ0n3_Jqvx7V9veNiesVlE4QJo3eg/viewform?usp=dialog"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               className="btn-liquid primary"
-              aria-label="Join Developer Waitlist"
+              aria-label="Request Early Access"
+              onClick={() => setIsEarlyAccessModalOpen(true)}
             >
               <svg
                 width="24"
@@ -146,8 +149,8 @@ export default function Developers() {
               >
                 <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
               </svg>
-              Developer Waitlist
-            </a>
+              Early Access
+            </button>
           </div>
 
           <div className="audience-branching">
@@ -171,6 +174,11 @@ export default function Developers() {
           </div>
         </section>
       </main>
+
+      <EarlyAccessModal
+        isOpen={isEarlyAccessModalOpen}
+        onClose={() => setIsEarlyAccessModalOpen(false)}
+      />
 
       <style jsx>{`
         .liquid-container {
@@ -473,6 +481,7 @@ export default function Developers() {
           background: rgba(214, 205, 255, 0.2);
           border: 1px solid var(--color-indigo-light);
           border-radius: 32px;
+          cursor: pointer;
           text-decoration: none;
           transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }

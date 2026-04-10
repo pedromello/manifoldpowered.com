@@ -1,8 +1,12 @@
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+import EarlyAccessModal from "components/EarlyAccessModal";
 
 export default function Players() {
+  const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
+
   return (
     <div className="liquid-container">
       <Head>
@@ -121,14 +125,13 @@ export default function Players() {
             >
               View Open Source
             </a>
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLScYuPMblNZLzKLLnZ6enRJ0n3_Jqvx7V9veNiesVlE4QJo3eg/viewform?usp=dialog"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               className="btn-liquid primary"
+              onClick={() => setIsEarlyAccessModalOpen(true)}
             >
-              Join Player Waitlist
-            </a>
+              Early Access
+            </button>
           </div>
 
           <div className="audience-branching">
@@ -154,6 +157,11 @@ export default function Players() {
           </div>
         </section>
       </main>
+
+      <EarlyAccessModal
+        isOpen={isEarlyAccessModalOpen}
+        onClose={() => setIsEarlyAccessModalOpen(false)}
+      />
 
       <style jsx>{`
         .liquid-container {
@@ -455,6 +463,7 @@ export default function Players() {
           background: rgba(214, 205, 255, 0.2);
           border: 1px solid var(--color-indigo-light);
           border-radius: 32px;
+          cursor: pointer;
           text-decoration: none;
           transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
