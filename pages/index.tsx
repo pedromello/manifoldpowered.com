@@ -6,22 +6,19 @@ import EarlyAccessModal from "components/EarlyAccessModal";
 
 const features = [
   {
-    alignment: "self-start w-[85%] max-md:w-full",
     title: "Your Community, Your Store",
     description:
-      "Stop sending your audience away to generic algorithms. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly, whether it's indie cozy games or hardcore competitive shooters.",
+      "Stop sending your audience away to generic algorithms. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
   },
   {
-    alignment: "self-end w-[85%] max-md:w-full",
     title: "Monetize Your Influence",
     description:
-      "When your fans buy a game they discovered through your streams or reviews, you earn a direct revenue share. We provide the open-source infrastructure to make it secure, you provide the curation and the genuine recommendation.",
+      "When your fans buy a game they discovered through your streams or reviews, you earn a direct revenue share. We provide the open-source infrastructure; you provide the curation.",
   },
   {
-    alignment: "self-center w-[95%] max-md:w-full",
     title: "Frictionless Infrastructure",
     description:
-      "You don't need to be a developer to sell games. Manifold handles the payment processing integrations, secure game downloads, and heavy lifting. You just build your community and share the games you love.",
+      "You don't need to be a developer to sell games. Manifold handles the payment processing integrations, secure game downloads, and heavy lifting.",
   },
 ];
 
@@ -42,24 +39,60 @@ const audienceCards = [
   },
 ];
 
-const buttonClassName =
-  "inline-flex cursor-pointer items-center justify-center gap-3 rounded-[32px] border border-[var(--color-indigo-light)] bg-[rgba(214,205,255,0.2)] px-10 py-5 text-[1.1rem] font-semibold text-[var(--color-purple-dark)] no-underline transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] hover:-translate-y-1 hover:scale-[1.02] hover:bg-[rgba(214,205,255,0.5)] hover:shadow-[0_10px_30px_rgba(53,34,89,0.15)] max-md:w-full";
+function FeatureCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <article className="rounded-3xl border border-[var(--color-indigo-light)] bg-white/55 p-8 shadow-sm backdrop-blur md:p-10">
+      <h3 className="text-2xl font-bold md:text-3xl">{title}</h3>
+      <p className="mt-4 text-lg leading-8 text-[rgba(53,34,89,0.8)]">
+        {description}
+      </p>
+    </article>
+  );
+}
 
-const featureCardClassName =
-  "relative overflow-hidden rounded-[40px] border border-[rgba(214,205,255,0.6)] bg-[rgba(255,255,255,0.35)] p-16 shadow-[0_10px_30px_rgba(53,34,89,0.02)] backdrop-blur-3xl transition-[transform,background,border,box-shadow] duration-400 ease-[cubic-bezier(0.25,1,0.5,1)] hover:-translate-y-2 hover:border-[var(--color-indigo-light)] hover:bg-[rgba(255,255,255,0.6)] hover:shadow-[0_15px_40px_rgba(53,34,89,0.08)] max-md:rounded-3xl max-md:px-6 max-md:py-8";
+function AudienceCard({
+  title,
+  description,
+  href,
+  label,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-[var(--color-indigo-light)] bg-white/60 p-6 text-left">
+      <h4 className="text-xl font-bold">{title}</h4>
+      <p className="mt-3 text-[rgba(53,34,89,0.75)]">{description}</p>
+      <Link
+        href={href}
+        className="mt-6 inline-flex font-bold underline-offset-4 hover:underline"
+      >
+        {label} &rarr;
+      </Link>
+    </article>
+  );
+}
 
 export default function Home() {
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
+  const [isDiagramOpen, setIsDiagramOpen] = useState(false);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[var(--bg-primary)] font-sans before:pointer-events-none before:absolute before:left-[-20vw] before:top-[-20vh] before:z-0 before:h-[140vh] before:w-[140vw] before:bg-[radial-gradient(circle_at_50%_10%,rgba(214,205,255,0.4)_0%,transparent_60%)] before:content-['']">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--color-purple-dark)]">
       <Head>
         <title>Manifold | Open-Source Game Distribution for Communities</title>
         <meta
           name="description"
           content="Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries."
         />
-
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Manifold | Own Your Game Store" />
         <meta
@@ -67,137 +100,101 @@ export default function Home() {
           content="We don't need another corporate storefront. Launch your community's official game distribution platform today."
         />
         <meta name="twitter:card" content="summary_large_image" />
-
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
 
-      <main className="relative z-[1] mx-auto flex max-w-[1400px] flex-col gap-[12vh] px-8 py-16 max-md:px-4 max-md:pb-16 max-md:pt-8">
-        <section className="relative flex flex-col items-center pt-[2vh]">
-          <img
-            src="/images/brand/manifold-logo.png"
-            alt="Manifold Logo"
-            className="relative z-10 mb-10 h-auto max-h-20"
-          />
-
-          <div className="mb-12 inline-flex animate-[float_6s_ease-in-out_infinite] items-center gap-2 rounded-[32px] border border-[var(--color-indigo-light)] bg-[rgba(214,205,255,0.5)] px-5 py-2 text-[0.95rem] font-semibold text-[var(--color-purple-dark)]">
-            <span className="h-2 w-2 animate-[pulse_2s_infinite] rounded-full bg-[var(--color-purple-dark)] shadow-[0_0_10px_var(--color-purple-dark)]"></span>
-            Project status: open-source pre-release
-          </div>
-
+      <main className="mx-auto flex max-w-7xl flex-col gap-20 px-6 py-10 md:gap-28 md:px-10 md:py-16">
+        <section className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr]">
           <div>
-            <h1 className="relative z-[2] bg-gradient-to-b from-[var(--color-purple-dark)] to-[rgba(53,34,89,0.2)] bg-clip-text px-8 text-center text-[clamp(4rem,15vw,15rem)] font-extrabold leading-[0.85] tracking-[-0.05em] text-transparent [-webkit-text-stroke:1px_rgba(53,34,89,0.05)] max-lg:text-[clamp(4rem,12vw,10rem)]">
+            <img
+              src="/images/brand/manifold-logo.png"
+              alt="Manifold Logo"
+              className="mx-auto h-16 w-auto lg:mx-0"
+            />
+
+            <p className="mt-10 inline-flex rounded-full border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-4 py-2 text-sm font-semibold">
+              Project status: open-source pre-release
+            </p>
+
+            <h1 className="mt-8 text-6xl font-black leading-none tracking-tight md:text-8xl">
               MANIFOLD
             </h1>
-            <p className="relative z-[3] mx-auto mb-16 mt-6 max-w-[800px] text-center text-[clamp(1.2rem,3vw,2rem)] font-medium text-[var(--color-purple-dark)] opacity-85">
+
+            <p className="mt-6 max-w-2xl text-xl leading-9 text-[rgba(53,34,89,0.8)] md:text-2xl">
               Empowering communities to own their game distribution. Start your
               own storefront, curate games for your audience, and earn revenue
               without depending on corporate intermediaries.
             </p>
           </div>
 
-          <div className="relative z-10 w-full max-w-[1100px] transform transition-transform duration-[600ms] ease-[cubic-bezier(0.175,0.885,0.32,1.275)] [transform:perspective(1200px)_rotateX(4deg)] hover:[transform:perspective(1200px)_rotateX(0deg)_scale(1.02)]">
+          <button
+            type="button"
+            className="group text-left"
+            aria-label="Expand Manifold Ecosystem Diagram"
+            onClick={() => setIsDiagramOpen(true)}
+          >
             <Image
               src="/images/manifold-diagram-hd.png"
               alt="Manifold Ecosystem Diagram"
               width={1920}
               height={1440}
               priority={true}
-              className="h-auto w-full rounded-[32px] border border-[rgba(53,34,89,0.08)] shadow-[0_40px_80px_rgba(53,34,89,0.15),0_0_60px_rgba(214,205,255,0.4)]"
+              className="w-full rounded-3xl border border-[var(--color-indigo-light)] bg-white/60 shadow-xl transition group-hover:scale-[1.01]"
             />
-          </div>
+            <span className="mt-3 block text-center text-sm font-semibold text-[rgba(53,34,89,0.72)]">
+              Click to expand
+            </span>
+          </button>
         </section>
 
-        <section className="mx-auto max-w-[900px] text-center">
-          <h2 className="text-[clamp(1.5rem,4vw,2.5rem)] font-normal leading-[1.5] text-[rgba(53,34,89,0.8)]">
-            We don&apos;t need another corporate storefront. <br />
-            <strong className="font-semibold text-[var(--color-purple-dark)]">
+        <section className="mx-auto max-w-4xl text-center">
+          <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-5xl">
+            We don&apos;t need another corporate storefront.
+            <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
               Manifold gives the gaming community the power to distribute games
-              on their own terms. A fully open-source infrastructure for
-              creators to launch verified stores in minutes.
+              on their own terms.
             </strong>
           </h2>
         </section>
 
-        <section className="mx-auto flex max-w-[1060px] flex-col gap-16">
+        <section className="grid gap-6 md:grid-cols-3">
           {features.map((feature) => (
-            <div
-              className={`${featureCardClassName} ${feature.alignment}`}
-              key={feature.title}
-            >
-              <div className="absolute left-0 right-0 top-0 h-0.5 bg-[linear-gradient(90deg,transparent,var(--color-purple-dark)_50%,transparent)] opacity-30"></div>
-              <h3 className="mb-6 text-[2.2rem] font-bold leading-tight tracking-[-0.02em] text-[var(--color-purple-dark)]">
-                {feature.title}
-              </h3>
-              <p className="text-xl leading-[1.6] text-[rgba(53,34,89,0.85)]">
-                {feature.description}
-              </p>
-            </div>
+            <FeatureCard key={feature.title} {...feature} />
           ))}
         </section>
 
-        <section className="mb-24 mt-16 rounded-[40px] border border-[rgba(214,205,255,0.6)] bg-[linear-gradient(180deg,transparent,rgba(214,205,255,0.3)_100%)] px-8 py-28 text-center max-md:rounded-3xl max-md:px-6 max-md:py-12">
-          <h2 className="mb-6 text-[clamp(2.5rem,6vw,4rem)] font-extrabold leading-tight text-[var(--color-purple-dark)]">
+        <section className="rounded-3xl border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-6 py-12 text-center md:px-12 md:py-16">
+          <h2 className="text-4xl font-black md:text-6xl">
             Reclaim Distribution
           </h2>
-          <p className="mx-auto mb-12 max-w-[600px] text-xl leading-[1.6] text-[rgba(53,34,89,0.8)]">
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[rgba(53,34,89,0.8)]">
             Manifold is an open framework currently in active development. Be
             among the first to break the mold and reshape how games are sold.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-6 max-md:w-full max-md:flex-col">
+          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
             <a
               href="https://github.com/pedromello/manifoldpowered.com"
               target="_blank"
               rel="noopener noreferrer"
-              className={buttonClassName}
+              className="rounded-lg border border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60"
               aria-label="View on GitHub"
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-              </svg>
               View on GitHub
             </a>
             <button
               type="button"
-              className={`${buttonClassName} border-0 bg-[var(--color-purple-dark)] text-[var(--text-secondary)] hover:bg-[var(--color-black)] hover:shadow-[0_10px_40px_rgba(53,34,89,0.3)]`}
+              className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
               aria-label="Request Early Access"
               onClick={() => setIsEarlyAccessModalOpen(true)}
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-              </svg>
               Early Access
             </button>
           </div>
 
-          <div className="mt-28 flex flex-wrap justify-center gap-8 max-md:flex-col max-md:items-center">
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
             {audienceCards.map((card) => (
-              <div
-                className="relative max-w-[440px] flex-1 overflow-hidden rounded-[32px] border border-[rgba(214,205,255,0.6)] bg-[rgba(255,255,255,0.4)] px-10 py-12 text-left transition-[transform,box-shadow,background,border] duration-300 before:absolute before:left-0 before:top-0 before:h-full before:w-[5px] before:bg-[var(--color-purple-dark)] before:transition-[width] before:duration-300 before:content-[''] hover:-translate-y-2 hover:border-[var(--color-indigo-light)] hover:bg-[rgba(255,255,255,0.7)] hover:shadow-[0_15px_40px_rgba(53,34,89,0.08)] hover:before:w-2 max-md:w-full max-md:min-w-full max-md:px-6 max-md:py-8"
-                key={card.title}
-              >
-                <h4 className="mb-4 text-[1.6rem] font-extrabold leading-tight text-[var(--color-purple-dark)]">
-                  {card.title}
-                </h4>
-                <p className="mb-8 text-[1.15rem] leading-[1.5] text-[rgba(53,34,89,0.85)]">
-                  {card.description}
-                </p>
-                <Link href={card.href} legacyBehavior>
-                  <a className="inline-flex items-center text-[1.1rem] font-bold text-[var(--color-purple-dark)] no-underline transition-colors duration-200 hover:text-[var(--color-black)] hover:underline">
-                    {card.label} &rarr;
-                  </a>
-                </Link>
-              </div>
+              <AudienceCard key={card.title} {...card} />
             ))}
           </div>
         </section>
@@ -207,6 +204,37 @@ export default function Home() {
         isOpen={isEarlyAccessModalOpen}
         onClose={() => setIsEarlyAccessModalOpen(false)}
       />
+
+      {isDiagramOpen ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4"
+          role="presentation"
+          onMouseDown={() => setIsDiagramOpen(false)}
+        >
+          <section
+            aria-label="Expanded Manifold Ecosystem Diagram"
+            className="relative max-h-full w-full max-w-6xl overflow-auto rounded-2xl bg-[var(--bg-primary)] p-3 shadow-2xl"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-5 top-5 rounded-lg bg-[var(--color-purple-dark)] px-4 py-2 font-bold text-[var(--bg-primary)]"
+              aria-label="Close expanded diagram"
+              onClick={() => setIsDiagramOpen(false)}
+            >
+              Close
+            </button>
+            <Image
+              src="/images/manifold-diagram-hd.png"
+              alt="Manifold Ecosystem Diagram expanded"
+              width={1920}
+              height={1440}
+              className="h-auto w-full min-w-[900px] rounded-xl"
+            />
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
