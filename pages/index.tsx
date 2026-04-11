@@ -318,9 +318,9 @@ export default function Home({
           <Link
             href="/signup"
             className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black text-center"
-            aria-label="Request Early Access"
+            aria-label="Secure Your Username"
           >
-            Early Access
+            Secure Your Username
           </Link>
         </section>
 
@@ -432,9 +432,9 @@ export default function Home({
               <Link
                 href="/signup"
                 className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black flex items-center justify-center"
-                aria-label="Request Early Access"
+                aria-label="Secure Your Username"
               >
-                Early Access
+                Secure Your Username
               </Link>
             </div>
           </section>
