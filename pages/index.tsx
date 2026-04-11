@@ -30,7 +30,7 @@ const audiences: Record<
       "Publish your game once and let thousands of passionate creators champion it. Manifold connects your game directly to communities.",
     badge: "Project status: open-source pre-release",
     hero: "Launch once, distribute everywhere. Multiply your organic reach across thousands of community-driven storefronts without paying for algorithm visibility.",
-    manifestoLead: "Stop relying on a single top-heavy storefront.",
+    manifestoLead: "",
     manifestoStrong:
       "When you publish your game on Manifold, you plug into an expanding network of passionate streamers, curators, and communities ready to sell your game for you.",
     features: [
@@ -42,7 +42,7 @@ const audiences: Record<
       {
         title: "Fair Revenue, No Monopolies",
         description:
-          "We provide the open-source infrastructure; you keep the lion's share. Revenue is split transparently between you, the community that championed your title, and a small Manifold fee.",
+          "We provide the open-source infrastructure. Revenue is split transparently between you, the community that championed your title, and a small Manifold fee.",
       },
       {
         title: "Zero Extra Integration",
@@ -51,8 +51,7 @@ const audiences: Record<
       },
     ],
     ctaTitle: "Ready to Plug In?",
-    ctaText:
-      "Manifold is built on open protocols. Reach out to get access to the developer dashboard preview and help shape the future of game distribution.",
+    ctaText: "Reach out to be among the first to upload your game to Manifold.",
   },
   creators: {
     tabLabel: "Creators",
@@ -61,14 +60,14 @@ const audiences: Record<
       "Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries.",
     badge: "Project status: open-source pre-release",
     hero: "Empowering communities to own their game distribution. Start your own storefront, curate games for your audience, and earn revenue without depending on corporate intermediaries.",
-    manifestoLead: "We don't need another corporate storefront.",
+    manifestoLead: "",
     manifestoStrong:
       "Manifold gives the gaming community the power to distribute games on their own terms.",
     features: [
       {
         title: "Your Community, Your Store",
         description:
-          "Stop sending your audience away to generic algorithms. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
+          "Stop sending your audience away to Steam. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
       },
       {
         title: "Monetize Your Influence",
@@ -83,7 +82,7 @@ const audiences: Record<
     ],
     ctaTitle: "Reclaim Distribution",
     ctaText:
-      "Manifold is an open framework currently in active development. Be among the first to break the mold and reshape how games are sold.",
+      "Be among the first to break the mold and reshape how games are sold.",
   },
   players: {
     tabLabel: "Players",
@@ -91,8 +90,8 @@ const audiences: Record<
     description:
       "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
     badge: "Project status: open-source pre-release",
-    hero: "Your games shouldn't be trapped inside corporate launchers. Support the creators you love while keeping your collection exactly where it belongs: in a single, universal library.",
-    manifestoLead: "Stop buying games just to feed an algorithm.",
+    hero: "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
+    manifestoLead: "",
     manifestoStrong:
       "When you buy a game through a Manifold-powered store, your money goes to the people who actually made it and the community who championed it.",
     features: [
@@ -112,9 +111,9 @@ const audiences: Record<
           "Every purchase genuinely supports the storefront you bought it from. You fund your favorite content creators, modding teams, and communities with games you were going to buy anyway.",
       },
     ],
-    ctaTitle: "Take Back Your Games",
+    ctaTitle: "Play Games. Fund Creators.",
     ctaText:
-      "We're building an ecosystem where players, devs, and creators finally agree on the rules. Join the open movement.",
+      "Buy your next favorite game directly through your favorite communities. You get a great game for your library, and the creators you love get the support they deserve.",
   },
 };
 
@@ -167,7 +166,9 @@ export default function Home({
   const [isAudienceContentVisible, setIsAudienceContentVisible] =
     useState(true);
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
-  const audienceTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audienceTransitionTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const selectedContent = audiences[selectedAudience];
 
@@ -350,7 +351,7 @@ export default function Home({
               : "translate-y-2 opacity-0"
           }`}
         >
-          <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-5xl">
+          <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-4xl">
             {selectedContent.manifestoLead}
             <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
               {selectedContent.manifestoStrong}
