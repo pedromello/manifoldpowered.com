@@ -1,9 +1,8 @@
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import EarlyAccessModal from "components/EarlyAccessModal";
 import ConceptDiagram from "components/ConceptDiagram";
 
 type AudienceKey = "creators" | "developers" | "players";
@@ -165,7 +164,6 @@ export default function Home({
     useState<AudienceKey>(initialAudience);
   const [isAudienceContentVisible, setIsAudienceContentVisible] =
     useState(true);
-  const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
   const audienceTransitionTimeoutRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -314,14 +312,13 @@ export default function Home({
             </p>
           </div>
 
-          <button
-            type="button"
-            className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
+          <Link
+            href="/signup"
+            className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black text-center"
             aria-label="Request Early Access"
-            onClick={() => setIsEarlyAccessModalOpen(true)}
           >
             Early Access
-          </button>
+          </Link>
         </section>
 
         {/* =========================================
@@ -429,23 +426,17 @@ export default function Home({
               >
                 View on GitHub
               </a>
-              <button
-                type="button"
-                className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
+              <Link
+                href="/signup"
+                className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black flex items-center justify-center"
                 aria-label="Request Early Access"
-                onClick={() => setIsEarlyAccessModalOpen(true)}
               >
                 Early Access
-              </button>
+              </Link>
             </div>
           </section>
         </div>
       </main>
-
-      <EarlyAccessModal
-        isOpen={isEarlyAccessModalOpen}
-        onClose={() => setIsEarlyAccessModalOpen(false)}
-      />
     </div>
   );
 }
