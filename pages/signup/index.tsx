@@ -67,7 +67,7 @@ export default function SignupPage() {
       setUsername("");
       setEmail("");
       setSuccessMessage(
-        "We sent you an activation email. Please activate your account within 15 minutes.",
+        "We sent you an activation email. Please activate your account within 24 hours.",
       );
     } catch (error) {
       setErrorMessage(
