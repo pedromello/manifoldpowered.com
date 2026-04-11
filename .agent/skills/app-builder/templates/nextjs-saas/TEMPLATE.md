@@ -7,15 +7,15 @@ description: Next.js SaaS template principles (2026 Standards). React 19, Server
 
 ## Tech Stack
 
-| Component | Technology | Version / Notes |
-|-----------|------------|-----------------|
-| Framework | Next.js | v16+ (App Router, React Compiler) |
-| Runtime | Node.js | v24 (Krypton LTS) |
-| Auth | Auth.js | v6 (formerly NextAuth) |
-| Payments | Stripe API | Latest |
-| Database | PostgreSQL | Prisma v6 (Serverless Driver) |
-| Email | Resend | React Email |
-| UI | Tailwind CSS | v4 (Oxide Engine, no config file) |
+| Component | Technology   | Version / Notes                   |
+| --------- | ------------ | --------------------------------- |
+| Framework | Next.js      | v16+ (App Router, React Compiler) |
+| Runtime   | Node.js      | v24 (Krypton LTS)                 |
+| Auth      | Auth.js      | v6 (formerly NextAuth)            |
+| Payments  | Stripe API   | Latest                            |
+| Database  | PostgreSQL   | Prisma v6 (Serverless Driver)     |
+| Email     | Resend       | React Email                       |
+| UI        | Tailwind CSS | v4 (Oxide Engine, no config file) |
 
 ---
 
@@ -53,53 +53,56 @@ project-name/
 
 ## SaaS Features
 
-| Feature | Implementation |
-|---------|---------------|
-| Auth | Auth.js v6 + Passkeys + OAuth |
-| Data Mutation | Server Actions (No API routes) |
-| Subscriptions | Stripe Checkout & Customer Portal |
-| Webhooks | Asynchronous Stripe event handling |
-| Email | Transactional via Resend |
-| Validation | Zod (Server-side validation) |
+| Feature       | Implementation                     |
+| ------------- | ---------------------------------- |
+| Auth          | Auth.js v6 + Passkeys + OAuth      |
+| Data Mutation | Server Actions (No API routes)     |
+| Subscriptions | Stripe Checkout & Customer Portal  |
+| Webhooks      | Asynchronous Stripe event handling |
+| Email         | Transactional via Resend           |
+| Validation    | Zod (Server-side validation)       |
 
 ---
 
 ## Database Schema
 
-| Model | Fields (Key fields) |
-|-------|---------------------|
-| User | id, email, stripeCustomerId, subscriptionId, plan |
-| Account | OAuth provider data (Google, GitHub...) |
-| Session | User sessions (Database strategy) |
+| Model   | Fields (Key fields)                               |
+| ------- | ------------------------------------------------- |
+| User    | id, email, stripeCustomerId, subscriptionId, plan |
+| Account | OAuth provider data (Google, GitHub...)           |
+| Session | User sessions (Database strategy)                 |
 
 ---
 
 ## Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| DATABASE_URL | Prisma connection string (Postgres) |
-| AUTH_SECRET | Replaces NEXTAUTH_SECRET (Auth.js v6) |
-| STRIPE_SECRET_KEY | Payments (Server-side) |
-| STRIPE_WEBHOOK_SECRET | Webhook verification |
-| RESEND_API_KEY | Email sending |
-| NEXT_PUBLIC_APP_URL | Application Canonical URL |
+| Variable              | Purpose                               |
+| --------------------- | ------------------------------------- |
+| DATABASE_URL          | Prisma connection string (Postgres)   |
+| AUTH_SECRET           | Replaces NEXTAUTH_SECRET (Auth.js v6) |
+| STRIPE_SECRET_KEY     | Payments (Server-side)                |
+| STRIPE_WEBHOOK_SECRET | Webhook verification                  |
+| RESEND_API_KEY        | Email sending                         |
+| NEXT_PUBLIC_APP_URL   | Application Canonical URL             |
 
 ---
 
 ## Setup Steps
 
 1. Initialize project (Node 24):
+
    ```bash
    npx create-next-app@latest {{name}} --typescript --eslint
    ```
 
 2. Install core libraries:
+
    ```bash
    npm install next-auth@beta stripe resend @prisma/client
    ```
 
 3. Install Tailwind v4 (Add to globals.css):
+
    ```css
    @import "tailwindcss";
    ```
@@ -107,11 +110,13 @@ project-name/
 4. Configure environment (.env.local)
 
 5. Sync Database:
+
    ```bash
    npx prisma db push
    ```
 
 6. Run local Webhook:
+
    ```bash
    npm run stripe:listen
    ```

@@ -15,15 +15,15 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 **Read REQUIRED files always, OPTIONAL only when needed:**
 
-| File | Status | When to Read |
-|------|--------|--------------|
-| [ux-psychology.md](ux-psychology.md) | 🔴 **REQUIRED** | Always read first! |
-| [color-system.md](color-system.md) | ⚪ Optional | Color/palette decisions |
-| [typography-system.md](typography-system.md) | ⚪ Optional | Font selection/pairing |
-| [visual-effects.md](visual-effects.md) | ⚪ Optional | Glassmorphism, shadows, gradients |
-| [animation-guide.md](animation-guide.md) | ⚪ Optional | Animation needed |
-| [motion-graphics.md](motion-graphics.md) | ⚪ Optional | Lottie, GSAP, 3D |
-| [decision-trees.md](decision-trees.md) | ⚪ Optional | Context templates |
+| File                                         | Status          | When to Read                      |
+| -------------------------------------------- | --------------- | --------------------------------- |
+| [ux-psychology.md](ux-psychology.md)         | 🔴 **REQUIRED** | Always read first!                |
+| [color-system.md](color-system.md)           | ⚪ Optional     | Color/palette decisions           |
+| [typography-system.md](typography-system.md) | ⚪ Optional     | Font selection/pairing            |
+| [visual-effects.md](visual-effects.md)       | ⚪ Optional     | Glassmorphism, shadows, gradients |
+| [animation-guide.md](animation-guide.md)     | ⚪ Optional     | Animation needed                  |
+| [motion-graphics.md](motion-graphics.md)     | ⚪ Optional     | Lottie, GSAP, 3D                  |
+| [decision-trees.md](decision-trees.md)       | ⚪ Optional     | Context templates                 |
 
 > 🔴 **ux-psychology.md = ALWAYS READ. Others = only if relevant.**
 
@@ -33,8 +33,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 **Execute these for audits (don't read, just run):**
 
-| Script | Purpose | Usage |
-|--------|---------|-------|
+| Script                | Purpose                             | Usage                                       |
+| --------------------- | ----------------------------------- | ------------------------------------------- |
 | `scripts/ux_audit.py` | UX Psychology & Accessibility Audit | `python scripts/ux_audit.py <project_path>` |
 
 ---
@@ -46,26 +46,29 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ### When User Prompt is Vague, ASK:
 
 **Color not specified?** Ask:
+
 > "What color palette do you prefer? (blue/green/orange/neutral/other?)"
 
-**Style not specified?** Ask: 
+**Style not specified?** Ask:
+
 > "What style are you going for? (minimal/bold/retro/futuristic/organic?)"
 
 **Layout not specified?** Ask:
+
 > "Do you have a layout preference? (single column/grid/asymmetric/full-width?)"
 
 ### ⛔ DEFAULT TENDENCIES TO AVOID (ANTI-SAFE HARBOR):
 
-| AI Default Tendency | Why It's Bad | Think Instead |
-|---------------------|--------------|---------------|
-| **Bento Grids (Modern Cliché)** | Used in every AI design | Why does this content NEED a grid? |
-| **Hero Split (Left/Right)** | Predictable & Boring | How about Massive Typography or Vertical Narrative? |
-| **Mesh/Aurora Gradients** | The "new" lazy background | What's a radical color pairing? |
-| **Glassmorphism** | AI's idea of "premium" | How about solid, high-contrast flat? |
-| **Deep Cyan / Fintech Blue** | Safe harbor from purple ban | Why not Red, Black, or Neon Green? |
-| **"Orchestrate / Empower"** | AI-generated copywriting | How would a human say this? |
-| Dark background + neon glow | Overused, "AI look" | What does the BRAND actually need? |
-| **Rounded everything** | Generic/Safe | Where can I use sharp, brutalist edges? |
+| AI Default Tendency             | Why It's Bad                | Think Instead                                       |
+| ------------------------------- | --------------------------- | --------------------------------------------------- |
+| **Bento Grids (Modern Cliché)** | Used in every AI design     | Why does this content NEED a grid?                  |
+| **Hero Split (Left/Right)**     | Predictable & Boring        | How about Massive Typography or Vertical Narrative? |
+| **Mesh/Aurora Gradients**       | The "new" lazy background   | What's a radical color pairing?                     |
+| **Glassmorphism**               | AI's idea of "premium"      | How about solid, high-contrast flat?                |
+| **Deep Cyan / Fintech Blue**    | Safe harbor from purple ban | Why not Red, Black, or Neon Green?                  |
+| **"Orchestrate / Empower"**     | AI-generated copywriting    | How would a human say this?                         |
+| Dark background + neon glow     | Overused, "AI look"         | What does the BRAND actually need?                  |
+| **Rounded everything**          | Generic/Safe                | Where can I use sharp, brutalist edges?             |
 
 > 🔴 **"Every 'safe' structure you choose brings you one step closer to a generic template. TAKE RISKS."**
 
@@ -75,24 +78,24 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 Before any design work, ANSWER THESE or ASK USER:
 
-| Constraint | Question | Why It Matters |
-|------------|----------|----------------|
-| **Timeline** | How much time? | Determines complexity |
-| **Content** | Ready or placeholder? | Affects layout flexibility |
-| **Brand** | Existing guidelines? | May dictate colors/fonts |
-| **Tech** | What stack? | Affects capabilities |
-| **Audience** | Who exactly? | Drives all visual decisions |
+| Constraint   | Question              | Why It Matters              |
+| ------------ | --------------------- | --------------------------- |
+| **Timeline** | How much time?        | Determines complexity       |
+| **Content**  | Ready or placeholder? | Affects layout flexibility  |
+| **Brand**    | Existing guidelines?  | May dictate colors/fonts    |
+| **Tech**     | What stack?           | Affects capabilities        |
+| **Audience** | Who exactly?          | Drives all visual decisions |
 
 ### Audience → Design Approach
 
-| Audience | Think About |
-|----------|-------------|
-| **Gen Z** | Bold, fast, mobile-first, authentic |
-| **Millennials** | Clean, minimal, value-driven |
-| **Gen X** | Familiar, trustworthy, clear |
-| **Boomers** | Readable, high contrast, simple |
-| **B2B** | Professional, data-focused, trust |
-| **Luxury** | Restrained elegance, whitespace |
+| Audience        | Think About                         |
+| --------------- | ----------------------------------- |
+| **Gen Z**       | Bold, fast, mobile-first, authentic |
+| **Millennials** | Clean, minimal, value-driven        |
+| **Gen X**       | Familiar, trustworthy, clear        |
+| **Boomers**     | Readable, high contrast, simple     |
+| **B2B**         | Professional, data-focused, trust   |
+| **Luxury**      | Restrained elegance, whitespace     |
 
 ---
 
@@ -100,13 +103,13 @@ Before any design work, ANSWER THESE or ASK USER:
 
 ### Core Laws (Internalize These)
 
-| Law | Principle | Application |
-|-----|-----------|-------------|
-| **Hick's Law** | More choices = slower decisions | Limit options, use progressive disclosure |
-| **Fitts' Law** | Bigger + closer = easier to click | Size CTAs appropriately |
-| **Miller's Law** | ~7 items in working memory | Chunk content into groups |
-| **Von Restorff** | Different = memorable | Make CTAs visually distinct |
-| **Serial Position** | First/last remembered most | Key info at start/end |
+| Law                 | Principle                         | Application                               |
+| ------------------- | --------------------------------- | ----------------------------------------- |
+| **Hick's Law**      | More choices = slower decisions   | Limit options, use progressive disclosure |
+| **Fitts' Law**      | Bigger + closer = easier to click | Size CTAs appropriately                   |
+| **Miller's Law**    | ~7 items in working memory        | Chunk content into groups                 |
+| **Von Restorff**    | Different = memorable             | Make CTAs visually distinct               |
+| **Serial Position** | First/last remembered most        | Key info at start/end                     |
 
 ### Emotional Design Levels
 
@@ -151,13 +154,13 @@ All spacing and sizing in multiples of 8:
 
 ### Key Sizing Principles
 
-| Element | Consideration |
-|---------|---------------|
-| **Touch targets** | Minimum comfortable tap size |
-| **Buttons** | Height based on importance hierarchy |
-| **Inputs** | Match button height for alignment |
-| **Cards** | Consistent padding, breathable |
-| **Reading width** | 45-75 characters optimal |
+| Element           | Consideration                        |
+| ----------------- | ------------------------------------ |
+| **Touch targets** | Minimum comfortable tap size         |
+| **Buttons**       | Height based on importance hierarchy |
+| **Inputs**        | Match button height for alignment    |
+| **Cards**         | Consistent padding, breathable       |
+| **Reading width** | 45-75 characters optimal             |
 
 ---
 
@@ -173,13 +176,13 @@ All spacing and sizing in multiples of 8:
 
 ### Color Psychology (For Decision Making)
 
-| If You Need... | Consider Hues | Avoid |
-|----------------|---------------|-------|
-| Trust, calm | Blue family | Aggressive reds |
-| Growth, nature | Green family | Industrial grays |
-| Energy, urgency | Orange, red | Passive blues |
+| If You Need...     | Consider Hues            | Avoid                 |
+| ------------------ | ------------------------ | --------------------- |
+| Trust, calm        | Blue family              | Aggressive reds       |
+| Growth, nature     | Green family             | Industrial grays      |
+| Energy, urgency    | Orange, red              | Passive blues         |
 | Luxury, creativity | Deep Teal, Gold, Emerald | Cheap-feeling brights |
-| Clean, minimal | Neutrals | Overwhelming color |
+| Clean, minimal     | Neutrals                 | Overwhelming color    |
 
 ### Selection Process
 
@@ -196,12 +199,12 @@ For detailed color theory: [color-system.md](color-system.md)
 
 ### Scale Selection
 
-| Content Type | Scale Ratio | Feel |
-|--------------|-------------|------|
-| Dense UI | 1.125-1.2 | Compact, efficient |
-| General web | 1.25 | Balanced (most common) |
-| Editorial | 1.333 | Readable, spacious |
-| Hero/display | 1.5-1.618 | Dramatic impact |
+| Content Type | Scale Ratio | Feel                   |
+| ------------ | ----------- | ---------------------- |
+| Dense UI     | 1.125-1.2   | Compact, efficient     |
+| General web  | 1.25        | Balanced (most common) |
+| Editorial    | 1.333       | Readable, spacious     |
+| Hero/display | 1.5-1.618   | Dramatic impact        |
 
 ### Pairing Concept
 
@@ -274,12 +277,12 @@ Duration based on:
 
 ### Easing Selection
 
-| Action | Easing | Why |
-|--------|--------|-----|
-| Entering | Ease-out | Decelerate, settle in |
-| Leaving | Ease-in | Accelerate, exit |
-| Emphasis | Ease-in-out | Smooth, deliberate |
-| Playful | Bounce | Fun, energetic |
+| Action   | Easing      | Why                   |
+| -------- | ----------- | --------------------- |
+| Entering | Ease-out    | Decelerate, settle in |
+| Leaving  | Ease-in     | Accelerate, exit      |
+| Emphasis | Ease-in-out | Smooth, deliberate    |
+| Playful  | Bounce      | Fun, energetic        |
 
 ### Performance
 
@@ -395,10 +398,10 @@ For deeper guidance on specific areas:
 
 ## Related Skills
 
-| Skill | When to Use |
-|-------|-------------|
-| **frontend-design** (this) | Before coding - Learn design principles (color, typography, UX psychology) |
-| **[web-design-guidelines](../web-design-guidelines/SKILL.md)** | After coding - Audit for accessibility, performance, and best practices |
+| Skill                                                          | When to Use                                                                |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **frontend-design** (this)                                     | Before coding - Learn design principles (color, typography, UX psychology) |
+| **[web-design-guidelines](../web-design-guidelines/SKILL.md)** | After coding - Audit for accessibility, performance, and best practices    |
 
 ## Post-Design Workflow
 
@@ -425,28 +428,27 @@ After implementing your design, run the audit:
 > For Next.js 16+ projects, use the native `next/form` component instead of standard HTML `<form>` for all GET-based search/filter operations.
 
 ### The `<Form>` Component Advantage
+
 - **Automatic Client Navigation:** Performs client-side transitions on submit.
 - **Progressive Enhancement:** Works even without JavaScript.
 - **URL Sync:** Automatically encodes input values into search params.
 
 ### Implementation Example (Search Bar)
+
 ```tsx
-import Form from 'next/form'
+import Form from "next/form";
 
 export default function SearchBar() {
   return (
     <Form action="/search" className="flex gap-2">
-      <input 
-        name="q" 
-        placeholder="Search products..." 
-        className="border p-2"
-      />
+      <input name="q" placeholder="Search products..." className="border p-2" />
       <button type="submit">Search</button>
     </Form>
-  )
+  );
 }
 ```
 
 ### When to use `<Form>` vs. standard `<form>`:
+
 - **Use `next/form`** for: Search, Filtering, Sorting, Pagination (GET requests).
 - **Use standard `<form>`** for: Mutations, Login, Data Entry (POST requests via Server Actions).

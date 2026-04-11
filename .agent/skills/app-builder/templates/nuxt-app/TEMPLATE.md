@@ -9,16 +9,16 @@ Mẫu template Full-Stack hiện đại cho Nuxt 4, tối ưu hóa hiệu suất
 
 ## Tech Stack
 
-| Component | Technology | Version / Notes |
-|-----------|------------|-----------------|
-| Framework | Nuxt | v4.0+ (App Directory structure) |
-| UI Engine | Vue | v3.6+ (Vapor Mode enabled) |
-| Language | TypeScript | v5+ (Strict Mode) |
-| State | Pinia | v3+ (Store syntax) |
-| Database | PostgreSQL | Prisma ORM |
-| Styling | Tailwind CSS | v4.0 (Vite Plugin, Zero-config) |
-| UI Lib | Nuxt UI | v3 (Tailwind v4 native) |
-| Validation | Zod | Schema validation |
+| Component  | Technology   | Version / Notes                 |
+| ---------- | ------------ | ------------------------------- |
+| Framework  | Nuxt         | v4.0+ (App Directory structure) |
+| UI Engine  | Vue          | v3.6+ (Vapor Mode enabled)      |
+| Language   | TypeScript   | v5+ (Strict Mode)               |
+| State      | Pinia        | v3+ (Store syntax)              |
+| Database   | PostgreSQL   | Prisma ORM                      |
+| Styling    | Tailwind CSS | v4.0 (Vite Plugin, Zero-config) |
+| UI Lib     | Nuxt UI      | v3 (Tailwind v4 native)         |
+| Validation | Zod          | Schema validation               |
 
 ---
 
@@ -53,35 +53,37 @@ project-name/
 
 ## Key Concepts (2026)
 
-| Concept | Description | Future Update |
-|---------|-------------|---------------|
-| **App Directory** | `app/` | Tách biệt mã nguồn ứng dụng và file cấu hình root. |
-| **Vapor Mode** | Opt-in performance | Render không cần Virtual DOM (như SolidJS). Bật trong `nuxt.config`. |
-| **Server Functions** | RPC-style calls | Gọi hàm server trực tiếp từ client (thay thế dần API routes thủ công). |
-| **Tailwind v4** | CSS-first | Cấu hình theme trực tiếp trong CSS, không cần `tailwind.config.js`. |
-| **Nuxt Islands** | Server Components | Render component cô lập trên server (`<NuxtIsland name="..." />`). |
+| Concept              | Description        | Future Update                                                          |
+| -------------------- | ------------------ | ---------------------------------------------------------------------- |
+| **App Directory**    | `app/`             | Tách biệt mã nguồn ứng dụng và file cấu hình root.                     |
+| **Vapor Mode**       | Opt-in performance | Render không cần Virtual DOM (như SolidJS). Bật trong `nuxt.config`.   |
+| **Server Functions** | RPC-style calls    | Gọi hàm server trực tiếp từ client (thay thế dần API routes thủ công). |
+| **Tailwind v4**      | CSS-first          | Cấu hình theme trực tiếp trong CSS, không cần `tailwind.config.js`.    |
+| **Nuxt Islands**     | Server Components  | Render component cô lập trên server (`<NuxtIsland name="..." />`).     |
 
 ---
 
 ## Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| DATABASE_URL | Prisma connection string (PostgreSQL) |
-| NUXT_PUBLIC_APP_URL | Canonical URL |
-| NUXT_SESSION_PASSWORD | Session encryption key |
+| Variable              | Purpose                               |
+| --------------------- | ------------------------------------- |
+| DATABASE_URL          | Prisma connection string (PostgreSQL) |
+| NUXT_PUBLIC_APP_URL   | Canonical URL                         |
+| NUXT_SESSION_PASSWORD | Session encryption key                |
 
 ---
 
 ## Setup Steps
 
 1. Initialize Project:
+
    ```bash
    npx nuxi@latest init my-app
    # Select "Nuxt 4 structure" if prompted
    ```
 
 2. Install Core Deps:
+
    ```bash
    npm install @pinia/nuxt @prisma/client zod
    npm install -D prisma
@@ -89,23 +91,26 @@ project-name/
 
 3. Setup Tailwind v4:
    Install the Vite plugin (new standard):
+
    ```bash
    npm install tailwindcss @tailwindcss/vite
    ```
 
    Add to `nuxt.config.ts`:
+
    ```ts
-   import tailwindcss from '@tailwindcss/vite'
+   import tailwindcss from "@tailwindcss/vite";
    export default defineNuxtConfig({
      vite: {
-       plugins: [tailwindcss()]
+       plugins: [tailwindcss()],
      },
-     css: ['~/assets/css/main.css']
-   })
+     css: ["~/assets/css/main.css"],
+   });
    ```
 
 4. Configure CSS:
    In `app/assets/css/main.css`:
+
    ```css
    @import "tailwindcss";
    @theme {

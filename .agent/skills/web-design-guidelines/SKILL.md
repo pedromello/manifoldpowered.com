@@ -31,6 +31,7 @@ Use WebFetch to retrieve the latest rules. The fetched content contains all the 
 ## Usage
 
 When a user provides a file or pattern argument:
+
 1. Fetch guidelines from the source URL above
 2. Read the specified files
 3. Apply all rules from the fetched guidelines
@@ -42,10 +43,10 @@ If no files specified, ask the user which files to review.
 
 ## Related Skills
 
-| Skill | When to Use |
-|-------|-------------|
+| Skill                                              | When to Use                                                                |
+| -------------------------------------------------- | -------------------------------------------------------------------------- |
 | **[frontend-design](../frontend-design/SKILL.md)** | Before coding - Learn design principles (color, typography, UX psychology) |
-| **web-design-guidelines** (this) | After coding - Audit for accessibility, performance, and best practices |
+| **web-design-guidelines** (this)                   | After coding - Audit for accessibility, performance, and best practices    |
 
 ## Design Workflow
 

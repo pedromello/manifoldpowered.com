@@ -427,7 +427,7 @@ export default function ConceptDiagram() {
         {/* TIER 3 */}
         <div className="flex flex-col items-center w-full max-w-4xl relative -top-3 md:-top-0">
           <h2 className="text-sm md:text-base uppercase tracking-[0.2em] font-bold mb-6 text-[rgba(53,34,89,0.5)] text-center px-4">
-            3. All games bought end up in the player's library
+            3. All games bought end up in the player&apos;s library
           </h2>
 
           <div className="w-full rounded-[2.5rem] border border-[var(--color-indigo-light)] bg-white/70 p-6 md:p-12 shadow-xl shadow-[var(--color-indigo-lighter)] backdrop-blur-md text-center flex flex-col items-center transition-transform hover:scale-[1.01] duration-500">

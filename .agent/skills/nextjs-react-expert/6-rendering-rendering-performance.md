@@ -14,7 +14,7 @@ This section contains **9 rules** focused on rendering performance.
 ## Rule 6.1: Animate SVG Wrapper Instead of SVG Element
 
 **Impact:** LOW  
-**Tags:** rendering, svg, css, animation, performance  
+**Tags:** rendering, svg, css, animation, performance
 
 ## Animate SVG Wrapper Instead of SVG Element
 
@@ -25,15 +25,10 @@ Many browsers don't have hardware acceleration for CSS3 animations on SVG elemen
 ```tsx
 function LoadingSpinner() {
   return (
-    <svg 
-      className="animate-spin"
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24"
-    >
+    <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="10" stroke="currentColor" />
     </svg>
-  )
+  );
 }
 ```
 
@@ -43,15 +38,11 @@ function LoadingSpinner() {
 function LoadingSpinner() {
   return (
     <div className="animate-spin">
-      <svg 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24"
-      >
+      <svg width="24" height="24" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" stroke="currentColor" />
       </svg>
     </div>
-  )
+  );
 }
 ```
 
@@ -62,7 +53,7 @@ This applies to all CSS transforms and transitions (`transform`, `opacity`, `tra
 ## Rule 6.2: CSS content-visibility for Long Lists
 
 **Impact:** HIGH  
-**Tags:** rendering, css, content-visibility, long-lists  
+**Tags:** rendering, css, content-visibility, long-lists
 
 ## CSS content-visibility for Long Lists
 
@@ -83,14 +74,14 @@ Apply `content-visibility: auto` to defer off-screen rendering.
 function MessageList({ messages }: { messages: Message[] }) {
   return (
     <div className="overflow-y-auto h-screen">
-      {messages.map(msg => (
+      {messages.map((msg) => (
         <div key={msg.id} className="message-item">
           <Avatar user={msg.author} />
           <div>{msg.content}</div>
         </div>
       ))}
     </div>
-  )
+  );
 }
 ```
 
@@ -101,7 +92,7 @@ For 1000 messages, browser skips layout/paint for ~990 off-screen items (10× fa
 ## Rule 6.3: Hoist Static JSX Elements
 
 **Impact:** LOW  
-**Tags:** rendering, jsx, static, optimization  
+**Tags:** rendering, jsx, static, optimization
 
 ## Hoist Static JSX Elements
 
@@ -111,31 +102,21 @@ Extract static JSX outside components to avoid re-creation.
 
 ```tsx
 function LoadingSkeleton() {
-  return <div className="animate-pulse h-20 bg-gray-200" />
+  return <div className="animate-pulse h-20 bg-gray-200" />;
 }
 
 function Container() {
-  return (
-    <div>
-      {loading && <LoadingSkeleton />}
-    </div>
-  )
+  return <div>{loading && <LoadingSkeleton />}</div>;
 }
 ```
 
 **Correct (reuses same element):**
 
 ```tsx
-const loadingSkeleton = (
-  <div className="animate-pulse h-20 bg-gray-200" />
-)
+const loadingSkeleton = <div className="animate-pulse h-20 bg-gray-200" />;
 
 function Container() {
-  return (
-    <div>
-      {loading && loadingSkeleton}
-    </div>
-  )
+  return <div>{loading && loadingSkeleton}</div>;
 }
 ```
 
@@ -148,7 +129,7 @@ This is especially helpful for large and static SVG nodes, which can be expensiv
 ## Rule 6.4: Optimize SVG Precision
 
 **Impact:** LOW  
-**Tags:** rendering, svg, optimization, svgo  
+**Tags:** rendering, svg, optimization, svgo
 
 ## Optimize SVG Precision
 
@@ -177,7 +158,7 @@ npx svgo --precision=1 --multipass icon.svg
 ## Rule 6.5: Prevent Hydration Mismatch Without Flickering
 
 **Impact:** MEDIUM  
-**Tags:** rendering, ssr, hydration, localStorage, flicker  
+**Tags:** rendering, ssr, hydration, localStorage, flicker
 
 ## Prevent Hydration Mismatch Without Flickering
 
@@ -188,13 +169,9 @@ When rendering content that depends on client-side storage (localStorage, cookie
 ```tsx
 function ThemeWrapper({ children }: { children: ReactNode }) {
   // localStorage is not available on server - throws error
-  const theme = localStorage.getItem('theme') || 'light'
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
+  const theme = localStorage.getItem("theme") || "light";
+
+  return <div className={theme}>{children}</div>;
 }
 ```
 
@@ -204,21 +181,17 @@ Server-side rendering will fail because `localStorage` is undefined.
 
 ```tsx
 function ThemeWrapper({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState('light')
-  
+  const [theme, setTheme] = useState("light");
+
   useEffect(() => {
     // Runs after hydration - causes visible flash
-    const stored = localStorage.getItem('theme')
+    const stored = localStorage.getItem("theme");
     if (stored) {
-      setTheme(stored)
+      setTheme(stored);
     }
-  }, [])
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
+  }, []);
+
+  return <div className={theme}>{children}</div>;
 }
 ```
 
@@ -230,9 +203,7 @@ Component first renders with default value (`light`), then updates after hydrati
 function ThemeWrapper({ children }: { children: ReactNode }) {
   return (
     <>
-      <div id="theme-wrapper">
-        {children}
-      </div>
+      <div id="theme-wrapper">{children}</div>
       <script
         dangerouslySetInnerHTML={{
           __html: `
@@ -247,7 +218,7 @@ function ThemeWrapper({ children }: { children: ReactNode }) {
         }}
       />
     </>
-  )
+  );
 }
 ```
 
@@ -260,17 +231,17 @@ This pattern is especially useful for theme toggles, user preferences, authentic
 ## Rule 6.6: Suppress Expected Hydration Mismatches
 
 **Impact:** LOW-MEDIUM  
-**Tags:** rendering, hydration, ssr, nextjs  
+**Tags:** rendering, hydration, ssr, nextjs
 
 ## Suppress Expected Hydration Mismatches
 
-In SSR frameworks (e.g., Next.js), some values are intentionally different on server vs client (random IDs, dates, locale/timezone formatting). For these *expected* mismatches, wrap the dynamic text in an element with `suppressHydrationWarning` to prevent noisy warnings. Do not use this to hide real bugs. Don’t overuse it.
+In SSR frameworks (e.g., Next.js), some values are intentionally different on server vs client (random IDs, dates, locale/timezone formatting). For these _expected_ mismatches, wrap the dynamic text in an element with `suppressHydrationWarning` to prevent noisy warnings. Do not use this to hide real bugs. Don’t overuse it.
 
 **Incorrect (known mismatch warnings):**
 
 ```tsx
 function Timestamp() {
-  return <span>{new Date().toLocaleString()}</span>
+  return <span>{new Date().toLocaleString()}</span>;
 }
 ```
 
@@ -278,11 +249,7 @@ function Timestamp() {
 
 ```tsx
 function Timestamp() {
-  return (
-    <span suppressHydrationWarning>
-      {new Date().toLocaleString()}
-    </span>
-  )
+  return <span suppressHydrationWarning>{new Date().toLocaleString()}</span>;
 }
 ```
 
@@ -291,7 +258,7 @@ function Timestamp() {
 ## Rule 6.7: Use Activity Component for Show/Hide
 
 **Impact:** MEDIUM  
-**Tags:** rendering, activity, visibility, state-preservation  
+**Tags:** rendering, activity, visibility, state-preservation
 
 ## Use Activity Component for Show/Hide
 
@@ -300,14 +267,14 @@ Use React's `<Activity>` to preserve state/DOM for expensive components that fre
 **Usage:**
 
 ```tsx
-import { Activity } from 'react'
+import { Activity } from "react";
 
 function Dropdown({ isOpen }: Props) {
   return (
-    <Activity mode={isOpen ? 'visible' : 'hidden'}>
+    <Activity mode={isOpen ? "visible" : "hidden"}>
       <ExpensiveMenu />
     </Activity>
-  )
+  );
 }
 ```
 
@@ -318,7 +285,7 @@ Avoids expensive re-renders and state loss.
 ## Rule 6.8: Use Explicit Conditional Rendering
 
 **Impact:** LOW  
-**Tags:** rendering, conditional, jsx, falsy-values  
+**Tags:** rendering, conditional, jsx, falsy-values
 
 ## Use Explicit Conditional Rendering
 
@@ -328,11 +295,7 @@ Use explicit ternary operators (`? :`) instead of `&&` for conditional rendering
 
 ```tsx
 function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count && <span className="badge">{count}</span>}
-    </div>
-  )
+  return <div>{count && <span className="badge">{count}</span>}</div>;
 }
 
 // When count = 0, renders: <div>0</div>
@@ -343,11 +306,7 @@ function Badge({ count }: { count: number }) {
 
 ```tsx
 function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count > 0 ? <span className="badge">{count}</span> : null}
-    </div>
-  )
+  return <div>{count > 0 ? <span className="badge">{count}</span> : null}</div>;
 }
 
 // When count = 0, renders: <div></div>
@@ -359,7 +318,7 @@ function Badge({ count }: { count: number }) {
 ## Rule 6.9: Use useTransition Over Manual Loading States
 
 **Impact:** LOW  
-**Tags:** rendering, transitions, useTransition, loading, state  
+**Tags:** rendering, transitions, useTransition, loading, state
 
 ## Use useTransition Over Manual Loading States
 
@@ -369,17 +328,17 @@ Use `useTransition` instead of manual `useState` for loading states. This provid
 
 ```tsx
 function SearchResults() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = async (value: string) => {
-    setIsLoading(true)
-    setQuery(value)
-    const data = await fetchResults(value)
-    setResults(data)
-    setIsLoading(false)
-  }
+    setIsLoading(true);
+    setQuery(value);
+    const data = await fetchResults(value);
+    setResults(data);
+    setIsLoading(false);
+  };
 
   return (
     <>
@@ -387,29 +346,29 @@ function SearchResults() {
       {isLoading && <Spinner />}
       <ResultsList results={results} />
     </>
-  )
+  );
 }
 ```
 
 **Correct (useTransition with built-in pending state):**
 
 ```tsx
-import { useTransition, useState } from 'react'
+import { useTransition, useState } from "react";
 
 function SearchResults() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [isPending, startTransition] = useTransition()
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [isPending, startTransition] = useTransition();
 
   const handleSearch = (value: string) => {
-    setQuery(value) // Update input immediately
-    
+    setQuery(value); // Update input immediately
+
     startTransition(async () => {
       // Fetch and update results
-      const data = await fetchResults(value)
-      setResults(data)
-    })
-  }
+      const data = await fetchResults(value);
+      setResults(data);
+    });
+  };
 
   return (
     <>
@@ -417,7 +376,7 @@ function SearchResults() {
       {isPending && <Spinner />}
       <ResultsList results={results} />
     </>
-  )
+  );
 }
 ```
 
@@ -429,4 +388,3 @@ function SearchResults() {
 - **Interrupt handling**: New transitions automatically cancel pending ones
 
 Reference: [useTransition](https://react.dev/reference/react/useTransition)
-

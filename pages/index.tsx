@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import ConceptDiagram from "components/ConceptDiagram";
+import Image from "next/image";
 
 type AudienceKey = "creators" | "developers" | "players";
 
@@ -181,11 +182,11 @@ export default function Home({
       return;
     }
 
-    setIsAudienceContentVisible(false);
-
     if (audienceTransitionTimeoutRef.current) {
       clearTimeout(audienceTransitionTimeoutRef.current);
     }
+
+    setTimeout(() => setIsAudienceContentVisible(false), 0);
 
     audienceTransitionTimeoutRef.current = setTimeout(() => {
       setSelectedAudience(nextAudience);
@@ -247,9 +248,11 @@ export default function Home({
               "linear-gradient(to bottom, color-mix(in srgb, var(--color-indigo-light) 70%, transparent), transparent)",
           }}
         >
-          <img
+          <Image
             src="/images/brand/manifold-logo.png"
             alt="Manifold Logo"
+            width={200}
+            height={200}
             className="mx-auto h-16 w-auto"
           />
 

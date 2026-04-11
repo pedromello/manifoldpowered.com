@@ -139,22 +139,42 @@ function LibraryCard({
 }) {
   return (
     <div className="flex w-full flex-col sm:flex-row bg-white/90 rounded-[1.5rem] border border-[var(--color-indigo-light)] shadow-sm p-5 md:p-6 gap-6 items-center sm:items-start group hover:shadow-[0_8px_24px_rgba(214,205,255,0.8)] hover:-translate-y-1 transition-all duration-300 text-left">
-      <div className={`w-28 h-28 shrink-0 rounded-2xl ${game.miniColor} shadow-inner flex items-center justify-center text-5xl border-[4px] border-white group-hover:scale-105 transition-transform`}>
+      <div
+        className={`w-28 h-28 shrink-0 rounded-2xl ${game.miniColor} shadow-inner flex items-center justify-center text-5xl border-[4px] border-white group-hover:scale-105 transition-transform`}
+      >
         {game.icon}
       </div>
       <div className="flex flex-col flex-1 w-full gap-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start w-full gap-2 border-b border-[var(--color-indigo-light)] pb-3">
-           <h4 className="text-2xl font-black text-[var(--color-purple-dark)]">{game.label}</h4>
-           <div className="bg-[#fffbf6] text-[rgba(53,34,89,0.8)] border border-[var(--color-indigo-light)] text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-lg sm:translate-y-1 mt-1 sm:mt-0">
-             Bought from: <strong className="text-[var(--color-purple-dark)]">{purchasedAt}</strong>
-           </div>
+          <h4 className="text-2xl font-black text-[var(--color-purple-dark)]">
+            {game.label}
+          </h4>
+          <div className="bg-[#fffbf6] text-[rgba(53,34,89,0.8)] border border-[var(--color-indigo-light)] text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-lg sm:translate-y-1 mt-1 sm:mt-0">
+            Bought from:{" "}
+            <strong className="text-[var(--color-purple-dark)]">
+              {purchasedAt}
+            </strong>
+          </div>
         </div>
         <p className="text-sm text-[rgba(53,34,89,0.7)] font-semibold mb-3 pr-0 sm:pr-8">
           {game.description}
         </p>
         <button className="mt-auto sm:self-start bg-[var(--color-purple-dark)] hover:scale-105 transition-transform text-[var(--bg-primary)] px-6 py-2.5 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 w-full sm:w-auto">
-           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-           Install Game
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Install Game
         </button>
       </div>
     </div>

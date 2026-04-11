@@ -74,7 +74,8 @@ export default function ActivateSignup() {
           <p className="eyebrow">Account activated</p>
           <h1>You are officially in.</h1>
           <p className="message">
-            Welcome to Manifold. We will notify you as soon as the next phase begins.
+            Welcome to Manifold. We will notify you as soon as the next phase
+            begins.
           </p>
           <Link href="/" className="home-link">
             Back to Manifold

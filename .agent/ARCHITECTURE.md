@@ -210,10 +210,10 @@ skill-name/
 
 ### Enhanced Skills (with scripts/references)
 
-| Skill               | Files | Coverage                            |
-| ------------------- | ----- | ----------------------------------- |
-| `ui-ux-pro-max`     | 27    | 50 styles, 21 palettes, 50 fonts    |
-| `app-builder`       | 20    | Full-stack scaffolding              |
+| Skill           | Files | Coverage                         |
+| --------------- | ----- | -------------------------------- |
+| `ui-ux-pro-max` | 27    | 50 styles, 21 palettes, 50 fonts |
+| `app-builder`   | 20    | Full-stack scaffolding           |
 
 ---
 

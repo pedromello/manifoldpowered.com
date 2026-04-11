@@ -7,15 +7,15 @@ description: Next.js full-stack template principles. App Router, Prisma, Tailwin
 
 ## Tech Stack
 
-| Component | Technology | Version / Notes |
-|-----------|------------|-----------------|
-| Framework | Next.js | v16+ (App Router, Turbopack) |
-| Language | TypeScript | v5+ (Strict Mode) |
-| Database | PostgreSQL | Prisma ORM (Serverless friendly) |
-| Styling | Tailwind CSS | v4.0 (Zero-config, CSS-first) |
-| Auth | Clerk / Better Auth | Middleware Protected Routes |
-| UI Logic | React 19 | Server Actions, useActionState |
-| Validation | Zod | Schema validation (API & Forms) |
+| Component  | Technology          | Version / Notes                  |
+| ---------- | ------------------- | -------------------------------- |
+| Framework  | Next.js             | v16+ (App Router, Turbopack)     |
+| Language   | TypeScript          | v5+ (Strict Mode)                |
+| Database   | PostgreSQL          | Prisma ORM (Serverless friendly) |
+| Styling    | Tailwind CSS        | v4.0 (Zero-config, CSS-first)    |
+| Auth       | Clerk / Better Auth | Middleware Protected Routes      |
+| UI Logic   | React 19            | Server Actions, useActionState   |
+| Validation | Zod                 | Schema validation (API & Forms)  |
 
 ---
 
@@ -51,30 +51,31 @@ project-name/
 
 ## Key Concepts (Updated)
 
-| Concept | Description |
-|---------|-------------|
-| Server Components | Render on server (default). Direct DB access (Prisma) without APIs. |
-| Server Actions | Handle Form mutations. Replaces traditional API Routes. Use in action={}. |
-| React 19 Hooks | Form state management: useActionState, useFormStatus, useOptimistic. |
-| Data Access Layer | Data security. Separation of DB logic (DTOs) for safe reuse. |
-| Tailwind v4 | Styling engine. No tailwind.config.js. Config directly in CSS. |
+| Concept           | Description                                                               |
+| ----------------- | ------------------------------------------------------------------------- |
+| Server Components | Render on server (default). Direct DB access (Prisma) without APIs.       |
+| Server Actions    | Handle Form mutations. Replaces traditional API Routes. Use in action={}. |
+| React 19 Hooks    | Form state management: useActionState, useFormStatus, useOptimistic.      |
+| Data Access Layer | Data security. Separation of DB logic (DTOs) for safe reuse.              |
+| Tailwind v4       | Styling engine. No tailwind.config.js. Config directly in CSS.            |
 
 ---
 
 ## Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| DATABASE_URL | PostgreSQL connection string (Prisma) |
-| NEXT_PUBLIC_APP_URL | Public application URL |
-| NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY | Auth (if using Clerk) |
-| CLERK_SECRET_KEY | Auth Secret (Server only) |
+| Variable                          | Purpose                               |
+| --------------------------------- | ------------------------------------- |
+| DATABASE_URL                      | PostgreSQL connection string (Prisma) |
+| NEXT_PUBLIC_APP_URL               | Public application URL                |
+| NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY | Auth (if using Clerk)                 |
+| CLERK_SECRET_KEY                  | Auth Secret (Server only)             |
 
 ---
 
 ## Setup Steps
 
 1. Initialize Project:
+
    ```bash
    npx create-next-app@latest my-app --typescript --tailwind --eslint
    # Select Yes for App Router
@@ -82,6 +83,7 @@ project-name/
    ```
 
 2. Install DB & Validation:
+
    ```bash
    npm install prisma @prisma/client zod
    npm install -D ts-node # For running seed scripts
@@ -89,6 +91,7 @@ project-name/
 
 3. Configure Tailwind v4 (If missing):
    Ensure `src/app/globals.css` uses the new import syntax instead of a config file:
+
    ```css
    @import "tailwindcss";
 
@@ -99,6 +102,7 @@ project-name/
    ```
 
 4. Initialize Database:
+
    ```bash
    npx prisma init
    # Update schema.prisma

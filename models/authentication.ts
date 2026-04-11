@@ -22,7 +22,7 @@ async function getUser(providedEmail: string, providedPassword: string) {
     try {
       const userFound = await user.findOneByEmail(email);
       return userFound;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedError({
         message: "Invalid email",
         action: "Check your email",
