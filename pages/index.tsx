@@ -1,659 +1,445 @@
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
-import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect, useRef, useState } from "react";
+import ConceptDiagram from "components/ConceptDiagram";
+import Image from "next/image";
 
-export default function Home() {
+type AudienceKey = "creators" | "developers" | "players";
+
+const audiences: Record<
+  AudienceKey,
+  {
+    tabLabel: string;
+    title: string;
+    description: string;
+    badge: string;
+    hero: string;
+    manifestoLead: string;
+    manifestoStrong: string;
+    features: Array<{ title: string; description: string }>;
+    ctaTitle: string;
+    ctaText: string;
+  }
+> = {
+  developers: {
+    tabLabel: "Developers",
+    title: "Manifold for Developers | Multiply Your Organic Reach",
+    description:
+      "Publish your game once and let thousands of passionate creators champion it. Manifold connects your game directly to communities.",
+    badge: "Project status: open-source pre-release",
+    hero: "Launch once, distribute everywhere. Multiply your organic reach across thousands of community-driven storefronts without paying for algorithm visibility.",
+    manifestoLead: "",
+    manifestoStrong:
+      "When you publish your game on Manifold, you plug into an expanding network of passionate streamers, curators, and communities ready to sell your game for you.",
+    features: [
+      {
+        title: "Audience-First Discovery",
+        description:
+          "Instead of fighting thousands of other titles on a single front page, your game is placed directly into targeted, niche storefronts where the right audience discovers it organically.",
+      },
+      {
+        title: "Fair Revenue, No Monopolies",
+        description:
+          "We provide the open-source infrastructure. Revenue is split transparently between you, the community that championed your title, and a small Manifold fee.",
+      },
+      {
+        title: "Zero Extra Integration",
+        description:
+          "Upload your build once and it populates the Manifold registry, available for any verified creator to add to their storefront and sell.",
+      },
+    ],
+    ctaTitle: "Ready to Plug In?",
+    ctaText: "Reach out to be among the first to upload your game to Manifold.",
+  },
+  creators: {
+    tabLabel: "Creators",
+    title: "Manifold | Open-Source Game Distribution for Communities",
+    description:
+      "Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries.",
+    badge: "Project status: open-source pre-release",
+    hero: "Empowering communities to own their game distribution. Start your own storefront, curate games for your audience, and earn revenue without depending on corporate intermediaries.",
+    manifestoLead: "",
+    manifestoStrong:
+      "Manifold gives the gaming community the power to distribute games on their own terms.",
+    features: [
+      {
+        title: "Your Community, Your Store",
+        description:
+          "Stop sending your audience away to Steam. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
+      },
+      {
+        title: "Monetize Your Influence",
+        description:
+          "When your fans buy a game they discovered through your streams or reviews, you earn a direct revenue share. We provide the open-source infrastructure; you provide the curation.",
+      },
+      {
+        title: "Frictionless Infrastructure",
+        description:
+          "You don't need to be a developer to sell games. Manifold handles payment processing integrations, secure game downloads, and the heavy lifting.",
+      },
+    ],
+    ctaTitle: "Reclaim Distribution",
+    ctaText:
+      "Be among the first to break the mold and reshape how games are sold.",
+  },
+  players: {
+    tabLabel: "Players",
+    title: "Manifold for Players | One Universal Library",
+    description:
+      "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
+    badge: "Project status: open-source pre-release",
+    hero: "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
+    manifestoLead: "",
+    manifestoStrong:
+      "When you buy a game through a Manifold-powered store, your money goes to the people who actually made it and the community who championed it.",
+    features: [
+      {
+        title: "One Epic Library",
+        description:
+          "Whether you buy a farming sim from your favorite streamer or a competitive FPS from an esports team's page, every game goes into the same centralized dashboard.",
+      },
+      {
+        title: "True Independence",
+        description:
+          "Manifold is built on open standards, promoting a DRM-free-friendly philosophy that respects your hardware and privacy.",
+      },
+      {
+        title: "Fund Your Creators",
+        description:
+          "Every purchase genuinely supports the storefront you bought it from. You fund your favorite content creators, modding teams, and communities with games you were going to buy anyway.",
+      },
+    ],
+    ctaTitle: "Play Games. Fund Creators.",
+    ctaText:
+      "Buy your next favorite game directly through your favorite communities. You get a great game for your library, and the creators you love get the support they deserve.",
+  },
+};
+
+const audienceKeys = Object.keys(audiences) as AudienceKey[];
+
+function getAudienceFromQuery(value: string | string[] | undefined) {
+  const audience = Array.isArray(value) ? value[0] : value;
+
+  return audienceKeys.includes(audience as AudienceKey)
+    ? (audience as AudienceKey)
+    : "creators";
+}
+
+function FeatureCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="liquid-container">
+    <article className="rounded-3xl border border-[var(--color-indigo-light)] bg-white/55 p-8 shadow-sm backdrop-blur md:p-10">
+      <h3 className="text-2xl font-bold md:text-3xl">{title}</h3>
+      <p className="mt-4 text-lg leading-8 text-[rgba(53,34,89,0.8)]">
+        {description}
+      </p>
+    </article>
+  );
+}
+
+export const getServerSideProps: GetServerSideProps<{
+  initialAudience: AudienceKey;
+}> = async ({ query }) => {
+  return {
+    props: {
+      initialAudience: getAudienceFromQuery(query.audience),
+    },
+  };
+};
+
+export default function Home({
+  initialAudience,
+}: {
+  initialAudience: AudienceKey;
+}) {
+  const transitionDurationMs = 180;
+  const router = useRouter();
+  const [selectedAudience, setSelectedAudience] =
+    useState<AudienceKey>(initialAudience);
+  const [isAudienceContentVisible, setIsAudienceContentVisible] =
+    useState(true);
+  const audienceTransitionTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  const selectedContent = audiences[selectedAudience];
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const nextAudience = getAudienceFromQuery(router.query.audience);
+
+    if (nextAudience === selectedAudience) {
+      return;
+    }
+
+    if (audienceTransitionTimeoutRef.current) {
+      clearTimeout(audienceTransitionTimeoutRef.current);
+    }
+
+    setTimeout(() => setIsAudienceContentVisible(false), 0);
+
+    audienceTransitionTimeoutRef.current = setTimeout(() => {
+      setSelectedAudience(nextAudience);
+      setIsAudienceContentVisible(true);
+    }, transitionDurationMs);
+  }, [router.isReady, router.query.audience, selectedAudience]);
+
+  useEffect(() => {
+    return () => {
+      if (audienceTransitionTimeoutRef.current) {
+        clearTimeout(audienceTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function selectAudience(audience: AudienceKey) {
+    if (audience === selectedAudience) {
+      return;
+    }
+
+    if (audienceTransitionTimeoutRef.current) {
+      clearTimeout(audienceTransitionTimeoutRef.current);
+    }
+
+    setIsAudienceContentVisible(false);
+
+    audienceTransitionTimeoutRef.current = setTimeout(() => {
+      setSelectedAudience(audience);
+      setIsAudienceContentVisible(true);
+    }, transitionDurationMs);
+
+    router.replace(
+      {
+        pathname: "/",
+        query: audience === "creators" ? {} : { audience },
+      },
+      undefined,
+      { shallow: true, scroll: false },
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--color-purple-dark)]">
       <Head>
-        <title>Manifold | Open-Source Game Distribution for Communities</title>
-        <meta
-          name="description"
-          content="Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries."
-        />
-
+        <title>{selectedContent.title}</title>
+        <meta name="description" content={selectedContent.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Manifold | Own Your Game Store" />
-        <meta
-          property="og:description"
-          content="We don't need another corporate storefront. Launch your community's official game distribution platform today."
-        />
+        <meta property="og:title" content={selectedContent.title} />
+        <meta property="og:description" content={selectedContent.description} />
         <meta name="twitter:card" content="summary_large_image" />
-
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
 
-      <main className="fluid-main">
-        <section className="hero-layer">
-          <img
+      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 pb-10 md:gap-16 md:pb-16 overflow-x-hidden">
+        <section
+          className="mx-auto flex w-full flex-col items-center gap-8 px-6 py-4 text-center md:px-10"
+          style={{
+            background:
+              "linear-gradient(to bottom, color-mix(in srgb, var(--color-indigo-light) 70%, transparent), transparent)",
+          }}
+        >
+          <Image
             src="/images/brand/manifold-logo.png"
             alt="Manifold Logo"
-            className="logo"
+            width={200}
+            height={200}
+            className="mx-auto h-16 w-auto"
           />
 
-          <div className="badge">
-            <span className="dot"></span>
-            Project status: open-source pre-release
-          </div>
-
-          <div className="hero-content">
-            <h1 className="massive-title">MANIFOLD</h1>
-            <p className="hero-subtitle">
-              Empowering communities to own their game distribution. Start your
-              own storefront, curate games for your audience, and earn revenue
-              without depending on corporate intermediaries.
+          <div className="flex justify-center">
+            <p className="inline-flex rounded-full border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-4 py-2 text-sm font-semibold">
+              {selectedContent.badge}
             </p>
           </div>
 
-          <div className="hero-diagram-wrapper">
-            <Image
-              src="/images/manifold-diagram-hd.png"
-              alt="Manifold Ecosystem Diagram"
-              width={1920}
-              height={1440}
-              priority={true}
-              className="diagram-layer"
-            />
+          <h1
+            className="text-6xl font-black leading-none tracking-tight md:text-[10rem]"
+            style={{
+              color: "transparent",
+              WebkitTextStroke: "1px #3522590d",
+              background:
+                "linear-gradient(180deg, var(--color-purple-dark) 0%, #35225933 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+            }}
+          >
+            MANIFOLD
+          </h1>
+
+          <div className="flex w-full justify-center">
+            <nav
+              aria-label="Select audience"
+              className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
+            >
+              {audienceKeys.map((audience) => {
+                const isSelected = audience === selectedAudience;
+
+                return (
+                  <button
+                    type="button"
+                    className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
+                      isSelected
+                        ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
+                        : "hover:bg-white/70"
+                    }`}
+                    aria-pressed={isSelected}
+                    key={audience}
+                    onClick={() => selectAudience(audience)}
+                  >
+                    {audiences[audience].tabLabel}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
+
+          <div
+            className={`flex justify-center transform-gpu transition-all duration-200 ease-out ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-2 opacity-0"
+            }`}
+          >
+            <p className="max-w-2xl text-xl leading-9 text-[rgba(53,34,89,0.8)] md:text-2xl">
+              {selectedContent.hero}
+            </p>
+          </div>
+
+          <Link
+            href="/signup"
+            className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black text-center"
+            aria-label="Request Early Access"
+          >
+            Early Access
+          </Link>
         </section>
 
-        <section className="intro-layer">
-          <h2 className="manifesto">
-            We don&apos;t need another corporate storefront. <br />
-            <strong>
-              Manifold gives the gaming community the power to distribute games
-              on their own terms. A fully open-source infrastructure for
-              creators to launch verified stores in minutes.
-            </strong>
+        {/* =========================================
+            NOSSO NOVO DIAGRAMA DE CONCEITO (DINAMICO)
+            ========================================= */}
+        <section className="w-full">
+          <h2 className="mb-8 text-center text-4xl font-black md:mb-12 md:text-5xl">
+            How It Works
           </h2>
+          <ConceptDiagram />
         </section>
 
-        <section className="features-layer">
-          <div className="feature-card offset-left">
-            <div className="feature-glow"></div>
-            <h3 className="feature-title">Your Community, Your Store</h3>
-            <p className="feature-desc">
-              Stop sending your audience away to generic algorithms. With
-              Manifold, you open a verified, branded storefront in minutes.
-              Handpick the catalog that fits your community&apos;s vibe
-              perfectly, whether it&apos;s indie cozy games or hardcore
-              competitive shooters.
-            </p>
+        <div
+          className="grid grid-cols-1 gap-4 pb-4"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-indigo-light) 30%, transparent), transparent)",
+          }}
+        >
+          <div className="mt-12 w-full text-center px-6 mb-2">
+            <h2 className="text-4xl font-black md:text-5xl">
+              Built for the Entire Community
+            </h2>
           </div>
 
-          <div className="feature-card offset-right">
-            <div className="feature-glow"></div>
-            <h3 className="feature-title">Monetize Your Influence</h3>
-            <p className="feature-desc">
-              When your fans buy a game they discovered through your streams or
-              reviews, you earn a direct revenue share. We provide the
-              open-source infrastructure to make it secure, you provide the
-              curation and the genuine recommendation.
-            </p>
+          <div className="mt-4 flex w-full justify-center">
+            <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
+              <nav
+                aria-label="Select audience"
+                className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
+              >
+                {audienceKeys.map((audience) => {
+                  const isSelected = audience === selectedAudience;
+
+                  return (
+                    <button
+                      type="button"
+                      className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
+                        isSelected
+                          ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
+                          : "hover:bg-white/70"
+                      }`}
+                      aria-pressed={isSelected}
+                      key={audience}
+                      onClick={() => selectAudience(audience)}
+                    >
+                      {audiences[audience].tabLabel}
+                    </button>
+                  );
+                })}
+              </nav>
+            </section>
           </div>
 
-          <div className="feature-card offset-center">
-            <div className="feature-glow"></div>
-            <h3 className="feature-title">Frictionless Infrastructure</h3>
-            <p className="feature-desc">
-              You don&apos;t need to be a developer to sell games. Manifold
-              handles the payment processing integrations, secure game
-              downloads, and heavy lifting. You just build your community and
-              share the games you love.
-            </p>
-          </div>
+          <section
+            className={`mx-auto w-full max-w-4xl px-6 text-center transform-gpu transition-all duration-200 ease-out md:px-10 ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-2 opacity-0"
+            }`}
+          >
+            <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-4xl">
+              {selectedContent.manifestoLead}
+              <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
+                {selectedContent.manifestoStrong}
+              </strong>
+            </h2>
+          </section>
+        </div>
+
+        <section
+          className={`mx-auto grid w-full max-w-7xl gap-6 px-6 transform-gpu transition-all duration-200 ease-out md:grid-cols-3 md:px-10 ${
+            isAudienceContentVisible
+              ? "translate-y-0 opacity-100"
+              : "translate-y-3 opacity-0"
+          }`}
+        >
+          {selectedContent.features.map((feature) => (
+            <FeatureCard key={feature.title} {...feature} />
+          ))}
         </section>
 
-        <section className="cta-layer">
-          <h2 className="cta-heading">Reclaim Distribution</h2>
-          <p className="cta-text">
-            Manifold is an open framework currently in active development. Be
-            among the first to break the mold and reshape how games are sold.
-          </p>
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10">
+          <section
+            className={`rounded-3xl border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-6 py-12 text-center transform-gpu transition-all duration-200 ease-out md:px-12 md:py-16 ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-3 opacity-0"
+            }`}
+          >
+            <h2 className="text-4xl font-black md:text-6xl">
+              {selectedContent.ctaTitle}
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[rgba(53,34,89,0.8)]">
+              {selectedContent.ctaText}
+            </p>
 
-          <div className="action-buttons">
-            <a
-              href="https://github.com/pedromello/manifoldpowered.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-liquid"
-              aria-label="View on GitHub"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="currentColor"
+            <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+              <a
+                href="https://github.com/pedromello/manifoldpowered.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60"
+                aria-label="View on GitHub"
               >
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-              </svg>
-              View on GitHub
-            </a>
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLScYuPMblNZLzKLLnZ6enRJ0n3_Jqvx7V9veNiesVlE4QJo3eg/viewform?usp=dialog"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-liquid primary"
-              aria-label="Follow Development"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="currentColor"
+                View on GitHub
+              </a>
+              <Link
+                href="/signup"
+                className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black flex items-center justify-center"
+                aria-label="Request Early Access"
               >
-                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-              </svg>
-              Early Access
-            </a>
-          </div>
-
-          <div className="audience-branching">
-            <div className="branch-card">
-              <h4>Are you a Game Developer?</h4>
-              <p>
-                Learn how Manifold multiplies your organic reach across the
-                world by connecting you with creators.
-              </p>
-              <Link href="/developers" legacyBehavior>
-                <a className="branch-link">
-                  Discover Developer Benefits &rarr;
-                </a>
+                Early Access
               </Link>
             </div>
-            <div className="branch-card">
-              <h4>Are you a Player?</h4>
-              <p>
-                Find out why your ultimate game library doesn&apos;t depend on
-                heavy corporate launchers anymore.
-              </p>
-              <Link href="/players" legacyBehavior>
-                <a className="branch-link">Explore Player Features &rarr;</a>
-              </Link>
-            </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </main>
-
-      <style jsx>{`
-        .liquid-container {
-          min-height: 100vh;
-          overflow-x: hidden;
-          background: var(--bg-primary);
-          position: relative;
-          font-family:
-            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-            Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-            "Segoe UI Symbol";
-        }
-
-        .liquid-container::before {
-          content: "";
-          position: absolute;
-          top: -20vh;
-          left: -20vw;
-          width: 140vw;
-          height: 140vh;
-          background: radial-gradient(
-            circle at 50% 10%,
-            rgba(214, 205, 255, 0.4) 0%,
-            transparent 60%
-          );
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        .fluid-main {
-          position: relative;
-          z-index: 1;
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 4rem 2rem;
-          display: flex;
-          flex-direction: column;
-          gap: 12vh;
-        }
-
-        .hero-layer {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          position: relative;
-          padding-top: 2vh;
-        }
-
-        .logo {
-          max-height: 80px;
-          width: auto;
-          margin-bottom: 2.5rem;
-          position: relative;
-          z-index: 10;
-        }
-
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: rgba(214, 205, 255, 0.5);
-          border: 1px solid var(--color-indigo-light);
-          color: var(--color-purple-dark);
-          padding: 0.5rem 1.25rem;
-          border-radius: 32px;
-          font-weight: 600;
-          font-size: 0.95rem;
-          letter-spacing: 0.5px;
-          margin-bottom: 3rem;
-          animation: float 6s ease-in-out infinite;
-        }
-
-        .badge .dot {
-          width: 8px;
-          height: 8px;
-          background: var(--color-purple-dark);
-          border-radius: 50%;
-          box-shadow: 0 0 10px var(--color-purple-dark);
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes float {
-          0% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
-          100% {
-            transform: translateY(0px);
-          }
-        }
-
-        @keyframes pulse {
-          0% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.4;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-
-        .massive-title {
-          font-size: clamp(4rem, 15vw, 15rem);
-          font-weight: 800;
-          line-height: 0.85;
-          letter-spacing: -0.05em;
-          color: transparent;
-          -webkit-text-stroke: 1px rgba(53, 34, 89, 0.05);
-          background: linear-gradient(
-            180deg,
-            var(--color-purple-dark) 0%,
-            rgba(53, 34, 89, 0.2) 100%
-          );
-          background-clip: text;
-          -webkit-background-clip: text;
-          text-align: center;
-          margin: 0;
-          padding: 0 2rem;
-          position: relative;
-          z-index: 2;
-        }
-
-        .hero-subtitle {
-          font-size: clamp(1.2rem, 3vw, 2rem);
-          text-align: center;
-          max-width: 800px;
-          margin: 1.5rem auto 4rem;
-          color: var(--color-purple-dark);
-          opacity: 0.85;
-          font-weight: 500;
-          position: relative;
-          z-index: 3;
-        }
-
-        .hero-diagram-wrapper {
-          margin-top: -6vh;
-          position: relative;
-          width: 100%;
-          max-width: 1100px;
-          z-index: 10;
-          transform: perspective(1200px) rotateX(4deg);
-          transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .hero-diagram-wrapper:hover {
-          transform: perspective(1200px) rotateX(0deg) scale(1.02);
-        }
-
-        .hero-diagram-wrapper :global(.diagram-layer) {
-          width: 100%;
-          height: auto;
-          border-radius: 32px;
-          border: 1px solid rgba(53, 34, 89, 0.08);
-          box-shadow:
-            0 40px 80px rgba(53, 34, 89, 0.15),
-            0 0 60px rgba(214, 205, 255, 0.4);
-        }
-
-        .intro-layer {
-          text-align: center;
-          max-width: 900px;
-          margin: 0 auto;
-        }
-
-        .manifesto {
-          font-size: clamp(1.5rem, 4vw, 2.5rem);
-          line-height: 1.5;
-          color: rgba(53, 34, 89, 0.8);
-          font-weight: 400;
-        }
-
-        .manifesto strong {
-          color: var(--color-purple-dark);
-          font-weight: 600;
-        }
-
-        .features-layer {
-          display: flex;
-          flex-direction: column;
-          gap: 4rem;
-          max-width: 1060px;
-          margin: 0 auto;
-        }
-
-        .feature-card {
-          background: rgba(255, 255, 255, 0.35);
-          border: 1px solid rgba(214, 205, 255, 0.6);
-          border-radius: 40px;
-          padding: 4rem;
-          position: relative;
-          overflow: hidden;
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          transition:
-            transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-            background 0.4s,
-            border 0.4s;
-          box-shadow: 0 10px 30px rgba(53, 34, 89, 0.02);
-        }
-
-        .feature-card:hover {
-          transform: translateY(-8px);
-          background: rgba(255, 255, 255, 0.6);
-          border: 1px solid var(--color-indigo-light);
-          box-shadow: 0 15px 40px rgba(53, 34, 89, 0.08);
-        }
-
-        .offset-left {
-          align-self: flex-start;
-          width: 85%;
-        }
-
-        .offset-right {
-          align-self: flex-end;
-          width: 85%;
-        }
-
-        .offset-center {
-          align-self: center;
-          width: 95%;
-        }
-
-        .feature-glow {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            var(--color-purple-dark) 50%,
-            transparent
-          );
-          opacity: 0.3;
-        }
-
-        .feature-title {
-          font-size: 2.2rem;
-          font-weight: 700;
-          color: var(--color-purple-dark);
-          margin-bottom: 1.5rem;
-          letter-spacing: -0.02em;
-        }
-
-        .feature-desc {
-          font-size: 1.25rem;
-          line-height: 1.6;
-          color: rgba(53, 34, 89, 0.85);
-        }
-
-        .cta-layer {
-          text-align: center;
-          padding: 7rem 2rem;
-          background: linear-gradient(
-            180deg,
-            transparent,
-            rgba(214, 205, 255, 0.3) 100%
-          );
-          border-radius: 40px;
-          border: 1px solid rgba(214, 205, 255, 0.6);
-          margin-top: 4rem;
-          margin-bottom: 6rem;
-        }
-
-        .cta-heading {
-          font-size: clamp(2.5rem, 6vw, 4rem);
-          font-weight: 800;
-          margin-bottom: 1.5rem;
-          color: var(--color-purple-dark);
-        }
-
-        .cta-text {
-          font-size: 1.25rem;
-          color: rgba(53, 34, 89, 0.8);
-          max-width: 600px;
-          margin: 0 auto 3rem;
-          line-height: 1.6;
-        }
-
-        /* Action Buttons */
-        .action-buttons {
-          display: flex;
-          justify-content: center;
-          gap: 1.5rem;
-          flex-wrap: wrap;
-        }
-
-        .btn-liquid {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 1.25rem 2.5rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-          color: var(--color-purple-dark);
-          background: rgba(214, 205, 255, 0.2);
-          border: 1px solid var(--color-indigo-light);
-          border-radius: 32px;
-          text-decoration: none;
-          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .btn-liquid:hover {
-          transform: translateY(-4px) scale(1.02);
-          background: rgba(214, 205, 255, 0.5);
-          box-shadow: 0 10px 30px rgba(53, 34, 89, 0.15);
-        }
-
-        .btn-liquid.primary {
-          background: var(--color-purple-dark);
-          color: var(--bg-primary);
-          border: none;
-        }
-
-        .btn-liquid.primary:hover {
-          background: var(--color-black);
-          box-shadow: 0 10px 40px rgba(53, 34, 89, 0.3);
-        }
-
-        /* Audience Branching Structure */
-        .audience-branching {
-          display: flex;
-          justify-content: center;
-          gap: 2rem;
-          margin-top: 7rem;
-          flex-wrap: wrap;
-        }
-
-        .branch-card {
-          flex: 1;
-          min-width: 250px;
-          max-width: 440px;
-          background: rgba(255, 255, 255, 0.4);
-          border: 1px solid rgba(214, 205, 255, 0.6);
-          border-radius: 32px;
-          padding: 3rem 2.5rem;
-          text-align: left;
-          transition:
-            transform 0.3s ease,
-            box-shadow 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .branch-card::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 5px;
-          height: 100%;
-          background: var(--color-purple-dark);
-          transition: width 0.3s ease;
-        }
-
-        .branch-card:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 15px 40px rgba(53, 34, 89, 0.08);
-          border: 1px solid var(--color-indigo-light);
-          background: rgba(255, 255, 255, 0.7);
-        }
-
-        .branch-card:hover::before {
-          width: 8px;
-        }
-
-        .branch-card h4 {
-          font-size: 1.6rem;
-          color: var(--color-purple-dark);
-          margin-bottom: 1rem;
-          font-weight: 800;
-        }
-
-        .branch-card p {
-          color: rgba(53, 34, 89, 0.85);
-          font-size: 1.15rem;
-          margin-bottom: 2rem;
-          line-height: 1.5;
-        }
-
-        .branch-link {
-          display: inline-flex;
-          align-items: center;
-          color: var(--color-purple-dark);
-          font-weight: 700;
-          text-decoration: none;
-          font-size: 1.1rem;
-          transition: color 0.2s;
-        }
-
-        .branch-link:hover {
-          color: var(--color-black);
-          text-decoration: underline;
-        }
-
-        @media (max-width: 1024px) {
-          .massive-title {
-            font-size: clamp(4rem, 12vw, 10rem);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .fluid-main {
-            padding: 2rem 1rem 4rem 1rem;
-          }
-
-          .offset-left,
-          .offset-right,
-          .offset-center {
-            width: 100%;
-          }
-
-          .feature-card {
-            padding: 2rem 1.5rem;
-            border-radius: 24px;
-          }
-
-          .cta-layer {
-            padding: 3rem 1.5rem;
-            border-radius: 24px;
-          }
-
-          .action-buttons {
-            flex-direction: column;
-            width: 100%;
-          }
-
-          .btn-liquid {
-            width: 100%;
-            justify-content: center;
-          }
-
-          .audience-branching {
-            flex-direction: column;
-            align-items: center;
-          }
-
-          .branch-card {
-            width: 100%;
-            min-width: 100%;
-            padding: 2rem 1.5rem;
-          }
-        }
-      `}</style>
-
-      <style jsx global>{`
-        :root {
-          --color-black: #000000;
-          --color-purple-dark: #352259;
-          --color-indigo-light: #d6cdff;
-          --color-indigo-lighter: #e5dfff;
-          --color-orange-light: #fffbf6;
-
-          --bg-primary: var(--color-orange-light);
-          --text-primary: var(--color-purple-dark);
-        }
-
-        * {
-          box-sizing: border-box;
-          margin: 0;
-          padding: 0;
-        }
-
-        body {
-          background-color: var(--bg-primary);
-          color: var(--text-primary);
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-        }
-
-        ::selection {
-          background-color: var(--color-indigo-light);
-          color: var(--color-purple-dark);
-        }
-      `}</style>
     </div>
   );
 }
