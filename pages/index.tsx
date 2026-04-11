@@ -1,43 +1,132 @@
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useRef, useState } from "react";
 import EarlyAccessModal from "components/EarlyAccessModal";
+import ConceptDiagram from "components/ConceptDiagram";
 
-const features = [
-  {
-    title: "Your Community, Your Store",
-    description:
-      "Stop sending your audience away to generic algorithms. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
-  },
-  {
-    title: "Monetize Your Influence",
-    description:
-      "When your fans buy a game they discovered through your streams or reviews, you earn a direct revenue share. We provide the open-source infrastructure; you provide the curation.",
-  },
-  {
-    title: "Frictionless Infrastructure",
-    description:
-      "You don't need to be a developer to sell games. Manifold handles the payment processing integrations, secure game downloads, and heavy lifting.",
-  },
-];
+type AudienceKey = "creators" | "developers" | "players";
 
-const audienceCards = [
+const audiences: Record<
+  AudienceKey,
   {
-    title: "Are you a Game Developer?",
+    tabLabel: string;
+    title: string;
+    description: string;
+    badge: string;
+    hero: string;
+    manifestoLead: string;
+    manifestoStrong: string;
+    features: Array<{ title: string; description: string }>;
+    ctaTitle: string;
+    ctaText: string;
+  }
+> = {
+  developers: {
+    tabLabel: "Developers",
+    title: "Manifold for Developers | Multiply Your Organic Reach",
     description:
-      "Learn how Manifold multiplies your organic reach across the world by connecting you with creators.",
-    href: "/developers",
-    label: "Discover Developer Benefits",
+      "Publish your game once and let thousands of passionate creators champion it. Manifold connects your game directly to communities.",
+    badge: "Project status: open-source pre-release",
+    hero: "Launch once, distribute everywhere. Multiply your organic reach across thousands of community-driven storefronts without paying for algorithm visibility.",
+    manifestoLead: "Stop relying on a single top-heavy storefront.",
+    manifestoStrong:
+      "When you publish your game on Manifold, you plug into an expanding network of passionate streamers, curators, and communities ready to sell your game for you.",
+    features: [
+      {
+        title: "Audience-First Discovery",
+        description:
+          "Instead of fighting thousands of other titles on a single front page, your game is placed directly into targeted, niche storefronts where the right audience discovers it organically.",
+      },
+      {
+        title: "Fair Revenue, No Monopolies",
+        description:
+          "We provide the open-source infrastructure; you keep the lion's share. Revenue is split transparently between you, the community that championed your title, and a small Manifold fee.",
+      },
+      {
+        title: "Zero Extra Integration",
+        description:
+          "Upload your build once and it populates the Manifold registry, available for any verified creator to add to their storefront and sell.",
+      },
+    ],
+    ctaTitle: "Ready to Plug In?",
+    ctaText:
+      "Manifold is built on open protocols. Reach out to get access to the developer dashboard preview and help shape the future of game distribution.",
   },
-  {
-    title: "Are you a Player?",
+  creators: {
+    tabLabel: "Creators",
+    title: "Manifold | Open-Source Game Distribution for Communities",
     description:
-      "Find out why your ultimate game library doesn't depend on heavy corporate launchers anymore.",
-    href: "/players",
-    label: "Explore Player Features",
+      "Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries.",
+    badge: "Project status: open-source pre-release",
+    hero: "Empowering communities to own their game distribution. Start your own storefront, curate games for your audience, and earn revenue without depending on corporate intermediaries.",
+    manifestoLead: "We don't need another corporate storefront.",
+    manifestoStrong:
+      "Manifold gives the gaming community the power to distribute games on their own terms.",
+    features: [
+      {
+        title: "Your Community, Your Store",
+        description:
+          "Stop sending your audience away to generic algorithms. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
+      },
+      {
+        title: "Monetize Your Influence",
+        description:
+          "When your fans buy a game they discovered through your streams or reviews, you earn a direct revenue share. We provide the open-source infrastructure; you provide the curation.",
+      },
+      {
+        title: "Frictionless Infrastructure",
+        description:
+          "You don't need to be a developer to sell games. Manifold handles payment processing integrations, secure game downloads, and the heavy lifting.",
+      },
+    ],
+    ctaTitle: "Reclaim Distribution",
+    ctaText:
+      "Manifold is an open framework currently in active development. Be among the first to break the mold and reshape how games are sold.",
   },
-];
+  players: {
+    tabLabel: "Players",
+    title: "Manifold for Players | One Universal Library",
+    description:
+      "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
+    badge: "Project status: open-source pre-release",
+    hero: "Your games shouldn't be trapped inside corporate launchers. Support the creators you love while keeping your collection exactly where it belongs: in a single, universal library.",
+    manifestoLead: "Stop buying games just to feed an algorithm.",
+    manifestoStrong:
+      "When you buy a game through a Manifold-powered store, your money goes to the people who actually made it and the community who championed it.",
+    features: [
+      {
+        title: "One Epic Library",
+        description:
+          "Whether you buy a farming sim from your favorite streamer or a competitive FPS from an esports team's page, every game goes into the same centralized dashboard.",
+      },
+      {
+        title: "True Independence",
+        description:
+          "Manifold is built on open standards, promoting a DRM-free-friendly philosophy that respects your hardware and privacy.",
+      },
+      {
+        title: "Fund Your Creators",
+        description:
+          "Every purchase genuinely supports the storefront you bought it from. You fund your favorite content creators, modding teams, and communities with games you were going to buy anyway.",
+      },
+    ],
+    ctaTitle: "Take Back Your Games",
+    ctaText:
+      "We're building an ecosystem where players, devs, and creators finally agree on the rules. Join the open movement.",
+  },
+};
+
+const audienceKeys = Object.keys(audiences) as AudienceKey[];
+
+function getAudienceFromQuery(value: string | string[] | undefined) {
+  const audience = Array.isArray(value) ? value[0] : value;
+
+  return audienceKeys.includes(audience as AudienceKey)
+    ? (audience as AudienceKey)
+    : "creators";
+}
 
 function FeatureCard({
   title,
@@ -56,185 +145,273 @@ function FeatureCard({
   );
 }
 
-function AudienceCard({
-  title,
-  description,
-  href,
-  label,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  label: string;
-}) {
-  return (
-    <article className="rounded-2xl border border-[var(--color-indigo-light)] bg-white/60 p-6 text-left">
-      <h4 className="text-xl font-bold">{title}</h4>
-      <p className="mt-3 text-[rgba(53,34,89,0.75)]">{description}</p>
-      <Link
-        href={href}
-        className="mt-6 inline-flex font-bold underline-offset-4 hover:underline"
-      >
-        {label} &rarr;
-      </Link>
-    </article>
-  );
-}
+export const getServerSideProps: GetServerSideProps<{
+  initialAudience: AudienceKey;
+}> = async ({ query }) => {
+  return {
+    props: {
+      initialAudience: getAudienceFromQuery(query.audience),
+    },
+  };
+};
 
-export default function Home() {
+export default function Home({
+  initialAudience,
+}: {
+  initialAudience: AudienceKey;
+}) {
+  const transitionDurationMs = 180;
+  const router = useRouter();
+  const [selectedAudience, setSelectedAudience] =
+    useState<AudienceKey>(initialAudience);
+  const [isAudienceContentVisible, setIsAudienceContentVisible] =
+    useState(true);
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
-  const [isDiagramOpen, setIsDiagramOpen] = useState(false);
+  const audienceTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedContent = audiences[selectedAudience];
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const nextAudience = getAudienceFromQuery(router.query.audience);
+
+    if (nextAudience === selectedAudience) {
+      return;
+    }
+
+    setIsAudienceContentVisible(false);
+
+    if (audienceTransitionTimeoutRef.current) {
+      clearTimeout(audienceTransitionTimeoutRef.current);
+    }
+
+    audienceTransitionTimeoutRef.current = setTimeout(() => {
+      setSelectedAudience(nextAudience);
+      setIsAudienceContentVisible(true);
+    }, transitionDurationMs);
+  }, [router.isReady, router.query.audience, selectedAudience]);
+
+  useEffect(() => {
+    return () => {
+      if (audienceTransitionTimeoutRef.current) {
+        clearTimeout(audienceTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function selectAudience(audience: AudienceKey) {
+    if (audience === selectedAudience) {
+      return;
+    }
+
+    if (audienceTransitionTimeoutRef.current) {
+      clearTimeout(audienceTransitionTimeoutRef.current);
+    }
+
+    setIsAudienceContentVisible(false);
+
+    audienceTransitionTimeoutRef.current = setTimeout(() => {
+      setSelectedAudience(audience);
+      setIsAudienceContentVisible(true);
+    }, transitionDurationMs);
+
+    router.replace(
+      {
+        pathname: "/",
+        query: audience === "creators" ? {} : { audience },
+      },
+      undefined,
+      { shallow: true, scroll: false },
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--color-purple-dark)]">
       <Head>
-        <title>Manifold | Open-Source Game Distribution for Communities</title>
-        <meta
-          name="description"
-          content="Empowering communities to own their game distribution. Start your own storefront, curate games, and earn revenue without depending on corporate intermediaries."
-        />
+        <title>{selectedContent.title}</title>
+        <meta name="description" content={selectedContent.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Manifold | Own Your Game Store" />
-        <meta
-          property="og:description"
-          content="We don't need another corporate storefront. Launch your community's official game distribution platform today."
-        />
+        <meta property="og:title" content={selectedContent.title} />
+        <meta property="og:description" content={selectedContent.description} />
         <meta name="twitter:card" content="summary_large_image" />
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-20 px-6 py-10 md:gap-28 md:px-10 md:py-16">
-        <section className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr]">
-          <div>
-            <img
-              src="/images/brand/manifold-logo.png"
-              alt="Manifold Logo"
-              className="mx-auto h-16 w-auto lg:mx-0"
-            />
+      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 py-10 md:gap-20 md:py-16 overflow-x-hidden">
+        <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
+          <img
+            src="/images/brand/manifold-logo.png"
+            alt="Manifold Logo"
+            className="mx-auto h-16 w-auto"
+          />
 
-            <p className="mt-10 inline-flex rounded-full border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-4 py-2 text-sm font-semibold">
-              Project status: open-source pre-release
-            </p>
-
-            <h1 className="mt-8 text-6xl font-black leading-none tracking-tight md:text-8xl">
-              MANIFOLD
-            </h1>
-
-            <p className="mt-6 max-w-2xl text-xl leading-9 text-[rgba(53,34,89,0.8)] md:text-2xl">
-              Empowering communities to own their game distribution. Start your
-              own storefront, curate games for your audience, and earn revenue
-              without depending on corporate intermediaries.
+          <div className="mt-10 flex justify-center">
+            <p className="inline-flex rounded-full border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-4 py-2 text-sm font-semibold">
+              {selectedContent.badge}
             </p>
           </div>
 
-          <button
-            type="button"
-            className="group text-left"
-            aria-label="Expand Manifold Ecosystem Diagram"
-            onClick={() => setIsDiagramOpen(true)}
+          <h1 className="mt-8 text-6xl font-black leading-none tracking-tight md:text-8xl">
+            MANIFOLD
+          </h1>
+
+          <div className="mt-8 flex w-full justify-center">
+            <nav
+              aria-label="Select audience"
+              className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
+            >
+              {audienceKeys.map((audience) => {
+                const isSelected = audience === selectedAudience;
+
+                return (
+                  <button
+                    type="button"
+                    className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
+                      isSelected
+                        ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
+                        : "hover:bg-white/70"
+                    }`}
+                    aria-pressed={isSelected}
+                    key={audience}
+                    onClick={() => selectAudience(audience)}
+                  >
+                    {audiences[audience].tabLabel}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div
+            className={`mt-6 flex justify-center transform-gpu transition-all duration-200 ease-out ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-2 opacity-0"
+            }`}
           >
-            <Image
-              src="/images/manifold-diagram-hd.png"
-              alt="Manifold Ecosystem Diagram"
-              width={1920}
-              height={1440}
-              priority={true}
-              className="w-full rounded-3xl border border-[var(--color-indigo-light)] bg-white/60 shadow-xl transition group-hover:scale-[1.01]"
-            />
-            <span className="mt-3 block text-center text-sm font-semibold text-[rgba(53,34,89,0.72)]">
-              Click to expand
-            </span>
-          </button>
+            <p className="max-w-2xl text-xl leading-9 text-[rgba(53,34,89,0.8)] md:text-2xl">
+              {selectedContent.hero}
+            </p>
+          </div>
         </section>
 
-        <section className="mx-auto max-w-4xl text-center">
+        <button
+          type="button"
+          className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
+          aria-label="Request Early Access"
+          onClick={() => setIsEarlyAccessModalOpen(true)}
+        >
+          Early Access
+        </button>
+
+        {/* =========================================
+            NOSSO NOVO DIAGRAMA DE CONCEITO (DINAMICO)
+            ========================================= */}
+        <section className="w-full">
+          <ConceptDiagram />
+        </section>
+
+        <div className="mt-8 flex w-full justify-center">
+          <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
+            <nav
+              aria-label="Select audience"
+              className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
+            >
+              {audienceKeys.map((audience) => {
+                const isSelected = audience === selectedAudience;
+
+                return (
+                  <button
+                    type="button"
+                    className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
+                      isSelected
+                        ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
+                        : "hover:bg-white/70"
+                    }`}
+                    aria-pressed={isSelected}
+                    key={audience}
+                    onClick={() => selectAudience(audience)}
+                  >
+                    {audiences[audience].tabLabel}
+                  </button>
+                );
+              })}
+            </nav>
+          </section>
+        </div>
+
+        <section
+          className={`mx-auto w-full max-w-4xl px-6 text-center transform-gpu transition-all duration-200 ease-out md:px-10 ${
+            isAudienceContentVisible
+              ? "translate-y-0 opacity-100"
+              : "translate-y-2 opacity-0"
+          }`}
+        >
           <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-5xl">
-            We don&apos;t need another corporate storefront.
+            {selectedContent.manifestoLead}
             <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
-              Manifold gives the gaming community the power to distribute games
-              on their own terms.
+              {selectedContent.manifestoStrong}
             </strong>
           </h2>
         </section>
 
-        <section className="grid gap-6 md:grid-cols-3">
-          {features.map((feature) => (
+        <section
+          className={`mx-auto grid w-full max-w-7xl gap-6 px-6 transform-gpu transition-all duration-200 ease-out md:grid-cols-3 md:px-10 ${
+            isAudienceContentVisible
+              ? "translate-y-0 opacity-100"
+              : "translate-y-3 opacity-0"
+          }`}
+        >
+          {selectedContent.features.map((feature) => (
             <FeatureCard key={feature.title} {...feature} />
           ))}
         </section>
 
-        <section className="rounded-3xl border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-6 py-12 text-center md:px-12 md:py-16">
-          <h2 className="text-4xl font-black md:text-6xl">
-            Reclaim Distribution
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[rgba(53,34,89,0.8)]">
-            Manifold is an open framework currently in active development. Be
-            among the first to break the mold and reshape how games are sold.
-          </p>
+        <div className="mx-auto w-full max-w-7xl px-6 md:px-10">
+          <section
+            className={`rounded-3xl border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-6 py-12 text-center transform-gpu transition-all duration-200 ease-out md:px-12 md:py-16 ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-3 opacity-0"
+            }`}
+          >
+            <h2 className="text-4xl font-black md:text-6xl">
+              {selectedContent.ctaTitle}
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[rgba(53,34,89,0.8)]">
+              {selectedContent.ctaText}
+            </p>
 
-          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-            <a
-              href="https://github.com/pedromello/manifoldpowered.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60"
-              aria-label="View on GitHub"
-            >
-              View on GitHub
-            </a>
-            <button
-              type="button"
-              className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
-              aria-label="Request Early Access"
-              onClick={() => setIsEarlyAccessModalOpen(true)}
-            >
-              Early Access
-            </button>
-          </div>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-2">
-            {audienceCards.map((card) => (
-              <AudienceCard key={card.title} {...card} />
-            ))}
-          </div>
-        </section>
+            <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+              <a
+                href="https://github.com/pedromello/manifoldpowered.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60"
+                aria-label="View on GitHub"
+              >
+                View on GitHub
+              </a>
+              <button
+                type="button"
+                className="rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
+                aria-label="Request Early Access"
+                onClick={() => setIsEarlyAccessModalOpen(true)}
+              >
+                Early Access
+              </button>
+            </div>
+          </section>
+        </div>
       </main>
 
       <EarlyAccessModal
         isOpen={isEarlyAccessModalOpen}
         onClose={() => setIsEarlyAccessModalOpen(false)}
       />
-
-      {isDiagramOpen ? (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4"
-          role="presentation"
-          onMouseDown={() => setIsDiagramOpen(false)}
-        >
-          <section
-            aria-label="Expanded Manifold Ecosystem Diagram"
-            className="relative max-h-full w-full max-w-6xl overflow-auto rounded-2xl bg-[var(--bg-primary)] p-3 shadow-2xl"
-            role="dialog"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="absolute right-5 top-5 rounded-lg bg-[var(--color-purple-dark)] px-4 py-2 font-bold text-[var(--bg-primary)]"
-              aria-label="Close expanded diagram"
-              onClick={() => setIsDiagramOpen(false)}
-            >
-              Close
-            </button>
-            <Image
-              src="/images/manifold-diagram-hd.png"
-              alt="Manifold Ecosystem Diagram expanded"
-              width={1920}
-              height={1440}
-              className="h-auto w-full min-w-[900px] rounded-xl"
-            />
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }
