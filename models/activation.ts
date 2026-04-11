@@ -6,7 +6,7 @@ import webserver from "infra/webserver";
 import user from "models/user";
 import authorization from "./authorization";
 
-const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 15; // 15 minutes
+const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 60 * 24; // 24 hours
 
 async function create(userId: string) {
   return prisma.userActivationToken.create({
