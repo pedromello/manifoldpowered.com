@@ -236,7 +236,11 @@ export default function Home({
         <meta property="og:type" content="website" />
         <meta property="og:title" content={selectedContent.title} />
         <meta property="og:description" content={selectedContent.description} />
+        <meta property="og:image" content="https://manifoldpowered.com/images/brand/manifold-logo.png" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={selectedContent.title} />
+        <meta name="twitter:description" content={selectedContent.description} />
+        <meta name="twitter:image" content="https://manifoldpowered.com/images/brand/manifold-logo.png" />
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
 
