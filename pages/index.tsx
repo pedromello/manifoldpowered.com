@@ -241,25 +241,41 @@ export default function Home({
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
 
-      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 py-10 md:gap-20 md:py-16 overflow-x-hidden">
-        <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
+      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 pb-10 md:gap-16 md:pb-16 overflow-x-hidden">
+        <section
+          className="mx-auto flex w-full flex-col items-center gap-8 px-6 py-4 text-center md:px-10"
+          style={{
+            background:
+              "linear-gradient(to bottom, color-mix(in srgb, var(--color-indigo-light) 70%, transparent), transparent)",
+          }}
+        >
           <img
             src="/images/brand/manifold-logo.png"
             alt="Manifold Logo"
             className="mx-auto h-16 w-auto"
           />
 
-          <div className="mt-10 flex justify-center">
+          <div className="flex justify-center">
             <p className="inline-flex rounded-full border border-[var(--color-indigo-light)] bg-[var(--color-indigo-lighter)] px-4 py-2 text-sm font-semibold">
               {selectedContent.badge}
             </p>
           </div>
 
-          <h1 className="mt-8 text-6xl font-black leading-none tracking-tight md:text-8xl">
+          <h1
+            className="text-6xl font-black leading-none tracking-tight md:text-[10rem]"
+            style={{
+              color: "transparent",
+              WebkitTextStroke: "1px #3522590d",
+              background:
+                "linear-gradient(180deg, var(--color-purple-dark) 0%, #35225933 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+            }}
+          >
             MANIFOLD
           </h1>
 
-          <div className="mt-8 flex w-full justify-center">
+          <div className="flex w-full justify-center">
             <nav
               aria-label="Select audience"
               className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
@@ -287,7 +303,7 @@ export default function Home({
           </div>
 
           <div
-            className={`mt-6 flex justify-center transform-gpu transition-all duration-200 ease-out ${
+            className={`flex justify-center transform-gpu transition-all duration-200 ease-out ${
               isAudienceContentVisible
                 ? "translate-y-0 opacity-100"
                 : "translate-y-2 opacity-0"
@@ -297,67 +313,84 @@ export default function Home({
               {selectedContent.hero}
             </p>
           </div>
-        </section>
 
-        <button
-          type="button"
-          className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
-          aria-label="Request Early Access"
-          onClick={() => setIsEarlyAccessModalOpen(true)}
-        >
-          Early Access
-        </button>
+          <button
+            type="button"
+            className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black"
+            aria-label="Request Early Access"
+            onClick={() => setIsEarlyAccessModalOpen(true)}
+          >
+            Early Access
+          </button>
+        </section>
 
         {/* =========================================
             NOSSO NOVO DIAGRAMA DE CONCEITO (DINAMICO)
             ========================================= */}
         <section className="w-full">
+          <h2 className="mb-8 text-center text-4xl font-black md:mb-12 md:text-5xl">
+            How It Works
+          </h2>
           <ConceptDiagram />
         </section>
 
-        <div className="mt-8 flex w-full justify-center">
-          <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
-            <nav
-              aria-label="Select audience"
-              className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
-            >
-              {audienceKeys.map((audience) => {
-                const isSelected = audience === selectedAudience;
+        <div
+          className="grid grid-cols-1 gap-4 pb-4"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-indigo-light) 30%, transparent), transparent)",
+          }}
+        >
+          <div className="mt-12 w-full text-center px-6 mb-2">
+            <h2 className="text-4xl font-black md:text-5xl">
+              Built for the Entire Community
+            </h2>
+          </div>
 
-                return (
-                  <button
-                    type="button"
-                    className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
-                      isSelected
-                        ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
-                        : "hover:bg-white/70"
-                    }`}
-                    aria-pressed={isSelected}
-                    key={audience}
-                    onClick={() => selectAudience(audience)}
-                  >
-                    {audiences[audience].tabLabel}
-                  </button>
-                );
-              })}
-            </nav>
+          <div className="mt-4 flex w-full justify-center">
+            <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-6 text-center md:px-10">
+              <nav
+                aria-label="Select audience"
+                className="grid w-full max-w-2xl gap-3 rounded-2xl border border-[var(--color-indigo-light)] bg-white/45 p-2 sm:grid-cols-3"
+              >
+                {audienceKeys.map((audience) => {
+                  const isSelected = audience === selectedAudience;
+
+                  return (
+                    <button
+                      type="button"
+                      className={`rounded-xl px-4 py-3 text-sm font-bold transition-colors duration-200 ${
+                        isSelected
+                          ? "bg-[var(--color-purple-dark)] text-[var(--bg-primary)]"
+                          : "hover:bg-white/70"
+                      }`}
+                      aria-pressed={isSelected}
+                      key={audience}
+                      onClick={() => selectAudience(audience)}
+                    >
+                      {audiences[audience].tabLabel}
+                    </button>
+                  );
+                })}
+              </nav>
+            </section>
+          </div>
+
+          <section
+            className={`mx-auto w-full max-w-4xl px-6 text-center transform-gpu transition-all duration-200 ease-out md:px-10 ${
+              isAudienceContentVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-2 opacity-0"
+            }`}
+          >
+            <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-4xl">
+              {selectedContent.manifestoLead}
+              <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
+                {selectedContent.manifestoStrong}
+              </strong>
+            </h2>
           </section>
         </div>
-
-        <section
-          className={`mx-auto w-full max-w-4xl px-6 text-center transform-gpu transition-all duration-200 ease-out md:px-10 ${
-            isAudienceContentVisible
-              ? "translate-y-0 opacity-100"
-              : "translate-y-2 opacity-0"
-          }`}
-        >
-          <h2 className="text-3xl leading-snug text-[rgba(53,34,89,0.8)] md:text-4xl">
-            {selectedContent.manifestoLead}
-            <strong className="block pt-4 font-bold text-[var(--color-purple-dark)]">
-              {selectedContent.manifestoStrong}
-            </strong>
-          </h2>
-        </section>
 
         <section
           className={`mx-auto grid w-full max-w-7xl gap-6 px-6 transform-gpu transition-all duration-200 ease-out md:grid-cols-3 md:px-10 ${
