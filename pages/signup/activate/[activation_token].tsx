@@ -74,10 +74,13 @@ export default function ActivateSignup() {
           <p className="eyebrow">Account activated</p>
           <h1>You are officially in.</h1>
           <p className="message">
-            Welcome to Manifold. We will notify you as soon as the next phase
+            Welcome to Manifold. We will notify you as soon as the early access
             begins.
           </p>
-          <Link href="/" className="home-link">
+          <Link
+            href="/"
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
+          >
             Back to Manifold
           </Link>
         </>
@@ -93,7 +96,10 @@ export default function ActivateSignup() {
           <p className="message">
             {errorMessage} The link may be expired or already used.
           </p>
-          <Link href="/signup" className="home-link">
+          <Link
+            href="/signup"
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
+          >
             Request a new invite
           </Link>
         </>
@@ -159,25 +165,6 @@ export default function ActivateSignup() {
           color: rgba(53, 34, 89, 0.84);
           font-size: 1.25rem;
           line-height: 1.6;
-        }
-
-        .home-link {
-          min-height: 3rem;
-          margin-top: 2rem;
-          border-radius: 8px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--color-purple-dark);
-          color: var(--bg-primary);
-          padding: 0.85rem 1.35rem;
-          font-weight: 800;
-          text-decoration: none;
-        }
-
-        .home-link:focus-visible {
-          outline: 3px solid rgba(53, 34, 89, 0.45);
-          outline-offset: 4px;
         }
 
         @keyframes spin {
