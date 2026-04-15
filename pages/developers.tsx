@@ -1,7 +1,7 @@
 export function getServerSideProps() {
   return {
     redirect: {
-      destination: "/?audience=developers",
+      destination: "/about/?audience=developers",
       permanent: false,
     },
   };
