@@ -1,126 +1,8 @@
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useMemo } from "react";
-
-// --- Types & Mock Data ---
-
-export type Game = {
-  id: string;
-  title: string;
-  price: string;
-  tags: string[];
-  gradient: string;
-};
-
-// We create a wide variety of gradients ensuring we strictly reuse
-// the established brand color variables without adding new dominant hues
-const BRAND_GRADIENTS = [
-  "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)",
-  "linear-gradient(45deg, var(--color-indigo-light) 0%, var(--color-purple-dark) 100%)",
-  "linear-gradient(180deg, var(--color-indigo-lighter) 0%, var(--color-indigo-light) 100%)",
-  "linear-gradient(210deg, var(--color-purple-dark) 0%, rgba(214,205,255,0.4) 100%)",
-  "radial-gradient(circle at top right, var(--color-indigo-light) 0%, var(--color-purple-dark) 100%)",
-  "linear-gradient(to right, rgba(53,34,89,0.9), rgba(53,34,89,0.5))",
-];
-
-const mockGames: Game[] = [
-  {
-    id: "1",
-    title: "Astral Ascent",
-    price: "24.99",
-    tags: ["Action", "Rogue-lite"],
-    gradient: BRAND_GRADIENTS[0],
-  },
-  {
-    id: "2",
-    title: "Neon Drifter",
-    price: "19.99",
-    tags: ["Racing", "Cyberpunk"],
-    gradient: BRAND_GRADIENTS[1],
-  },
-  {
-    id: "3",
-    title: "Valley Forge",
-    price: "14.99",
-    tags: ["Simulation", "Strategy"],
-    gradient: BRAND_GRADIENTS[2],
-  },
-  {
-    id: "4",
-    title: "Echoes of Eternity",
-    price: "29.99",
-    tags: ["RPG", "Story-Rich"],
-    gradient: BRAND_GRADIENTS[3],
-  },
-  {
-    id: "5",
-    title: "Void Crawler",
-    price: "9.99",
-    tags: ["Horror", "Survival"],
-    gradient: BRAND_GRADIENTS[4],
-  },
-  {
-    id: "6",
-    title: "Cozy Tavern",
-    price: "12.99",
-    tags: ["Simulation", "Casual"],
-    gradient: BRAND_GRADIENTS[5],
-  },
-  {
-    id: "7",
-    title: "Blade Master",
-    price: "19.99",
-    tags: ["Action", "Hack & Slash"],
-    gradient: BRAND_GRADIENTS[0],
-  },
-  {
-    id: "8",
-    title: "Star Command",
-    price: "34.99",
-    tags: ["Strategy", "Sci-Fi"],
-    gradient: BRAND_GRADIENTS[1],
-  },
-  {
-    id: "9",
-    title: "Pixel Farm",
-    price: "14.99",
-    tags: ["Simulation", "Indie"],
-    gradient: BRAND_GRADIENTS[2],
-  },
-  {
-    id: "10",
-    title: "Shadow Step",
-    price: "21.99",
-    tags: ["Stealth", "Action"],
-    gradient: BRAND_GRADIENTS[3],
-  },
-  {
-    id: "11",
-    title: "Mythic Hearts",
-    price: "29.99",
-    tags: ["RPG", "Fantasy"],
-    gradient: BRAND_GRADIENTS[4],
-  },
-  {
-    id: "12",
-    title: "Circuit Breaker",
-    price: "15.99",
-    tags: ["Puzzle", "Logic"],
-    gradient: BRAND_GRADIENTS[5],
-  },
-];
-
-const CATEGORIES = [
-  "For You",
-  "Action",
-  "RPG",
-  "Simulation",
-  "Horror",
-  "Strategy",
-  "Racing",
-  "Indie",
-];
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { type Game, mockGames, CATEGORIES } from "lib/games";
 
 // --- Components ---
 
@@ -135,6 +17,27 @@ function SectionDivider() {
         }}
       />
     </div>
+  );
+}
+
+const colorbadgegreen = "#00FFC2";
+const colorbadgeorange = "#FFB400";
+const colorbadgered = "#ff5f40";
+
+function DiscountBadge({
+  label,
+  color = colorbadgered,
+}: {
+  label: string;
+  color?: string;
+}) {
+  return (
+    <span
+      className="px-3 py-1 rounded-lg text-xs font-black text-white uppercase tracking-wider shadow-lg transform rotate-2"
+      style={{ backgroundColor: color }}
+    >
+      {label} OFF
+    </span>
   );
 }
 
@@ -195,12 +98,33 @@ function StoreTopNav({ games }: { games: Game[] }) {
                         style={{ background: game.gradient }}
                       />
                       <div className="flex-1 overflow-hidden">
-                        <h4 className="font-bold text-[var(--color-purple-dark)] truncate">
-                          {game.title}
-                        </h4>
-                        <p className="text-sm font-semibold opacity-70">
-                          ${game.price}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-[var(--color-purple-dark)] truncate">
+                            {game.title}
+                          </h4>
+                          {game.discountLabel && (
+                            <span className="text-[9px] font-black text-[#FFB400]">
+                              {game.discountLabel} OFF
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <p
+                            className="font-bold"
+                            style={{
+                              color: game.discountLabel
+                                ? colorbadgered
+                                : "var(--color-purple-dark)",
+                            }}
+                          >
+                            ${game.currentPrice}
+                          </p>
+                          {game.originalPrice && (
+                            <p className="opacity-40 line-through">
+                              ${game.originalPrice}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </Link>
                   ))
@@ -230,6 +154,13 @@ function HeroBento({ featured }: { featured: Game[] }) {
         style={{ background: main.gradient }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-purple-dark)] via-transparent to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
+
+        {main.discountLabel && (
+          <div className="absolute top-8 right-8 z-10 scale-150 origin-top-right">
+            <DiscountBadge label={main.discountLabel} />
+          </div>
+        )}
+
         <div className="absolute inset-x-6 bottom-6 md:inset-x-10 md:bottom-10 text-[var(--bg-primary)] flex flex-col items-start">
           <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase mb-3 text-white">
             Featured Match
@@ -238,10 +169,24 @@ function HeroBento({ featured }: { featured: Game[] }) {
             {main.title}
           </h2>
           <div className="flex items-center gap-4 mt-2">
-            <span className="text-2xl font-black bg-white text-[var(--color-purple-dark)] px-4 py-1.5 rounded-xl">
-              ${main.price}
-            </span>
-            <div className="flex gap-2">
+            <div className="flex flex-col">
+              {main.originalPrice && (
+                <span className="text-lg opacity-60 line-through font-bold">
+                  ${main.originalPrice}
+                </span>
+              )}
+              <span
+                className="text-3xl font-black bg-white px-4 py-1.5 rounded-xl shadow-xl"
+                style={{
+                  color: main.discountLabel
+                    ? colorbadgered
+                    : "var(--color-purple-dark)",
+                }}
+              >
+                ${main.currentPrice}
+              </span>
+            </div>
+            <div className="flex gap-2 self-end mb-1">
               {main.tags.map((tag) => (
                 <span
                   key={tag}
@@ -256,39 +201,47 @@ function HeroBento({ featured }: { featured: Game[] }) {
       </div>
 
       {/* Secondary Vertical Tiles */}
-      <div
-        className="rounded-[2rem] border border-[var(--color-indigo-light)] overflow-hidden relative group cursor-pointer shadow-md"
-        style={{ background: side1.gradient }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-purple-dark)] via-[rgba(53,34,89,0.3)] to-transparent opacity-80" />
-        <div className="absolute inset-x-5 bottom-5 text-[var(--bg-primary)]">
-          <h3 className="text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
-            {side1.title}
-          </h3>
-          <span className="text-xl font-bold bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/10 text-white">
-            ${side1.price}
-          </span>
-        </div>
-      </div>
+      {[side1, side2].map((game) => (
+        <div
+          key={game.id}
+          className="rounded-[2rem] border border-[var(--color-indigo-light)] overflow-hidden relative group cursor-pointer shadow-md"
+          style={{ background: game.gradient }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-purple-dark)] via-[rgba(53,34,89,0.3)] to-transparent opacity-80" />
 
-      <div
-        className="rounded-[2rem] border border-[var(--color-indigo-light)] overflow-hidden relative group cursor-pointer shadow-md"
-        style={{ background: side2.gradient }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-purple-dark)] via-[rgba(53,34,89,0.3)] to-transparent opacity-80" />
-        <div className="absolute inset-x-5 bottom-5 text-[var(--bg-primary)]">
-          <h3 className="text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
-            {side2.title}
-          </h3>
-          <span className="text-xl font-bold bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/10 text-white">
-            ${side2.price}
-          </span>
+          {game.discountLabel && (
+            <div className="absolute top-5 right-5 z-10">
+              <DiscountBadge label={game.discountLabel} />
+            </div>
+          )}
+
+          <div className="absolute inset-x-5 bottom-5 text-[var(--bg-primary)]">
+            <h3 className="text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
+              {game.title}
+            </h3>
+            <div className="flex items-center gap-3">
+              <span
+                className="text-xl font-bold bg-white px-3 py-1 rounded-lg border border-white/10 shadow-sm"
+                style={{
+                  color: game.discountLabel
+                    ? colorbadgered
+                    : "var(--color-purple-dark)",
+                }}
+              >
+                ${game.currentPrice}
+              </span>
+              {game.originalPrice && (
+                <span className="text-sm opacity-60 line-through font-bold">
+                  ${game.originalPrice}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      ))}
     </section>
   );
 }
-
 function CategoryPills({
   active,
   setActive,
@@ -315,7 +268,7 @@ function CategoryPills({
   );
 }
 
-function GameGrid({
+function GameList({
   games,
   activeCategory,
 }: {
@@ -328,48 +281,67 @@ function GameGrid({
   }, [games, activeCategory]);
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-6 px-6 md:px-0">
-      {displayGames.map((game, i) => (
-        <article
+    <section className="flex flex-col gap-4 pt-6 px-6 md:px-0">
+      {displayGames.map((game) => (
+        <Link
           key={game.id}
-          className="group rounded-3xl border border-[var(--color-indigo-light)] bg-white/45 p-3 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-[var(--color-purple-dark)] flex flex-col"
+          href={`#game-${game.id}`}
+          className="group block rounded-3xl border border-[var(--color-indigo-light)] bg-white/45 p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-xl hover:border-[var(--color-purple-dark)] hover:-translate-y-1"
         >
-          <div
-            className="w-full h-48 rounded-[1.25rem] overflow-hidden mb-4 relative"
-            style={{ background: game.gradient }}
-          >
-            {/* Sub-tle overlay on hover */}
-            <div className="absolute inset-0 bg-white/0 transition-colors duration-300 group-hover:bg-white/10" />
-          </div>
+          <div className="flex items-center gap-6">
+            <div
+              className="w-40 md:w-64 aspect-[920/430] rounded-2xl overflow-hidden shrink-0 border border-[var(--color-indigo-light)]"
+              style={{ background: game.gradient }}
+            >
+              <div className="w-full h-full bg-white/0 transition-colors duration-300 group-hover:bg-white/10" />
+            </div>
 
-          <div className="px-2 pb-2 flex-1 flex flex-col">
-            <h3 className="text-2xl font-black mb-1 leading-tight">
-              {game.title}
-            </h3>
+            <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-2xl md:text-3xl font-black mb-1 group-hover:text-[var(--color-purple-dark)] transition-colors">
+                    {game.title}
+                  </h3>
+                  {game.discountLabel && (
+                    <DiscountBadge label={game.discountLabel} />
+                  )}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {game.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-xs font-bold bg-[var(--color-indigo-lighter)] px-2.5 py-1 rounded-lg opacity-80"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-            <div className="flex gap-2 mb-4 flex-wrap mt-2">
-              {game.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs font-bold bg-[var(--color-indigo-lighter)] px-2 py-1 rounded-md opacity-80"
+              <div className="flex flex-col items-end pr-4">
+                {game.originalPrice && (
+                  <span className="text-sm font-bold opacity-40 line-through">
+                    ${game.originalPrice}
+                  </span>
+                )}
+                <div
+                  className="text-2xl md:text-3xl font-black"
+                  style={{
+                    color: game.discountLabel
+                      ? colorbadgered
+                      : "var(--color-purple-dark)",
+                  }}
                 >
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-auto flex items-center justify-between pt-4 border-t border-[rgba(53,34,89,0.08)]">
-              <span className="text-xl font-bold">${game.price}</span>
-              <button className="bg-[var(--color-purple-dark)] text-[var(--bg-primary)] px-4 py-2 rounded-xl font-bold text-sm opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                Buy Now
-              </button>
+                  ${game.currentPrice}
+                </div>
+              </div>
             </div>
           </div>
-        </article>
+        </Link>
       ))}
 
       {displayGames.length === 0 && (
-        <div className="col-span-full py-20 text-center">
+        <div className="py-20 text-center">
           <p className="text-2xl font-bold opacity-60">
             No games found in this category.
           </p>
@@ -379,23 +351,23 @@ function GameGrid({
   );
 }
 
-export default function Store() {
+export default function StoreOption2() {
   const [activeCategory, setActiveCategory] = useState("For You");
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--color-purple-dark)] pb-24 overflow-x-hidden selection:bg-[var(--color-purple-dark)] selection:text-[var(--bg-primary)]">
       <Head>
-        <title>Manifold Store | Discover Community Curated Games</title>
+        <title>Discover Games | Manifold Store</title>
         <meta
           name="description"
-          content="Discover, buy, and support creators through community curated games."
+          content="Explore the best games curated by the community."
         />
       </Head>
 
       <StoreTopNav games={mockGames} />
 
       <main className="w-full flex flex-col items-center">
-        {/* Hero Section with distinctive background */}
+        {/* Banner Section */}
         <section
           className="w-full pt-28 lg:pt-36 pb-12 overflow-hidden"
           style={{
@@ -403,7 +375,7 @@ export default function Store() {
               "linear-gradient(to bottom, color-mix(in srgb, var(--color-indigo-light) 70%, transparent), transparent)",
           }}
         >
-          <div className="max-w-7xl mx-auto px-6 md:px-10">
+          <div className="px-6 md:px-10 w-full flex justify-center">
             <HeroBento featured={mockGames.slice(0, 3)} />
           </div>
         </section>
@@ -412,7 +384,7 @@ export default function Store() {
 
         {/* Content Section */}
         <div
-          className="w-full py-8"
+          className="w-full py-12"
           style={{
             background:
               "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-indigo-light) 30%, transparent), transparent)",
@@ -427,20 +399,32 @@ export default function Store() {
                 active={activeCategory}
                 setActive={setActiveCategory}
               />
-              <GameGrid games={mockGames} activeCategory={activeCategory} />
+              <GameList games={mockGames} activeCategory={activeCategory} />
             </div>
           </div>
         </div>
       </main>
 
       <style jsx global>{`
-        /* Hide scrollbar for category pills but keep functionality */
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
         .no-scrollbar {
-          -ms-overflow-style: none; /* IE and Edge */
-          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out forwards;
         }
       `}</style>
     </div>
