@@ -284,7 +284,7 @@ function GameListItem({ game }: { game: Game }) {
       href={`#game-${game.id}`}
       className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 hover:-translate-y-1 relative overflow-hidden"
     >
-      <div className="flex items-stretch gap-4 md:gap-6">
+      <div className="flex items-stretch gap-2 md:gap-6">
         <div
           className="w-32 sm:w-40 md:w-64 aspect-[920/430] rounded-l-3xl md:rounded-2xl overflow-hidden shrink-0 border border-white/5"
           style={{ background: game.gradient }}
@@ -292,24 +292,19 @@ function GameListItem({ game }: { game: Game }) {
           <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
         </div>
 
-        <div className="flex-1 flex flex md:flex-row md:items-center justify-between gap-2 md:gap-4 py-1 md:pr-4 pr-0 md:p-0">
-          <div className="md:h-[70%] flex flex-col justify-between">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors">
+        <div className="flex-1 flex md:flex-row md:items-center justify-between md:gap-4 py-1 md:pr-4 pr-0 md:p-0 min-w-0">
+          <div className="md:h-[70%] flex flex-col justify-between min-w-0">
+            <div className="min-w-0">
+              <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors truncate">
                 {game.title}
               </h3>
             </div>
-            <div className="flex gap-1 flex-wrap">
-              {game.tags.map((tag) => (
-                <span key={tag} className="text-xs md:text-base text-white/50">
-                  {tag}
-                  {game.tags.indexOf(tag) !== game.tags.length - 1 && ","}
-                </span>
-              ))}
+            <div className="truncate text-xs md:text-base text-white/50">
+              {game.tags.join(", ")}
             </div>
           </div>
 
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-1 w-fit">
             <div className="flex w-full h-full">
               <div className="flex items-center">
                 {game.discountLabel && (
@@ -317,7 +312,7 @@ function GameListItem({ game }: { game: Game }) {
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end pr-2">
+            <div className="flex flex-col h-full justify-center pr-2">
               {game.originalPrice && (
                 <span className="text-sm md:text-xl font-bold text-white/30 line-through">
                   ${game.originalPrice}
