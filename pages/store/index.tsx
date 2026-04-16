@@ -36,7 +36,7 @@ function DiscountBadge({
 }) {
   return (
     <span
-      className={`py-1 rounded-lg text-xs font-black text-black uppercase tracking-wider shadow-lg transform rotate-2 animate-pulse-glow ${size === "small" ? "text-xs py-2 px-1" : "text-sm px-3"}`}
+      className={`py-1 rounded-lg text-xs md:text-lg font-black text-black uppercase tracking-wider shadow-lg transform rotate-2 animate-pulse-glow ${size === "small" ? "text-xs py-2 px-1" : "text-sm px-3"}`}
       style={{
         backgroundColor: color,
         boxShadow: `0 0 20px ${color}66`, // Adding the requested glow
@@ -293,7 +293,7 @@ function GameListItem({ game }: { game: Game }) {
         </div>
 
         <div className="flex-1 flex flex md:flex-row md:items-center justify-between gap-2 md:gap-4 py-1 md:pr-4 pr-0 md:p-0">
-          <div className="flex flex-col justify-between">
+          <div className="md:h-[70%] flex flex-col justify-between">
             <div className="flex items-center gap-3">
               <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors">
                 {game.title}
@@ -301,7 +301,7 @@ function GameListItem({ game }: { game: Game }) {
             </div>
             <div className="flex gap-1 flex-wrap">
               {game.tags.map((tag) => (
-                <span key={tag} className="text-xs text-white/50">
+                <span key={tag} className="text-xs md:text-base text-white/50">
                   {tag}
                   {game.tags.indexOf(tag) !== game.tags.length - 1 && ","}
                 </span>
@@ -319,7 +319,7 @@ function GameListItem({ game }: { game: Game }) {
             </div>
             <div className="flex flex-col items-end pr-2">
               {game.originalPrice && (
-                <span className="text-sm font-bold text-white/30 line-through">
+                <span className="text-sm md:text-xl font-bold text-white/30 line-through">
                   ${game.originalPrice}
                 </span>
               )}
