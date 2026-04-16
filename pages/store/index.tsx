@@ -414,9 +414,9 @@ export default function StoreOption2() {
               "linear-gradient(to bottom, rgba(165, 180, 252, 0.16) 0%, rgba(53,34,89,0.2) 30%, #1D0F3B 100%)",
           }}
         >
-          <div className="max-w-7xl mx-auto flex flex-col gap-8 px-6 md:px-10">
+          <div className="max-w-7xl mx-auto flex flex-col gap-8 px-1 md:px-10">
             <div className="flex flex-col">
-              <h1 className="text-4xl font-black md:text-6xl mb-6 text-white drop-shadow-sm max-w-[20ch]">
+              <h1 className="px-5 text-4xl font-black md:text-6xl mb-6 text-white drop-shadow-sm max-w-[20ch]">
                 Just Arrived at Manifold
               </h1>
               <CategoryPills
