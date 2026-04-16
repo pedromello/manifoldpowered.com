@@ -350,7 +350,43 @@ export default function StoreOption2() {
           name="description"
           content="Explore the best games curated by the community in premium dark mode."
         />
+        {/* 
+          Standard theme-color for modern browsers (Chrome, Safari 15+)
+        */}
+        <meta name="theme-color" content="#1D0F3B" />
+
+        {/* 
+          Safe area configuration: viewport-fit=cover allows 
+          the background to bleed behind the notch/status bar.
+        */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+
+        {/* 
+          iOS Safari standalone/PWA configuration
+        */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
       </Head>
+
+      {/* 
+        CRITICAL SAFARI FIX: 
+        Safari uses the html/body background-color to determine the 
+        overscroll and UI chrome colors. Since the global CSS sets 
+        this to off-white, we must override it here to ensure the 
+        Safari header stays dark.
+      */}
+      <style jsx global>{`
+        html,
+        body {
+          background-color: #1d0f3b !important;
+        }
+      `}</style>
 
       <StoreTopNav games={mockGames} />
 

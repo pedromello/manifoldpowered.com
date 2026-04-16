@@ -233,6 +233,23 @@ export default function Home({
       <Head>
         <title>{selectedContent.title}</title>
         <meta name="description" content={selectedContent.description} />
+        {/* 
+          Safe area configuration: viewport-fit=cover allows 
+          the background to bleed behind the notch/status bar.
+        */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        
+        {/* 
+          Standard theme-color for modern browsers (Chrome, Safari 15+)
+        */}
+        <meta name="theme-color" content="#fffbf6" />
+        
+        {/* 
+          iOS Safari standalone/PWA configuration
+        */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
         <meta property="og:type" content="website" />
         <meta property="og:title" content={selectedContent.title} />
         <meta property="og:description" content={selectedContent.description} />
@@ -252,6 +269,19 @@ export default function Home({
         />
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
       </Head>
+
+      {/* 
+        CRITICAL SAFARI FIX: 
+        Safari uses the html/body background-color to determine the 
+        overscroll and UI chrome colors. We override it here to 
+        ensure the browser matches the theme exactly.
+      */}
+      <style jsx global>{`
+        html,
+        body {
+          background-color: #fffbf6 !important;
+        }
+      `}</style>
 
       <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 pb-10 md:gap-16 md:pb-16 overflow-x-hidden">
         <section
