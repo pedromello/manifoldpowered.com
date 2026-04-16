@@ -28,19 +28,21 @@ const discountBadgeColor = colorbadgeorange;
 function DiscountBadge({
   label,
   color = discountBadgeColor,
+  size = "normal",
 }: {
   label: string;
   color?: string;
+  size?: "normal" | "small";
 }) {
   return (
     <span
-      className="px-3 py-1 rounded-lg text-xs font-black text-black uppercase tracking-wider shadow-lg transform rotate-2 animate-pulse-glow"
+      className={`py-1 rounded-lg text-xs font-black text-black uppercase tracking-wider shadow-lg transform rotate-2 animate-pulse-glow ${size === "small" ? "text-xs py-2 px-1" : "text-sm px-3"}`}
       style={{
         backgroundColor: color,
         boxShadow: `0 0 20px ${color}66`, // Adding the requested glow
       }}
     >
-      {label} OFF
+      {label && size === "normal" ? `${label} OFF` : label}
     </span>
   );
 }
@@ -153,27 +155,22 @@ function HeroBento({ featured }: { featured: Game[] }) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-transparent to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
         {main.discountLabel && (
-          <div className="absolute top-8 right-8 z-10 scale-150 origin-top-right">
+          <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-150 origin-top-right">
             <DiscountBadge label={main.discountLabel} />
           </div>
         )}
 
-        <div className="absolute inset-x-6 bottom-6 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start">
+        <div className="absolute inset-x-4 bottom-4 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start">
           <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
             Featured Match
           </span>
-          <h2 className="text-5xl md:text-[5rem] font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl">
+          <h2 className="text-xl md:text-3xl lg:text-[5rem] font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl">
             {main.title}
           </h2>
           <div className="flex items-center gap-4 mt-2">
-            <div className="flex flex-col">
-              {main.originalPrice && (
-                <span className="text-lg text-white/40 line-through font-bold">
-                  ${main.originalPrice}
-                </span>
-              )}
+            <div className="flex items-center gap-3">
               <span
-                className="text-3xl font-black bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-xl shadow-2xl border"
+                className="text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border"
                 style={{
                   color: main.discountLabel ? discountBadgeColor : "white",
                   borderColor: main.discountLabel
@@ -183,12 +180,17 @@ function HeroBento({ featured }: { featured: Game[] }) {
               >
                 ${main.currentPrice}
               </span>
+              {main.originalPrice && (
+                <span className="text-sm md:text-lg text-white/40 line-through font-bold">
+                  ${main.originalPrice}
+                </span>
+              )}
             </div>
             <div className="flex gap-2 self-end mb-1">
               {main.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-sm font-bold border border-white/10 text-white/80"
+                  className="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-sm font-bold border border-white/10 text-white/80"
                 >
                   {tag}
                 </span>
@@ -213,8 +215,8 @@ function HeroBento({ featured }: { featured: Game[] }) {
             </div>
           )}
 
-          <div className="absolute inset-x-5 bottom-5 text-white">
-            <h3 className="text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
+          <div className="absolute inset-x-4 bottom-4 text-white">
+            <h3 className="text-xl md:text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
               {game.title}
             </h3>
             <div className="flex items-center gap-3">
@@ -272,51 +274,55 @@ function GameListItem({ game }: { game: Game }) {
   return (
     <Link
       href={`#game-${game.id}`}
-      className="group block rounded-3xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 hover:-translate-y-1 relative overflow-hidden"
+      className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 hover:-translate-y-1 relative overflow-hidden"
     >
-      <div className="flex items-center gap-6">
+      <div className="flex items-stretch gap-4 md:gap-6">
         <div
-          className="w-40 md:w-64 aspect-[920/430] rounded-2xl overflow-hidden shrink-0 border border-white/5"
+          className="w-32 sm:w-40 md:w-64 aspect-[920/430] rounded-l-3xl md:rounded-2xl overflow-hidden shrink-0 border border-white/5"
           style={{ background: game.gradient }}
         >
           <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
         </div>
 
-        <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-col">
+        <div className="flex-1 flex flex md:flex-row md:items-center justify-between gap-2 md:gap-4 py-1 md:pr-4 pr-0 md:p-0">
+          <div className="flex flex-col justify-between">
             <div className="flex items-center gap-3">
-              <h3 className="text-2xl md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors">
+              <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors">
                 {game.title}
               </h3>
-              {game.discountLabel && (
-                <DiscountBadge label={game.discountLabel} />
-              )}
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1 flex-wrap">
               {game.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs font-bold bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-white/50"
-                >
+                <span key={tag} className="text-xs text-white/50">
                   {tag}
+                  {game.tags.indexOf(tag) !== game.tags.length - 1 && ","}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col items-end pr-4">
-            {game.originalPrice && (
-              <span className="text-sm font-bold text-white/30 line-through">
-                ${game.originalPrice}
-              </span>
-            )}
-            <div
-              className="text-2xl md:text-3xl font-black"
-              style={{
-                color: game.discountLabel ? discountBadgeColor : "white",
-              }}
-            >
-              ${game.currentPrice}
+          <div className="flex items-end gap-2">
+            <div className="flex w-full h-full">
+              <div className="flex items-center">
+                {game.discountLabel && (
+                  <DiscountBadge label={game.discountLabel} size="small" />
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col items-end pr-2">
+              {game.originalPrice && (
+                <span className="text-sm font-bold text-white/30 line-through">
+                  ${game.originalPrice}
+                </span>
+              )}
+              <div
+                className="text-lg md:text-3xl font-black"
+                style={{
+                  color: game.discountLabel ? discountBadgeColor : "white",
+                }}
+              >
+                ${game.currentPrice}
+              </div>
             </div>
           </div>
         </div>
@@ -351,7 +357,7 @@ export default function StoreOption2() {
           className="w-full pt-28 lg:pt-36 pb-12 overflow-hidden"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(165,180,252,0.16) 0%, rgba(53,34,89,0.2) 60%, transparent 100%)",
+              "linear-gradient(to bottom, rgba(165,180,252,0.05) 0%, rgba(53,34,89,0.2) 60%, transparent 100%)",
           }}
         >
           <div className="px-6 md:px-10 w-full flex justify-center">
