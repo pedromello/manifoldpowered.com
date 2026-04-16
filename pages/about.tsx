@@ -237,18 +237,24 @@ export default function Home({
           Safe area configuration: viewport-fit=cover allows 
           the background to bleed behind the notch/status bar.
         */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+
         {/* 
           Standard theme-color for modern browsers (Chrome, Safari 15+)
         */}
         <meta name="theme-color" content="#fffbf6" />
-        
+
         {/* 
           iOS Safari standalone/PWA configuration
         */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
 
         <meta property="og:type" content="website" />
         <meta property="og:title" content={selectedContent.title} />
