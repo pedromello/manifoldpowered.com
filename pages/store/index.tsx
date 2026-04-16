@@ -91,39 +91,47 @@ function StoreTopNav({ games }: { games: Game[] }) {
             />
 
             {isFocused && searchQuery && (
-              <div className="absolute top-[calc(100%+0.75rem)] right-0 w-[calc(100vw-3rem)] max-w-sm bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-3 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex flex-col gap-2 absolute top-[calc(100%+0.75rem)] right-0 w-[calc(100vw-3rem)] max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200">
                 {filteredGames.length > 0 ? (
                   filteredGames.map((game) => (
                     <Link
                       key={game.id}
                       href={`#game-${game.id}`}
-                      className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-white/5"
+                      className="flex items-center gap-4 px-4 py-0 transition-colors hover:bg-white/5"
                     >
                       <div
-                        className="w-12 h-12 rounded-xl shrink-0 border border-white/5"
+                        className="h-14 md:h-20 aspect-[920/430] rounded-xl shrink-0 border border-white/5"
                         style={{ background: game.gradient }}
                       />
                       <div className="flex-1 overflow-hidden">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-white truncate">
+                          <h4 className="font-bold text-white md:text-lg truncate">
                             {game.title}
                           </h4>
-                          {game.discountLabel && (
-                            <span className="text-[9px] font-black text-[#FFB400]">
-                              {game.discountLabel} OFF
-                            </span>
-                          )}
                         </div>
-                        <p
-                          className="text-sm font-semibold"
-                          style={{
-                            color: game.discountLabel
-                              ? discountBadgeColor
-                              : "rgba(255, 255, 255, 0.4)",
-                          }}
-                        >
-                          ${game.currentPrice}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="text-sm font-semibold md:text-xl"
+                            style={{
+                              color: game.discountLabel
+                                ? discountBadgeColor
+                                : "rgba(255, 255, 255, 0.4)",
+                            }}
+                          >
+                            ${game.currentPrice}
+                          </p>
+                          <p className="text-sm font-semibold line-through text-white/40">
+                            ${game.originalPrice}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end pr-4">
+                        {game.discountLabel && (
+                          <DiscountBadge
+                            label={game.discountLabel}
+                            size="small"
+                          />
+                        )}
                       </div>
                     </Link>
                   ))
