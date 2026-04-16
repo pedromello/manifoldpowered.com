@@ -1,5 +1,13 @@
 // lib/games.ts
 
+export type Review = {
+  userId: string;
+  username: string;
+  message: string;
+  recommended: boolean;
+  createdAt: string;
+};
+
 export type Game = {
   id: string;
   title: string;
@@ -32,6 +40,9 @@ export type Game = {
     gallery: string[]; // Links to images
     videos: string[]; // Links to video files/embeds
   };
+  reviews: Review[];
+  totalPositiveReviews: number;
+  totalNegativeReviews: number;
 };
 
 export const BRAND_GRADIENTS = [
@@ -109,6 +120,38 @@ Astral Ascent Gameplay
       ],
       videos: ["https://youtu.be/wV9Q3xnRaq8?si=z5KXk-d62UuNwUO4"],
     },
+    reviews: [
+      {
+        userId: "u1",
+        username: "CyberGhost",
+        message: "Absolutely incredible rogue-lite! The bosses are challenging but fair.",
+        recommended: true,
+        createdAt: "2024-03-10",
+      },
+      {
+        userId: "u2",
+        username: "PixelArtLover",
+        message: "The hand-drawn art style is breathtaking. One of the best looking games of the year.",
+        recommended: true,
+        createdAt: "2024-03-05",
+      },
+      {
+        userId: "u3",
+        username: "HardcoreGamer",
+        message: "Found some minor bugs during late game sessions, but overall a solid experience.",
+        recommended: true,
+        createdAt: "2024-02-28",
+      },
+      {
+        userId: "u4",
+        username: "CasualPlayer",
+        message: "A bit too difficult for me, but I can see the appeal for those who like a challenge.",
+        recommended: false,
+        createdAt: "2024-02-20",
+      }
+    ],
+    totalPositiveReviews: 12450,
+    totalNegativeReviews: 320,
   },
   {
     id: "2",
@@ -139,6 +182,9 @@ Astral Ascent Gameplay
       gallery: [],
       videos: [],
     },
+    reviews: [],
+    totalPositiveReviews: 840,
+    totalNegativeReviews: 12,
   },
   {
     id: "3",
@@ -170,6 +216,9 @@ Astral Ascent Gameplay
       gallery: [],
       videos: [],
     },
+    reviews: [],
+    totalPositiveReviews: 4500,
+    totalNegativeReviews: 890,
   },
   // Adding default properties for the rest of mockGames to avoid TS errors
   ...[4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => ({
@@ -260,6 +309,9 @@ Astral Ascent Gameplay
       gallery: [],
       videos: [],
     },
+    reviews: [],
+    totalPositiveReviews: 0,
+    totalNegativeReviews: 0,
   })),
 ];
 

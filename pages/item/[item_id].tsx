@@ -13,6 +13,9 @@ import {
   Globe,
   ArrowLeft,
   ExternalLink,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
 } from "lucide-react";
 
 import {
@@ -81,6 +84,90 @@ function SocialLink({
         className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
       />
     </a>
+  );
+}
+function ReviewCard({ review }: { review: any }) {
+  return (
+    <div className="p-6 rounded-3xl bg-white/5 border border-white/5 flex flex-col gap-4 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 text-indigo-400 font-black">
+            {review.username[0].toUpperCase()}
+          </div>
+          <div className="flex flex-col">
+            <span className="font-black text-sm">{review.username}</span>
+            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+              {review.createdAt}
+            </span>
+          </div>
+        </div>
+        <div
+          className={`px-3 py-1 rounded-full flex items-center gap-2 border text-[10px] font-black uppercase tracking-wider ${
+            review.recommended
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+              : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+          }`}
+        >
+          {review.recommended ? (
+            <ThumbsUp size={12} />
+          ) : (
+            <ThumbsDown size={12} />
+          )}
+          {review.recommended ? "Recommended" : "Not Recommended"}
+        </div>
+      </div>
+      <p className="text-white/70 leading-relaxed text-sm italic">
+        "{review.message}"
+      </p>
+    </div>
+  );
+}
+
+function ReviewSummary({
+  positive,
+  negative,
+}: {
+  positive: number;
+  negative: number;
+}) {
+  const total = positive + negative;
+  const ratio = (positive / total) * 100;
+
+  let label = "Mixed";
+  let color = "text-white/60";
+
+  if (ratio >= 90) {
+    label = "Overwhelmingly Positive";
+    color = "text-emerald-400";
+  } else if (ratio >= 80) {
+    label = "Very Positive";
+    color = "text-emerald-400";
+  } else if (ratio >= 70) {
+    label = "Positive";
+    color = "text-emerald-400";
+  } else if (ratio < 40) {
+    label = "Mostly Negative";
+    color = "text-rose-400";
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-4 py-2">
+      <div className="flex flex-col">
+        <span className={`text-sm font-black uppercase tracking-wide ${color}`}>
+          {label}
+        </span>
+        <span className="text-[10px] font-bold text-white/30 truncate">
+          Based on {total.toLocaleString()} community reviews
+        </span>
+      </div>
+      <div className="h-4 w-px bg-white/10 hidden sm:block" />
+      <div className="flex gap-1 items-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+        <ThumbsUp size={12} className="text-emerald-400" />
+        <span className="text-xs font-black text-emerald-400">
+          {((positive / total) * 100).toFixed(0)}%
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -211,6 +298,11 @@ export default function GameDetailsPage() {
               <p className="max-w-2xl text-lg md:text-2xl font-medium text-white/80 leading-relaxed drop-shadow-md">
                 {game.description}
               </p>
+
+              <ReviewSummary
+                positive={game.totalPositiveReviews}
+                negative={game.totalNegativeReviews}
+              />
             </div>
           </div>
         </section>
@@ -364,6 +456,38 @@ export default function GameDetailsPage() {
               </div>
             </div>
           </aside>
+        </div>
+
+        {/* Reviews Section */}
+        <SectionDivider />
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-12">
+          <div className="flex flex-col gap-12">
+            <header className="flex flex-col gap-4">
+              <h2 className="text-4xl md:text-5xl font-black flex items-center gap-4 tracking-tighter">
+                <MessageSquare className="text-indigo-400" />
+                Community Intel
+              </h2>
+              <p className="text-white/40 font-bold max-w-xl">
+                Real-time field reports from players across the astral network.
+                Verified accounts only.
+              </p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {game.reviews.length > 0 ? (
+                game.reviews.map((review) => (
+                  <ReviewCard key={review.userId} review={review} />
+                ))
+              ) : (
+                <div className="col-span-full py-12 flex flex-col items-center gap-4 bg-white/5 rounded-[2.5rem] border border-white/5 opacity-50">
+                  <MessageSquare size={48} strokeWidth={1} />
+                  <p className="font-bold">
+                    No intel available for this sector yet.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </main>
     </div>
