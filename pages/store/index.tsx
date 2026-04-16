@@ -83,7 +83,7 @@ function StoreTopNav({ games }: { games: Game[] }) {
             <input
               type="text"
               placeholder="Search store..."
-              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-5 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-5 py-3 text-sm md:text-base font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
@@ -91,7 +91,7 @@ function StoreTopNav({ games }: { games: Game[] }) {
             />
 
             {isFocused && searchQuery && (
-              <div className="flex flex-col gap-2 absolute top-[calc(100%+0.75rem)] right-0 w-[calc(100vw-3rem)] max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex flex-col gap-2 absolute top-full mt-3 right-0 w-[calc(100vw-3rem)] max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200">
                 {filteredGames.length > 0 ? (
                   filteredGames.map((game) => (
                     <Link
@@ -163,16 +163,16 @@ function HeroBento({ featured }: { featured: Game[] }) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-transparent to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
         {main.discountLabel && (
-          <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-150 origin-top-right">
+          <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
             <DiscountBadge label={main.discountLabel} />
           </div>
         )}
 
-        <div className="absolute inset-x-4 bottom-4 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start">
-          <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
+        <div className="absolute inset-x-4 bottom-4 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start min-w-0 max-w-full">
+          <span className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
             Featured Match
           </span>
-          <h2 className="text-xl md:text-3xl lg:text-[5rem] font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl">
+          <h2 className="w-full text-xl md:text-3xl lg:text-[3rem] font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl truncate">
             {main.title}
           </h2>
           <div className="flex items-center gap-4 mt-2">
@@ -195,10 +195,10 @@ function HeroBento({ featured }: { featured: Game[] }) {
               )}
             </div>
             <div className="flex gap-2 self-end mb-1">
-              {main.tags.map((tag) => (
+              {main.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-sm font-bold border border-white/10 text-white/80"
+                  className="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-base font-bold border border-white/10 text-white/80"
                 >
                   {tag}
                 </span>
@@ -223,13 +223,13 @@ function HeroBento({ featured }: { featured: Game[] }) {
             </div>
           )}
 
-          <div className="absolute inset-x-4 bottom-4 text-white">
-            <h3 className="text-xl md:text-3xl font-black leading-tight mb-2 transform group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md">
+          <div className="absolute inset-x-4 bottom-4 text-white min-w-0 max-w-full">
+            <h3 className="w-full text-xl md:text-3xl font-black leading-tight mb-2 motion-safe:group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md truncate">
               {game.title}
             </h3>
             <div className="flex items-center gap-3">
               <span
-                className="text-xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg"
+                className="text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg"
                 style={{
                   color: game.discountLabel ? discountBadgeColor : "white",
                   borderColor: game.discountLabel
@@ -240,7 +240,7 @@ function HeroBento({ featured }: { featured: Game[] }) {
                 ${game.currentPrice}
               </span>
               {game.originalPrice && (
-                <span className="text-sm text-white/40 line-through font-bold">
+                <span className="text-sm md:text-base text-white/40 line-through font-bold">
                   ${game.originalPrice}
                 </span>
               )}
@@ -265,9 +265,9 @@ function CategoryPills({
         <button
           key={cat}
           onClick={() => setActive(cat)}
-          className={`shrink-0 px-6 py-3 rounded-2xl font-bold transition-all duration-300 ${
+          className={`shrink-0 px-6 py-3.5 md:py-4 md:px-8 rounded-2xl font-bold transition-all duration-300 min-h-[44px] text-sm md:text-lg ${
             active === cat
-              ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] transform scale-105"
+              ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] motion-safe:transform motion-safe:scale-105"
               : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
           }`}
         >
@@ -282,7 +282,7 @@ function GameListItem({ game }: { game: Game }) {
   return (
     <Link
       href={`#game-${game.id}`}
-      className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 hover:-translate-y-1 relative overflow-hidden"
+      className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 motion-safe:hover:-translate-y-1 relative overflow-hidden"
     >
       <div className="flex items-stretch gap-2 md:gap-6">
         <div
@@ -292,7 +292,7 @@ function GameListItem({ game }: { game: Game }) {
           <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
         </div>
 
-        <div className="flex-1 flex md:flex-row md:items-center justify-between md:gap-4 py-1 md:pr-4 pr-0 md:p-0 min-w-0">
+        <div className="flex-1 flex md:flex-row md:items-center justify-between md:gap-4 py-2 md:py-4 px-2 md:px-6 min-w-0">
           <div className="md:h-[70%] flex flex-col justify-between min-w-0">
             <div className="min-w-0">
               <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors truncate">
@@ -372,7 +372,7 @@ export default function StoreOption2() {
 
         {/* Content Section */}
         <div
-          className="w-full py-20"
+          className="w-full py-12 md:py-24"
           style={{
             background:
               "linear-gradient(to bottom, rgba(165, 180, 252, 0.16) 0%, rgba(53,34,89,0.2) 30%, #1D0F3B 100%)",
@@ -380,9 +380,9 @@ export default function StoreOption2() {
         >
           <div className="max-w-7xl mx-auto flex flex-col gap-8 px-6 md:px-10">
             <div className="flex flex-col">
-              <h2 className="text-4xl font-black md:text-5xl mb-6 text-white drop-shadow-sm">
+              <h1 className="text-4xl font-black md:text-6xl mb-6 text-white drop-shadow-sm max-w-[20ch]">
                 Just Arrived at Manifold
-              </h2>
+              </h1>
               <CategoryPills
                 active={activeCategory}
                 setActive={setActiveCategory}

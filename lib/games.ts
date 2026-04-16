@@ -37,7 +37,16 @@ export const mockGames: Game[] = [
     currentPrice: "14.99",
     originalPrice: "24.99",
     discountLabel: "-40%",
-    tags: ["Action", "Rogue-lite"],
+    tags: [
+      "Action",
+      "Rogue-lite",
+      "RPG",
+      "Simulation",
+      "Horror",
+      "Strategy",
+      "Racing",
+      "Indie",
+    ],
     gradient: BRAND_GRADIENTS[0],
   },
   {
