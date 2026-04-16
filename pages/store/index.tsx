@@ -60,8 +60,8 @@ function StoreTopNav({ games }: { games: Game[] }) {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#1D0F3B]/80 backdrop-blur-xl border-b border-white/5 py-3 px-6 md:px-10">
-      <div className="max-w-7xl mx-auto flex items-center justify-between w-full">
-        <div className="flex-1">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 w-full">
+        <div className="flex-shrink-0">
           <Link
             href="/"
             className="flex items-center transition-opacity hover:opacity-80"
@@ -71,14 +71,14 @@ function StoreTopNav({ games }: { games: Game[] }) {
               alt="Manifold Logo"
               width={120}
               height={120}
-              className="w-auto h-8 md:h-10 drop-shadow-md"
+              className="w-auto h-7 md:h-10 drop-shadow-md"
             />
           </Link>
         </div>
 
-        <div className="relative w-full max-w-sm flex justify-end">
+        <div className="relative flex-1 max-w-sm flex justify-end">
           <div
-            className={`relative w-full transition-all duration-300 ease-out ${isFocused ? "max-w-full" : "max-w-[200px] md:max-w-[240px]"}`}
+            className={`relative w-full transition-all duration-300 ease-out ${isFocused ? "max-w-full" : "max-w-[160px] md:max-w-[240px]"}`}
           >
             <input
               type="text"
