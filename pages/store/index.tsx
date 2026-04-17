@@ -6,6 +6,7 @@ import { type Game, mockGames, CATEGORIES } from "lib/games";
 
 // --- Components ---
 import { StoreTopNav } from "components/store/StoreTopNav";
+import { StoreFooter } from "components/store/StoreFooter";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
@@ -283,6 +284,8 @@ export default function StoreOption2() {
           </div>
         </div>
       </main>
+
+      <StoreFooter />
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar {

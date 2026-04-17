@@ -30,6 +30,7 @@ import {
 
 import { mockGames, Review } from "lib/games";
 import { StoreTopNav } from "components/store/StoreTopNav";
+import { StoreFooter } from "components/store/StoreFooter";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { MediaGallery } from "components/store/MediaGallery";
@@ -491,6 +492,8 @@ export default function GameDetailsPage() {
           </div>
         </div>
       </main>
+
+      <StoreFooter />
     </div>
   );
 }
