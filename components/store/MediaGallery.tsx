@@ -145,7 +145,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
         {/* Stage Content */}
         {activeMedia.type === "video" ? (
           <iframe
-            src={`https://www.youtube.com/embed/${activeMedia.id}?rel=0&modestbranding=1&autoplay=1`}
+            src={`https://www.youtube.com/embed/${activeMedia.id}?rel=0&modestbranding=1&autoplay=1&mute=1`}
             title={`${gameTitle} Trailer`}
             className="absolute inset-0 w-full h-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
