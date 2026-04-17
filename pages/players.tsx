@@ -1,7 +1,7 @@
 export function getServerSideProps() {
   return {
     redirect: {
-      destination: "/?audience=players",
+      destination: "/about/?audience=players",
       permanent: false,
     },
   };
