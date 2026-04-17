@@ -16,6 +16,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
+  LucideProps
 } from "lucide-react";
 
 import {
@@ -27,7 +28,7 @@ import {
   IconBrandItch,
 } from "@tabler/icons-react";
 
-import { mockGames } from "lib/games";
+import { mockGames, Review } from "lib/games";
 import { StoreTopNav } from "components/store/StoreTopNav";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
@@ -41,7 +42,7 @@ function MetaTag({
   label,
   active,
 }: {
-  icon: any;
+  icon: React.ComponentType<LucideProps>;
   label: string;
   active: boolean;
 }) {
@@ -64,7 +65,7 @@ function SocialLink({
   href,
   label,
 }: {
-  icon: any;
+  icon: React.ComponentType<LucideProps>;
   href?: string;
   label: string;
 }) {
@@ -86,7 +87,7 @@ function SocialLink({
     </a>
   );
 }
-function ReviewCard({ review }: { review: any }) {
+function ReviewCard({ review }: { review: Review }) {
   return (
     <div className="p-6 rounded-3xl bg-white/5 border border-white/5 flex flex-col gap-4 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
@@ -117,7 +118,7 @@ function ReviewCard({ review }: { review: any }) {
         </div>
       </div>
       <p className="text-white/70 leading-relaxed text-sm italic">
-        "{review.message}"
+        &quot;{review.message}&quot;
       </p>
     </div>
   );
