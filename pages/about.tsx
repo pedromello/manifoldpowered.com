@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import ConceptDiagram from "components/ConceptDiagram";
 import Image from "next/image";
+import { IconBrandX } from "@tabler/icons-react";
 
 type AudienceKey = "creators" | "developers" | "players";
 
@@ -477,6 +478,16 @@ export default function Home({
                 aria-label="View on GitHub"
               >
                 View on GitHub
+              </a>
+              <a
+                href="https://x.com/ManifoldPowered"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60 flex items-center justify-center gap-2"
+                aria-label="Follow on X"
+              >
+                <IconBrandX size={20} />
+                Follow on X
               </a>
               <Link
                 href="/signup"
