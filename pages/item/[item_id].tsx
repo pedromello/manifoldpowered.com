@@ -16,7 +16,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
-  LucideProps
+  LucideProps,
 } from "lucide-react";
 
 import {
