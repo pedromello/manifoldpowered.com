@@ -49,7 +49,6 @@ const onErrorHandler = (
   const publicErrorObject = new InternalServerError({
     cause: error,
   });
-  console.error(publicErrorObject);
   res.status(publicErrorObject.statusCode).json(publicErrorObject);
 };
 

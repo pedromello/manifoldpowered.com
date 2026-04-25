@@ -19,6 +19,9 @@ const AVAILABLE_FEATURES = [
   // Status
   "read:status",
   "read:status:all",
+
+  // Games
+  "create:game",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
