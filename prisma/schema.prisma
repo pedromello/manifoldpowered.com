@@ -66,3 +66,86 @@ model UserActivationToken {
   @@index([expires_at])
   @@map("user_activation_tokens")
 }
+
+enum GameStatus {
+  ACTIVE
+  INACTIVE
+  PRIVATE
+}
+
+enum ReviewScore {
+  OVERWHELMINGLY_POSITIVE
+  VERY_POSITIVE
+  POSITIVE
+  MOSTLY_POSITIVE
+  MIXED
+  MOSTLY_NEGATIVE
+  NEGATIVE
+  VERY_NEGATIVE
+  OVERWHELMINGLY_NEGATIVE
+}
+
+model Game {
+  id                   String     @id @default(uuid())
+  user_id              String     // Logical reference to User.id (Owner/Developer)
+  title                String     @db.VarChar(255)
+  slug                 String     @unique @db.VarChar(255)
+  description          String     @db.Text
+  detailed_description String     @db.Text
+  launch_date          DateTime
+  status               GameStatus @default(PRIVATE)
+
+  // Financial (String for absolute precision as standard for financial systems)
+  price          String  @db.VarChar(20)
+  base_price     String? @db.VarChar(20)
+  discount_label String? @db.VarChar(10)
+
+  // Taxonomy and Authorship
+  tags           String[] @default([])
+  developer_name String   @db.VarChar(255)
+  publisher_name String?  @db.VarChar(255)
+
+  // Flexibility (JSONB) to facilitate expansion
+  meta_tags    Json @default("{}")
+  media        Json @default("{}")
+  social_links Json @default("{}")
+  requirements Json @default("{}")
+
+  // Statistics (Denormalization for storefront read performance)
+  positive_reviews Int         @default(0)
+  negative_reviews Int         @default(0)
+  review_score     ReviewScore @default(MIXED)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([slug])
+  @@index([title])
+  @@map("games")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  user_id     String // Logical reference to User.id
+  game_id     String // Logical reference to Game.id
+  message     String   @db.Text
+  recommended Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([game_id])
+  @@map("reviews")
+}
+
+model WishlistItem {
+  id       String   @id @default(uuid())
+  user_id  String // Logical reference to User.id
+  game_id  String // Logical reference to Game.id
+  added_at DateTime @default(now())
+
+  @@unique([user_id, game_id])
+  @@index([user_id])
+  @@map("wishlist_items")
+}

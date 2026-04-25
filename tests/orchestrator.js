@@ -5,6 +5,7 @@ import session from "models/session";
 import { faker } from "@faker-js/faker";
 import activation from "models/activation";
 import webserver from "infra/webserver";
+import game from "models/game";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -103,6 +104,29 @@ const extractUUID = (text) => {
   return match ? match[0] : null;
 };
 
+// Games
+const createGame = async (userId, gameData = {}) => {
+  return game.create({
+    user_id: userId,
+    title: gameData.title || faker.commerce.productName(),
+    description: gameData.description || faker.lorem.sentence(),
+    detailed_description:
+      gameData.detailed_description || faker.lorem.paragraph(),
+    launch_date: gameData.launch_date || faker.date.past(),
+    price: gameData.price || faker.number.float(),
+    developer_name: gameData.developer_name || faker.company.name(),
+    tags: gameData.tags || [faker.lorem.word()],
+    meta_tags: gameData.meta_tags || {},
+    media: gameData.media || { screenshots: [], videos: [] },
+    social_links: gameData.social_links || {},
+    requirements: gameData.requirements || undefined,
+  });
+};
+
+const getGameBySlug = async (slug) => {
+  return game.findOneBySlug(slug);
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -115,6 +139,8 @@ const orchestrator = {
   extractUUID,
   addFeaturesToUser,
   getUserById,
+  createGame,
+  getGameBySlug,
 };
 
 export default orchestrator;
