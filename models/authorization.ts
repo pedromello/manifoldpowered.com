@@ -1,4 +1,4 @@
-import { Session, User, UserActivationToken } from "generated/prisma/client";
+import { Game, Session, User, UserActivationToken } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
 const AVAILABLE_FEATURES = [
@@ -132,6 +132,33 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     }
 
     return output;
+  }
+
+  if (feature === "create:game") {
+    const gameOutput = resource as Game;
+    return {
+      id: gameOutput.id,
+      slug: gameOutput.slug,
+      title: gameOutput.title,
+      description: gameOutput.description,
+      detailed_description: gameOutput.detailed_description,
+      launch_date: gameOutput.launch_date,
+      price: gameOutput.price,
+      developer_name: gameOutput.developer_name,
+      publisher_name: gameOutput.publisher_name,
+      tags: gameOutput.tags,
+      meta_tags: gameOutput.meta_tags,
+      media: gameOutput.media,
+      social_links: gameOutput.social_links,
+      requirements: gameOutput.requirements,
+      user_id: gameOutput.user_id,
+      status: gameOutput.status,
+      positive_reviews: gameOutput.positive_reviews,
+      negative_reviews: gameOutput.negative_reviews,
+      base_price: gameOutput.base_price,
+      created_at: gameOutput.created_at,
+      updated_at: gameOutput.updated_at,
+    };
   }
 
   return {};
