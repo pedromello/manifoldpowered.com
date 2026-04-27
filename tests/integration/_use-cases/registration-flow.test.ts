@@ -97,7 +97,12 @@ describe("Use case: Registration Flow (all successful)", () => {
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
       password: newUserWithPassword.password,
-      features: ["create:session", "read:session", "update:user"],
+      features: [
+        "create:session",
+        "read:session",
+        "update:user",
+        "read:public_game",
+      ],
       created_at: activatedUser.created_at,
       updated_at: activatedUser.updated_at,
     });
@@ -143,7 +148,12 @@ describe("Use case: Registration Flow (all successful)", () => {
       id: newUser.id,
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
-      features: ["create:session", "read:session", "update:user"],
+      features: [
+        "create:session",
+        "read:session",
+        "update:user",
+        "read:public_game",
+      ],
       created_at: getUserResponseJson.created_at,
       updated_at: getUserResponseJson.updated_at,
     });

@@ -16,16 +16,25 @@ function HeroBento({ featured }: { featured: Game[] }) {
   const [main, side1, side2] = featured;
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[250px] md:auto-rows-[300px]">
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
       {/* Main Massive Tile */}
       <Link
         href={`/item/${main.id}`}
         className="md:col-span-2 md:row-span-2 rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-2xl"
-        style={{ background: main.gradient }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-transparent to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
+        {/* Background Layer */}
+        <div
+          className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
+          style={{
+            background: main.media.banner
+              ? `url(${main.media.banner}) center/cover no-repeat`
+              : main.gradient,
+          }}
+        />
 
-        {main.discountLabel && (
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
+
+        {!main.isDemo && main.discountLabel && (
           <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
             <DiscountBadge label={main.discountLabel} />
           </div>
@@ -35,23 +44,21 @@ function HeroBento({ featured }: { featured: Game[] }) {
           <span className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
             Featured Match
           </span>
-          <h2 className="w-full text-xl md:text-3xl lg:text-[3rem] font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl truncate">
+          <h2 className="w-full text-xl md:text-3xl lg:text-5xl font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl truncate">
             {main.title}
           </h2>
           <div className="flex items-center gap-4 mt-2">
             <div className="flex items-center gap-3">
               <span
-                className="text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border"
+                className="text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase"
                 style={{
-                  color: main.discountLabel ? discountBadgeColor : "white",
-                  borderColor: main.discountLabel
-                    ? discountBadgeColor
-                    : "rgba(255,255,255,0.1)",
+                  color: discountBadgeColor,
+                  borderColor: discountBadgeColor,
                 }}
               >
-                ${main.currentPrice}
+                {main.isDemo ? "Free Demo" : `$${main.currentPrice}`}
               </span>
-              {main.originalPrice && (
+              {!main.isDemo && main.originalPrice && (
                 <span className="text-sm md:text-lg text-white/40 line-through font-bold">
                   ${main.originalPrice}
                 </span>
@@ -77,11 +84,20 @@ function HeroBento({ featured }: { featured: Game[] }) {
           key={game.id}
           href={`/item/${game.id}`}
           className="rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-xl"
-          style={{ background: game.gradient }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-transparent to-transparent opacity-80" />
+          {/* Background Layer */}
+          <div
+            className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
+            style={{
+              background: game.media.banner
+                ? `url(${game.media.banner}) center/cover no-repeat`
+                : game.gradient,
+            }}
+          />
 
-          {game.discountLabel && (
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-[#1D0F3B]/20 to-transparent opacity-80" />
+
+          {!game.isDemo && game.discountLabel && (
             <div className="absolute top-5 right-5 z-10">
               <DiscountBadge label={game.discountLabel} />
             </div>
@@ -93,17 +109,15 @@ function HeroBento({ featured }: { featured: Game[] }) {
             </h3>
             <div className="flex items-center gap-3">
               <span
-                className="text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg"
+                className="text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase"
                 style={{
-                  color: game.discountLabel ? discountBadgeColor : "white",
-                  borderColor: game.discountLabel
-                    ? discountBadgeColor
-                    : "rgba(255,255,255,0.1)",
+                  color: discountBadgeColor,
+                  borderColor: discountBadgeColor,
                 }}
               >
-                ${game.currentPrice}
+                {game.isDemo ? "Free Demo" : `$${game.currentPrice}`}
               </span>
-              {game.originalPrice && (
+              {!game.isDemo && game.originalPrice && (
                 <span className="text-sm md:text-base text-white/40 line-through font-bold">
                   ${game.originalPrice}
                 </span>
@@ -151,7 +165,11 @@ function GameListItem({ game }: { game: Game }) {
       <div className="flex items-stretch gap-2 md:gap-6">
         <div
           className="w-32 sm:w-40 md:w-64 aspect-[920/430] rounded-l-3xl md:rounded-2xl overflow-hidden shrink-0 border border-white/5"
-          style={{ background: game.gradient }}
+          style={{
+            background: game.media.banner
+              ? `url(${game.media.banner}) center/cover no-repeat`
+              : game.gradient,
+          }}
         >
           <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
         </div>
@@ -171,24 +189,25 @@ function GameListItem({ game }: { game: Game }) {
           <div className="flex items-end gap-1 w-fit">
             <div className="flex w-full h-full">
               <div className="flex items-center">
-                {game.discountLabel && (
+                {!game.isDemo && game.discountLabel && (
                   <DiscountBadge label={game.discountLabel} size="small" />
                 )}
               </div>
             </div>
             <div className="flex flex-col h-full justify-center pr-2">
-              {game.originalPrice && (
+              {!game.isDemo && game.originalPrice && (
                 <span className="text-sm md:text-xl font-bold text-white/30 line-through">
                   ${game.originalPrice}
                 </span>
               )}
               <div
-                className="text-lg md:text-3xl font-black"
+                className="text-lg md:text-3xl font-black uppercase"
                 style={{
-                  color: game.discountLabel ? discountBadgeColor : "white",
+                  color: discountBadgeColor,
+                  borderColor: discountBadgeColor,
                 }}
               >
-                ${game.currentPrice}
+                {game.isDemo ? "Free" : `$${game.currentPrice}`}
               </div>
             </div>
           </div>

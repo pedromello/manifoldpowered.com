@@ -145,6 +145,7 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "create:session",
         "read:session",
         "update:user",
+        "read:public_game",
       ]);
     });
 

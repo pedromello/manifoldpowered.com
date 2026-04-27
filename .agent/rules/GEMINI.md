@@ -22,8 +22,8 @@ Agent activated → Check frontmatter "skills:" → Read SKILL.md (INDEX) → Re
 ### 2. Enforcement Protocol
 
 1. **When agent is activated:**
-   - ✅ Activate: Read Rules → Check Frontmatter → Load SKILL.md → Apply All.
-2. **Forbidden:** Never skip reading agent rules or skill instructions. "Read → Understand → Apply" is mandatory.
+   - ✅ Activate: Read Rules → Check Frontmatter → Load SKILL.md → **Read CLAUDE.md** → Apply All.
+2. **Forbidden:** Never skip reading agent rules, skill instructions, or project-specific guidelines in `CLAUDE.md`. "Read → Understand → Apply" is mandatory.
 
 ---
 
@@ -129,6 +129,16 @@ When user's prompt is NOT in English:
 - Agents: `.agent/` (Project)
 - Skills: `.agent/skills/` (Project)
 - Runtime Scripts: `.agent/skills/<skill>/scripts/`
+
+### 📜 Project-Specific Rules (CLAUDE.md)
+
+> 🔴 **MANDATORY:** Read `CLAUDE.md` at the start of every session/task.
+
+This file contains the "Source of Truth" for:
+
+- Architectural decisions (e.g., No Foreign Keys).
+- Security patterns (e.g., Zod validation, Output filtering).
+- Development workflow (e.g., TDD mandatory, Integration test references).
 
 ### 🧠 Read → Understand → Apply
 

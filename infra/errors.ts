@@ -85,20 +85,24 @@ export class ServiceError extends Error {
 export class ValidationError extends Error {
   public statusCode: number;
   public action: string;
+  public context: unknown;
 
   constructor({
     message,
     cause,
     action,
+    context,
   }: {
     message?: string;
     cause?: unknown;
     action?: string;
+    context?: unknown;
   }) {
     super(message || "Validation error", { cause });
     this.name = "ValidationError";
     this.statusCode = 400;
     this.action = action || "Check if data is valid";
+    this.context = context;
   }
 
   toJSON() {
@@ -107,6 +111,7 @@ export class ValidationError extends Error {
       name: this.name,
       action: this.action,
       status_code: this.statusCode,
+      context: this.context,
     };
   }
 }

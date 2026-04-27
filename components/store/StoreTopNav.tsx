@@ -60,7 +60,11 @@ export function StoreTopNav({ games }: { games: Game[] }) {
                     >
                       <div
                         className="h-14 md:h-20 aspect-[920/430] rounded-xl shrink-0 border border-white/5"
-                        style={{ background: game.gradient }}
+                        style={{
+                          background: game.media.banner
+                            ? `url(${game.media.banner}) center/cover no-repeat`
+                            : game.gradient,
+                        }}
                       />
                       <div className="flex-1 overflow-hidden">
                         <div className="flex items-center gap-2">
@@ -70,22 +74,25 @@ export function StoreTopNav({ games }: { games: Game[] }) {
                         </div>
                         <div className="flex items-center gap-2">
                           <p
-                            className="text-sm font-semibold md:text-xl"
+                            className="text-sm font-black md:text-xl uppercase"
                             style={{
-                              color: game.discountLabel
-                                ? "#FFB400"
-                                : "rgba(255, 255, 255, 0.4)",
+                              color:
+                                game.isDemo || game.discountLabel
+                                  ? "#FFB400"
+                                  : "rgba(255, 255, 255, 0.4)",
                             }}
                           >
-                            ${game.currentPrice}
+                            {game.isDemo ? "Free" : `$${game.currentPrice}`}
                           </p>
-                          <p className="text-sm font-semibold line-through text-white/40">
-                            ${game.originalPrice}
-                          </p>
+                          {!game.isDemo && game.originalPrice && (
+                            <p className="text-sm font-semibold line-through text-white/40">
+                              ${game.originalPrice}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-end pr-4">
-                        {game.discountLabel && (
+                        {!game.isDemo && game.discountLabel && (
                           <DiscountBadge
                             label={game.discountLabel}
                             size="small"

@@ -86,6 +86,7 @@ async function activateUserByUserId(userId: string) {
     "create:session",
     "read:session",
     "update:user",
+    "read:public_game",
   ]);
 }
 

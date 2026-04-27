@@ -34,6 +34,7 @@ export type Game = {
     itchIo?: string;
     instagram?: string;
     tiktok?: string;
+    discord?: string;
   };
   media: {
     banner: string;
@@ -43,6 +44,7 @@ export type Game = {
   reviews: Review[];
   totalPositiveReviews: number;
   totalNegativeReviews: number;
+  isDemo?: boolean;
 };
 
 export const BRAND_GRADIENTS = [
@@ -66,6 +68,120 @@ export const CATEGORIES = [
 ];
 
 export const mockGames: Game[] = [
+  {
+    id: "2",
+    title: "Mai: Child of Ages",
+    description:
+      "Travel through time and help Mai and her Grandfather uncover the mysteries of the world after the Last Great War. Explore the connections between ancient eras and dystopian futures in an adventure that blends thrilling combat with precision platforming.",
+    launchDate: "Sep 18, 2025",
+    about: "",
+    currentPrice: "11.69",
+    originalPrice: "14.99",
+    discountLabel: "-22%",
+    tags: ["Action", "Adventure", "Hack and Slash", "Time Travel", "Dark"],
+    gradient: BRAND_GRADIENTS[1],
+    developerName: "Chubby Pixel",
+    metaTags: {
+      singlePlayer: true,
+      multiplayer: true,
+      controllerCompatible: true,
+      coopLocal: true,
+      coopOnline: false,
+    },
+    socialLinks: {
+      x: "https://x.com/ChubbyPixel",
+      youtube: "https://www.youtube.com/@MalboM",
+      steam: "https://store.steampowered.com/developer/ChubbyPixel",
+    },
+    media: {
+      banner:
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/d9fccec466f2be94188c670aebbee96e58e152e0/header.jpg?t=1775572056",
+      gallery: [
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/7956c6cf7720b3466a3f6b6e932c1df61873cdc0/ss_7956c6cf7720b3466a3f6b6e932c1df61873cdc0.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/3d4d541d618fe46c8fc62d087742ba9153df4ed3/ss_3d4d541d618fe46c8fc62d087742ba9153df4ed3.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/18da8c5c452082e969844d697b80721af68d8776/ss_18da8c5c452082e969844d697b80721af68d8776.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/e624182c630e09cf95611be47738477acd64cb1b/ss_e624182c630e09cf95611be47738477acd64cb1b.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/4b7678d20f7b7b04fbdd63f48eee7be4f68a0c95/ss_4b7678d20f7b7b04fbdd63f48eee7be4f68a0c95.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/357a53246050db1f4aee5c8019c0e3ee24d38426/ss_357a53246050db1f4aee5c8019c0e3ee24d38426.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/7cbd4d55180a3fc6888c6b8057e93c969e58f533/ss_7cbd4d55180a3fc6888c6b8057e93c969e58f533.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/8d139e514d6739e5e27f52958865417bf4d740b9/ss_8d139e514d6739e5e27f52958865417bf4d740b9.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/d1d9ec6c3cb3ced2213ed3eb90e29fd5d763e48c/ss_d1d9ec6c3cb3ced2213ed3eb90e29fd5d763e48c.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/ss_f48a2016463620752230d2225ea1f686c68a8af9.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/ss_c1a735179a328bec7ec79a0359c3aaefe5e8ecbc.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/54369531aea3cca74dde0a5817dbda87b31bb900/ss_54369531aea3cca74dde0a5817dbda87b31bb900.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/4a902bc23c91a70e262a94c87c6bdf4be4712b02/ss_4a902bc23c91a70e262a94c87c6bdf4be4712b02.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/2e35d66f63b2bdf020a2883822d5ce3fb8328135/ss_2e35d66f63b2bdf020a2883822d5ce3fb8328135.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/8f282fc1a7ab5a0d5355a5f5dff60c8f432f4a7d/ss_8f282fc1a7ab5a0d5355a5f5dff60c8f432f4a7d.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/9ac587d165e188d2ee924d4e0814596475a9f9e2/ss_9ac587d165e188d2ee924d4e0814596475a9f9e2.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/ss_afbf634897d0fc8747092b8ffdb17df6c0c1a0dc.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/d698f5d4ab69c6c7a1580a32e05e0a21d7380642/ss_d698f5d4ab69c6c7a1580a32e05e0a21d7380642.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/1af49621ade889498bea6c09d6c3f17c38115ab2/ss_1af49621ade889498bea6c09d6c3f17c38115ab2.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/bc05d70bde5729f8c919ced2af40b24fb1911d13/ss_bc05d70bde5729f8c919ced2af40b24fb1911d13.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/9b63b90e56b9d0b8927cac4339546914f5e629b6/ss_9b63b90e56b9d0b8927cac4339546914f5e629b6.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/ce46345cb8274b7a6111b31d604141fd1b8a5db5/ss_ce46345cb8274b7a6111b31d604141fd1b8a5db5.1920x1080.jpg?t=1775572056",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3499550/a7c2fd8eabb64950184b66200ce7beea8573c653/ss_a7c2fd8eabb64950184b66200ce7beea8573c653.1920x1080.jpg?t=1775572056",
+      ],
+      videos: [
+        "https://www.youtube.com/watch?v=XaoJqPljos4",
+        "https://www.youtube.com/watch?v=9tGQH3p0x-Q",
+      ],
+    },
+    reviews: [],
+    totalPositiveReviews: 30,
+    totalNegativeReviews: 4,
+    isDemo: true,
+  },
+  {
+    id: "3",
+    isDemo: true,
+    title: "Capyvarias",
+    description:
+      "Capyvarias is an incremental colony game set in a cozy post-apocalyptic world. Start with just two capybaras and grow your colony one click at a time. Gather resources, assign tasks, expand your shelter, and unlock strange new technologies discovered by the smartest capybaras.",
+    launchDate: "Apr 24, 2026",
+    about: "",
+    currentPrice: "4.49",
+    originalPrice: "4.99",
+    discountLabel: "-10%",
+    tags: [
+      "Incremental",
+      "Clicker",
+      "Cozy",
+      "Casual",
+      "Cute",
+      "Management",
+      "Cartoony",
+    ],
+    gradient: BRAND_GRADIENTS[2],
+    developerName: "Piebox",
+    metaTags: {
+      singlePlayer: true,
+      multiplayer: false,
+      controllerCompatible: false,
+      coopLocal: false,
+      coopOnline: false,
+    },
+    socialLinks: {
+      steam: "https://store.steampowered.com/developer/piebox",
+      x: "https://x.com/KiraniPiebox",
+      discord: "https://discord.gg/2AJq6bzH9A",
+    },
+    media: {
+      banner:
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/f9467ac1893e1e937716cc3b49dce83ad51b295f/header.jpg?t=1777020702",
+      gallery: [
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/590df5ff3340241d2c0a3de87a80b19571469e44/ss_590df5ff3340241d2c0a3de87a80b19571469e44.1920x1080.jpg?t=1777020702",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/297faca7a5aa10a89ed8934efdf704c998f39487/ss_297faca7a5aa10a89ed8934efdf704c998f39487.1920x1080.jpg?t=1777020702",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/54e11a0d3b454f08511b4b072c1f9dcd29695aa9/ss_54e11a0d3b454f08511b4b072c1f9dcd29695aa9.1920x1080.jpg?t=1777020702",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/89bce983b7c1164f34d1de78035572da2388f6ea/ss_89bce983b7c1164f34d1de78035572da2388f6ea.1920x1080.jpg?t=1777020702",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/e996813ff0ba2484924a78f960038a3812240568/ss_e996813ff0ba2484924a78f960038a3812240568.1920x1080.jpg?t=1777020702",
+        "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4072340/3639b9c530fd7a2fd72baaf003ffba9ebdfdbcfd/ss_3639b9c530fd7a2fd72baaf003ffba9ebdfdbcfd.1920x1080.jpg?t=1777020702",
+      ],
+      videos: ["https://www.youtube.com/watch?v=INDFDH1MMjs"],
+    },
+    reviews: [],
+    totalPositiveReviews: 12,
+    totalNegativeReviews: 0,
+  },
   {
     id: "1",
     title: "Astral Ascent",
@@ -156,73 +272,6 @@ Astral Ascent Gameplay
     ],
     totalPositiveReviews: 12450,
     totalNegativeReviews: 320,
-  },
-  {
-    id: "2",
-    title: "Neon Drifter",
-    description:
-      "High-octane cyberpunk racing through the neon-soaked streets of Neo-Tokyo.",
-    launchDate: "Mar 20, 2024",
-    about:
-      "### Speed into the Future\nNeon Drifter brings the ultimate cyberpunk racing experience to your screen. Customize your hover-car and dominate the underworld championships.",
-    currentPrice: "19.99",
-    tags: ["Racing", "Cyberpunk"],
-    gradient: BRAND_GRADIENTS[1],
-    developerName: "Future Drifts",
-    metaTags: {
-      singlePlayer: true,
-      multiplayer: true,
-      controllerCompatible: true,
-      coopLocal: false,
-      coopOnline: true,
-    },
-    socialLinks: {
-      x: "https://x.com/neondrifter",
-      instagram: "https://instagram.com/neondrifter",
-    },
-    media: {
-      banner:
-        "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=1200",
-      gallery: [],
-      videos: [],
-    },
-    reviews: [],
-    totalPositiveReviews: 840,
-    totalNegativeReviews: 12,
-  },
-  {
-    id: "3",
-    title: "Valley Forge",
-    description:
-      "A deep strategy simulation where you build and defend your medieval settlement.",
-    launchDate: "Jan 15, 2022",
-    about:
-      "Build your kingdom from scratch. Manage resources, defend against invasions, and trade with neighboring lands.",
-    currentPrice: "7.49",
-    originalPrice: "14.99",
-    discountLabel: "-50%",
-    tags: ["Simulation", "Strategy"],
-    gradient: BRAND_GRADIENTS[2],
-    developerName: "Medieval Masters",
-    metaTags: {
-      singlePlayer: true,
-      multiplayer: false,
-      controllerCompatible: false,
-      coopLocal: false,
-      coopOnline: false,
-    },
-    socialLinks: {
-      steam: "https://store.steampowered.com",
-    },
-    media: {
-      banner:
-        "https://images.unsplash.com/photo-1533106497176-45ae19e68ba2?q=80&w=1200",
-      gallery: [],
-      videos: [],
-    },
-    reviews: [],
-    totalPositiveReviews: 4500,
-    totalNegativeReviews: 890,
   },
   // Adding default properties for the rest of mockGames to avoid TS errors
   ...[4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => ({
