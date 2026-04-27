@@ -339,29 +339,27 @@ export default function GameDetailsPage() {
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    {game.originalPrice && (
+                    {!game.isDemo && game.originalPrice && (
                       <span className="text-xl font-bold text-white/30 line-through">
                         ${game.originalPrice}
                       </span>
                     )}
                     <span
-                      className="text-4xl md:text-5xl font-black"
+                      className="text-4xl md:text-5xl font-black uppercase"
                       style={{
-                        color: game.discountLabel
-                          ? discountBadgeColor
-                          : "white",
+                        color: discountBadgeColor,
                       }}
                     >
-                      ${game.currentPrice}
+                      {game.isDemo ? "Free" : `$${game.currentPrice}`}
                     </span>
                   </div>
-                  {game.discountLabel && (
+                  {!game.isDemo && game.discountLabel && (
                     <DiscountBadge label={game.discountLabel} />
                   )}
                 </div>
 
                 <button className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
-                  Buy Now
+                  {game.isDemo ? "Play Demo" : "Buy Now"}
                 </button>
 
                 <div className="h-px bg-white/10" />
