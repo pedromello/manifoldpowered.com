@@ -27,6 +27,7 @@ const AVAILABLE_FEATURES = [
 
   // Games
   "create:game",
+  "read:public_game",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -139,7 +140,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     return output;
   }
 
-  if (feature === "create:game") {
+  if (feature === "create:game" || feature === "read:public_game") {
     const gameOutput = resource as Game;
     return {
       id: gameOutput.id,

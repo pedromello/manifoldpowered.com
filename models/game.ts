@@ -145,6 +145,10 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
+async function findOnePublicBySlug(slug: string) {
+  return await findOneBySlug(slug);
+}
+
 async function findOneBySlug(slug: string) {
   return await prisma.game.findUnique({
     where: {
@@ -156,6 +160,7 @@ async function findOneBySlug(slug: string) {
 const game = {
   create,
   findOneBySlug,
+  findOnePublicBySlug,
 };
 
 export default game;

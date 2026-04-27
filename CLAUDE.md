@@ -37,7 +37,9 @@ Manifold is a game storefront and catalog application. It is crucial to understa
 
 ### Test-Driven Development (TDD)
 
-- **MANDATORY:** You must ALWAYS use TDD practices when creating new API features. Write tests first, ensure they fail, and then implement the endpoint logic to make them pass.
+### Final Verification
+
+- **MANDATORY:** Before considering a task finished, you must run ALL tests (not just the ones related to your change) to ensure no regressions were introduced. A task is only complete when the entire suite passes.
 
 ### Running Tests
 
@@ -85,3 +87,39 @@ When building or modifying endpoints (reference `pages/api/v1/items/games/index.
 2. **Output Filtering:**
    - All outputs MUST be correctly filtered before being sent to the client to prevent data leaks.
    - Use `authorization.filterOutput(user, 'action:name', data)` to ensure the payload only contains fields the requester is permitted to see.
+
+## 4. User Feature Progression (CRITICAL)
+
+The application uses a strictly defined progression of features/permissions based on the user's state. When adding new features, you MUST ensure they are added to the correct state:
+
+1.  **Anonymous User:** Defined in `infra/controller.ts` (`injectAnonymousUser`). Basic public access (e.g., `read:public_game`, `create:session`).
+2.  **Unactivated User:** Defined in `models/user.ts` (`injectDefaultFeaturesInObject`). Features available immediately after registration (e.g., `read:activation_token`).
+3.  **Activated User:** Defined in `models/activation.ts` (`activateUserByUserId`). Full user features (e.g., `update:user`, `read:session`). **Note:** Activating a user replaces their feature set entirely; it does not append.
+
+## 5. Error Handling (CRITICAL)
+
+When throwing errors from `infra/errors`, you MUST always pass an object as the first argument to the constructor. Additionally, you MUST provide meaningful `message` and `action` values **strictly in English** to help the API client understand what went wrong and how to fix it:
+
+```typescript
+// Correct
+throw new NotFoundError({
+  message: "The requested game was not found.",
+  action: "Check the slug and try again.",
+});
+
+// If you need to wrap an error, use 'cause' to preserve the original error for server-side debugging
+try {
+  // ...
+} catch (error) {
+  throw new ServiceError({
+    message: "Could not connect to the external service.",
+    action: "Please try again later.",
+    cause: error,
+  });
+}
+
+// Incorrect
+throw new NotFoundError({});
+```
+
+These objects ensure the error handlers can correctly format the public JSON response.

@@ -1,0 +1,32 @@
+import { NextApiRequest, NextApiResponse } from "next";
+import { createRouter } from "next-connect";
+import controller from "infra/controller";
+import game from "models/game";
+import authorization from "models/authorization";
+import { NotFoundError } from "infra/errors";
+
+export default createRouter<NextApiRequest, NextApiResponse>()
+  .use(controller.injectAnonymousOrUser)
+  .get(controller.canRequest("read:public_game"), getHandler)
+  .handler(controller.errorHandlers);
+
+async function getHandler(req: NextApiRequest, res: NextApiResponse) {
+  const { slug } = req.query;
+
+  const foundGame = await game.findOnePublicBySlug(slug as string);
+
+  if (!foundGame) {
+    throw new NotFoundError({
+      message: `The game with slug "${slug}" was not found.`,
+      action: "Check if the slug is correct or if the game is still available.",
+    });
+  }
+
+  const secureOutputValues = authorization.filterOutput(
+    req.context.user,
+    "read:public_game",
+    foundGame,
+  );
+
+  return res.status(200).json(secureOutputValues);
+}

@@ -193,7 +193,12 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: user1.id,
         username: "uniqueuser2",
-        features: ["create:session", "read:session", "update:user"],
+        features: [
+          "create:session",
+          "read:session",
+          "update:user",
+          "read:public_game",
+        ],
         created_at: user1.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
       });
@@ -230,7 +235,12 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: createdUser.id,
         username: createdUser.username,
-        features: ["create:session", "read:session", "update:user"],
+        features: [
+          "create:session",
+          "read:session",
+          "update:user",
+          "read:public_game",
+        ],
         created_at: createdUser.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
       });
@@ -271,7 +281,12 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: user.id,
         username: user.username,
-        features: ["create:session", "read:session", "update:user"],
+        features: [
+          "create:session",
+          "read:session",
+          "update:user",
+          "read:public_game",
+        ],
         created_at: user.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
       });
@@ -328,7 +343,12 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(patchResponseBody).toEqual({
         id: userToPatch.id,
         username: "changedByPrivilegedUser",
-        features: ["create:session", "read:session", "update:user"],
+        features: [
+          "create:session",
+          "read:session",
+          "update:user",
+          "read:public_game",
+        ],
         created_at: userToPatch.created_at.toISOString(),
         updated_at: patchResponseBody.updated_at,
       });
