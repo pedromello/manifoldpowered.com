@@ -135,6 +135,7 @@ When user's prompt is NOT in English:
 > 🔴 **MANDATORY:** Read `CLAUDE.md` at the start of every session/task.
 
 This file contains the "Source of Truth" for:
+
 - Architectural decisions (e.g., No Foreign Keys).
 - Security patterns (e.g., Zod validation, Output filtering).
 - Development workflow (e.g., TDD mandatory, Integration test references).

@@ -60,8 +60,10 @@ export function StoreTopNav({ games }: { games: Game[] }) {
                     >
                       <div
                         className="h-14 md:h-20 aspect-[920/430] rounded-xl shrink-0 border border-white/5"
-                        style={{ 
-                          background: game.media.banner ? `url(${game.media.banner}) center/cover no-repeat` : game.gradient 
+                        style={{
+                          background: game.media.banner
+                            ? `url(${game.media.banner}) center/cover no-repeat`
+                            : game.gradient,
                         }}
                       />
                       <div className="flex-1 overflow-hidden">
@@ -74,9 +76,10 @@ export function StoreTopNav({ games }: { games: Game[] }) {
                           <p
                             className="text-sm font-black md:text-xl uppercase"
                             style={{
-                              color: (game.isDemo || game.discountLabel)
-                                ? "#FFB400"
-                                : "rgba(255, 255, 255, 0.4)",
+                              color:
+                                game.isDemo || game.discountLabel
+                                  ? "#FFB400"
+                                  : "rgba(255, 255, 255, 0.4)",
                             }}
                           >
                             {game.isDemo ? "Free" : `$${game.currentPrice}`}

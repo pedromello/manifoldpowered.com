@@ -23,13 +23,15 @@ function HeroBento({ featured }: { featured: Game[] }) {
         className="md:col-span-2 md:row-span-2 rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-2xl"
       >
         {/* Background Layer */}
-        <div 
+        <div
           className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
-          style={{ 
-            background: main.media.banner ? `url(${main.media.banner}) center/cover no-repeat` : main.gradient 
+          style={{
+            background: main.media.banner
+              ? `url(${main.media.banner}) center/cover no-repeat`
+              : main.gradient,
           }}
         />
-        
+
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
         {!main.isDemo && main.discountLabel && (
@@ -84,10 +86,12 @@ function HeroBento({ featured }: { featured: Game[] }) {
           className="rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-xl"
         >
           {/* Background Layer */}
-          <div 
+          <div
             className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
-            style={{ 
-              background: game.media.banner ? `url(${game.media.banner}) center/cover no-repeat` : game.gradient 
+            style={{
+              background: game.media.banner
+                ? `url(${game.media.banner}) center/cover no-repeat`
+                : game.gradient,
             }}
           />
 
@@ -161,8 +165,10 @@ function GameListItem({ game }: { game: Game }) {
       <div className="flex items-stretch gap-2 md:gap-6">
         <div
           className="w-32 sm:w-40 md:w-64 aspect-[920/430] rounded-l-3xl md:rounded-2xl overflow-hidden shrink-0 border border-white/5"
-          style={{ 
-            background: game.media.banner ? `url(${game.media.banner}) center/cover no-repeat` : game.gradient 
+          style={{
+            background: game.media.banner
+              ? `url(${game.media.banner}) center/cover no-repeat`
+              : game.gradient,
           }}
         >
           <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />

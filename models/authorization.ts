@@ -1,4 +1,9 @@
-import { Game, Session, User, UserActivationToken } from "generated/prisma/client";
+import {
+  Game,
+  Session,
+  User,
+  UserActivationToken,
+} from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
 const AVAILABLE_FEATURES = [
