@@ -28,6 +28,8 @@ const AVAILABLE_FEATURES = [
   // Games
   "create:game",
   "read:public_game",
+  "update:game",
+  "update:game:any",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -45,6 +47,15 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     const userResource = resource as User;
 
     if (user.id === userResource.id || can(user, "update:user:others")) {
+      authorized = true;
+    }
+  }
+
+  if (feature === "update:game" && resource) {
+    authorized = false;
+    const gameResource = resource as Game;
+
+    if (user.id === gameResource.user_id || can(user, "update:game:any")) {
       authorized = true;
     }
   }
@@ -140,7 +151,11 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     return output;
   }
 
-  if (feature === "create:game" || feature === "read:public_game") {
+  if (
+    feature === "create:game" ||
+    feature === "read:public_game" ||
+    feature === "update:game"
+  ) {
     const gameOutput = resource as Game;
     return {
       id: gameOutput.id,
@@ -161,7 +176,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
+      review_score: gameOutput.review_score,
       base_price: gameOutput.base_price,
+      discount_label: gameOutput.discount_label,
       created_at: gameOutput.created_at,
       updated_at: gameOutput.updated_at,
     };

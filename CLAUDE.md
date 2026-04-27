@@ -88,6 +88,30 @@ When building or modifying endpoints (reference `pages/api/v1/items/games/index.
    - All outputs MUST be correctly filtered before being sent to the client to prevent data leaks.
    - Use `authorization.filterOutput(user, 'action:name', data)` to ensure the payload only contains fields the requester is permitted to see.
 
+### Authorization Pattern (Self vs Others)
+
+When implementing features that distinguish between an owner and an administrator (e.g., `update:user` or `update:game`), follow this pattern in `models/authorization.ts`:
+
+1.  **Define granular features:** e.g., `update:game:self` and `update:game:any`.
+2.  **Expose a base feature to controllers:** e.g., `update:game`.
+3.  **Implement logic in `can()`:**
+    ```typescript
+    if (feature === "update:game" && resource) {
+      const gameResource = resource as Game;
+      if ((user.features.includes("update:game:self") && user.id === gameResource.user_id) || 
+          user.features.includes("update:game:any")) {
+        return true;
+      }
+    }
+    ```
+4.  **Enforce in Controller:**
+    ```typescript
+    const resource = await model.findOne(id);
+    if (!authorization.can(req.context.user, "update:game", resource)) {
+      throw new ForbiddenError({ ... });
+    }
+    ```
+
 ## 4. User Feature Progression (CRITICAL)
 
 The application uses a strictly defined progression of features/permissions based on the user's state. When adding new features, you MUST ensure they are added to the correct state:
