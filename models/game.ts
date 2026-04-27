@@ -146,7 +146,10 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
-function calculateDiscountLabel(price: number, basePrice: number): string | null {
+function calculateDiscountLabel(
+  price: number,
+  basePrice: number,
+): string | null {
   if (!basePrice || price >= basePrice) {
     return null;
   }

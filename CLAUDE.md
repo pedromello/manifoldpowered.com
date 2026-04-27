@@ -98,8 +98,11 @@ When implementing features that distinguish between an owner and an administrato
     ```typescript
     if (feature === "update:game" && resource) {
       const gameResource = resource as Game;
-      if ((user.features.includes("update:game:self") && user.id === gameResource.user_id) || 
-          user.features.includes("update:game:any")) {
+      if (
+        (user.features.includes("update:game:self") &&
+          user.id === gameResource.user_id) ||
+        user.features.includes("update:game:any")
+      ) {
         return true;
       }
     }
