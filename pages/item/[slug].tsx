@@ -1,11 +1,10 @@
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/router";
-import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { GetServerSideProps } from "next";
 import {
   Users,
   User,
@@ -28,13 +27,50 @@ import {
   IconBrandItch,
 } from "@tabler/icons-react";
 
-import { mockGames, Review } from "lib/games";
 import { StoreTopNav } from "components/store/StoreTopNav";
 import { StoreFooter } from "components/store/StoreFooter";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { MediaGallery } from "components/store/MediaGallery";
 import { discountBadgeColor } from "components/store/constants";
+import webserver from "infra/webserver";
+
+type GameApi = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  detailed_description: string;
+  launch_date: string;
+  price: string;
+  base_price?: string;
+  discount_label?: string;
+  developer_name: string;
+  publisher_name?: string;
+  tags: string[];
+  meta_tags: {
+    category?: string;
+    rating?: string;
+    languages?: string[];
+    keywords?: string[];
+    platforms?: string[];
+  };
+  media: {
+    banner?: string;
+    screenshots: string[];
+    icon?: string;
+    videos: string[];
+  };
+  social_links: {
+    website?: string;
+    twitter?: string;
+    discord?: string;
+    steam_page?: string;
+  };
+  positive_reviews: number;
+  negative_reviews: number;
+  review_score: number;
+};
 
 // --- Components ---
 
@@ -133,12 +169,14 @@ function ReviewSummary({
   negative: number;
 }) {
   const total = positive + negative;
-  const ratio = (positive / total) * 100;
+  const ratio = total > 0 ? (positive / total) * 100 : 0;
 
   let label = "Mixed";
   let color = "text-white/60";
 
-  if (ratio >= 90) {
+  if (total === 0) {
+    label = "No Reviews";
+  } else if (ratio >= 90) {
     label = "Overwhelmingly Positive";
     color = "text-emerald-400";
   } else if (ratio >= 80) {
@@ -162,25 +200,53 @@ function ReviewSummary({
           Based on {total.toLocaleString()} community reviews
         </span>
       </div>
-      <div className="h-4 w-px bg-white/10 hidden sm:block" />
-      <div className="flex gap-1 items-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-        <ThumbsUp size={12} className="text-emerald-400" />
-        <span className="text-xs font-black text-emerald-400">
-          {((positive / total) * 100).toFixed(0)}%
-        </span>
-      </div>
+      {total > 0 && (
+        <>
+          <div className="h-4 w-px bg-white/10 hidden sm:block" />
+          <div className="flex gap-1 items-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+            <ThumbsUp size={12} className="text-emerald-400" />
+            <span className="text-xs font-black text-emerald-400">
+              {ratio.toFixed(0)}%
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-export default function GameDetailsPage() {
-  const router = useRouter();
-  const { item_id } = router.query;
+import { mockGames, Review } from "lib/games";
 
-  const game = useMemo(() => {
-    return mockGames.find((g) => g.id === item_id);
-  }, [item_id]);
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { slug } = context.query;
 
+  try {
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/items/games/${slug}`,
+    );
+
+    if (!response.ok) {
+      return {
+        notFound: true,
+      };
+    }
+
+    const game = await response.json();
+
+    return {
+      props: {
+        game,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching game via API:", error);
+    return {
+      notFound: true,
+    };
+  }
+};
+
+export default function GameDetailsPage({ game }: { game: GameApi }) {
   if (!game) {
     return (
       <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center text-white">
@@ -191,6 +257,8 @@ export default function GameDetailsPage() {
       </div>
     );
   }
+
+  const isDemo = true; // TODO: It should be implemented on game data
 
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
@@ -259,13 +327,15 @@ export default function GameDetailsPage() {
         {/* Hero Section */}
         <section className="relative w-full max-h-[700px] overflow-hidden">
           <div className="absolute inset-0">
-            <Image
-              src={game.media.banner}
-              alt={game.title}
-              fill
-              className="object-cover opacity-40 blur-sm"
-              priority
-            />
+            {game.media.banner && (
+              <Image
+                src={game.media.banner}
+                alt={game.title}
+                fill
+                className="object-cover opacity-40 blur-sm"
+                priority
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B] via-[#1D0F3B]/60 to-transparent" />
           </div>
 
@@ -302,8 +372,8 @@ export default function GameDetailsPage() {
               </p>
 
               <ReviewSummary
-                positive={game.totalPositiveReviews}
-                negative={game.totalNegativeReviews}
+                positive={game.positive_reviews}
+                negative={game.negative_reviews}
               />
             </div>
           </div>
@@ -318,7 +388,7 @@ export default function GameDetailsPage() {
             {/* Media Gallery (Stage & Thumbnails) */}
             <MediaGallery
               videos={game.media.videos}
-              images={game.media.gallery}
+              images={game.media.screenshots}
               gameTitle={game.title}
             />
 
@@ -327,7 +397,7 @@ export default function GameDetailsPage() {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
               >
-                {game.about}
+                {game.detailed_description}
               </ReactMarkdown>
             </section>
           </div>
@@ -339,9 +409,9 @@ export default function GameDetailsPage() {
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    {!game.isDemo && game.originalPrice && (
+                    {!isDemo && game.base_price && (
                       <span className="text-xl font-bold text-white/30 line-through">
-                        ${game.originalPrice}
+                        ${game.base_price}
                       </span>
                     )}
                     <span
@@ -350,16 +420,16 @@ export default function GameDetailsPage() {
                         color: discountBadgeColor,
                       }}
                     >
-                      {game.isDemo ? "Free" : `$${game.currentPrice}`}
+                      {isDemo ? "Free" : `$${game.price}`}
                     </span>
                   </div>
-                  {!game.isDemo && game.discountLabel && (
-                    <DiscountBadge label={game.discountLabel} />
+                  {!isDemo && game.discount_label && (
+                    <DiscountBadge label={game.discount_label} />
                   )}
                 </div>
 
                 <button className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
-                  {game.isDemo ? "Play Demo" : "Buy Now"}
+                  {isDemo ? "Play Demo" : "Buy Now"}
                 </button>
 
                 <div className="h-px bg-white/10" />
@@ -370,7 +440,7 @@ export default function GameDetailsPage() {
                       Developer
                     </span>
                     <span className="text-white font-black">
-                      {game.developerName}
+                      {game.developer_name}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -378,7 +448,11 @@ export default function GameDetailsPage() {
                       Release Date
                     </span>
                     <span className="text-white font-black">
-                      {game.launchDate}
+                      {new Date(game.launch_date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -388,30 +462,12 @@ export default function GameDetailsPage() {
                     Features
                   </h4>
                   <div className="grid grid-cols-1 gap-2">
-                    <MetaTag
-                      icon={User}
-                      label="Single Player"
-                      active={game.metaTags.singlePlayer}
-                    />
-                    <MetaTag
-                      icon={Users}
-                      label="Multiplayer"
-                      active={game.metaTags.multiplayer}
-                    />
+                    <MetaTag icon={User} label="Single Player" active={true} />
+                    <MetaTag icon={Users} label="Multiplayer" active={false} />
                     <MetaTag
                       icon={Gamepad2}
                       label="Controller Support"
-                      active={game.metaTags.controllerCompatible}
-                    />
-                    <MetaTag
-                      icon={Users}
-                      label="Local Co-op"
-                      active={game.metaTags.coopLocal}
-                    />
-                    <MetaTag
-                      icon={Globe}
-                      label="Online Co-op"
-                      active={game.metaTags.coopOnline}
+                      active={true}
                     />
                   </div>
                 </div>
@@ -423,33 +479,23 @@ export default function GameDetailsPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <SocialLink
                       icon={IconBrandX}
-                      href={game.socialLinks.x}
+                      href={game.social_links.twitter}
                       label="X"
                     />
                     <SocialLink
-                      icon={IconBrandYoutube}
-                      href={game.socialLinks.youtube}
-                      label="YouTube"
-                    />
-                    <SocialLink
                       icon={IconBrandSteam}
-                      href={game.socialLinks.steam}
+                      href={game.social_links.steam_page}
                       label="Steam"
                     />
                     <SocialLink
-                      icon={IconBrandInstagram}
-                      href={game.socialLinks.instagram}
-                      label="Instagram"
+                      icon={MessageSquare}
+                      href={game.social_links.discord}
+                      label="Discord"
                     />
                     <SocialLink
-                      icon={IconBrandItch}
-                      href={game.socialLinks.itchIo}
-                      label="Itch.io"
-                    />
-                    <SocialLink
-                      icon={IconBrandTiktok}
-                      href={game.socialLinks.tiktok}
-                      label="TikTok"
+                      icon={Globe}
+                      href={game.social_links.website}
+                      label="Website"
                     />
                   </div>
                 </div>
@@ -474,18 +520,13 @@ export default function GameDetailsPage() {
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {game.reviews.length > 0 ? (
-                game.reviews.map((review) => (
-                  <ReviewCard key={review.userId} review={review} />
-                ))
-              ) : (
-                <div className="col-span-full py-12 flex flex-col items-center gap-4 bg-white/5 rounded-[2.5rem] border border-white/5 opacity-50">
-                  <MessageSquare size={48} strokeWidth={1} />
-                  <p className="font-bold">
-                    No intel available for this sector yet.
-                  </p>
-                </div>
-              )}
+              {/* Reviews are empty for now as they are not in GameApi yet */}
+              <div className="col-span-full py-12 flex flex-col items-center gap-4 bg-white/5 rounded-[2.5rem] border border-white/5 opacity-50">
+                <MessageSquare size={48} strokeWidth={1} />
+                <p className="font-bold">
+                  No intel available for this sector yet.
+                </p>
+              </div>
             </div>
           </div>
         </div>
