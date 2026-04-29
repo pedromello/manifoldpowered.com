@@ -50,8 +50,21 @@ Manifold is a game storefront and catalog application. It is crucial to understa
 
 Focus on writing robust **integration tests**. Use `tests/integration/api/v1/users/post.test.ts` as the primary reference example.
 
+- **One file per method:** Each HTTP method must have its own dedicated test file (e.g., `get.test.ts`, `post.test.ts`, `delete.test.ts`, `patch.test.ts`). Do not group multiple methods into a single `index.test.ts` file.
 - Group tests by user states (e.g., `describe("Anonymous user")`, `describe("Authenticated user")`).
-- Validate exact response codes (`201`, `400`, `403`) and precise JSON payloads.
+- Validate exact response codes (`201`, `400`, `403`) and precise JSON payloads. When testing errors, follow this exact assertion pattern:
+
+  ```typescript
+  expect(response.status).toBe(401);
+
+  const responseBody = await response.json();
+  expect(responseBody).toEqual({
+    message: "Invalid credentials",
+    name: "UnauthorizedError",
+    action: "Check your credentials",
+    status_code: 401,
+  });
+  ```
 
 ### The Test Orchestrator
 
@@ -115,13 +128,17 @@ When implementing features that distinguish between an owner and an administrato
     }
     ```
 
-## 4. User Feature Progression (CRITICAL)
+## 4. User Feature Progression & Tags (CRITICAL)
 
-The application uses a strictly defined progression of features/permissions based on the user's state. When adding new features, you MUST ensure they are added to the correct state:
+The application uses a strictly defined progression of features/permissions based on the user's state.
+
+- **AVAILABLE_FEATURES:** ALL actions/features (e.g., `create:game`, `create:wishlist`) MUST be registered in the `AVAILABLE_FEATURES` array inside `models/authorization.ts` FIRST. This is a mandatory requirement for any new functionality on the platform. It cannot be bypassed.
+
+When adding new features, you MUST ensure they are added to the correct state:
 
 1.  **Anonymous User:** Defined in `infra/controller.ts` (`injectAnonymousUser`). Basic public access (e.g., `read:public_game`, `create:session`).
 2.  **Unactivated User:** Defined in `models/user.ts` (`injectDefaultFeaturesInObject`). Features available immediately after registration (e.g., `read:activation_token`).
-3.  **Activated User:** Defined in `models/activation.ts` (`activateUserByUserId`). Full user features (e.g., `update:user`, `read:session`). **Note:** Activating a user replaces their feature set entirely; it does not append.
+3.  **Activated User:** Defined in `models/activation.ts` (`activateUserByUserId`). Full user features (e.g., `update:user`, `read:session`, `create:wishlist`). **Note:** Activating a user replaces their feature set entirely; it does not append.
 
 ## 5. Error Handling (CRITICAL)
 

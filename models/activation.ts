@@ -87,6 +87,9 @@ async function activateUserByUserId(userId: string) {
     "read:session",
     "update:user",
     "read:public_game",
+    "create:wishlist",
+    "read:wishlist",
+    "delete:wishlist",
   ]);
 }
 

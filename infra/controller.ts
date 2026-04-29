@@ -103,6 +103,7 @@ function injectAnonymousUser(req: NextApiRequest) {
       "create:session",
       "create:user",
       "read:public_game",
+      "read:wishlist",
     ],
   };
   req.context = { ...req.context, user: anonymousUser };
