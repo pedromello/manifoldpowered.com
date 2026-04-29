@@ -149,6 +149,9 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "create:wishlist",
         "read:wishlist",
         "delete:wishlist",
+        "create:review",
+        "read:review",
+        "delete:review",
       ]);
     });
 

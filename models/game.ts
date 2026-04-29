@@ -1,6 +1,7 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
+import { ReviewScore } from "generated/prisma/client";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -314,11 +315,32 @@ async function update(
   });
 }
 
+function calculateReviewScore(positive: number, negative: number): ReviewScore {
+  const total = positive + negative;
+  if (total === 0) return "MIXED";
+
+  const percentage = positive / total;
+
+  if (percentage >= 0.95 && total >= 500) return "OVERWHELMINGLY_POSITIVE";
+  if (percentage >= 0.8 && total >= 50) return "VERY_POSITIVE";
+  if (percentage >= 0.8) return "POSITIVE";
+  if (percentage >= 0.7) return "MOSTLY_POSITIVE";
+
+  if (percentage >= 0.4) return "MIXED";
+
+  if (percentage < 0.2 && total >= 500) return "OVERWHELMINGLY_NEGATIVE";
+  if (percentage < 0.2 && total >= 50) return "VERY_NEGATIVE";
+  if (percentage < 0.2) return "NEGATIVE";
+
+  return "MOSTLY_NEGATIVE";
+}
+
 const game = {
   create,
   update,
   findOneBySlug,
   findOnePublicBySlug,
+  calculateReviewScore,
 };
 
 export default game;
