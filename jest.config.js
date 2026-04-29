@@ -20,7 +20,7 @@ const createConfig = async () => {
   return {
     ...nextConfig,
     transformIgnorePatterns: [
-      "/node_modules/(?!(@prisma|uuid|@faker-js/faker)/)",
+      "/node_modules/(?!(@prisma|uuid|@faker-js/faker|@aws-sdk|@smithy)/)",
     ],
   };
 };

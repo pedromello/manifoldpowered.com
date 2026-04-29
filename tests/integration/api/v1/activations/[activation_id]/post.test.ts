@@ -152,6 +152,8 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "create:review",
         "read:review",
         "delete:review",
+        "read:game_file",
+        "read:library",
       ]);
     });
 

@@ -1,5 +1,6 @@
 import retry from "async-retry";
 import * as database from "infra/database";
+import storage from "infra/storage";
 import user from "models/user";
 import session from "models/session";
 import { faker } from "@faker-js/faker";
@@ -127,6 +128,11 @@ const getGameBySlug = async (slug) => {
   return game.findOneBySlug(slug);
 };
 
+const clearStorage = async () => {
+  await storage.clearAllBuckets();
+  await storage.createBucket();
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -141,6 +147,7 @@ const orchestrator = {
   getUserById,
   createGame,
   getGameBySlug,
+  clearStorage,
 };
 
 export default orchestrator;
