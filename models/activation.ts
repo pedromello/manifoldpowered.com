@@ -90,6 +90,9 @@ async function activateUserByUserId(userId: string) {
     "create:wishlist",
     "read:wishlist",
     "delete:wishlist",
+    "create:review",
+    "read:review",
+    "delete:review",
   ]);
 }
 

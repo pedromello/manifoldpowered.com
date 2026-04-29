@@ -3,6 +3,7 @@ import {
   Session,
   User,
   UserActivationToken,
+  Review,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
@@ -35,6 +36,11 @@ const AVAILABLE_FEATURES = [
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
+
+  // Reviews
+  "create:review",
+  "read:review",
+  "delete:review",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -186,6 +192,22 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       discount_label: gameOutput.discount_label,
       created_at: gameOutput.created_at,
       updated_at: gameOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:review") {
+    const reviewOutput = resource as Review & { user: { username: string } };
+    return {
+      id: reviewOutput.id,
+      game_id: reviewOutput.game_id,
+      user_id: reviewOutput.user_id,
+      message: reviewOutput.message,
+      recommended: reviewOutput.recommended,
+      created_at: reviewOutput.created_at,
+      updated_at: reviewOutput.updated_at,
+      user: {
+        username: reviewOutput.user?.username,
+      },
     };
   }
 

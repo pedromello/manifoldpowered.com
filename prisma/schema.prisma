@@ -134,6 +134,7 @@ model Review {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
+  @@unique([user_id, game_id])
   @@index([user_id])
   @@index([game_id])
   @@map("reviews")
