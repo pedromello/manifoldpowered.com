@@ -331,7 +331,7 @@ function calculateReviewScore(positive: number, negative: number): ReviewScore {
   if (percentage < 0.2 && total >= 500) return "OVERWHELMINGLY_NEGATIVE";
   if (percentage < 0.2 && total >= 50) return "VERY_NEGATIVE";
   if (percentage < 0.2) return "NEGATIVE";
-  
+
   return "MOSTLY_NEGATIVE";
 }
 

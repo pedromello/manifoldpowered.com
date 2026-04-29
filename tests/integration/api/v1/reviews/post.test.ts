@@ -13,7 +13,11 @@ describe("POST /api/v1/reviews", () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: "some-game-slug", message: "Great", recommended: true }),
+        body: JSON.stringify({
+          slug: "some-game-slug",
+          message: "Great",
+          recommended: true,
+        }),
       });
 
       expect(response.status).toBe(403);
@@ -33,7 +37,11 @@ describe("POST /api/v1/reviews", () => {
           "Content-Type": "application/json",
           Cookie: `session_id=${session.token}`,
         },
-        body: JSON.stringify({ slug: game.slug, message: "Amazing game!", recommended: true }),
+        body: JSON.stringify({
+          slug: game.slug,
+          message: "Amazing game!",
+          recommended: true,
+        }),
       });
 
       expect(response.status).toBe(201);
@@ -46,7 +54,9 @@ describe("POST /api/v1/reviews", () => {
       expect(review).toBeDefined();
       expect(review?.recommended).toBe(true);
 
-      const updatedGame = await prisma.game.findUnique({ where: { id: game.id } });
+      const updatedGame = await prisma.game.findUnique({
+        where: { id: game.id },
+      });
       expect(updatedGame?.positive_reviews).toBe(1);
       expect(updatedGame?.negative_reviews).toBe(0);
       expect(updatedGame?.review_score).toBe("POSITIVE");
@@ -64,7 +74,11 @@ describe("POST /api/v1/reviews", () => {
           "Content-Type": "application/json",
           Cookie: `session_id=${session.token}`,
         },
-        body: JSON.stringify({ slug: game.slug, message: "Amazing game!", recommended: true }),
+        body: JSON.stringify({
+          slug: game.slug,
+          message: "Amazing game!",
+          recommended: true,
+        }),
       });
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
@@ -73,15 +87,21 @@ describe("POST /api/v1/reviews", () => {
           "Content-Type": "application/json",
           Cookie: `session_id=${session.token}`,
         },
-        body: JSON.stringify({ slug: game.slug, message: "Actually, it's ok.", recommended: false }),
+        body: JSON.stringify({
+          slug: game.slug,
+          message: "Actually, it's ok.",
+          recommended: false,
+        }),
       });
 
       expect(response.status).toBe(400);
       const responseBody = await response.json();
       expect(responseBody.name).toBe("ValidationError");
       expect(responseBody.message).toBe("You have already reviewed this game.");
-      
-      const reviews = await prisma.review.findMany({ where: { game_id: game.id } });
+
+      const reviews = await prisma.review.findMany({
+        where: { game_id: game.id },
+      });
       expect(reviews.length).toBe(1);
     });
 

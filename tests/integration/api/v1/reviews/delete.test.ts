@@ -32,12 +32,12 @@ describe("DELETE /api/v1/reviews", () => {
           user_id: user.id,
           game_id: game.id,
           message: "Will be deleted",
-          recommended: true
-        }
+          recommended: true,
+        },
       });
       await prisma.game.update({
         where: { id: game.id },
-        data: { positive_reviews: 1, review_score: "POSITIVE" }
+        data: { positive_reviews: 1, review_score: "POSITIVE" },
       });
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
@@ -56,7 +56,9 @@ describe("DELETE /api/v1/reviews", () => {
       });
       expect(review).toBeNull();
 
-      const updatedGame = await prisma.game.findUnique({ where: { id: game.id } });
+      const updatedGame = await prisma.game.findUnique({
+        where: { id: game.id },
+      });
       expect(updatedGame?.positive_reviews).toBe(0);
       expect(updatedGame?.review_score).toBe("MIXED");
     });

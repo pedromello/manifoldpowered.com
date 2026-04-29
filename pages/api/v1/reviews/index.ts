@@ -43,9 +43,9 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug, page, limit } = parsedQuery.data;
 
   const result = await review.getPaginatedReviewsBySlug(slug, page, limit);
-  
+
   const filteredReviews = result.reviews.map((r) =>
-    authorization.filterOutput(req.context?.user || {}, "read:review", r)
+    authorization.filterOutput(req.context?.user || {}, "read:review", r),
   );
 
   return res.status(200).json({

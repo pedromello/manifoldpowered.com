@@ -3,7 +3,12 @@ import gameModel from "models/game";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 
-async function add(userId: string, slug: string, message: string, recommended: boolean) {
+async function add(
+  userId: string,
+  slug: string,
+  message: string,
+  recommended: boolean,
+) {
   const game = await gameModel.findOnePublicBySlug(slug);
 
   if (!game) {
@@ -24,8 +29,10 @@ async function add(userId: string, slug: string, message: string, recommended: b
         },
       });
 
-      const incrementField = recommended ? "positive_reviews" : "negative_reviews";
-      
+      const incrementField = recommended
+        ? "positive_reviews"
+        : "negative_reviews";
+
       const updatedGame = await tx.game.update({
         where: { id: game.id },
         data: {
@@ -35,7 +42,7 @@ async function add(userId: string, slug: string, message: string, recommended: b
 
       const newScore = gameModel.calculateReviewScore(
         updatedGame.positive_reviews,
-        updatedGame.negative_reviews
+        updatedGame.negative_reviews,
       );
 
       await tx.game.update({
@@ -46,7 +53,10 @@ async function add(userId: string, slug: string, message: string, recommended: b
       });
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       throw new ValidationError({
         message: "You have already reviewed this game.",
         action: "You can only post one review per game.",
@@ -89,7 +99,9 @@ async function remove(userId: string, slug: string) {
       },
     });
 
-    const decrementField = existingReview.recommended ? "positive_reviews" : "negative_reviews";
+    const decrementField = existingReview.recommended
+      ? "positive_reviews"
+      : "negative_reviews";
 
     const updatedGame = await tx.game.update({
       where: { id: game.id },
@@ -100,7 +112,7 @@ async function remove(userId: string, slug: string) {
 
     const newScore = gameModel.calculateReviewScore(
       updatedGame.positive_reviews,
-      updatedGame.negative_reviews
+      updatedGame.negative_reviews,
     );
 
     await tx.game.update({
@@ -112,7 +124,11 @@ async function remove(userId: string, slug: string) {
   });
 }
 
-async function getPaginatedReviewsBySlug(slug: string, page: number, limit: number) {
+async function getPaginatedReviewsBySlug(
+  slug: string,
+  page: number,
+  limit: number,
+) {
   const game = await gameModel.findOnePublicBySlug(slug);
 
   if (!game) {
@@ -136,18 +152,21 @@ async function getPaginatedReviewsBySlug(slug: string, page: number, limit: numb
     }),
   ]);
 
-  const userIds = reviews.map(r => r.user_id);
+  const userIds = reviews.map((r) => r.user_id);
   const users = await prisma.user.findMany({
     where: { id: { in: userIds } },
     select: { id: true, username: true },
   });
 
-  const userMap = users.reduce((acc, user) => {
-    acc[user.id] = user;
-    return acc;
-  }, {} as Record<string, { id: string; username: string }>);
+  const userMap = users.reduce(
+    (acc, user) => {
+      acc[user.id] = user;
+      return acc;
+    },
+    {} as Record<string, { id: string; username: string }>,
+  );
 
-  const reviewsWithUser = reviews.map(r => ({
+  const reviewsWithUser = reviews.map((r) => ({
     ...r,
     user: userMap[r.user_id] || { username: "Unknown" },
   }));
