@@ -1,7 +1,9 @@
 import type { GetServerSideProps } from "next";
 
 export const getServerSideProps: GetServerSideProps = async ({ query }) => {
-  const queryString = new URLSearchParams(query as any).toString();
+  const queryString = new URLSearchParams(
+    query as Record<string, string>,
+  ).toString();
   return {
     redirect: {
       destination: `/about${queryString ? `?${queryString}` : ""}`,
