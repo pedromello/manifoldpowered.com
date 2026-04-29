@@ -10,11 +10,14 @@ beforeAll(async () => {
 describe("DELETE /api/v1/wishlists", () => {
   describe("Anonymous user", () => {
     test("With anonymous user should return 403", async () => {
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: "some-game-slug" }),
-      });
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: "some-game-slug" }),
+        },
+      );
 
       expect(response.status).toBe(403);
 
@@ -42,14 +45,17 @@ describe("DELETE /api/v1/wishlists", () => {
         },
       });
 
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: `session_id=${session.token}`,
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify({ slug: game.slug }),
         },
-        body: JSON.stringify({ slug: game.slug }),
-      });
+      );
 
       expect(response.status).toBe(200);
       const responseBody = await response.json();

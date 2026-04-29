@@ -208,20 +208,9 @@ export default function Home({
       return;
     }
 
-    if (audienceTransitionTimeoutRef.current) {
-      clearTimeout(audienceTransitionTimeoutRef.current);
-    }
-
-    setIsAudienceContentVisible(false);
-
-    audienceTransitionTimeoutRef.current = setTimeout(() => {
-      setSelectedAudience(audience);
-      setIsAudienceContentVisible(true);
-    }, transitionDurationMs);
-
     router.replace(
       {
-        pathname: "/",
+        pathname: "/about",
         query: audience === "creators" ? {} : { audience },
       },
       undefined,

@@ -17,7 +17,9 @@ describe("GET /api/v1/wishlists", () => {
       const responseBody = await response.json();
       expect(responseBody.message).toBe("Query validation failed.");
       expect(responseBody.name).toBe("ValidationError");
-      expect(responseBody.action).toBe("Provide the 'slug' parameter in the query string.");
+      expect(responseBody.action).toBe(
+        "Provide the 'slug' parameter in the query string.",
+      );
       expect(responseBody.status_code).toBe(400);
     });
 
