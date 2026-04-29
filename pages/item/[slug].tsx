@@ -481,24 +481,45 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                   {isDemo ? "Play Demo" : "Buy Now"}
                 </button>
 
-                <button
-                  onClick={toggleWishlist}
-                  disabled={isToggling}
-                  className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider ${
-                    wishlistData?.is_wishlisted
-                      ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
-                      : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
-                  }`}
-                >
-                  <Heart
-                    size={20}
-                    fill={wishlistData?.is_wishlisted ? "currentColor" : "none"}
-                    className={isToggling ? "opacity-50" : ""}
-                  />
-                  {wishlistData?.is_wishlisted
-                    ? "On Wishlist"
-                    : "Add to Wishlist"}
-                </button>
+                {game.social_links.steam_page ? (
+                  <a
+                    href={game.social_links.steam_page}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+                  >
+                    <IconBrandSteam
+                      size={24}
+                      className="group-hover:scale-110 transition-transform"
+                    />
+                    <span>Add to Wishlist</span>
+                    <ExternalLink
+                      size={16}
+                      className="opacity-60 group-hover:opacity-100 transition-opacity"
+                    />
+                  </a>
+                ) : (
+                  <button
+                    onClick={toggleWishlist}
+                    disabled={isToggling}
+                    className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider ${
+                      wishlistData?.is_wishlisted
+                        ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
+                        : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <Heart
+                      size={20}
+                      fill={
+                        wishlistData?.is_wishlisted ? "currentColor" : "none"
+                      }
+                      className={isToggling ? "opacity-50" : ""}
+                    />
+                    {wishlistData?.is_wishlisted
+                      ? "On Wishlist"
+                      : "Add to Wishlist"}
+                  </button>
+                )}
 
                 <div className="h-px bg-white/10" />
 
