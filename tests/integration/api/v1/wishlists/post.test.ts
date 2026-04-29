@@ -10,11 +10,14 @@ beforeAll(async () => {
 describe("POST /api/v1/wishlists", () => {
   describe("Anonymous user", () => {
     test("With anonymous user should return 403", async () => {
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: "some-game-slug" }),
-      });
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: "some-game-slug" }),
+        },
+      );
 
       expect(response.status).toBe(403);
 
@@ -35,14 +38,17 @@ describe("POST /api/v1/wishlists", () => {
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
 
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: `session_id=${session.token}`,
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify({ slug: game.slug }),
         },
-        body: JSON.stringify({ slug: game.slug }),
-      });
+      );
 
       expect(response.status).toBe(201);
       const responseBody = await response.json();
@@ -65,21 +71,26 @@ describe("POST /api/v1/wishlists", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
 
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: `session_id=${session.token}`,
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify({}),
         },
-        body: JSON.stringify({}),
-      });
+      );
 
       expect(response.status).toBe(400);
       const responseBody = await response.json();
-      
+
       expect(responseBody.message).toBe("Request body validation failed.");
       expect(responseBody.name).toBe("ValidationError");
-      expect(responseBody.action).toBe("Provide the 'slug' in the request body.");
+      expect(responseBody.action).toBe(
+        "Provide the 'slug' in the request body.",
+      );
       expect(responseBody.status_code).toBe(400);
     });
 
@@ -100,14 +111,17 @@ describe("POST /api/v1/wishlists", () => {
       });
 
       // Second request
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: `session_id=${session.token}`,
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/wishlists`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify({ slug: game.slug }),
         },
-        body: JSON.stringify({ slug: game.slug }),
-      });
+      );
 
       expect(response.status).toBe(201);
 
