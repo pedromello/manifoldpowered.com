@@ -146,6 +146,9 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "read:session",
         "update:user",
         "read:public_game",
+        "create:wishlist",
+        "read:wishlist",
+        "delete:wishlist",
       ]);
     });
 

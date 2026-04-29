@@ -30,6 +30,11 @@ const AVAILABLE_FEATURES = [
   "read:public_game",
   "update:game",
   "update:game:any",
+
+  // Wishlists
+  "create:wishlist",
+  "read:wishlist",
+  "delete:wishlist",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {

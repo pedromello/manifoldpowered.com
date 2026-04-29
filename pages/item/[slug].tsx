@@ -16,7 +16,11 @@ import {
   ThumbsDown,
   MessageSquare,
   LucideProps,
+  Heart,
 } from "lucide-react";
+
+import useSWR from "swr";
+import { useState } from "react";
 
 import {
   IconBrandX,
@@ -247,6 +251,51 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function GameDetailsPage({ game }: { game: GameApi }) {
+  const { data: wishlistData, mutate: mutateWishlist } = useSWR(
+    game ? `/api/v1/wishlists?slug=${game.slug}` : null,
+    (url) => fetch(url).then((res) => res.json()),
+  );
+
+  const [isToggling, setIsToggling] = useState(false);
+
+  const toggleWishlist = async () => {
+    if (!wishlistData || isToggling) return;
+    setIsToggling(true);
+
+    const isCurrentlyWishlisted = wishlistData.is_wishlisted;
+    const method = isCurrentlyWishlisted ? "DELETE" : "POST";
+
+    // Optimistic update
+    mutateWishlist(
+      {
+        count: wishlistData.count + (isCurrentlyWishlisted ? -1 : 1),
+        is_wishlisted: !isCurrentlyWishlisted,
+      },
+      false,
+    );
+
+    try {
+      const res = await fetch("/api/v1/wishlists", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert("You need to be logged in to add to wishlist.");
+        }
+        throw new Error("Failed to toggle wishlist");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      // Revalidate to ensure correct state
+      mutateWishlist();
+      setIsToggling(false);
+    }
+  };
+
   if (!game) {
     return (
       <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center text-white">
@@ -430,6 +479,25 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
 
                 <button className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
                   {isDemo ? "Play Demo" : "Buy Now"}
+                </button>
+
+                <button
+                  onClick={toggleWishlist}
+                  disabled={isToggling}
+                  className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider ${
+                    wishlistData?.is_wishlisted
+                      ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
+                      : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
+                  }`}
+                >
+                  <Heart
+                    size={20}
+                    fill={wishlistData?.is_wishlisted ? "currentColor" : "none"}
+                    className={isToggling ? "opacity-50" : ""}
+                  />
+                  {wishlistData?.is_wishlisted
+                    ? "On Wishlist"
+                    : "Add to Wishlist"}
                 </button>
 
                 <div className="h-px bg-white/10" />
