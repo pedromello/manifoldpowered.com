@@ -69,6 +69,7 @@ describe("GET /api/v1/user", () => {
           "delete:review",
           "read:game_file",
           "read:library",
+          "create:library",
         ],
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,

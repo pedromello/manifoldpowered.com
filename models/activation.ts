@@ -95,6 +95,7 @@ async function activateUserByUserId(userId: string) {
     "delete:review",
     "read:game_file",
     "read:library",
+    "create:library",
   ]);
 }
 

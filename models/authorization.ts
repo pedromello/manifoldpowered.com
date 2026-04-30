@@ -49,6 +49,7 @@ const AVAILABLE_FEATURES = [
 
   // Library
   "read:library",
+  "create:library",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {

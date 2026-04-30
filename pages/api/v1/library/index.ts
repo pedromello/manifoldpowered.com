@@ -4,7 +4,8 @@ import library from "models/library";
 import authorization from "models/authorization";
 import { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
-import { ValidationError } from "infra/errors";
+import { NotFoundError, ValidationError } from "infra/errors";
+import game from "models/game";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -14,6 +15,7 @@ const querySchema = z.object({
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
   .get(controller.canRequest("read:library"), getHandler)
+  .post(controller.canRequest("create:library"), postHandler)
   .handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -42,5 +44,43 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({
     games: filteredGames,
     pagination: result.pagination,
+  });
+}
+
+const postBodySchema = z.object({
+  slug: z.string().min(1).max(255),
+});
+
+async function postHandler(req: NextApiRequest, res: NextApiResponse) {
+  const parsedBody = postBodySchema.safeParse(req.body);
+
+  if (!parsedBody.success) {
+    throw new ValidationError({
+      message: "Body validation failed.",
+      action: "Check the context fields for more information.",
+      context: parsedBody.error.issues,
+      cause: parsedBody.error,
+    });
+  }
+
+  const existingGame = await game.findOneBySlug(parsedBody.data.slug);
+  if (!existingGame) {
+    throw new NotFoundError({
+      message: "Game not found",
+      action: "Verify the game exists",
+    });
+  }
+
+  const result = await library.add(
+    req.context.user.id!,
+    existingGame.id,
+    "GAME",
+  );
+
+  return res.status(201).json({
+    id: result.id,
+    user_id: result.user_id,
+    game_id: result.item_id,
+    acquired_at: result.acquired_at,
   });
 }
