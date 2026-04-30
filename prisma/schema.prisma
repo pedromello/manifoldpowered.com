@@ -54,13 +54,13 @@ model Session {
 }
 
 model UserActivationToken {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
   expires_at DateTime
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
   @@index([user_id])
   @@index([expires_at])
@@ -87,7 +87,7 @@ enum ReviewScore {
 
 model Game {
   id                   String     @id @default(uuid())
-  user_id              String     // Logical reference to User.id (Owner/Developer)
+  user_id              String // Logical reference to User.id (Owner/Developer)
   title                String     @db.VarChar(255)
   slug                 String     @unique @db.VarChar(255)
   description          String     @db.Text
@@ -149,4 +149,41 @@ model WishlistItem {
   @@unique([user_id, game_id])
   @@index([user_id])
   @@map("wishlist_items")
+}
+
+enum GamePlatform {
+  WINDOWS
+  MAC
+  LINUX
+}
+
+model GameFile {
+  id           String       @id @default(uuid())
+  game_id      String // Logical reference to Game.id
+  display_name String       @db.VarChar(255)
+  platform     GamePlatform
+  file_url     String       @db.VarChar(1024)
+  size_bytes   BigInt
+  version      String       @db.VarChar(50)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  @@index([game_id])
+  @@map("game_files")
+}
+
+enum ItemType {
+  GAME
+}
+
+model LibraryItem {
+  id          String   @id @default(uuid())
+  user_id     String // Logical reference to User.id
+  item_id     String // Logical reference to the item's id
+  item_type   ItemType
+  acquired_at DateTime @default(now())
+
+  @@unique([user_id, item_id, item_type])
+  @@index([user_id])
+  @@map("library_items")
 }

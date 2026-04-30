@@ -35,6 +35,10 @@ Manifold is a game storefront and catalog application. It is crucial to understa
 
 ## 3. Architecture & Development Guidelines
 
+### Dependency Management
+
+- **Use Exact Versions:** When installing new packages, always use the `-E` (or `--save-exact`) flag to ensure exact versions are pinned in `package.json` (e.g., `npm install -E <package>`). This prevents unexpected breaking changes from minor/patch updates.
+
 ### Test-Driven Development (TDD)
 
 ### Final Verification
@@ -81,7 +85,20 @@ The `tests/orchestrator.js` file is the core utility for test environment setup.
 
 The system uses a Model-View-Controller architecture built on Next.js API routes, leveraging `next-connect`.
 
-- **Controllers / API Handlers:** Found in `pages/api/...`. They handle routing, inject user contexts (`controller.injectAnonymousOrUser`), enforce permissions (`controller.canRequest`), and process requests/responses.
+- **Controllers / API Handlers:** Found in `pages/api/...`.
+- **Router Pattern:** Always use named handler functions and pass `controller.canRequest` as a middleware directly in the method call. Avoid anonymous arrow functions in the router chain.
+
+  ```typescript
+  export default createRouter<NextApiRequest, NextApiResponse>()
+    .use(controller.injectAnonymousOrUser)
+    .get(getHandler)
+    .post(controller.canRequest("feature:name"), postHandler)
+    .handler(controller.errorHandlers);
+
+  async function getHandler(req, res) { ... }
+  async function postHandler(req, res) { ... }
+  ```
+
 - **Models:** Found in `models/`. They encapsulate database queries, business logic, schemas, and structural integrity.
 
 ### Error Handling Protocol

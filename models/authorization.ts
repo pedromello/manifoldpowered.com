@@ -41,6 +41,15 @@ const AVAILABLE_FEATURES = [
   "create:review",
   "read:review",
   "delete:review",
+
+  // Game Files
+  "create:game_file",
+  "read:game_file",
+  "delete:game_file",
+
+  // Library
+  "read:library",
+  "create:library",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -62,7 +71,12 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     }
   }
 
-  if (feature === "update:game" && resource) {
+  if (
+    (feature === "update:game" ||
+      feature === "create:game_file" ||
+      feature === "delete:game_file") &&
+    resource
+  ) {
     authorized = false;
     const gameResource = resource as Game;
 
@@ -208,6 +222,50 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       user: {
         username: reviewOutput.user?.username,
       },
+    };
+  }
+
+  if (feature === "read:game_file" || feature === "create:game_file") {
+    interface GameFileOutput {
+      id: string;
+      game_id: string;
+      display_name: string;
+      platform: string;
+      size_bytes: string | bigint;
+      version: string;
+      created_at: Date;
+      updated_at: Date;
+    }
+    const fileOutput = resource as GameFileOutput;
+    return {
+      id: fileOutput.id,
+      game_id: fileOutput.game_id,
+      display_name: fileOutput.display_name,
+      platform: fileOutput.platform,
+      size_bytes: fileOutput.size_bytes.toString(),
+      version: fileOutput.version,
+      created_at: fileOutput.created_at,
+      updated_at: fileOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:library") {
+    interface LibraryItemOutput {
+      id: string;
+      item_id: string;
+      item_type: string;
+      acquired_at: Date;
+      game: unknown;
+    }
+    const libraryOutput = resource as LibraryItemOutput;
+    return {
+      id: libraryOutput.id,
+      item_id: libraryOutput.item_id,
+      item_type: libraryOutput.item_type,
+      acquired_at: libraryOutput.acquired_at,
+      game: libraryOutput.game
+        ? filterOutput(user, "read:public_game", libraryOutput.game)
+        : null,
     };
   }
 

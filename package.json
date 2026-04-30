@@ -36,6 +36,8 @@
     "commit": "cz"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1038.0",
+    "@aws-sdk/s3-request-presigner": "3.1038.0",
     "@prisma/adapter-pg": "7.7.0",
     "@prisma/client": "7.7.0",
     "@tabler/icons-react": "3.41.1",
@@ -71,6 +73,7 @@
     "@types/react": "19.2.14",
     "commitizen": "4.3.1",
     "concurrently": "9.2.1",
+    "cross-env": "10.1.0",
     "cz-conventional-changelog": "3.3.0",
     "dotenv": "17.4.1",
     "dotenv-expand": "12.0.3",

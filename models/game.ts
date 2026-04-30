@@ -1,7 +1,7 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
-import { ReviewScore } from "generated/prisma/client";
+import { Prisma, ReviewScore } from "generated/prisma/client";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -335,11 +335,83 @@ function calculateReviewScore(positive: number, negative: number): ReviewScore {
   return "MOSTLY_NEGATIVE";
 }
 
+async function findAllPaginated({
+  page = 1,
+  limit = 20,
+  order = "newest",
+  tags,
+  q,
+}: {
+  page?: number;
+  limit?: number;
+  order?: string;
+  tags?: string[];
+  q?: string;
+}) {
+  const where: Prisma.GameWhereInput = {
+    status: "ACTIVE",
+  };
+
+  if (tags && tags.length > 0) {
+    where.tags = {
+      hasSome: tags,
+    };
+  }
+
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const orderByMap = {
+    newest: { created_at: "desc" },
+    oldest: { created_at: "asc" },
+    price_asc: { price: "asc" },
+    price_desc: { price: "desc" },
+    title_asc: { title: "asc" },
+  };
+
+  const [games, total] = await Promise.all([
+    prisma.game.findMany({
+      where,
+      orderBy: orderByMap[order] || orderByMap.newest,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.game.count({ where }),
+  ]);
+
+  return {
+    games,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+}
+
+async function makePublic(id: string) {
+  return await prisma.game.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "ACTIVE",
+    },
+  });
+}
+
 const game = {
   create,
   update,
   findOneBySlug,
   findOnePublicBySlug,
+  findAllPaginated,
+  makePublic,
   calculateReviewScore,
 };
 

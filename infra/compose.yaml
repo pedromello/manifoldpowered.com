@@ -12,3 +12,13 @@ services:
     ports:
       - "1025:1025"
       - "1080:1080"
+  minio:
+    container_name: "minio-dev"
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=local_access_key
+      - MINIO_ROOT_PASSWORD=local_secret_key
+    command: server /data --console-address ":9001"
