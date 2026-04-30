@@ -44,4 +44,3 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     pagination: result.pagination,
   });
 }
-
