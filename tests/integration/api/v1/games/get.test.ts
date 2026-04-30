@@ -12,11 +12,19 @@ describe("GET /api/v1/games", () => {
       // Create some games with different statuses
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
-      
-      const game1 = await orchestrator.createGame(user.id, { title: "Action Game", tags: ["action"] });
-      const game2 = await orchestrator.createGame(user.id, { title: "RPG Game", tags: ["rpg"] });
-      const game3 = await orchestrator.createGame(user.id, { title: "Private Game" });
-      
+
+      const game1 = await orchestrator.createGame(user.id, {
+        title: "Action Game",
+        tags: ["action"],
+      });
+      const game2 = await orchestrator.createGame(user.id, {
+        title: "RPG Game",
+        tags: ["rpg"],
+      });
+      const game3 = await orchestrator.createGame(user.id, {
+        title: "Private Game",
+      });
+
       // Update statuses to ACTIVE to be visible
       const gameModel = (await import("models/game")).default;
       await gameModel.makePublic(game1.id);
@@ -29,15 +37,17 @@ describe("GET /api/v1/games", () => {
       const body = await response.json();
       expect(body.games).toHaveLength(2);
       expect(body.pagination.total).toBe(2);
-      
-      const titles = body.games.map(g => g.title);
+
+      const titles = body.games.map((g) => g.title);
       expect(titles).toContain("Action Game");
       expect(titles).toContain("RPG Game");
       expect(titles).not.toContain("Private Game");
     });
 
     test("Should filter by tags", async () => {
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/games?tags=action`);
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?tags=action`,
+      );
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -46,7 +56,9 @@ describe("GET /api/v1/games", () => {
     });
 
     test("Should search by text (q)", async () => {
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/games?q=rpg`);
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?q=rpg`,
+      );
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -55,7 +67,9 @@ describe("GET /api/v1/games", () => {
     });
 
     test("Should handle pagination", async () => {
-      const response = await fetch(`${webserver.getOrigin()}/api/v1/games?limit=1`);
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?limit=1`,
+      );
       expect(response.status).toBe(200);
 
       const body = await response.json();

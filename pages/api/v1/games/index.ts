@@ -38,11 +38,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { games, pagination } = await game.findAllPaginated(result.data);
 
   const secureOutputValues = games.map((gameItem) =>
-    authorization.filterOutput(
-      req.context.user,
-      "read:public_game",
-      gameItem,
-    ),
+    authorization.filterOutput(req.context.user, "read:public_game", gameItem),
   );
 
   return res.status(200).json({
