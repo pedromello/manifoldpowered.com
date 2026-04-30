@@ -2,6 +2,7 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import game from "models/game";
 import gameFile from "models/game_file";
+import library from "models/library";
 import authorization from "models/authorization";
 import { ForbiddenError, NotFoundError, ValidationError } from "infra/errors";
 import { gameFileSchema } from "models/game_file";
@@ -29,12 +30,25 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { slug } = queryParse.data;
-  const gameResource = await game.findOnePublicBySlug(slug);
+  const gameResource = await game.findOneBySlug(slug);
 
   if (!gameResource) {
     throw new NotFoundError({
       message: "Game not found",
       action: "Check the URL and try again",
+    });
+  }
+
+  const hasGameOwnership = req.context.user.id === gameResource.user_id;
+  const hasLibraryItem = await library.hasItem(
+    req.context.user.id,
+    gameResource.id,
+  );
+
+  if (!hasGameOwnership && !hasLibraryItem) {
+    throw new ForbiddenError({
+      message: "You do not have access to these files",
+      action: "Acquire the game to access its files",
     });
   }
 
