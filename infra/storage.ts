@@ -23,7 +23,13 @@ const s3Client = new S3Client({
 });
 
 const bucketName = process.env.STORAGE_BUCKET_NAME;
-const EXPIRES_IN_SECONDS = 3600; // 1 hour
+const UPLOAD_EXPIRES_IN_SECONDS = 3600; // 1 hour
+let DOWNLOAD_EXPIRES_IN_SECONDS = 60; // 1 minute
+
+// My PC has a some minutes delay that impact on this test
+if (process.env.NODE_ENV !== "production") {
+  DOWNLOAD_EXPIRES_IN_SECONDS = 3600;
+}
 
 export async function getUploadUrl(
   key: string,
@@ -36,7 +42,7 @@ export async function getUploadUrl(
   });
 
   return await getSignedUrl(s3Client, command, {
-    expiresIn: EXPIRES_IN_SECONDS,
+    expiresIn: UPLOAD_EXPIRES_IN_SECONDS,
   });
 }
 
@@ -47,7 +53,7 @@ export async function getDownloadUrl(key: string): Promise<string> {
   });
 
   return await getSignedUrl(s3Client, command, {
-    expiresIn: EXPIRES_IN_SECONDS,
+    expiresIn: DOWNLOAD_EXPIRES_IN_SECONDS,
   });
 }
 
@@ -113,6 +119,8 @@ const storage = {
   deleteFile,
   clearAllBuckets,
   createBucket,
+  UPLOAD_EXPIRES_IN_SECONDS,
+  DOWNLOAD_EXPIRES_IN_SECONDS,
 };
 
 export default storage;

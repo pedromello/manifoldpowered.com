@@ -10,23 +10,6 @@ beforeAll(async () => {
   await orchestrator.deleteAllEmails();
 });
 
-const DO_NOT_FAKE_TIMERS_FOR_PRISMA: FakeableAPI[] = [
-  "hrtime",
-  "nextTick",
-  "performance",
-  "queueMicrotask",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "requestIdleCallback",
-  "cancelIdleCallback",
-  "setImmediate",
-  "clearImmediate",
-  "setInterval",
-  "clearInterval",
-  "setTimeout",
-  "clearTimeout",
-];
-
 describe("PATCH /api/v1/activations/[activation_id]", () => {
   describe("Anonymous user", () => {
     test("With unexisting token", async () => {
@@ -50,7 +33,7 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
     test("With expired token", async () => {
       jest.useFakeTimers({
         now: Date.now() - activation.EXPIRATION_IN_MILLISECONDS - 3000,
-        doNotFake: DO_NOT_FAKE_TIMERS_FOR_PRISMA,
+        doNotFake: orchestrator.DO_NOT_FAKE_TIMERS_FOR_PRISMA as FakeableAPI[],
       });
 
       const user = await orchestrator.createUser();

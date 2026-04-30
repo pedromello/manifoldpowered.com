@@ -2,6 +2,7 @@ import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import library from "models/library";
 import gameFile from "models/game_file";
+import storage from "infra/storage";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -78,6 +79,9 @@ describe("GET /api/v1/library/download/[file_id]", () => {
       expect(response.status).toBe(200);
       const responseBody = await response.json();
       expect(responseBody.download_url).toContain("http://");
+      expect(responseBody.download_url).toContain(
+        `Expires=${storage.DOWNLOAD_EXPIRES_IN_SECONDS}&`,
+      );
 
       // 7. Actually download the file using the presigned URL generated for the buyer
       const downloadResponse = await fetch(responseBody.download_url);

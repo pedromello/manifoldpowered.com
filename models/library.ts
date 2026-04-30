@@ -23,15 +23,61 @@ async function add(
   });
 }
 
-async function findAllByUserId(userId: string) {
-  return await prisma.libraryItem.findMany({
+async function findAllPaginatedGamesByUserId(
+  userId: string,
+  page: number,
+  limit: number,
+) {
+  const skip = (page - 1) * limit;
+
+  const [userLibraryItems, totalCount] = await Promise.all([
+    prisma.libraryItem.findMany({
+      where: {
+        user_id: userId,
+        item_type: "GAME",
+      },
+      orderBy: {
+        acquired_at: "desc",
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.libraryItem.count({
+      where: {
+        user_id: userId,
+        item_type: "GAME",
+      },
+    }),
+  ]);
+
+  const gameIds = userLibraryItems.map((item) => item.item_id);
+
+  const games = await prisma.game.findMany({
     where: {
-      user_id: userId,
+      id: { in: gameIds },
     },
     orderBy: {
-      acquired_at: "desc",
+      title: "asc",
     },
   });
+
+  const gamesWithLibraryInfo = userLibraryItems.map((item) => {
+    const game = games.find((g) => g.id === item.item_id);
+    return {
+      ...item,
+      game,
+    };
+  });
+
+  return {
+    games: gamesWithLibraryInfo,
+    pagination: {
+      total_items: totalCount,
+      total_pages: Math.ceil(totalCount / limit),
+      current_page: page,
+      items_per_page: limit,
+    },
+  };
 }
 
 async function hasItem(
@@ -54,8 +100,8 @@ async function hasItem(
 
 const library = {
   add,
-  findAllByUserId,
   hasItem,
+  findAllPaginatedGamesByUserId,
 };
 
 export default library;

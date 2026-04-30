@@ -7,8 +7,26 @@ import { faker } from "@faker-js/faker";
 import activation from "models/activation";
 import webserver from "infra/webserver";
 import game from "models/game";
+import library from "models/library";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
+
+const DO_NOT_FAKE_TIMERS_FOR_PRISMA = [
+  "hrtime",
+  "nextTick",
+  "performance",
+  "queueMicrotask",
+  "requestAnimationFrame",
+  "cancelAnimationFrame",
+  "requestIdleCallback",
+  "cancelIdleCallback",
+  "setImmediate",
+  "clearImmediate",
+  "setInterval",
+  "clearInterval",
+  "setTimeout",
+  "clearTimeout",
+];
 
 const waitForAllServices = async () => {
   await waitForWebServer();
@@ -128,6 +146,14 @@ const getGameBySlug = async (slug) => {
   return game.findOneBySlug(slug);
 };
 
+const addToLibrary = async (userId, itemId, itemType = "GAME") => {
+  return library.add(userId, itemId, itemType);
+};
+
+const getFileDownloadUrl = async (fileUrl) => {
+  return storage.getDownloadUrl(fileUrl);
+};
+
 const clearStorage = async () => {
   await storage.clearAllBuckets();
   await storage.createBucket();
@@ -148,6 +174,9 @@ const orchestrator = {
   createGame,
   getGameBySlug,
   clearStorage,
+  addToLibrary,
+  DO_NOT_FAKE_TIMERS_FOR_PRISMA,
+  getFileDownloadUrl,
 };
 
 export default orchestrator;
