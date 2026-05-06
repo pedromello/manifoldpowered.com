@@ -9,6 +9,7 @@ import {
   ListObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { InternalServerError } from "./errors";
 
 const s3Client = new S3Client({
   region: process.env.NODE_ENV === "production" ? "auto" : "us-east-1",
@@ -77,33 +78,41 @@ export async function clearAllBuckets(): Promise<void> {
     throw new Error("Cannot clear buckets in production environment");
   }
 
-  // List all buckets
-  const listBucketsResponse = await s3Client.send(new ListBucketsCommand({}));
-  const buckets = listBucketsResponse.Buckets || [];
+  try {
+    // List all buckets
+    const listBucketsResponse = await s3Client.send(new ListBucketsCommand({}));
+    const buckets = listBucketsResponse.Buckets || [];
 
-  for (const bucket of buckets) {
-    if (!bucket.Name) continue;
+    for (const bucket of buckets) {
+      if (!bucket.Name) continue;
 
-    // Delete all objects in the bucket
-    const listObjectsResponse = await s3Client.send(
-      new ListObjectsCommand({
-        Bucket: bucket.Name,
-      }),
-    );
-    const objects = listObjectsResponse.Contents || [];
-
-    for (const object of objects) {
-      if (!object.Key) continue;
-      await s3Client.send(
-        new DeleteObjectCommand({
+      // Delete all objects in the bucket
+      const listObjectsResponse = await s3Client.send(
+        new ListObjectsCommand({
           Bucket: bucket.Name,
-          Key: object.Key,
         }),
       );
-    }
+      const objects = listObjectsResponse.Contents || [];
 
-    // Delete bucket
-    await s3Client.send(new DeleteBucketCommand({ Bucket: bucket.Name }));
+      for (const object of objects) {
+        if (!object.Key) continue;
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: bucket.Name,
+            Key: object.Key,
+          }),
+        );
+      }
+
+      // Delete bucket
+      await s3Client.send(new DeleteBucketCommand({ Bucket: bucket.Name }));
+    }
+  } catch (error) {
+    console.error("Failed to delete all buckets:", error);
+    throw new InternalServerError({
+      cause: error,
+      action: "Contact the administrator if this error persists.",
+    });
   }
 }
 
