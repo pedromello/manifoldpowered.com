@@ -25,14 +25,7 @@ import useSWR from "swr";
 import { useState } from "react";
 import { useRouter } from "next/router";
 
-import {
-  IconBrandX,
-  IconBrandYoutube,
-  IconBrandSteam,
-  IconBrandInstagram,
-  IconBrandTiktok,
-  IconBrandItch,
-} from "@tabler/icons-react";
+import { IconBrandX, IconBrandSteam } from "@tabler/icons-react";
 
 import { StoreLayout } from "components/store/StoreLayout";
 import { DiscountBadge } from "components/store/DiscountBadge";
@@ -221,7 +214,7 @@ function ReviewSummary({
   );
 }
 
-import { mockGames, Review } from "lib/games";
+import { Review } from "lib/games";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;

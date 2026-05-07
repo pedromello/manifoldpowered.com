@@ -21,7 +21,7 @@ describe("GET /api/v1/games", () => {
         title: "RPG Game",
         tags: ["rpg"],
       });
-      const game3 = await orchestrator.createGame(user.id, {
+      await orchestrator.createGame(user.id, {
         title: "Private Game",
       });
 

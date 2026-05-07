@@ -6,7 +6,7 @@ import { BookMarked, Layers, PackageX } from "lucide-react";
 import { StoreLayout } from "components/store/StoreLayout";
 import { SectionDivider } from "components/store/SectionDivider";
 import { LibraryGameCard } from "components/library/LibraryGameCard";
-import { mockGames } from "lib/games";
+import { type GameApi } from "components/store/GameListItem";
 
 export default function LibraryPage() {
   const {
@@ -94,7 +94,7 @@ export default function LibraryPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                {games.map((item: any) => (
+                {games.map((item: { id: string; acquired_at: string; game: GameApi }) => (
                   <LibraryGameCard key={item.id} gameItem={item} />
                 ))}
               </div>
@@ -106,7 +106,7 @@ export default function LibraryPage() {
                 Empty Sector
               </h2>
               <p className="text-white/40 font-bold max-w-md mb-8">
-                You haven't added any games to your library yet. Discover your
+                You haven&apos;t added any games to your library yet. Discover your
                 next adventure in the store.
               </p>
               <Link

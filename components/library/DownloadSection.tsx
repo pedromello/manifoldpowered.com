@@ -1,5 +1,4 @@
 import { useState } from "react";
-import useSWR from "swr";
 import { Download, HardDrive, Cpu, AlertCircle } from "lucide-react";
 
 export type GameFile = {
@@ -30,7 +29,7 @@ export function DownloadSection({
 }: {
   files: GameFile[] | undefined;
   isLoading: boolean;
-  error: any;
+  error: unknown;
 }) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 

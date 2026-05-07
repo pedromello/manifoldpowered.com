@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import wishlist from "models/wishlist";
-import { UnauthorizedError, ValidationError } from "infra/errors";
+import { ValidationError } from "infra/errors";
 import { z } from "zod";
 
 const querySchema = z.object({

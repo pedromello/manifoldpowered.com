@@ -95,7 +95,7 @@ export default function LoginPage() {
         </button>
 
         <p className="signup-prompt">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/signup">Request Early Access</Link>
         </p>
       </form>

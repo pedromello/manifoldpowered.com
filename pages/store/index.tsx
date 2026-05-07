@@ -170,7 +170,7 @@ export default function StoreOption2() {
     games: GameApi[];
   }>("/api/v1/games", (url) => fetch(url).then((res) => res.json()));
 
-  const { data, error, isLoading } = useSWR<{ games: GameApi[] }>(
+  const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     `/api/v1/games?${queryUrl.toString()}`,
     (url) => fetch(url).then((res) => res.json()),
   );
