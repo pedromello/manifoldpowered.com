@@ -14,8 +14,10 @@ export function StoreTopNav() {
   const router = useRouter();
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    searchQuery.trim() ? `/api/v1/games?q=${encodeURIComponent(searchQuery)}&limit=5` : null,
-    (url) => fetch(url).then((res) => res.json())
+    searchQuery.trim()
+      ? `/api/v1/games?q=${encodeURIComponent(searchQuery)}&limit=5`
+      : null,
+    (url) => fetch(url).then((res) => res.json()),
   );
 
   const filteredGames = data?.games || [];
@@ -27,7 +29,8 @@ export function StoreTopNav() {
     }
   };
 
-  const defaultGradient = "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const defaultGradient =
+    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#1D0F3B]/80 backdrop-blur-xl border-b border-white/5 py-3 px-4 md:px-10">
@@ -47,14 +50,14 @@ export function StoreTopNav() {
           </Link>
 
           <nav className="hidden lg:flex items-center gap-2">
-            <Link 
+            <Link
               href="/store"
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-bold text-sm tracking-wide"
             >
               <Store size={18} />
               Store
             </Link>
-            <Link 
+            <Link
               href="/library"
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-bold text-sm tracking-wide"
             >
@@ -116,7 +119,10 @@ export function StoreTopNav() {
                               <p
                                 className="text-xs font-black md:text-sm uppercase"
                                 style={{
-                                  color: isDemo || game.discount_label ? "#FFB400" : "rgba(255, 255, 255, 0.4)",
+                                  color:
+                                    isDemo || game.discount_label
+                                      ? "#FFB400"
+                                      : "rgba(255, 255, 255, 0.4)",
                                 }}
                               >
                                 {isDemo ? "Free" : `$${game.price}`}
@@ -140,7 +146,7 @@ export function StoreTopNav() {
                       );
                     })}
                     <div className="px-4 py-2 mt-1 border-t border-white/5">
-                      <Link 
+                      <Link
                         href={`/search?q=${encodeURIComponent(searchQuery)}`}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
@@ -156,7 +162,7 @@ export function StoreTopNav() {
               </div>
             )}
           </div>
-          
+
           <UserMenu />
         </div>
       </div>

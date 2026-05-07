@@ -23,7 +23,7 @@ export default function SearchPage() {
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     `/api/v1/games?${queryUrl.toString()}`,
-    (url) => fetch(url).then((res) => res.json())
+    (url) => fetch(url).then((res) => res.json()),
   );
 
   const displayGames = data?.games || [];
@@ -35,11 +35,11 @@ export default function SearchPage() {
     } else {
       newTags.add(tag);
     }
-    
+
     const params = new URLSearchParams(searchParams.toString());
     params.delete("tags");
-    newTags.forEach(t => params.append("tags", t));
-    
+    newTags.forEach((t) => params.append("tags", t));
+
     router.push(`/search?${params.toString()}`, undefined, { shallow: true });
   };
 
@@ -57,12 +57,14 @@ export default function SearchPage() {
       </Head>
 
       <style jsx global>{`
-        html, body { background-color: #1d0f3b !important; }
+        html,
+        body {
+          background-color: #1d0f3b !important;
+        }
       `}</style>
 
       <main className="w-full pt-28 lg:pt-32 flex flex-col items-center">
         <div className="max-w-7xl mx-auto w-full px-4 md:px-10 flex flex-col lg:flex-row gap-8">
-          
           {/* Main Column - Search Results */}
           <div className="flex-1 flex flex-col gap-6">
             <div className="flex flex-col gap-2">
@@ -71,7 +73,8 @@ export default function SearchPage() {
               </h1>
               {q && (
                 <p className="text-white/60 font-bold">
-                  Showing results for &quot;<span className="text-white">{q}</span>&quot;
+                  Showing results for &quot;
+                  <span className="text-white">{q}</span>&quot;
                 </p>
               )}
             </div>
@@ -89,8 +92,10 @@ export default function SearchPage() {
                 className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner font-bold"
               />
               {/* Keep other params hidden so they persist on simple text search via form */}
-              {order !== "newest" && <input type="hidden" name="order" value={order} />}
-              {selectedTags.map(tag => (
+              {order !== "newest" && (
+                <input type="hidden" name="order" value={order} />
+              )}
+              {selectedTags.map((tag) => (
                 <input key={tag} type="hidden" name="tags" value={tag} />
               ))}
             </Form>
@@ -110,7 +115,9 @@ export default function SearchPage() {
                   <div className="text-white/20 font-black italic text-3xl uppercase tracking-tighter">
                     No matching games
                   </div>
-                  <p className="text-white/40 font-bold">Try adjusting your filters or search terms.</p>
+                  <p className="text-white/40 font-bold">
+                    Try adjusting your filters or search terms.
+                  </p>
                 </div>
               )}
             </section>
@@ -121,14 +128,18 @@ export default function SearchPage() {
             <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sticky top-24">
               <div className="flex items-center gap-2 mb-6 text-white/80 border-b border-white/10 pb-4">
                 <SlidersHorizontal size={20} />
-                <h2 className="text-xl font-black uppercase tracking-wider">Filters</h2>
+                <h2 className="text-xl font-black uppercase tracking-wider">
+                  Filters
+                </h2>
               </div>
 
               {/* Sort Order */}
               <div className="flex flex-col gap-3 mb-8">
                 <div className="flex items-center gap-2 text-white/60 mb-2">
                   <ArrowUpDown size={16} />
-                  <h3 className="font-bold uppercase tracking-widest text-sm">Sort By</h3>
+                  <h3 className="font-bold uppercase tracking-widest text-sm">
+                    Sort By
+                  </h3>
                 </div>
                 <div className="flex flex-col gap-2">
                   {[
@@ -138,15 +149,17 @@ export default function SearchPage() {
                     { value: "price_desc", label: "Highest Price" },
                     { value: "title_asc", label: "Title (A-Z)" },
                   ].map((option) => (
-                    <label 
-                      key={option.value} 
+                    <label
+                      key={option.value}
                       className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl transition-all ${
-                        order === option.value ? "bg-white/10 text-white" : "hover:bg-white/5 text-white/60"
+                        order === option.value
+                          ? "bg-white/10 text-white"
+                          : "hover:bg-white/5 text-white/60"
                       }`}
                     >
-                      <input 
-                        type="radio" 
-                        name="order" 
+                      <input
+                        type="radio"
+                        name="order"
                         value={option.value}
                         checked={order === option.value}
                         onChange={() => handleOrderChange(option.value)}
@@ -162,18 +175,22 @@ export default function SearchPage() {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2 text-white/60 mb-2">
                   <Tag size={16} />
-                  <h3 className="font-bold uppercase tracking-widest text-sm">Categories</h3>
+                  <h3 className="font-bold uppercase tracking-widest text-sm">
+                    Categories
+                  </h3>
                 </div>
                 <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                  {CATEGORIES.filter(c => c !== "For You").map((cat) => (
-                    <label 
-                      key={cat} 
+                  {CATEGORIES.filter((c) => c !== "For You").map((cat) => (
+                    <label
+                      key={cat}
                       className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl transition-all ${
-                        selectedTags.includes(cat) ? "bg-indigo-500/20 text-indigo-200 border border-indigo-500/30" : "hover:bg-white/5 text-white/60 border border-transparent"
+                        selectedTags.includes(cat)
+                          ? "bg-indigo-500/20 text-indigo-200 border border-indigo-500/30"
+                          : "hover:bg-white/5 text-white/60 border border-transparent"
                       }`}
                     >
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedTags.includes(cat)}
                         onChange={() => handleTagToggle(cat)}
                         className="w-4 h-4 accent-indigo-500 rounded"
@@ -185,7 +202,6 @@ export default function SearchPage() {
               </div>
             </div>
           </aside>
-
         </div>
       </main>
 

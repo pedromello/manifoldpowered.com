@@ -127,7 +127,9 @@ export function LibraryGameCard({ gameItem }: { gameItem: any }) {
                 <span className="sm:hidden text-xs font-black uppercase tracking-wider mr-2">
                   {isExpanded ? "Hide Files" : "View Files"}
                 </span>
-                <div className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}>
+                <div
+                  className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                >
                   <ChevronDown size={18} />
                 </div>
               </div>

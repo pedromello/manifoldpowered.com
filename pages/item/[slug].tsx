@@ -255,20 +255,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 export default function GameDetailsPage({ game }: { game: GameApi }) {
   const router = useRouter();
 
-  const { data: libraryData, error: libraryError, mutate: mutateLibrary } = useSWR(
+  const {
+    data: libraryData,
+    error: libraryError,
+    mutate: mutateLibrary,
+  } = useSWR(
     "/api/v1/library",
     (url) =>
       fetch(url).then((res) => {
         if (!res.ok) throw new Error("Not logged in");
         return res.json();
       }),
-    { shouldRetryOnError: false }
+    { shouldRetryOnError: false },
   );
 
   const isLoggedOut = !!libraryError;
   const isInLibrary =
-    libraryData?.games?.some((item: { game: { slug: string } }) => item.game.slug === game.slug) ||
-    false;
+    libraryData?.games?.some(
+      (item: { game: { slug: string } }) => item.game.slug === game.slug,
+    ) || false;
 
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -302,7 +307,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
     game ? `/api/v1/wishlists?slug=${game.slug}` : null,
-    (url) => fetch(url).then((res) => res.json())
+    (url) => fetch(url).then((res) => res.json()),
   );
 
   const [isToggling, setIsToggling] = useState(false);
@@ -418,8 +423,6 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
           margin-bottom: 0;
         }
       `}</style>
-
-
 
       <main className="w-full pt-19">
         {/* Hero Section */}
@@ -691,33 +694,36 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="relative w-full max-w-md bg-[#1D0F3B] border border-white/20 rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <button 
+            <button
               onClick={() => setShowSuccessModal(false)}
               className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
             >
               <X size={24} />
             </button>
-            
+
             <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 size={48} className="text-emerald-400" />
             </div>
-            
+
             <h2 className="text-2xl font-black text-white mb-4">
               Game Redeemed!
             </h2>
-            
+
             <p className="text-white/60 mb-8">
-              Successfully added <span className="text-white font-bold">{game.title}</span> to your library. You can now download and play it from your personal collection.
+              Successfully added{" "}
+              <span className="text-white font-bold">{game.title}</span> to your
+              library. You can now download and play it from your personal
+              collection.
             </p>
-            
+
             <div className="flex flex-col w-full gap-3">
-              <Link 
+              <Link
                 href="/library"
                 className="w-full py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:scale-[1.02] transition-transform"
               >
                 Go to Library
               </Link>
-              <button 
+              <button
                 onClick={() => setShowSuccessModal(false)}
                 className="w-full py-4 rounded-xl border border-white/10 text-white font-bold uppercase hover:bg-white/5 transition-colors"
               >
@@ -727,7 +733,6 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -19,7 +19,8 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
   const [main, side1, side2] = featured;
 
   const isDemo = (price: string) => !price || Number(price) === 0;
-  const defaultGradient = "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const defaultGradient =
+    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
@@ -136,11 +137,7 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
   );
 }
 
-function CategoryPills({
-  active,
-}: {
-  active: string | null;
-}) {
+function CategoryPills({ active }: { active: string | null }) {
   return (
     <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-4 no-scrollbar px-6 md:px-0">
       {CATEGORIES.map((cat) => (
@@ -160,8 +157,6 @@ function CategoryPills({
   );
 }
 
-
-
 export default function StoreOption2() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
@@ -170,15 +165,14 @@ export default function StoreOption2() {
   const queryUrl = new URLSearchParams();
   if (q) queryUrl.set("q", q);
   if (category) queryUrl.set("tags", category);
-  
-  const { data: featuredData, isLoading: isFeaturedLoading } = useSWR<{ games: GameApi[] }>(
-    "/api/v1/games",
-    (url) => fetch(url).then((res) => res.json())
-  );
+
+  const { data: featuredData, isLoading: isFeaturedLoading } = useSWR<{
+    games: GameApi[];
+  }>("/api/v1/games", (url) => fetch(url).then((res) => res.json()));
 
   const { data, error, isLoading } = useSWR<{ games: GameApi[] }>(
     `/api/v1/games?${queryUrl.toString()}`,
-    (url) => fetch(url).then((res) => res.json())
+    (url) => fetch(url).then((res) => res.json()),
   );
 
   const displayGames = data?.games || [];
@@ -210,8 +204,6 @@ export default function StoreOption2() {
           background-color: #1d0f3b !important;
         }
       `}</style>
-
-
 
       <main className="w-full flex flex-col items-center">
         {/* Banner Section with high-contrast background */}
@@ -249,8 +241,11 @@ export default function StoreOption2() {
                 <h1 className="text-4xl font-black md:text-6xl text-white drop-shadow-sm max-w-[20ch]">
                   Just Arrived at Manifold
                 </h1>
-                
-                <Form action="/search" className="relative w-full md:w-80 group">
+
+                <Form
+                  action="/search"
+                  className="relative w-full md:w-80 group"
+                >
                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
                     <Search size={20} />
                   </div>
@@ -261,7 +256,9 @@ export default function StoreOption2() {
                     placeholder="Search games..."
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner"
                   />
-                  {category && <input type="hidden" name="category" value={category} />}
+                  {category && (
+                    <input type="hidden" name="category" value={category} />
+                  )}
                 </Form>
               </div>
 
@@ -286,8 +283,6 @@ export default function StoreOption2() {
           </div>
         </div>
       </main>
-
-
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar {

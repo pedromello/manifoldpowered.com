@@ -25,7 +25,8 @@ export type GameApi = {
 
 export function GameListItem({ game }: { game: GameApi }) {
   const isDemo = !game.price || Number(game.price) === 0;
-  const defaultGradient = "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const defaultGradient =
+    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
     <Link

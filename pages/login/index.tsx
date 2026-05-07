@@ -37,7 +37,8 @@ export default function LoginPage() {
 
       // Success
       const callbackUrl = router.query.callbackUrl;
-      const redirectUrl = typeof callbackUrl === "string" ? callbackUrl : "/store";
+      const redirectUrl =
+        typeof callbackUrl === "string" ? callbackUrl : "/store";
       router.push(redirectUrl);
     } catch (error) {
       setErrorMessage(
@@ -89,16 +90,13 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <button
-          className="submit-button"
-          disabled={isSubmitting}
-          type="submit"
-        >
+        <button className="submit-button" disabled={isSubmitting} type="submit">
           {isSubmitting ? "Logging in..." : "Log In"}
         </button>
 
         <p className="signup-prompt">
-          Don't have an account? <Link href="/signup">Request Early Access</Link>
+          Don't have an account?{" "}
+          <Link href="/signup">Request Early Access</Link>
         </p>
       </form>
 
