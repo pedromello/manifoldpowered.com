@@ -1,42 +1,48 @@
 import Head from "next/head";
 import Link from "next/link";
-import Image from "next/image";
-import { useState, useMemo } from "react";
-import { type Game, mockGames, CATEGORIES } from "lib/games";
+import Form from "next/form";
+import { useSearchParams } from "next/navigation";
+import useSWR from "swr";
+import { Search } from "lucide-react";
+
+import { CATEGORIES } from "lib/games";
 
 // --- Components ---
-import { StoreTopNav } from "components/store/StoreTopNav";
-import { StoreFooter } from "components/store/StoreFooter";
+import { StoreLayout } from "components/store/StoreLayout";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
+import { GameListItem, type GameApi } from "components/store/GameListItem";
 
-function HeroBento({ featured }: { featured: Game[] }) {
-  if (featured.length < 3) return null;
+function HeroBento({ featured }: { featured: GameApi[] }) {
+  if (!featured || featured.length < 3) return null;
   const [main, side1, side2] = featured;
+
+  const isDemo = (price: string) => !price || Number(price) === 0;
+  const defaultGradient = "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
       {/* Main Massive Tile */}
       <Link
-        href={`/item/${main.id}`}
+        href={`/item/${main.slug}`}
         className="md:col-span-2 md:row-span-2 rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-2xl"
       >
         {/* Background Layer */}
         <div
           className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
           style={{
-            background: main.media.banner
+            background: main.media?.banner
               ? `url(${main.media.banner}) center/cover no-repeat`
-              : main.gradient,
+              : defaultGradient,
           }}
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
-        {!main.isDemo && main.discountLabel && (
+        {!isDemo(main.price) && main.discount_label && (
           <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
-            <DiscountBadge label={main.discountLabel} />
+            <DiscountBadge label={main.discount_label} />
           </div>
         )}
 
@@ -56,16 +62,16 @@ function HeroBento({ featured }: { featured: Game[] }) {
                   borderColor: discountBadgeColor,
                 }}
               >
-                {main.isDemo ? "Free Demo" : `$${main.currentPrice}`}
+                {isDemo(main.price) ? "Free Demo" : `$${main.price}`}
               </span>
-              {!main.isDemo && main.originalPrice && (
+              {!isDemo(main.price) && main.base_price && (
                 <span className="text-sm md:text-lg text-white/40 line-through font-bold">
-                  ${main.originalPrice}
+                  ${main.base_price}
                 </span>
               )}
             </div>
             <div className="flex gap-2 self-end mb-1">
-              {main.tags.slice(0, 3).map((tag) => (
+              {(main.tags || []).slice(0, 3).map((tag) => (
                 <span
                   key={tag}
                   className="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-base font-bold border border-white/10 text-white/80"
@@ -82,24 +88,24 @@ function HeroBento({ featured }: { featured: Game[] }) {
       {[side1, side2].map((game) => (
         <Link
           key={game.id}
-          href={`/item/${game.id}`}
+          href={`/item/${game.slug}`}
           className="rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-xl"
         >
           {/* Background Layer */}
           <div
             className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
             style={{
-              background: game.media.banner
+              background: game.media?.banner
                 ? `url(${game.media.banner}) center/cover no-repeat`
-                : game.gradient,
+                : defaultGradient,
             }}
           />
 
           <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-[#1D0F3B]/20 to-transparent opacity-80" />
 
-          {!game.isDemo && game.discountLabel && (
+          {!isDemo(game.price) && game.discount_label && (
             <div className="absolute top-5 right-5 z-10">
-              <DiscountBadge label={game.discountLabel} />
+              <DiscountBadge label={game.discount_label} />
             </div>
           )}
 
@@ -115,11 +121,11 @@ function HeroBento({ featured }: { featured: Game[] }) {
                   borderColor: discountBadgeColor,
                 }}
               >
-                {game.isDemo ? "Free Demo" : `$${game.currentPrice}`}
+                {isDemo(game.price) ? "Free Demo" : `$${game.price}`}
               </span>
-              {!game.isDemo && game.originalPrice && (
+              {!isDemo(game.price) && game.base_price && (
                 <span className="text-sm md:text-base text-white/40 line-through font-bold">
-                  ${game.originalPrice}
+                  ${game.base_price}
                 </span>
               )}
             </div>
@@ -132,98 +138,51 @@ function HeroBento({ featured }: { featured: Game[] }) {
 
 function CategoryPills({
   active,
-  setActive,
 }: {
-  active: string;
-  setActive: (c: string) => void;
+  active: string | null;
 }) {
   return (
-    <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-12 no-scrollbar px-6 md:px-0">
+    <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-4 no-scrollbar px-6 md:px-0">
       {CATEGORIES.map((cat) => (
-        <button
+        <Link
+          href={cat === "For You" ? "/store" : `/store?category=${cat}`}
           key={cat}
-          onClick={() => setActive(cat)}
-          className={`shrink-0 px-6 py-3.5 md:py-4 md:px-8 rounded-2xl font-bold transition-all duration-300 min-h-[44px] text-sm md:text-lg ${
-            active === cat
+          className={`shrink-0 px-6 py-3.5 md:py-4 md:px-8 rounded-2xl font-bold transition-all duration-300 min-h-[44px] text-sm md:text-lg inline-flex items-center justify-center ${
+            (!active && cat === "For You") || active === cat
               ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] motion-safe:transform motion-safe:scale-105"
               : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
           }`}
         >
           {cat}
-        </button>
+        </Link>
       ))}
     </div>
   );
 }
 
-function GameListItem({ game }: { game: Game }) {
-  return (
-    <Link
-      href={`/item/${game.id}`}
-      className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 motion-safe:hover:-translate-y-1 relative overflow-hidden"
-    >
-      <div className="flex items-stretch gap-2 md:gap-6">
-        <div
-          className="w-32 sm:w-40 md:w-64 aspect-[920/430] rounded-l-3xl md:rounded-2xl overflow-hidden shrink-0 border border-white/5"
-          style={{
-            background: game.media.banner
-              ? `url(${game.media.banner}) center/cover no-repeat`
-              : game.gradient,
-          }}
-        >
-          <div className="w-full h-full bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
-        </div>
 
-        <div className="flex-1 flex md:flex-row md:items-center justify-between md:gap-4 py-2 md:py-4 px-2 md:px-6 min-w-0">
-          <div className="md:h-[70%] flex flex-col justify-between min-w-0">
-            <div className="min-w-0">
-              <h3 className="text-sm md:text-3xl font-black mb-1 text-white group-hover:text-indigo-200 transition-colors truncate">
-                {game.title}
-              </h3>
-            </div>
-            <div className="truncate text-xs md:text-base text-white/50">
-              {game.tags.join(", ")}
-            </div>
-          </div>
-
-          <div className="flex items-end gap-1 w-fit">
-            <div className="flex w-full h-full">
-              <div className="flex items-center">
-                {!game.isDemo && game.discountLabel && (
-                  <DiscountBadge label={game.discountLabel} size="small" />
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col h-full justify-center pr-2">
-              {!game.isDemo && game.originalPrice && (
-                <span className="text-sm md:text-xl font-bold text-white/30 line-through">
-                  ${game.originalPrice}
-                </span>
-              )}
-              <div
-                className="text-lg md:text-3xl font-black uppercase"
-                style={{
-                  color: discountBadgeColor,
-                  borderColor: discountBadgeColor,
-                }}
-              >
-                {game.isDemo ? "Free" : `$${game.currentPrice}`}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
 
 export default function StoreOption2() {
-  const [activeCategory, setActiveCategory] = useState("For You");
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q");
+  const category = searchParams.get("category");
 
-  const displayGames = useMemo(() => {
-    if (activeCategory === "For You") return mockGames;
-    return mockGames.filter((g) => g.tags.includes(activeCategory));
-  }, [activeCategory]);
+  const queryUrl = new URLSearchParams();
+  if (q) queryUrl.set("q", q);
+  if (category) queryUrl.set("tags", category);
+  
+  const { data: featuredData, isLoading: isFeaturedLoading } = useSWR<{ games: GameApi[] }>(
+    "/api/v1/games",
+    (url) => fetch(url).then((res) => res.json())
+  );
+
+  const { data, error, isLoading } = useSWR<{ games: GameApi[] }>(
+    `/api/v1/games?${queryUrl.toString()}`,
+    (url) => fetch(url).then((res) => res.json())
+  );
+
+  const displayGames = data?.games || [];
+  const featuredGames = featuredData?.games || [];
 
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
@@ -252,7 +211,7 @@ export default function StoreOption2() {
         }
       `}</style>
 
-      <StoreTopNav games={mockGames} />
+
 
       <main className="w-full flex flex-col items-center">
         {/* Banner Section with high-contrast background */}
@@ -264,7 +223,13 @@ export default function StoreOption2() {
           }}
         >
           <div className="px-6 md:px-10 w-full flex justify-center">
-            <HeroBento featured={mockGames.slice(0, 3)} />
+            {isFeaturedLoading ? (
+              <div className="flex h-64 items-center justify-center w-full max-w-7xl">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+              </div>
+            ) : (
+              <HeroBento featured={featuredGames.slice(0, 3)} />
+            )}
           </div>
         </section>
 
@@ -280,20 +245,38 @@ export default function StoreOption2() {
         >
           <div className="max-w-7xl mx-auto flex flex-col gap-8 px-1 md:px-10">
             <div className="flex flex-col">
-              <h1 className="px-5 text-4xl font-black md:text-6xl mb-6 text-white drop-shadow-sm max-w-[20ch]">
-                Just Arrived at Manifold
-              </h1>
-              <CategoryPills
-                active={activeCategory}
-                setActive={setActiveCategory}
-              />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-5 mb-6">
+                <h1 className="text-4xl font-black md:text-6xl text-white drop-shadow-sm max-w-[20ch]">
+                  Just Arrived at Manifold
+                </h1>
+                
+                <Form action="/search" className="relative w-full md:w-80 group">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
+                    <Search size={20} />
+                  </div>
+                  <input
+                    type="text"
+                    name="q"
+                    defaultValue={q || ""}
+                    placeholder="Search games..."
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner"
+                  />
+                  {category && <input type="hidden" name="category" value={category} />}
+                </Form>
+              </div>
+
+              <CategoryPills active={category} />
 
               <section className="flex flex-col gap-4 pt-6">
-                {displayGames.map((game) => (
-                  <GameListItem key={game.id} game={game} />
-                ))}
-
-                {displayGames.length === 0 && (
+                {isLoading ? (
+                  <div className="py-20 flex justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white/20"></div>
+                  </div>
+                ) : displayGames.length > 0 ? (
+                  displayGames.map((game) => (
+                    <GameListItem key={game.id} game={game} />
+                  ))
+                ) : (
                   <div className="py-20 text-center text-white/20 font-black italic text-4xl uppercase tracking-tighter">
                     Empty Archives
                   </div>
@@ -304,7 +287,7 @@ export default function StoreOption2() {
         </div>
       </main>
 
-      <StoreFooter />
+
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar {
@@ -314,34 +297,11 @@ export default function StoreOption2() {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out forwards;
-        }
-        @keyframes pulse-glow {
-          0% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.85;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-        .animate-pulse-glow {
-          animation: pulse-glow 2s infinite ease-in-out;
-        }
       `}</style>
     </div>
   );
 }
+
+StoreOption2.getLayout = function getLayout(page: React.ReactElement) {
+  return <StoreLayout>{page}</StoreLayout>;
+};

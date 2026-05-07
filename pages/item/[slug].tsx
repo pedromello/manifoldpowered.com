@@ -17,10 +17,13 @@ import {
   MessageSquare,
   LucideProps,
   Heart,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 
 import useSWR from "swr";
 import { useState } from "react";
+import { useRouter } from "next/router";
 
 import {
   IconBrandX,
@@ -31,8 +34,7 @@ import {
   IconBrandItch,
 } from "@tabler/icons-react";
 
-import { StoreTopNav } from "components/store/StoreTopNav";
-import { StoreFooter } from "components/store/StoreFooter";
+import { StoreLayout } from "components/store/StoreLayout";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { MediaGallery } from "components/store/MediaGallery";
@@ -251,9 +253,56 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function GameDetailsPage({ game }: { game: GameApi }) {
+  const router = useRouter();
+
+  const { data: libraryData, error: libraryError, mutate: mutateLibrary } = useSWR(
+    "/api/v1/library",
+    (url) =>
+      fetch(url).then((res) => {
+        if (!res.ok) throw new Error("Not logged in");
+        return res.json();
+      }),
+    { shouldRetryOnError: false }
+  );
+
+  const isLoggedOut = !!libraryError;
+  const isInLibrary =
+    libraryData?.games?.some((item: { game: { slug: string } }) => item.game.slug === game.slug) ||
+    false;
+
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const handleRedeem = async () => {
+    if (isLoggedOut) {
+      router.push(`/login?callbackUrl=/item/${game.slug}`);
+      return;
+    }
+
+    if (isInLibrary || isRedeeming) return;
+
+    setIsRedeeming(true);
+    try {
+      const res = await fetch("/api/v1/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+
+      if (!res.ok) throw new Error("Failed to redeem");
+
+      mutateLibrary();
+      setShowSuccessModal(true);
+      setIsRedeeming(false);
+    } catch (error) {
+      console.error(error);
+      setIsRedeeming(false);
+    }
+  };
+
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
     game ? `/api/v1/wishlists?slug=${game.slug}` : null,
-    (url) => fetch(url).then((res) => res.json()),
+    (url) => fetch(url).then((res) => res.json())
   );
 
   const [isToggling, setIsToggling] = useState(false);
@@ -370,7 +419,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
         }
       `}</style>
 
-      <StoreTopNav games={mockGames} />
+
 
       <main className="w-full pt-19">
         {/* Hero Section */}
@@ -477,16 +526,33 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                   )}
                 </div>
 
-                <button className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)]">
-                  {isDemo ? "Play Demo" : "Buy Now"}
-                </button>
+                {isInLibrary ? (
+                  <button
+                    onClick={() => router.push("/library")}
+                    className="w-full py-5 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xl font-black uppercase tracking-wider hover:bg-indigo-500/30 cursor-pointer transition-all shadow-[0_20px_40px_rgba(99,102,241,0.1)]"
+                  >
+                    In Library
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRedeem}
+                    disabled={isRedeeming}
+                    className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] disabled:opacity-70 disabled:hover:scale-100"
+                  >
+                    {isRedeeming
+                      ? "Redeeming..."
+                      : isDemo
+                        ? "Redeem Demo"
+                        : "Redeem"}
+                  </button>
+                )}
 
                 {game.social_links.steam_page ? (
                   <a
                     href={game.social_links.steam_page}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+                    className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
                   >
                     <IconBrandSteam
                       size={24}
@@ -502,7 +568,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                   <button
                     onClick={toggleWishlist}
                     disabled={isToggling}
-                    className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider ${
+                    className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed ${
                       wishlistData?.is_wishlisted
                         ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
                         : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
@@ -621,7 +687,51 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
         </div>
       </main>
 
-      <StoreFooter />
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-md bg-[#1D0F3B] border border-white/20 rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle2 size={48} className="text-emerald-400" />
+            </div>
+            
+            <h2 className="text-2xl font-black text-white mb-4">
+              Game Redeemed!
+            </h2>
+            
+            <p className="text-white/60 mb-8">
+              Successfully added <span className="text-white font-bold">{game.title}</span> to your library. You can now download and play it from your personal collection.
+            </p>
+            
+            <div className="flex flex-col w-full gap-3">
+              <Link 
+                href="/library"
+                className="w-full py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:scale-[1.02] transition-transform"
+              >
+                Go to Library
+              </Link>
+              <button 
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-4 rounded-xl border border-white/10 text-white font-bold uppercase hover:bg-white/5 transition-colors"
+              >
+                Continue Browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+GameDetailsPage.getLayout = function getLayout(page: React.ReactElement) {
+  return <StoreLayout>{page}</StoreLayout>;
+};
