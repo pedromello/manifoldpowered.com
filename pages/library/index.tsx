@@ -94,9 +94,15 @@ export default function LibraryPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                {games.map((item: { id: string; acquired_at: string; game: GameApi }) => (
-                  <LibraryGameCard key={item.id} gameItem={item} />
-                ))}
+                {games.map(
+                  (item: {
+                    id: string;
+                    acquired_at: string;
+                    game: GameApi;
+                  }) => (
+                    <LibraryGameCard key={item.id} gameItem={item} />
+                  ),
+                )}
               </div>
             </div>
           ) : (
@@ -106,8 +112,8 @@ export default function LibraryPage() {
                 Empty Sector
               </h2>
               <p className="text-white/40 font-bold max-w-md mb-8">
-                You haven&apos;t added any games to your library yet. Discover your
-                next adventure in the store.
+                You haven&apos;t added any games to your library yet. Discover
+                your next adventure in the store.
               </p>
               <Link
                 href="/store"

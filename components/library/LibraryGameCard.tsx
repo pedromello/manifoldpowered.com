@@ -1,14 +1,14 @@
 import { useState } from "react";
 import useSWR from "swr";
-import {
-  ChevronDown,
-  Calendar,
-  Download,
-} from "lucide-react";
+import { ChevronDown, Calendar, Download } from "lucide-react";
 import { DownloadSection, type GameFile } from "./DownloadSection";
 import { type GameApi } from "components/store/GameListItem";
 
-export function LibraryGameCard({ gameItem }: { gameItem: { id: string, acquired_at: string, game: GameApi } }) {
+export function LibraryGameCard({
+  gameItem,
+}: {
+  gameItem: { id: string; acquired_at: string; game: GameApi };
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const game = gameItem.game;
 
