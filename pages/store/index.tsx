@@ -41,7 +41,7 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
-        {!isDemo(main.price) && main.discount_label && (
+        {!isDemo(main.price) && main.base_price !== main.price && main.discount_label && (
           <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
             <DiscountBadge label={main.discount_label} />
           </div>
@@ -57,15 +57,15 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
           <div className="flex items-center gap-4 mt-2">
             <div className="flex items-center gap-3">
               <span
-                className="text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase"
-                style={{
+                className={`text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase ${!isDemo(main.price) && main.base_price && main.base_price !== main.price ? "" : "text-white border-white/20"}`}
+                style={!isDemo(main.price) && main.base_price && main.base_price !== main.price ? {
                   color: discountBadgeColor,
                   borderColor: discountBadgeColor,
-                }}
+                } : {}}
               >
                 {isDemo(main.price) ? "Free Demo" : `$${main.price}`}
               </span>
-              {!isDemo(main.price) && main.base_price && (
+              {!isDemo(main.price) && main.base_price && main.base_price !== main.price && (
                 <span className="text-sm md:text-lg text-white/40 line-through font-bold">
                   ${main.base_price}
                 </span>
@@ -104,7 +104,7 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
 
           <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-[#1D0F3B]/20 to-transparent opacity-80" />
 
-          {!isDemo(game.price) && game.discount_label && (
+          {!isDemo(game.price) && game.base_price !== game.price && game.discount_label && (
             <div className="absolute top-5 right-5 z-10">
               <DiscountBadge label={game.discount_label} />
             </div>
@@ -116,15 +116,15 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
             </h3>
             <div className="flex items-center gap-3">
               <span
-                className="text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase"
-                style={{
+                className={`text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase ${!isDemo(game.price) && game.base_price && game.base_price !== game.price ? "" : "text-white border-white/20"}`}
+                style={!isDemo(game.price) && game.base_price && game.base_price !== game.price ? {
                   color: discountBadgeColor,
                   borderColor: discountBadgeColor,
-                }}
+                } : {}}
               >
                 {isDemo(game.price) ? "Free Demo" : `$${game.price}`}
               </span>
-              {!isDemo(game.price) && game.base_price && (
+              {!isDemo(game.price) && game.base_price && game.base_price !== game.price && (
                 <span className="text-sm md:text-base text-white/40 line-through font-bold">
                   ${game.base_price}
                 </span>

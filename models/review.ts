@@ -128,6 +128,7 @@ async function getPaginatedReviewsBySlug(
   slug: string,
   page: number,
   limit: number,
+  userId?: string,
 ) {
   const game = await gameModel.findOnePublicBySlug(slug);
 
@@ -171,8 +172,21 @@ async function getPaginatedReviewsBySlug(
     user: userMap[r.user_id] || { username: "Unknown" },
   }));
 
+  let userReview = null;
+  if (userId) {
+    userReview = await prisma.review.findUnique({
+      where: {
+        user_id_game_id: {
+          user_id: userId,
+          game_id: game.id,
+        },
+      },
+    });
+  }
+
   return {
     reviews: reviewsWithUser,
+    user_review: userReview,
     pagination: {
       total_items: totalCount,
       total_pages: Math.ceil(totalCount / limit),
