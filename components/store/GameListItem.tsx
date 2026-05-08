@@ -25,6 +25,8 @@ export type GameApi = {
 
 export function GameListItem({ game }: { game: GameApi }) {
   const isDemo = !game.price || Number(game.price) === 0;
+  const isDiscounted =
+    !isDemo && game.base_price && game.base_price !== game.price;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
@@ -60,23 +62,29 @@ export function GameListItem({ game }: { game: GameApi }) {
           <div className="flex items-end gap-1 w-fit">
             <div className="flex w-full h-full">
               <div className="flex items-center">
-                {!isDemo && game.discount_label && (
-                  <DiscountBadge label={game.discount_label} size="small" />
-                )}
+                {!isDemo &&
+                  game.base_price !== game.price &&
+                  game.discount_label && (
+                    <DiscountBadge label={game.discount_label} size="small" />
+                  )}
               </div>
             </div>
             <div className="flex flex-col h-full justify-center pr-2">
-              {!isDemo && game.base_price && (
+              {!isDemo && game.base_price && game.base_price !== game.price && (
                 <span className="text-sm md:text-xl font-bold text-white/30 line-through">
                   ${game.base_price}
                 </span>
               )}
               <div
-                className="text-lg md:text-3xl font-black uppercase"
-                style={{
-                  color: discountBadgeColor,
-                  borderColor: discountBadgeColor,
-                }}
+                className={`text-lg md:text-3xl font-black uppercase ${isDiscounted ? "" : "text-white"}`}
+                style={
+                  isDiscounted
+                    ? {
+                        color: discountBadgeColor,
+                        borderColor: discountBadgeColor,
+                      }
+                    : {}
+                }
               >
                 {isDemo ? "Free" : `$${game.price}`}
               </div>

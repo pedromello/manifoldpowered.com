@@ -42,14 +42,28 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { slug, page, limit } = parsedQuery.data;
 
-  const result = await review.getPaginatedReviewsBySlug(slug, page, limit);
+  const result = await review.getPaginatedReviewsBySlug(
+    slug,
+    page,
+    limit,
+    req.context?.user?.id,
+  );
 
   const filteredReviews = result.reviews.map((r) =>
     authorization.filterOutput(req.context?.user || {}, "read:review", r),
   );
 
+  const filteredUserReview = result.user_review
+    ? authorization.filterOutput(
+        req.context?.user || {},
+        "read:review",
+        result.user_review,
+      )
+    : null;
+
   return res.status(200).json({
     reviews: filteredReviews,
+    user_review: filteredUserReview,
     pagination: result.pagination,
   });
 }

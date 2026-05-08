@@ -15,10 +15,12 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
-  LucideProps,
   Heart,
   CheckCircle2,
   X,
+  PenLine,
+  Loader2,
+  Send,
 } from "lucide-react";
 
 import useSWR from "swr";
@@ -32,6 +34,14 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { MediaGallery } from "components/store/MediaGallery";
 import { discountBadgeColor } from "components/store/constants";
+import { MetaTag } from "components/store/MetaTag";
+import { SocialLink } from "components/store/SocialLink";
+import {
+  ReviewCard,
+  Review,
+  ReviewsApiResponse,
+} from "components/store/ReviewCard";
+import { ReviewSummary } from "components/store/ReviewSummary";
 import webserver from "infra/webserver";
 
 type GameApi = {
@@ -68,153 +78,8 @@ type GameApi = {
   };
   positive_reviews: number;
   negative_reviews: number;
-  review_score: number;
+  review_score: string;
 };
-
-// --- Components ---
-
-function MetaTag({
-  icon: Icon,
-  label,
-  active,
-}: {
-  icon: React.ComponentType<LucideProps>;
-  label: string;
-  active: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-300 ${
-        active
-          ? "bg-white/10 border-white/20 text-white"
-          : "bg-white/5 border-white/5 text-white/40 grayscale opacity-60"
-      }`}
-    >
-      <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
-      <span className="text-sm font-bold tracking-tight">{label}</span>
-    </div>
-  );
-}
-
-function SocialLink({
-  icon: Icon,
-  href,
-  label,
-}: {
-  icon: React.ComponentType<LucideProps>;
-  href?: string;
-  label: string;
-}) {
-  if (!href) return null;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 group"
-      title={label}
-    >
-      <Icon size={20} className="group-hover:scale-110 transition-transform" />
-      <span className="text-sm font-bold">{label}</span>
-      <ExternalLink
-        size={14}
-        className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
-      />
-    </a>
-  );
-}
-function ReviewCard({ review }: { review: Review }) {
-  return (
-    <div className="p-6 rounded-3xl bg-white/5 border border-white/5 flex flex-col gap-4 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 text-indigo-400 font-black">
-            {review.username[0].toUpperCase()}
-          </div>
-          <div className="flex flex-col">
-            <span className="font-black text-sm">{review.username}</span>
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-              {review.createdAt}
-            </span>
-          </div>
-        </div>
-        <div
-          className={`px-3 py-1 rounded-full flex items-center gap-2 border text-[10px] font-black uppercase tracking-wider ${
-            review.recommended
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-          }`}
-        >
-          {review.recommended ? (
-            <ThumbsUp size={12} />
-          ) : (
-            <ThumbsDown size={12} />
-          )}
-          {review.recommended ? "Recommended" : "Not Recommended"}
-        </div>
-      </div>
-      <p className="text-white/70 leading-relaxed text-sm italic">
-        &quot;{review.message}&quot;
-      </p>
-    </div>
-  );
-}
-
-function ReviewSummary({
-  positive,
-  negative,
-}: {
-  positive: number;
-  negative: number;
-}) {
-  const total = positive + negative;
-  const ratio = total > 0 ? (positive / total) * 100 : 0;
-
-  let label = "Mixed";
-  let color = "text-white/60";
-
-  if (total === 0) {
-    label = "No Reviews";
-  } else if (ratio >= 90) {
-    label = "Overwhelmingly Positive";
-    color = "text-emerald-400";
-  } else if (ratio >= 80) {
-    label = "Very Positive";
-    color = "text-emerald-400";
-  } else if (ratio >= 70) {
-    label = "Positive";
-    color = "text-emerald-400";
-  } else if (ratio < 40) {
-    label = "Mostly Negative";
-    color = "text-rose-400";
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-4 py-2">
-      <div className="flex flex-col">
-        <span className={`text-sm font-black uppercase tracking-wide ${color}`}>
-          {label}
-        </span>
-        <span className="text-[10px] font-bold text-white/30 truncate">
-          Based on {total.toLocaleString()} community reviews
-        </span>
-      </div>
-      {total > 0 && (
-        <>
-          <div className="h-4 w-px bg-white/10 hidden sm:block" />
-          <div className="flex gap-1 items-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-            <ThumbsUp size={12} className="text-emerald-400" />
-            <span className="text-xs font-black text-emerald-400">
-              {ratio.toFixed(0)}%
-            </span>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-import { Review } from "lib/games";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
@@ -262,6 +127,15 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
     { shouldRetryOnError: false },
   );
 
+  const {
+    data: reviewsData,
+    mutate: mutateReviews,
+    isValidating: isReviewsLoading,
+  } = useSWR<ReviewsApiResponse>(
+    game ? `/api/v1/reviews?slug=${game.slug}&page=1&limit=10` : null,
+    (url) => fetch(url).then((res) => res.json()),
+  );
+
   const isLoggedOut = !!libraryError;
   const isInLibrary =
     libraryData?.games?.some(
@@ -270,6 +144,63 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
 
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    message: "",
+    recommended: true,
+  });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+
+  const handleDeleteReview = async () => {
+    setIsDeletingReview(true);
+    try {
+      const res = await fetch("/api/v1/reviews", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+      if (!res.ok) throw new Error("Failed to delete review");
+      await mutateReviews();
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete review.");
+    } finally {
+      setIsDeletingReview(false);
+    }
+  };
+
+  const handlePostReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewForm.message.trim()) return;
+
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch("/api/v1/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: game.slug,
+          message: reviewForm.message,
+          recommended: reviewForm.recommended,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to post review");
+
+      await mutateReviews();
+      setShowReviewModal(false);
+      setReviewForm({ message: "", recommended: true });
+    } catch (error) {
+      console.error(error);
+      alert("Failed to submit review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const handleRedeem = async () => {
     if (isLoggedOut) {
@@ -468,6 +399,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
               <ReviewSummary
                 positive={game.positive_reviews}
                 negative={game.negative_reviews}
+                reviewScore={game.review_score}
               />
             </div>
           </div>
@@ -659,25 +591,80 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
         <SectionDivider />
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-12">
           <div className="flex flex-col gap-12">
-            <header className="flex flex-col gap-4">
-              <h2 className="text-4xl md:text-5xl font-black flex items-center gap-4 tracking-tighter">
-                <MessageSquare className="text-indigo-400" />
-                Community Intel
-              </h2>
-              <p className="text-white/40 font-bold max-w-xl">
-                Real-time field reports from players across the astral network.
-                Verified accounts only.
-              </p>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Reviews are empty for now as they are not in GameApi yet */}
-              <div className="col-span-full py-12 flex flex-col items-center gap-4 bg-white/5 rounded-[2.5rem] border border-white/5 opacity-50">
-                <MessageSquare size={48} strokeWidth={1} />
-                <p className="font-bold">
-                  No intel available for this sector yet.
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div className="flex flex-col gap-4">
+                <h2 className="text-4xl md:text-5xl font-black flex items-center gap-4 tracking-tighter">
+                  <MessageSquare className="text-indigo-400" />
+                  Reviews
+                </h2>
+                <p className="text-white/40 font-bold max-w-xl">
+                  Real-time field reports from players across the astral
+                  network. Verified accounts only.
                 </p>
               </div>
+
+              {isInLibrary && !reviewsData?.user_review && (
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all font-black tracking-wider uppercase border border-white/20 flex items-center gap-2 group"
+                >
+                  <PenLine
+                    size={18}
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                  Write a Review
+                </button>
+              )}
+
+              {isInLibrary && reviewsData?.user_review && (
+                <div className="px-6 py-3 rounded-xl bg-white/5 text-white/40 font-bold uppercase tracking-wider border border-white/10 flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-emerald-500/50" />
+                  Reviewed
+                </div>
+              )}
+            </header>
+
+            {reviewsData?.user_review && (
+              <div className="flex flex-col gap-4 mb-8">
+                <h3 className="text-xl font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                  <User size={20} />
+                  Your Report
+                </h3>
+                <div className="max-w-2xl">
+                  <ReviewCard
+                    key={reviewsData.user_review.id}
+                    review={reviewsData.user_review}
+                    isOwn={true}
+                    onDelete={() => setShowDeleteModal(true)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {!reviewsData && isReviewsLoading && (
+                <div className="col-span-full py-12 flex items-center justify-center">
+                  <Loader2 size={32} className="animate-spin text-white/50" />
+                </div>
+              )}
+
+              {reviewsData?.reviews?.length > 0 || reviewsData?.user_review ? (
+                reviewsData.reviews
+                  .filter(
+                    (review) => review.id !== reviewsData?.user_review?.id,
+                  )
+                  .map((review) => (
+                    <ReviewCard key={review.id} review={review} />
+                  ))
+              ) : (
+                <div className="col-span-full py-12 flex flex-col items-center gap-4 bg-white/5 rounded-[2.5rem] border border-white/5 opacity-50">
+                  <MessageSquare size={48} strokeWidth={1} />
+                  <p className="font-bold">
+                    No reviews available for this game yet. Be the first to
+                    deploy a report!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -721,6 +708,140 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                 className="w-full py-4 rounded-xl border border-white/10 text-white font-bold uppercase hover:bg-white/5 transition-colors"
               >
                 Continue Browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Submission Modal (Glassmorphism) */}
+      {showReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="relative w-full max-w-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-3xl animate-in zoom-in-95 duration-300">
+            <div className="p-8">
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+
+              <h2 className="text-3xl font-black tracking-tighter mb-2">
+                Write a Review
+              </h2>
+              <p className="text-white/50 mb-8 font-medium">
+                Share your intel on{" "}
+                <span className="text-white font-bold">{game.title}</span> with
+                the community.
+              </p>
+
+              <form onSubmit={handlePostReview} className="flex flex-col gap-6">
+                {/* Recommendation Toggle */}
+                <div className="flex gap-4 p-1 bg-white/5 rounded-2xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewForm((prev) => ({ ...prev, recommended: true }))
+                    }
+                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 ${
+                      reviewForm.recommended
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(52,211,153,0.1)]"
+                        : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                    }`}
+                  >
+                    <ThumbsUp size={18} />
+                    Recommended
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewForm((prev) => ({ ...prev, recommended: false }))
+                    }
+                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 ${
+                      !reviewForm.recommended
+                        ? "bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-[0_0_20px_rgba(251,113,133,0.1)]"
+                        : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                    }`}
+                  >
+                    <ThumbsDown size={18} />
+                    Not Recommended
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="review-message"
+                    className="text-xs font-black uppercase tracking-widest text-white/40"
+                  >
+                    Your Report
+                  </label>
+                  <textarea
+                    id="review-message"
+                    required
+                    value={reviewForm.message}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({
+                        ...prev,
+                        message: e.target.value,
+                      }))
+                    }
+                    placeholder="What did you think of the game?"
+                    className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 resize-none h-40 transition-all font-medium"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingReview || !reviewForm.message.trim()}
+                  className="w-full py-5 mt-2 rounded-2xl bg-white text-black font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingReview ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Transmitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={20} />
+                      Post Review
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-md bg-[#1D0F3B] border border-white/20 rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <h2 className="text-2xl font-black text-white mb-4">
+              Delete Review?
+            </h2>
+            <p className="text-white/60 mb-8">
+              Are you sure you want to delete your review? This action cannot be
+              undone.
+            </p>
+            <div className="flex flex-col w-full gap-3">
+              <button
+                onClick={handleDeleteReview}
+                disabled={isDeletingReview}
+                className="w-full py-4 rounded-xl bg-rose-500 text-white font-black uppercase tracking-wider hover:bg-rose-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingReview ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  "Delete Review"
+                )}
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeletingReview}
+                className="w-full py-4 rounded-xl border border-white/10 text-white font-bold uppercase hover:bg-white/5 transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>
