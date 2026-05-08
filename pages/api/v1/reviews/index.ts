@@ -54,7 +54,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   );
 
   const filteredUserReview = result.user_review
-    ? authorization.filterOutput(req.context?.user || {}, "read:review", result.user_review)
+    ? authorization.filterOutput(
+        req.context?.user || {},
+        "read:review",
+        result.user_review,
+      )
     : null;
 
   return res.status(200).json({

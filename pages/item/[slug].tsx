@@ -36,7 +36,11 @@ import { MediaGallery } from "components/store/MediaGallery";
 import { discountBadgeColor } from "components/store/constants";
 import { MetaTag } from "components/store/MetaTag";
 import { SocialLink } from "components/store/SocialLink";
-import { ReviewCard, Review, ReviewsApiResponse } from "components/store/ReviewCard";
+import {
+  ReviewCard,
+  Review,
+  ReviewsApiResponse,
+} from "components/store/ReviewCard";
 import { ReviewSummary } from "components/store/ReviewSummary";
 import webserver from "infra/webserver";
 
@@ -76,8 +80,6 @@ type GameApi = {
   negative_reviews: number;
   review_score: string;
 };
-
-
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;

@@ -195,7 +195,7 @@ describe("Use case: Purchase and Review Flow", () => {
 
       expect(responseBody.pagination.total_items).toBe(1);
       expect(responseBody.reviews.length).toBe(1);
-      
+
       const review = responseBody.reviews[0];
       expect(review.message).toBe("This game is a masterpiece! Must play.");
       expect(review.recommended).toBe(true);
