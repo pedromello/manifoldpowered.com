@@ -71,7 +71,10 @@ const createUser = async (userDto = {}) => {
     username:
       userDto.username || faker.internet.username().replace(/[_.-]/g, ""),
     email: userDto.email || faker.internet.email(),
-    password: userDto.password || faker.internet.password(),
+    password:
+      userDto.password !== undefined
+        ? userDto.password
+        : faker.internet.password(),
   });
 };
 

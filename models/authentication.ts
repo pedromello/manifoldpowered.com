@@ -33,8 +33,15 @@ async function getUser(providedEmail: string, providedPassword: string) {
 
 async function validatePassword(
   providedPassword: string,
-  storedPassword: string,
+  storedPassword: string | null,
 ) {
+  if (!storedPassword) {
+    throw new UnauthorizedError({
+      message: "Invalid password",
+      action: "Check your password",
+    });
+  }
+
   const isPasswordValid = await password.compare(
     providedPassword,
     storedPassword,
