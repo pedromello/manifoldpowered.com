@@ -19,6 +19,8 @@ async function create(userId: string) {
   const code = generateCode();
   const codeHash = await password.hash(code);
 
+  await invalidateOutstandingCodes(userId);
+
   const otp = await prisma.userOtp.create({
     data: {
       user_id: userId,
@@ -28,6 +30,18 @@ async function create(userId: string) {
   });
 
   return { code, otp };
+}
+
+async function invalidateOutstandingCodes(userId: string) {
+  await prisma.userOtp.updateMany({
+    where: {
+      user_id: userId,
+      used_at: null,
+    },
+    data: {
+      used_at: new Date(),
+    },
+  });
 }
 
 async function sendEmailToUser(user: User, code: string) {
@@ -62,7 +76,7 @@ async function validateAndConsume(providedEmail: string, providedCode: string) {
     throw invalidOrExpiredError;
   }
 
-  const candidateOtps = await prisma.userOtp.findMany({
+  const activeOtp = await prisma.userOtp.findFirst({
     where: {
       user_id: userFound.id,
       used_at: null,
@@ -70,32 +84,28 @@ async function validateAndConsume(providedEmail: string, providedCode: string) {
         gt: new Date(),
       },
     },
-    orderBy: {
-      created_at: "desc",
+  });
+
+  if (!activeOtp) {
+    throw invalidOrExpiredError;
+  }
+
+  const isCodeValid = await password.compare(providedCode, activeOtp.code_hash);
+
+  if (!isCodeValid) {
+    throw invalidOrExpiredError;
+  }
+
+  await prisma.userOtp.update({
+    where: {
+      id: activeOtp.id,
+    },
+    data: {
+      used_at: new Date(),
     },
   });
 
-  for (const candidateOtp of candidateOtps) {
-    const isCodeValid = await password.compare(
-      providedCode,
-      candidateOtp.code_hash,
-    );
-
-    if (isCodeValid) {
-      await prisma.userOtp.update({
-        where: {
-          id: candidateOtp.id,
-        },
-        data: {
-          used_at: new Date(),
-        },
-      });
-
-      return userFound;
-    }
-  }
-
-  throw invalidOrExpiredError;
+  return userFound;
 }
 
 const otp = {
