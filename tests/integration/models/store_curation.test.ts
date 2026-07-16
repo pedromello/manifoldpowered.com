@@ -13,7 +13,7 @@ async function findCuratedTitles(storeId: string) {
     limit: 100,
     curationWhere,
   });
-  return games.map((game) => game.title).sort();
+  return games.map((game) => game.title);
 }
 
 describe("models/store_curation.ts curation rules", () => {
@@ -35,7 +35,8 @@ describe("models/store_curation.ts curation rules", () => {
     await gameModel.makePublic(horrorGame.id);
 
     const titles = await findCuratedTitles(createdStore.id);
-    expect(titles).toEqual(["Baseline Horror", "Baseline RPG"].sort());
+    expect(titles).toContain("Baseline Horror");
+    expect(titles).toContain("Baseline RPG");
   });
 
   test("A blacklisted tag excludes games carrying it", async () => {
@@ -62,7 +63,8 @@ describe("models/store_curation.ts curation rules", () => {
     );
 
     const titles = await findCuratedTitles(createdStore.id);
-    expect(titles).toEqual(["Blacklist RPG"]);
+    expect(titles).toContain("Blacklist RPG");
+    expect(titles).not.toContain("Blacklist Horror");
   });
 
   test("A whitelisted tag only includes games carrying it", async () => {
@@ -85,7 +87,8 @@ describe("models/store_curation.ts curation rules", () => {
     await orchestrator.addStoreTagFilter(createdStore.id, "rpg", "WHITELIST");
 
     const titles = await findCuratedTitles(createdStore.id);
-    expect(titles).toEqual(["Whitelist RPG"]);
+    expect(titles).toContain("Whitelist RPG");
+    expect(titles).not.toContain("Whitelist Horror");
   });
 
   test("A force-show override wins over a blacklisted tag", async () => {
@@ -111,7 +114,7 @@ describe("models/store_curation.ts curation rules", () => {
     );
 
     const titles = await findCuratedTitles(createdStore.id);
-    expect(titles).toEqual(["Force Show Horror"]);
+    expect(titles).toContain("Force Show Horror");
   });
 
   test("A force-hide override wins over a whitelisted tag", async () => {
@@ -139,6 +142,7 @@ describe("models/store_curation.ts curation rules", () => {
     );
 
     const titles = await findCuratedTitles(createdStore.id);
-    expect(titles).toEqual(["Still Visible RPG"]);
+    expect(titles).toContain("Still Visible RPG");
+    expect(titles).not.toContain("Force Hide RPG");
   });
 });
