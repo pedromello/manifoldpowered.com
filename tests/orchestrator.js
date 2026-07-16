@@ -9,6 +9,7 @@ import webserver from "infra/webserver";
 import game from "models/game";
 import library from "models/library";
 import store from "models/store";
+import storeCuration from "models/store_curation";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -182,6 +183,15 @@ const addStoreMember = async (storeId, username, permissions) => {
   return store.addMember(storeId, username, permissions);
 };
 
+// Store Curation
+const addStoreTagFilter = async (storeId, tag, mode) => {
+  return storeCuration.addTagFilter(storeId, tag, mode);
+};
+
+const addStoreGameOverride = async (storeId, gameSlug, visibility) => {
+  return storeCuration.addGameOverride(storeId, gameSlug, visibility);
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -202,6 +212,8 @@ const orchestrator = {
   getFileDownloadUrl,
   createStore,
   addStoreMember,
+  addStoreTagFilter,
+  addStoreGameOverride,
   extractOtpCode,
 };
 
