@@ -1,13 +1,17 @@
 import { prisma } from "infra/database";
 import password from "models/password";
 import { NotFoundError, ValidationError } from "infra/errors";
+import { z } from "zod";
 
-interface CreateUserDto {
-  username: string;
-  email: string;
-  password: string;
+export const userSchema = z.object({
+  username: z.string().min(1).max(30),
+  email: z.email(),
+  password: z.string().min(1).nullable(),
+});
+
+export type CreateUserDto = z.infer<typeof userSchema> & {
   features?: string[];
-}
+};
 
 interface UpdateUserDto {
   username?: string;
@@ -73,6 +77,10 @@ const validateUniqueUsername = async (username: string) => {
 };
 
 const hashPasswordInObject = async (userDto: CreateUserDto | UpdateUserDto) => {
+  if (!userDto.password) {
+    return userDto;
+  }
+
   const hashedPassword = await password.hash(userDto.password);
   userDto.password = hashedPassword;
 

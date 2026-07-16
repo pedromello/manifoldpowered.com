@@ -89,6 +89,34 @@ describe("POST /api/v1/sessions", () => {
       });
     });
 
+    test("With correct-looking credentials against a passwordless account should return 401, not crash", async () => {
+      const passwordlessUser = await orchestrator.createUser({
+        email: "passwordless@pedro.tec.br",
+        password: null,
+      });
+      await orchestrator.activateUser(passwordlessUser.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "passwordless@pedro.tec.br",
+          password: "any-password-guess",
+        }),
+      });
+      expect(response.status).toBe(401);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        message: "Invalid credentials",
+        name: "UnauthorizedError",
+        action: "Check your credentials",
+        status_code: 401,
+      });
+    });
+
     test("With correct email and correct password", async () => {
       const user = await orchestrator.createUser({
         email: "correct@pedro.tec.br",

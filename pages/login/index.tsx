@@ -3,35 +3,75 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import AuthLayout from "../../components/AuthLayout";
 
+type Step = "email" | "code";
+
 export default function LoginPage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/v1/sessions", {
+      const response = await fetch("/api/v1/otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email: email.trim(),
-          password,
         }),
       });
 
       if (!response.ok) {
         const responseBody = await response.json().catch(() => null);
         throw new Error(
-          responseBody?.message || "Invalid credentials. Please try again.",
+          responseBody?.message || "Could not send the login code.",
+        );
+      }
+
+      // Success
+      setStep("code");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not send the login code.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage("");
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/v1/otp/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          code: code.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const responseBody = await response.json().catch(() => null);
+        throw new Error(
+          responseBody?.message || "Invalid code. Please try again.",
         );
       }
 
@@ -44,11 +84,17 @@ export default function LoginPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Invalid credentials. Please try again.",
+          : "Invalid code. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleUseDifferentEmail() {
+    setStep("email");
+    setCode("");
+    setErrorMessage("");
   }
 
   return (
@@ -56,33 +102,46 @@ export default function LoginPage() {
       title="Login | Manifold"
       description="Login to your Manifold account."
     >
-      <form className="auth-form" onSubmit={handleSubmit}>
+      <form
+        className="auth-form"
+        onSubmit={step === "email" ? handleRequestCode : handleVerifyCode}
+      >
         <div className="modal-heading">
           <h2 id="login-title">Log In</h2>
-          <p>Welcome back to Manifold.</p>
+          <p>
+            {step === "email"
+              ? "Welcome back to Manifold."
+              : `Enter the code we sent to ${email.trim()}.`}
+          </p>
         </div>
 
-        <label className="field">
-          <span>Email</span>
-          <input
-            autoComplete="email"
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </label>
-
-        <label className="field">
-          <span>Password</span>
-          <input
-            autoComplete="current-password"
-            required
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
+        {step === "email" ? (
+          <label className="field">
+            <span>Email</span>
+            <input
+              autoComplete="email"
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
+        ) : (
+          <label className="field">
+            <span>Code</span>
+            <input
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              maxLength={6}
+              minLength={6}
+              pattern="[0-9]{6}"
+              required
+              type="text"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </label>
+        )}
 
         {errorMessage ? (
           <p className="form-message error" role="alert">
@@ -91,8 +150,25 @@ export default function LoginPage() {
         ) : null}
 
         <button className="submit-button" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Logging in..." : "Log In"}
+          {isSubmitting
+            ? step === "email"
+              ? "Sending..."
+              : "Verifying..."
+            : step === "email"
+              ? "Send Code"
+              : "Log In"}
         </button>
+
+        {step === "code" ? (
+          <button
+            className="submit-button"
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleUseDifferentEmail}
+          >
+            Use a different email
+          </button>
+        ) : null}
 
         <p className="signup-prompt">
           Don&apos;t have an account?{" "}

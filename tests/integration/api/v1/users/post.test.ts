@@ -54,6 +54,53 @@ describe("POST /api/v1/users", () => {
       expect(isPasswordInvalid).toBe(false);
     });
 
+    test("With null password should return 201 Created and store a null password", async () => {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "Jane Doe",
+          email: "jane@pedro.tec.br",
+          password: null,
+        }),
+      });
+      expect(response.status).toBe(201);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        id: responseBody.id,
+        username: "jane doe",
+        features: ["read:activation_token"],
+        created_at: responseBody.created_at,
+        updated_at: responseBody.updated_at,
+      });
+
+      const userInDatabase = await user.findOneByUsername("jane doe");
+      expect(userInDatabase.password).toBeNull();
+    });
+
+    test("With invalid password type should return 400", async () => {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "Bad Password",
+          email: "badpassword@pedro.tec.br",
+          password: 12345,
+        }),
+      });
+      expect(response.status).toBe(400);
+
+      const responseBody = await response.json();
+      expect(responseBody.name).toBe("ValidationError");
+      expect(responseBody.status_code).toBe(400);
+      expect(responseBody.action).toBe("Check the fields and try again");
+    });
+
     test("With duplicate username", async () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/users`, {
         method: "POST",

@@ -5,15 +5,6 @@ import AuthLayout from "../../components/AuthLayout";
 const USERNAME_PATTERN = /^[A-Za-z0-9]{3,30}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function generatePassword() {
-  const randomBytes = new Uint8Array(24);
-  window.crypto.getRandomValues(randomBytes);
-
-  return Array.from(randomBytes, (byte) =>
-    byte.toString(36).padStart(2, "0"),
-  ).join("");
-}
-
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -44,7 +35,6 @@ export default function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      const password = generatePassword();
       const response = await fetch("/api/v1/users", {
         method: "POST",
         headers: {
@@ -53,7 +43,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           username: trimmedUsername,
           email: trimmedEmail,
-          password,
+          password: null,
         }),
       });
 
