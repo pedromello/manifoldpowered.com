@@ -187,3 +187,31 @@ model LibraryItem {
   @@index([user_id])
   @@map("library_items")
 }
+
+model Store {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  slug        String   @unique @db.VarChar(255)
+  description String?  @db.Text
+  owner_id    String // Logical reference to User.id (creator/owner)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([owner_id])
+  @@index([slug])
+  @@map("stores")
+}
+
+model StoreMember {
+  id          String   @id @default(uuid())
+  store_id    String // Logical reference to Store.id
+  user_id     String // Logical reference to User.id
+  permissions String[] @default([])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@unique([store_id, user_id])
+  @@index([store_id])
+  @@index([user_id])
+  @@map("store_members")
+}

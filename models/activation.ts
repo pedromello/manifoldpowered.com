@@ -96,6 +96,10 @@ async function activateUserByUserId(userId: string) {
     "read:game_file",
     "read:library",
     "create:library",
+    "create:store",
+    "read:public_store",
+    "update:store",
+    "manage:store_members",
   ]);
 }
 

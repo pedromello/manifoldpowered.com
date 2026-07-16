@@ -8,6 +8,7 @@ import activation from "models/activation";
 import webserver from "infra/webserver";
 import game from "models/game";
 import library from "models/library";
+import store from "models/store";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -159,6 +160,19 @@ const clearStorage = async () => {
   await storage.createBucket();
 };
 
+// Stores
+const createStore = async (ownerId, storeData = {}) => {
+  return store.create({
+    name: storeData.name || faker.company.name(),
+    description: storeData.description || faker.lorem.sentence(),
+    owner_id: ownerId,
+  });
+};
+
+const addStoreMember = async (storeId, username, permissions) => {
+  return store.addMember(storeId, username, permissions);
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -177,6 +191,8 @@ const orchestrator = {
   addToLibrary,
   DO_NOT_FAKE_TIMERS_FOR_PRISMA,
   getFileDownloadUrl,
+  createStore,
+  addStoreMember,
 };
 
 export default orchestrator;

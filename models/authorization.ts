@@ -4,8 +4,12 @@ import {
   User,
   UserActivationToken,
   Review,
+  Store,
+  StoreMember,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
+
+type StoreWithMembers = Store & { members: StoreMember[] };
 
 const AVAILABLE_FEATURES = [
   // User
@@ -50,6 +54,14 @@ const AVAILABLE_FEATURES = [
   // Library
   "read:library",
   "create:library",
+
+  // Stores
+  "create:store",
+  "read:public_store",
+  "update:store",
+  "update:store:any",
+  "manage:store_members",
+  "manage:store_members:any",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -81,6 +93,28 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     const gameResource = resource as Game;
 
     if (user.id === gameResource.user_id || can(user, "update:game:any")) {
+      authorized = true;
+    }
+  }
+
+  if (
+    (feature === "update:store" || feature === "manage:store_members") &&
+    resource
+  ) {
+    authorized = false;
+    const storeResource = resource as StoreWithMembers;
+    const anyFeature =
+      feature === "update:store"
+        ? "update:store:any"
+        : "manage:store_members:any";
+
+    const isOwner = user.id === storeResource.owner_id;
+    const isPermittedMember = storeResource.members?.some(
+      (member) =>
+        member.user_id === user.id && member.permissions.includes(feature),
+    );
+
+    if (isOwner || isPermittedMember || can(user, anyFeature)) {
       authorized = true;
     }
   }
@@ -246,6 +280,45 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       version: fileOutput.version,
       created_at: fileOutput.created_at,
       updated_at: fileOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "create:store" ||
+    feature === "read:public_store" ||
+    feature === "update:store"
+  ) {
+    const storeOutput = resource as Store;
+    return {
+      id: storeOutput.id,
+      slug: storeOutput.slug,
+      name: storeOutput.name,
+      description: storeOutput.description,
+      owner_id: storeOutput.owner_id,
+      created_at: storeOutput.created_at,
+      updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (feature === "manage:store_members") {
+    interface StoreMemberOutput {
+      id: string;
+      store_id: string;
+      user_id: string;
+      username?: string;
+      permissions: string[];
+      created_at: Date;
+      updated_at: Date;
+    }
+    const memberOutput = resource as StoreMemberOutput;
+    return {
+      id: memberOutput.id,
+      store_id: memberOutput.store_id,
+      user_id: memberOutput.user_id,
+      username: memberOutput.username,
+      permissions: memberOutput.permissions,
+      created_at: memberOutput.created_at,
+      updated_at: memberOutput.updated_at,
     };
   }
 

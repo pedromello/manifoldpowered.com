@@ -138,6 +138,10 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "read:game_file",
         "read:library",
         "create:library",
+        "create:store",
+        "read:public_store",
+        "update:store",
+        "manage:store_members",
       ]);
     });
 
