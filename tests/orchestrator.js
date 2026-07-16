@@ -124,6 +124,12 @@ const extractUUID = (text) => {
   return match ? match[0] : null;
 };
 
+const extractOtpCode = (text) => {
+  const regex = /\b\d{6}\b/;
+  const match = text.match(regex);
+  return match ? match[0] : null;
+};
+
 // Games
 const createGame = async (userId, gameData = {}) => {
   return game.create({
@@ -193,6 +199,7 @@ const orchestrator = {
   getFileDownloadUrl,
   createStore,
   addStoreMember,
+  extractOtpCode,
 };
 
 export default orchestrator;
