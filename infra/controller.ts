@@ -101,6 +101,7 @@ function injectAnonymousUser(req: NextApiRequest) {
     features: [
       "read:activation_token",
       "create:session",
+      "create:otp",
       "create:user",
       "read:public_game",
       "read:wishlist",

@@ -23,6 +23,9 @@ const AVAILABLE_FEATURES = [
   "create:session",
   "read:session",
 
+  // OTP
+  "create:otp",
+
   // Activation Token
   "read:activation_token",
 
