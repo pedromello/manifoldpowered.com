@@ -341,12 +341,16 @@ async function findAllPaginated({
   order = "newest",
   tags,
   q,
+  min_price,
+  max_price,
 }: {
   page?: number;
   limit?: number;
   order?: string;
   tags?: string[];
   q?: string;
+  min_price?: number;
+  max_price?: number;
 }) {
   const where: Prisma.GameWhereInput = {
     status: "ACTIVE",
@@ -363,6 +367,26 @@ async function findAllPaginated({
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
     ];
+  }
+
+  if (min_price !== undefined || max_price !== undefined) {
+    // `price` is stored as VARCHAR for financial precision, so a plain
+    // Prisma string comparison would sort/filter lexicographically
+    // (e.g. "9.99" > "19.99"). Cast to numeric in raw SQL to get a
+    // correct range, then constrain the typed query by the matching ids.
+    const priceConditions: Prisma.Sql[] = [];
+    if (min_price !== undefined) {
+      priceConditions.push(Prisma.sql`price::numeric >= ${min_price}`);
+    }
+    if (max_price !== undefined) {
+      priceConditions.push(Prisma.sql`price::numeric <= ${max_price}`);
+    }
+
+    const matchingGames = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM games WHERE ${Prisma.join(priceConditions, " AND ")}
+    `;
+
+    where.id = { in: matchingGames.map((matchingGame) => matchingGame.id) };
   }
 
   const orderByMap = {
