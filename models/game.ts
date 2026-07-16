@@ -65,6 +65,25 @@ export const gameSchema = z.object({
 
 export type GameCreateDto = z.infer<typeof gameSchema> & { user_id: string };
 
+export const gameOrderValues = [
+  "newest",
+  "oldest",
+  "price_asc",
+  "price_desc",
+  "title_asc",
+] as const;
+
+export const gameQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  order: z.enum(gameOrderValues).default("newest"),
+  tags: z
+    .string()
+    .transform((s) => s.split(","))
+    .optional(),
+  q: z.string().optional(),
+});
+
 async function create(gameData: GameCreateDto) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
