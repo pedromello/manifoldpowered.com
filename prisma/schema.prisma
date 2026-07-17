@@ -231,3 +231,39 @@ model StoreMember {
   @@index([user_id])
   @@map("store_members")
 }
+
+enum TagFilterMode {
+  WHITELIST
+  BLACKLIST
+}
+
+model StoreTagFilter {
+  id         String        @id @default(uuid())
+  store_id   String // Logical reference to Store.id
+  tag        String        @db.VarChar(100)
+  mode       TagFilterMode
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+
+  @@unique([store_id, tag])
+  @@index([store_id])
+  @@map("store_tag_filters")
+}
+
+enum GameOverrideVisibility {
+  SHOW
+  HIDE
+}
+
+model StoreGameOverride {
+  id         String                 @id @default(uuid())
+  store_id   String // Logical reference to Store.id
+  game_id    String // Logical reference to Game.id
+  visibility GameOverrideVisibility
+  created_at DateTime               @default(now())
+  updated_at DateTime               @updatedAt
+
+  @@unique([store_id, game_id])
+  @@index([store_id])
+  @@map("store_game_overrides")
+}
