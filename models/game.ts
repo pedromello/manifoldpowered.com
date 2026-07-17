@@ -343,6 +343,7 @@ async function findAllPaginated({
   q,
   min_price,
   max_price,
+  curationWhere,
 }: {
   page?: number;
   limit?: number;
@@ -351,6 +352,7 @@ async function findAllPaginated({
   q?: string;
   min_price?: number;
   max_price?: number;
+  curationWhere?: Prisma.GameWhereInput;
 }) {
   const where: Prisma.GameWhereInput = {
     status: "ACTIVE",
@@ -389,12 +391,19 @@ async function findAllPaginated({
     where.id = { in: matchingGames.map((matchingGame) => matchingGame.id) };
   }
 
+  if (curationWhere && Object.keys(curationWhere).length > 0) {
+    where.AND = [curationWhere];
+  }
+
   const orderByMap = {
     newest: { created_at: "desc" },
     oldest: { created_at: "asc" },
     price_asc: { price: "asc" },
     price_desc: { price: "desc" },
     title_asc: { title: "asc" },
+    featured: [{ positive_reviews: "desc" }, { created_at: "desc" }],
+    trending: [{ updated_at: "desc" }, { positive_reviews: "desc" }],
+    new_releases: [{ launch_date: "desc" }],
   };
 
   const [games, total] = await Promise.all([

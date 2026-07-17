@@ -6,6 +6,8 @@ import {
   Review,
   Store,
   StoreMember,
+  StoreTagFilter,
+  StoreGameOverride,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
@@ -65,6 +67,8 @@ const AVAILABLE_FEATURES = [
   "update:store:any",
   "manage:store_members",
   "manage:store_members:any",
+  "read:store_tag_filter",
+  "read:store_game_override",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -322,6 +326,33 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       permissions: memberOutput.permissions,
       created_at: memberOutput.created_at,
       updated_at: memberOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:store_tag_filter") {
+    const tagFilterOutput = resource as StoreTagFilter;
+    return {
+      id: tagFilterOutput.id,
+      store_id: tagFilterOutput.store_id,
+      tag: tagFilterOutput.tag,
+      mode: tagFilterOutput.mode,
+      created_at: tagFilterOutput.created_at,
+      updated_at: tagFilterOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:store_game_override") {
+    const overrideOutput = resource as StoreGameOverride & {
+      game_slug: string;
+    };
+    return {
+      id: overrideOutput.id,
+      store_id: overrideOutput.store_id,
+      game_id: overrideOutput.game_id,
+      game_slug: overrideOutput.game_slug,
+      visibility: overrideOutput.visibility,
+      created_at: overrideOutput.created_at,
+      updated_at: overrideOutput.updated_at,
     };
   }
 
