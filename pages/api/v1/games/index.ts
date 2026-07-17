@@ -21,7 +21,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const { games, pagination } = await game.findAllPaginated(result.data);
+  const { order, sort_by, ...rest } = result.data;
+
+  const { games, pagination } = await game.findAllPaginated({
+    ...rest,
+    order: sort_by ?? order ?? "newest",
+  });
 
   const secureOutputValues = games.map((gameItem) =>
     authorization.filterOutput(req.context.user, "read:public_game", gameItem),

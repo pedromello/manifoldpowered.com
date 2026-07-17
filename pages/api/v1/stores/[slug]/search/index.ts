@@ -25,13 +25,16 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  const { order, sort_by, ...rest } = result.data;
+
   const foundStore = await store.findOneBySlug(slug as string);
   const curationWhere = await storeCuration.getCurationWhereClause(
     foundStore.id,
   );
 
   const { games, pagination } = await game.findAllPaginated({
-    ...result.data,
+    ...rest,
+    order: sort_by ?? order ?? "newest",
     curationWhere,
   });
 

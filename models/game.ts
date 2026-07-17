@@ -73,16 +73,34 @@ export const gameOrderValues = [
   "title_asc",
 ] as const;
 
-export const gameQuerySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  order: z.enum(gameOrderValues).default("newest"),
-  tags: z
-    .string()
-    .transform((s) => s.split(","))
-    .optional(),
-  q: z.string().optional(),
-});
+// `sort_by` is kept as an alias of `order` (rather than a rename) because
+// the /search frontend page already reads and writes `order` query params.
+export const gameQuerySchema = z
+  .object({
+    page: z.coerce.number().min(1).default(1),
+    limit: z.coerce.number().min(1).max(100).default(20),
+    order: z.enum(gameOrderValues).optional(),
+    sort_by: z.enum(gameOrderValues).optional(),
+    tags: z
+      .string()
+      .transform((s) => s.split(","))
+      .optional(),
+    q: z.string().optional(),
+    min_price: z.coerce.number().min(0).optional(),
+    max_price: z.coerce.number().min(0).optional(),
+  })
+  .refine(
+    (data) =>
+      !(
+        data.min_price !== undefined &&
+        data.max_price !== undefined &&
+        data.min_price > data.max_price
+      ),
+    {
+      message: "min_price must not be greater than max_price",
+      path: ["min_price"],
+    },
+  );
 
 async function create(gameData: GameCreateDto) {
   const slug = generateSlug(gameData.title);
@@ -360,6 +378,8 @@ async function findAllPaginated({
   order = "newest",
   tags,
   q,
+  min_price,
+  max_price,
   curationWhere,
 }: {
   page?: number;
@@ -367,6 +387,8 @@ async function findAllPaginated({
   order?: string;
   tags?: string[];
   q?: string;
+  min_price?: number;
+  max_price?: number;
   curationWhere?: Prisma.GameWhereInput;
 }) {
   const where: Prisma.GameWhereInput = {
@@ -384,6 +406,26 @@ async function findAllPaginated({
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
     ];
+  }
+
+  if (min_price !== undefined || max_price !== undefined) {
+    // `price` is stored as VARCHAR for financial precision, so a plain
+    // Prisma string comparison would sort/filter lexicographically
+    // (e.g. "9.99" > "19.99"). Cast to numeric in raw SQL to get a
+    // correct range, then constrain the typed query by the matching ids.
+    const priceConditions: Prisma.Sql[] = [];
+    if (min_price !== undefined) {
+      priceConditions.push(Prisma.sql`price::numeric >= ${min_price}`);
+    }
+    if (max_price !== undefined) {
+      priceConditions.push(Prisma.sql`price::numeric <= ${max_price}`);
+    }
+
+    const matchingGames = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM games WHERE ${Prisma.join(priceConditions, " AND ")}
+    `;
+
+    where.id = { in: matchingGames.map((matchingGame) => matchingGame.id) };
   }
 
   if (curationWhere && Object.keys(curationWhere).length > 0) {
