@@ -1,9 +1,17 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 import controller from "infra/controller";
-import game, { gameQuerySchema } from "models/game";
+import store from "models/store";
+import game from "models/game";
+import storeCuration from "models/store_curation";
 import authorization from "models/authorization";
 import { ValidationError } from "infra/errors";
+import { z } from "zod";
+
+const listQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -11,7 +19,9 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
-  const result = gameQuerySchema.safeParse(req.query);
+  const { slug } = req.query;
+
+  const result = listQuerySchema.safeParse(req.query);
 
   if (!result.success) {
     throw new ValidationError({
@@ -21,11 +31,15 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const { order, sort_by, ...rest } = result.data;
+  const foundStore = await store.findOneBySlug(slug as string);
+  const curationWhere = await storeCuration.getCurationWhereClause(
+    foundStore.id,
+  );
 
   const { games, pagination } = await game.findAllPaginated({
-    ...rest,
-    order: sort_by ?? order ?? "newest",
+    ...result.data,
+    order: "trending",
+    curationWhere,
   });
 
   const secureOutputValues = games.map((gameItem) =>

@@ -65,6 +65,43 @@ export const gameSchema = z.object({
 
 export type GameCreateDto = z.infer<typeof gameSchema> & { user_id: string };
 
+export const gameOrderValues = [
+  "newest",
+  "oldest",
+  "price_asc",
+  "price_desc",
+  "title_asc",
+] as const;
+
+// `sort_by` is kept as an alias of `order` (rather than a rename) because
+// the /search frontend page already reads and writes `order` query params.
+export const gameQuerySchema = z
+  .object({
+    page: z.coerce.number().min(1).default(1),
+    limit: z.coerce.number().min(1).max(100).default(20),
+    order: z.enum(gameOrderValues).optional(),
+    sort_by: z.enum(gameOrderValues).optional(),
+    tags: z
+      .string()
+      .transform((s) => s.split(","))
+      .optional(),
+    q: z.string().optional(),
+    min_price: z.coerce.number().min(0).optional(),
+    max_price: z.coerce.number().min(0).optional(),
+  })
+  .refine(
+    (data) =>
+      !(
+        data.min_price !== undefined &&
+        data.max_price !== undefined &&
+        data.min_price > data.max_price
+      ),
+    {
+      message: "min_price must not be greater than max_price",
+      path: ["min_price"],
+    },
+  );
+
 async function create(gameData: GameCreateDto) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
