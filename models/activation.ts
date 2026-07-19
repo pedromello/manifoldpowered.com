@@ -100,6 +100,10 @@ async function activateUserByUserId(userId: string) {
     "read:public_store",
     "update:store",
     "manage:store_members",
+    "create:studio",
+    "read:public_studio",
+    "update:studio",
+    "manage:studio_members",
   ]);
 }
 

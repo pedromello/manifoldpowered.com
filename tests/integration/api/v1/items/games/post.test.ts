@@ -14,6 +14,9 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id, {
+        name: "Hibernian Workshop",
+      });
 
       const gameData = {
         title: "Astral Ascent",
@@ -22,7 +25,7 @@ describe("POST /api/v1/items/games", () => {
           "Astral Ascent is a 2D platformer rogue-lite set in a modern fantasy world.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: "199.90",
-        developer_name: "Hibernian Workshop",
+        studio_id: studio.id,
         tags: ["Rogue-lite", "Platformer", "Indie"],
         meta_tags: {
           category: "Action",
@@ -79,7 +82,8 @@ describe("POST /api/v1/items/games", () => {
       expect(response.status).toBe(201);
       expect(responseBody.title).toBe(gameData.title);
       expect(responseBody.slug).toBe("astral-ascent"); // Expected auto-slug
-      expect(responseBody.user_id).toBe(user.id);
+      expect(responseBody.studio_id).toBe(studio.id);
+      expect(responseBody.publisher_id).toBe(null);
       expect(responseBody.media).toEqual(gameData.media);
       expect(responseBody.status).toBe("PRIVATE"); // Default status
 
@@ -87,11 +91,11 @@ describe("POST /api/v1/items/games", () => {
       expect(game).toBeDefined();
       expect(game.title).toBe(gameData.title);
       expect(game.slug).toBe("astral-ascent");
-      expect(game.user_id).toBe(user.id);
+      expect(game.studio_id).toBe(studio.id);
       expect(game.media).toEqual(gameData.media);
       expect(game.status).toBe("PRIVATE");
-      expect(game.developer_name).toBe(gameData.developer_name);
-      expect(game.publisher_name).toBe(gameData.developer_name);
+      expect(game.developer_name).toBe(studio.name);
+      expect(game.publisher_name).toBe(studio.name);
       expect(game.price).toBe(gameData.price);
 
       expect(game.positive_reviews).toBe(0);
@@ -128,6 +132,234 @@ describe("POST /api/v1/items/games", () => {
         action: "Verify your user has the following features: create:game",
         status_code: 403,
       });
+    });
+
+    test("Without membership in the target studio should return 403 Forbidden", async () => {
+      // Arrange
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const studio = await orchestrator.createStudio(owner.id);
+
+      const outsider = await orchestrator.createUser();
+      await orchestrator.activateUser(outsider.id);
+      await orchestrator.addFeaturesToUser(outsider.id, ["create:game"]);
+      const outsiderSession = await orchestrator.createSession(outsider.id);
+
+      const gameData = {
+        title: "Trespasser Game",
+        description: "Testing studio membership enforcement.",
+        detailed_description: "Testing studio membership enforcement.",
+        launch_date: "2023-11-14T00:00:00.000Z",
+        price: 19.99,
+        studio_id: studio.id,
+      };
+
+      // Act
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${outsiderSession.token}`,
+          },
+          body: JSON.stringify(gameData),
+        },
+      );
+
+      // Assert
+      expect(response.status).toBe(403);
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        name: "ForbiddenError",
+        message: "You do not have permission to create games for this studio",
+        action:
+          "Verify if you are a member of this studio with game creation rights",
+        status_code: 403,
+      });
+    });
+
+    test("With a permitted studio member should return 201 Created", async () => {
+      // Arrange
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const studio = await orchestrator.createStudio(owner.id);
+
+      const member = await orchestrator.createUser();
+      await orchestrator.activateUser(member.id);
+      await orchestrator.addFeaturesToUser(member.id, ["create:game"]);
+      const memberSession = await orchestrator.createSession(member.id);
+      await orchestrator.addStudioMember(studio.id, member.username, [
+        "create:game",
+      ]);
+
+      const gameData = {
+        title: "Studio Member Game",
+        description: "Testing studio membership enforcement.",
+        detailed_description: "Testing studio membership enforcement.",
+        launch_date: "2023-11-14T00:00:00.000Z",
+        price: 19.99,
+        studio_id: studio.id,
+      };
+
+      // Act
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${memberSession.token}`,
+          },
+          body: JSON.stringify(gameData),
+        },
+      );
+
+      // Assert
+      expect(response.status).toBe(201);
+      const responseBody = await response.json();
+      expect(responseBody.studio_id).toBe(studio.id);
+    });
+
+    test("With a publisher_id the caller does not have rights to should return 403 Forbidden", async () => {
+      // Arrange
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
+      const session = await orchestrator.createSession(user.id);
+      const developerStudio = await orchestrator.createStudio(user.id);
+
+      const otherOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(otherOwner.id);
+      const publisherStudio = await orchestrator.createStudio(otherOwner.id, {
+        is_publisher: true,
+      });
+
+      const gameData = {
+        title: "Unauthorized Publisher Game",
+        description: "Testing publisher consent enforcement.",
+        detailed_description: "Testing publisher consent enforcement.",
+        launch_date: "2023-11-14T00:00:00.000Z",
+        price: 19.99,
+        studio_id: developerStudio.id,
+        publisher_id: publisherStudio.id,
+      };
+
+      // Act
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify(gameData),
+        },
+      );
+
+      // Assert
+      expect(response.status).toBe(403);
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        name: "ForbiddenError",
+        message:
+          "You do not have permission to attribute this game to the given publisher studio",
+        action:
+          "Verify if you are a member of the publisher studio with game creation rights",
+        status_code: 403,
+      });
+    });
+
+    test("With a publisher_id not marked as a publisher should return 400 Bad Request", async () => {
+      // Arrange
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
+      const session = await orchestrator.createSession(user.id);
+      const developerStudio = await orchestrator.createStudio(user.id);
+      const nonPublisherStudio = await orchestrator.createStudio(user.id, {
+        is_publisher: false,
+      });
+
+      const gameData = {
+        title: "Non Publisher Studio Game",
+        description: "Testing is_publisher enforcement.",
+        detailed_description: "Testing is_publisher enforcement.",
+        launch_date: "2023-11-14T00:00:00.000Z",
+        price: 19.99,
+        studio_id: developerStudio.id,
+        publisher_id: nonPublisherStudio.id,
+      };
+
+      // Act
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify(gameData),
+        },
+      );
+
+      // Assert
+      expect(response.status).toBe(400);
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        name: "ValidationError",
+        message: `Studio "${nonPublisherStudio.name}" is not marked as a publisher.`,
+        action:
+          "Choose a studio with is_publisher enabled, or omit publisher_id to self-publish.",
+        status_code: 400,
+      });
+    });
+
+    test("With a valid publisher_id the caller has rights to should return 201 Created", async () => {
+      // Arrange
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
+      const session = await orchestrator.createSession(user.id);
+      const developerStudio = await orchestrator.createStudio(user.id);
+      const publisherStudio = await orchestrator.createStudio(user.id, {
+        is_publisher: true,
+      });
+
+      const gameData = {
+        title: "Published Game",
+        description: "Testing publisher assignment.",
+        detailed_description: "Testing publisher assignment.",
+        launch_date: "2023-11-14T00:00:00.000Z",
+        price: 19.99,
+        studio_id: developerStudio.id,
+        publisher_id: publisherStudio.id,
+      };
+
+      // Act
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify(gameData),
+        },
+      );
+
+      // Assert
+      expect(response.status).toBe(201);
+      const responseBody = await response.json();
+      expect(responseBody.studio_id).toBe(developerStudio.id);
+      expect(responseBody.publisher_id).toBe(publisherStudio.id);
+
+      const game = await orchestrator.getGameBySlug("published-game");
+      expect(game.developer_name).toBe(developerStudio.name);
+      expect(game.publisher_name).toBe(publisherStudio.name);
     });
   });
 
@@ -167,7 +399,7 @@ describe("POST /api/v1/items/games", () => {
 
       const invalidData = {
         title: "Incomplete Game",
-        // Missing description, price, etc.
+        // Missing description, price, studio_id, etc.
       };
 
       // Act
@@ -221,7 +453,7 @@ describe("POST /api/v1/items/games", () => {
             code: "invalid_type",
             expected: "string",
             message: "Invalid input: expected string, received undefined",
-            path: ["developer_name"],
+            path: ["studio_id"],
           },
         ],
       });
@@ -234,6 +466,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const gameData = {
         title: game.title,
@@ -241,7 +474,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "A game that already exists",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: "199.90",
-        developer_name: "Hibernian Workshop",
+        studio_id: studio.id,
       };
 
       // Act
@@ -268,12 +501,15 @@ describe("POST /api/v1/items/games", () => {
       });
     });
 
-    test("With publisher_name omitted should default to developer_name", async () => {
+    test("With publisher_id omitted should default to the developer studio", async () => {
       // Arrange
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id, {
+        name: "Solo Dev",
+      });
 
       const gameData = {
         title: "Publisher Test Game",
@@ -281,7 +517,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "A game with no publisher specified.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: 9.99,
-        developer_name: "Solo Dev",
+        studio_id: studio.id,
       };
 
       // Act
@@ -300,10 +536,11 @@ describe("POST /api/v1/items/games", () => {
       // Assert
       expect(response.status).toBe(201);
       const responseBody = await response.json();
-      expect(responseBody.publisher_name).toBe(gameData.developer_name);
+      expect(responseBody.publisher_id).toBe(null);
+      expect(responseBody.publisher_name).toBe(studio.name);
 
       const game = await orchestrator.getGameBySlug("publisher-test-game");
-      expect(game.publisher_name).toBe(gameData.developer_name);
+      expect(game.publisher_name).toBe(studio.name);
     });
 
     test("With price sent as number without decimals should be formatted to .00", async () => {
@@ -312,6 +549,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const gameData = {
         title: "Price Formatting Test",
@@ -319,7 +557,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "Testing price decimal formatting.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: 50,
-        developer_name: "Hibernian Workshop",
+        studio_id: studio.id,
       };
 
       // Act
@@ -348,6 +586,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const invalidData = {
         title: "Negative Price Game",
@@ -355,7 +594,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "Testing negative price.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: -10,
-        developer_name: "Solo Dev",
+        studio_id: studio.id,
       };
 
       // Act
@@ -383,6 +622,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const invalidData = {
         title: "Long Description Game",
@@ -390,7 +630,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "Testing long description.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: 19.99,
-        developer_name: "Solo Dev",
+        studio_id: studio.id,
       };
 
       // Act
@@ -418,6 +658,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const invalidData = {
         title: "Invalid URL Game",
@@ -425,7 +666,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "Testing invalid URL.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: 19.99,
-        developer_name: "Solo Dev",
+        studio_id: studio.id,
         media: {
           banner: "not-a-url",
         },
@@ -456,6 +697,7 @@ describe("POST /api/v1/items/games", () => {
       await orchestrator.activateUser(user.id);
       await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
+      const studio = await orchestrator.createStudio(user.id);
 
       const invalidData = {
         title: "Invalid Video URL Game",
@@ -463,7 +705,7 @@ describe("POST /api/v1/items/games", () => {
         detailed_description: "Testing invalid video URL.",
         launch_date: "2023-11-14T00:00:00.000Z",
         price: 19.99,
-        developer_name: "Solo Dev",
+        studio_id: studio.id,
         media: {
           screenshots: [],
           videos: ["https://vimeo.com/123456789"],

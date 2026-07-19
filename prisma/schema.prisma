@@ -103,7 +103,8 @@ enum ReviewScore {
 
 model Game {
   id                   String     @id @default(uuid())
-  user_id              String // Logical reference to User.id (Owner/Developer)
+  studio_id            String // Logical reference to Studio.id (Developer)
+  publisher_id         String? // Logical reference to Studio.id (Publisher; absent means self-published by studio_id)
   title                String     @db.VarChar(255)
   slug                 String     @unique @db.VarChar(255)
   description          String     @db.Text
@@ -117,6 +118,8 @@ model Game {
   discount_label String? @db.VarChar(10)
 
   // Taxonomy and Authorship
+  // developer_name/publisher_name are denormalized from Studio.name at creation time
+  // (read-performance tradeoff, same as review_score below) rather than joined live.
   tags           String[] @default([])
   developer_name String   @db.VarChar(255)
   publisher_name String?  @db.VarChar(255)
@@ -135,7 +138,8 @@ model Game {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@index([user_id])
+  @@index([studio_id])
+  @@index([publisher_id])
   @@index([slug])
   @@index([title])
   @@map("games")
@@ -230,6 +234,35 @@ model StoreMember {
   @@index([store_id])
   @@index([user_id])
   @@map("store_members")
+}
+
+model Studio {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(255)
+  slug         String   @unique @db.VarChar(255)
+  description  String?  @db.Text
+  is_publisher Boolean  @default(false)
+  owner_id     String // Logical reference to User.id (creator/owner)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([owner_id])
+  @@index([slug])
+  @@map("studios")
+}
+
+model StudioMember {
+  id          String   @id @default(uuid())
+  studio_id   String // Logical reference to Studio.id
+  user_id     String // Logical reference to User.id
+  permissions String[] @default([])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@unique([studio_id, user_id])
+  @@index([studio_id])
+  @@index([user_id])
+  @@map("studio_members")
 }
 
 enum TagFilterMode {

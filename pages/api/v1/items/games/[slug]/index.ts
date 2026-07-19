@@ -37,7 +37,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
   const gameUpdateDto = req.body;
 
   const userTryingToUpdate = req.context.user;
-  const gameToUpdate = await game.findOneBySlug(slug as string);
+  const gameToUpdate = await game.findOneBySlugWithStudio(slug as string);
 
   if (!gameToUpdate) {
     throw new NotFoundError({

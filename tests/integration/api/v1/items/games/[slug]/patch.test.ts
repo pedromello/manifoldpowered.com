@@ -187,7 +187,7 @@ describe("PATCH /api/v1/items/games/[slug]", () => {
         title: "Protected Test",
       });
 
-      const otherUser = await orchestrator.createUser();
+      const otherStudio = await orchestrator.createStudio(user.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/${game.slug}`,
@@ -198,7 +198,8 @@ describe("PATCH /api/v1/items/games/[slug]", () => {
             Cookie: `session_id=${session.token}`,
           },
           body: JSON.stringify({
-            user_id: otherUser.id,
+            studio_id: otherStudio.id,
+            publisher_id: otherStudio.id,
             positive_reviews: 9999,
             negative_reviews: 9999,
             review_score: "OVERWHELMINGLY_POSITIVE",
@@ -214,7 +215,8 @@ describe("PATCH /api/v1/items/games/[slug]", () => {
       const responseBody = await response.json();
 
       // Verify that these fields were NOT changed
-      expect(responseBody.user_id).toBe(user.id);
+      expect(responseBody.studio_id).toBe(game.studio_id);
+      expect(responseBody.publisher_id).toBe(game.publisher_id);
       expect(responseBody.positive_reviews).toBe(0);
       expect(responseBody.negative_reviews).toBe(0);
       expect(responseBody.review_score).toBe("MIXED");

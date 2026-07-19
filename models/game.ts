@@ -2,6 +2,7 @@ import { prisma } from "infra/database";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { Prisma, ReviewScore } from "generated/prisma/client";
+import studioModel from "models/studio";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -10,8 +11,10 @@ export const gameSchema = z.object({
   launch_date: z.iso.datetime(),
   price: z.coerce.number().positive().max(1000000),
   base_price: z.coerce.number().positive().max(1000000).optional(),
-  developer_name: z.string().min(1).max(255),
-  publisher_name: z.string().max(255).optional(),
+  // developer_name/publisher_name are not client input: they are derived from
+  // studio_id/publisher_id (see create()) and denormalized onto the game.
+  studio_id: z.uuid(),
+  publisher_id: z.uuid().optional(),
   tags: z.array(z.string()).default([]),
   meta_tags: z
     .object({
@@ -63,7 +66,7 @@ export const gameSchema = z.object({
     .optional(),
 });
 
-export type GameCreateDto = z.infer<typeof gameSchema> & { user_id: string };
+export type GameCreateDto = z.infer<typeof gameSchema>;
 
 export const gameOrderValues = [
   "newest",
@@ -110,8 +113,21 @@ async function create(gameData: GameCreateDto) {
     await validateVideoUrls(gameData.media.videos);
   }
 
-  if (!gameData.publisher_name) {
-    gameData.publisher_name = gameData.developer_name;
+  // Self-validating regardless of caller: resolve and denormalize the
+  // developer/publisher names from their studios here, rather than trusting
+  // the route handler to have already done it.
+  const developerStudio = await studioModel.findOneById(gameData.studio_id);
+
+  let publisherStudio = developerStudio;
+  if (gameData.publisher_id) {
+    publisherStudio = await studioModel.findOneById(gameData.publisher_id);
+    if (!publisherStudio.is_publisher) {
+      throw new ValidationError({
+        message: `Studio "${publisherStudio.name}" is not marked as a publisher.`,
+        action:
+          "Choose a studio with is_publisher enabled, or omit publisher_id to self-publish.",
+      });
+    }
   }
 
   const priceAsString = gameData.price.toFixed(2);
@@ -119,6 +135,8 @@ async function create(gameData: GameCreateDto) {
   return await prisma.game.create({
     data: {
       ...gameData,
+      developer_name: developerStudio.name,
+      publisher_name: publisherStudio.name,
       slug,
       price: priceAsString,
       base_price: priceAsString,
@@ -225,6 +243,20 @@ async function findOneBySlug(slug: string) {
   });
 }
 
+async function findOneBySlugWithStudio(slug: string) {
+  const gameResource = await findOneBySlug(slug);
+
+  if (!gameResource) {
+    return null;
+  }
+
+  const studioWithMembers = await studioModel.findOneByIdWithMembers(
+    gameResource.studio_id,
+  );
+
+  return { ...gameResource, studio: studioWithMembers };
+}
+
 async function update(
   id: string,
   updateData: Partial<z.infer<typeof gameSchema>>,
@@ -243,6 +275,7 @@ async function update(
   }
 
   const gameUpdateSchema = gameSchema
+    .omit({ studio_id: true, publisher_id: true })
     .extend({
       meta_tags: z
         .object({
@@ -479,6 +512,7 @@ const game = {
   create,
   update,
   findOneBySlug,
+  findOneBySlugWithStudio,
   findOnePublicBySlug,
   findAllPaginated,
   makePublic,

@@ -13,6 +13,7 @@ beforeAll(async () => {
 describe("Use case: Purchase and Download Flow", () => {
   let seller: User;
   let sellerSession: Session;
+  let sellerStudioId: string;
   let buyerSession: Session;
   let game: Game;
   let foundGame: Game;
@@ -67,6 +68,21 @@ describe("Use case: Purchase and Download Flow", () => {
       sellerSession = await loginResponse.json();
     });
 
+    test("Seller registers a studio", async () => {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/studios`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${sellerSession.token}`,
+        },
+        body: JSON.stringify({ name: "Test Developer" }),
+      });
+
+      expect(response.status).toBe(201);
+      const createdStudio = await response.json();
+      sellerStudioId = createdStudio.id;
+    });
+
     test("Seller registers a new game", async () => {
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games`,
@@ -82,7 +98,7 @@ describe("Use case: Purchase and Download Flow", () => {
             description: "A game to test the purchase and download flow",
             detailed_description:
               "A game to test the purchase and download flow (detailed)",
-            developer_name: "Test Developer",
+            studio_id: sellerStudioId,
             price: 10.0,
             launch_date: new Date().toISOString(),
           }),

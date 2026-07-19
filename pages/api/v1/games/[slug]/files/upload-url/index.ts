@@ -41,7 +41,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { slug } = queryParse.data;
-  const gameResource = await game.findOneBySlug(slug);
+  const gameResource = await game.findOneBySlugWithStudio(slug);
 
   if (!gameResource) {
     throw new NotFoundError({
