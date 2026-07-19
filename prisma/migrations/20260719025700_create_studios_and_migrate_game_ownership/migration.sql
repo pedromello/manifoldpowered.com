@@ -68,12 +68,11 @@ SET "studio_id" = s."id"
 FROM "studios" AS s
 WHERE s."owner_id" = gm."user_id";
 
--- AlterTable: ownership backfilled, studio_id is now safe to require; user_id is retired
+-- AlterTable: ownership backfilled, studio_id is now safe to require; user_id is retired.
+-- Dropping the column also drops "games_user_id_idx", which was defined on it,
+-- so there is no separate DROP INDEX step here.
 ALTER TABLE "games" ALTER COLUMN "studio_id" SET NOT NULL;
 ALTER TABLE "games" DROP COLUMN "user_id";
-
--- DropIndex
-DROP INDEX "games_user_id_idx";
 
 -- CreateIndex
 CREATE INDEX "games_studio_id_idx" ON "games"("studio_id");
