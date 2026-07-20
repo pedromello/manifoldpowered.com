@@ -39,6 +39,22 @@ describe("models/audit_log.ts", () => {
 
       expect(entry.reason).toBeNull();
     });
+
+    test("stores structured `metadata`, e.g. a previous-features snapshot for user:disable", async () => {
+      const admin = await orchestrator.createAdminUser();
+
+      const entry = await auditLog.record({
+        admin_user_id: admin.id,
+        action: "user:disable",
+        target_type: "user",
+        target_id: "some-user-id",
+        metadata: { previous_features: ["read:public_game", "read:session"] },
+      });
+
+      expect(entry.metadata).toEqual({
+        previous_features: ["read:public_game", "read:session"],
+      });
+    });
   });
 
   describe(".findAllPaginated()", () => {
@@ -88,6 +104,34 @@ describe("models/audit_log.ts", () => {
 
       expect(logs).toHaveLength(1);
       expect(logs[0].id).toBe(userEntry.id);
+    });
+
+    test("filters by action", async () => {
+      await orchestrator.clearDatabaseRows();
+      const admin = await orchestrator.createAdminUser();
+
+      await auditLog.record({
+        admin_user_id: admin.id,
+        action: "user:disable",
+        target_type: "user",
+        target_id: "user-1",
+        metadata: { previous_features: ["read:session"] },
+      });
+      const enableEntry = await auditLog.record({
+        admin_user_id: admin.id,
+        action: "user:enable",
+        target_type: "user",
+        target_id: "user-1",
+      });
+
+      const { logs } = await auditLog.findAllPaginated({
+        target_type: "user",
+        target_id: "user-1",
+        action: "user:enable",
+      });
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0].id).toBe(enableEntry.id);
     });
 
     test("filters by admin_user_id", async () => {

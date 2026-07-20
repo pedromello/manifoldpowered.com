@@ -98,17 +98,7 @@ async function injectAuthenticatedUser(req: NextApiRequest) {
 
 function injectAnonymousUser(req: NextApiRequest) {
   const anonymousUser: Partial<User> = {
-    features: [
-      "read:activation_token",
-      "create:session",
-      "create:otp",
-      "create:user",
-      "read:public_game",
-      "read:wishlist",
-      "read:review",
-      "read:public_store",
-      "read:public_studio",
-    ],
+    features: authorization.ANONYMOUS_USER_FEATURES,
   };
   req.context = { ...req.context, user: anonymousUser };
 }

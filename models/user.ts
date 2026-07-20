@@ -2,6 +2,7 @@ import { prisma } from "infra/database";
 import password from "models/password";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { z } from "zod";
+import authorization from "models/authorization";
 
 export const userSchema = z.object({
   username: z.string().min(1).max(30),
@@ -197,6 +198,22 @@ const addFeatures = async (id: string, features: string[]) => {
   return updatedUser;
 };
 
+const disable = async (id: string) => {
+  const existingUser = await findOneById(id);
+  const previousFeatures = existingUser.features;
+
+  const updatedUser = await setFeatures(
+    id,
+    authorization.DISABLED_USER_FEATURES,
+  );
+
+  return { user: updatedUser, previousFeatures };
+};
+
+const enable = async (id: string, features: string[]) => {
+  return setFeatures(id, features);
+};
+
 const user = {
   create,
   findOneById,
@@ -206,6 +223,8 @@ const user = {
   update,
   setFeatures,
   addFeatures,
+  disable,
+  enable,
 };
 
 export default user;

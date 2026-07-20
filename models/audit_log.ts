@@ -7,6 +7,7 @@ interface RecordAdminActionDto {
   target_type: string;
   target_id: string;
   reason?: string;
+  metadata?: Prisma.InputJsonValue;
 }
 
 async function record(logDto: RecordAdminActionDto) {
@@ -17,6 +18,7 @@ async function record(logDto: RecordAdminActionDto) {
       target_type: logDto.target_type,
       target_id: logDto.target_id,
       reason: logDto.reason,
+      metadata: logDto.metadata,
     },
   });
 }
@@ -25,12 +27,14 @@ async function findAllPaginated({
   page = 1,
   limit = 20,
   admin_user_id,
+  action,
   target_type,
   target_id,
 }: {
   page?: number;
   limit?: number;
   admin_user_id?: string;
+  action?: string;
   target_type?: string;
   target_id?: string;
 }) {
@@ -38,6 +42,10 @@ async function findAllPaginated({
 
   if (admin_user_id) {
     where.admin_user_id = admin_user_id;
+  }
+
+  if (action) {
+    where.action = action;
   }
 
   if (target_type) {

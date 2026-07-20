@@ -100,6 +100,10 @@ const createAdminUser = async (userDto = {}) => {
   return getUserById(createdUser.id);
 };
 
+const disableUser = async (userId) => {
+  return user.disable(userId);
+};
+
 const createSession = async (userId) => {
   return session.create(userId);
 };
@@ -229,6 +233,7 @@ const orchestrator = {
   createUser,
   activateUser,
   createAdminUser,
+  disableUser,
   createSession,
   deleteAllEmails,
   getLastEmail,
