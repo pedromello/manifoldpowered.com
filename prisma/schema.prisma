@@ -300,3 +300,18 @@ model StoreGameOverride {
   @@index([store_id])
   @@map("store_game_overrides")
 }
+
+model AdminActionLog {
+  id            String   @id @default(uuid())
+  admin_user_id String // Logical reference to User.id (who performed the action)
+  action        String   @db.VarChar(100)
+  target_type   String   @db.VarChar(50)
+  target_id     String
+  reason        String?  @db.Text
+  // No updated_at: audit log entries are append-only and never modified.
+  created_at    DateTime @default(now())
+
+  @@index([admin_user_id])
+  @@index([target_type, target_id])
+  @@map("admin_action_logs")
+}
