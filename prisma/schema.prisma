@@ -308,6 +308,10 @@ model AdminActionLog {
   target_type   String   @db.VarChar(50)
   target_id     String
   reason        String?  @db.Text
+  // Structured extra data an action needs to be reversible, e.g. a
+  // { previous_features } snapshot on "user:disable" so "user:enable" can
+  // restore exactly what the user had before, rather than a generic default.
+  metadata      Json?
   // No updated_at: audit log entries are append-only and never modified.
   created_at    DateTime @default(now())
 

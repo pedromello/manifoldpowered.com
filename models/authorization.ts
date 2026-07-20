@@ -139,6 +139,38 @@ const ADMIN_ONLY_FEATURES = [
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
 
+// The feature set granted to a logged-out visitor (see
+// infra/controller.ts's injectAnonymousUser, which imports this instead of
+// hardcoding it, same reasoning as ACTIVATED_USER_FEATURES above).
+const ANONYMOUS_USER_FEATURES = [
+  "read:activation_token",
+  "create:session",
+  "create:otp",
+  "create:user",
+  "read:public_game",
+  "read:wishlist",
+  "read:review",
+  "read:public_store",
+  "read:public_studio",
+];
+
+// What a disabled user is left with: the same public-read access as an
+// anonymous visitor, minus the session/account-bootstrap features
+// (create:session, create:otp, create:user, read:activation_token) — so
+// they can't log back in or sign up again. There is no separate "disabled"
+// flag on User; disabling a user just overwrites their `features` with
+// this list, which the existing authorization.can()/canRequest() check
+// already enforces on every request.
+const SESSION_BOOTSTRAP_FEATURES = [
+  "create:session",
+  "create:otp",
+  "create:user",
+  "read:activation_token",
+];
+const DISABLED_USER_FEATURES = ANONYMOUS_USER_FEATURES.filter(
+  (feature) => !SESSION_BOOTSTRAP_FEATURES.includes(feature),
+);
+
 function can(user: Partial<User>, feature: string, resource?: unknown) {
   validateUser(user);
   validateFeature(feature);
@@ -571,6 +603,8 @@ const authorization = {
   ACTIVATED_USER_FEATURES,
   ADMIN_ONLY_FEATURES,
   ADMIN_FEATURES,
+  ANONYMOUS_USER_FEATURES,
+  DISABLED_USER_FEATURES,
 };
 
 export default authorization;

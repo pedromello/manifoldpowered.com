@@ -173,6 +173,34 @@ describe("GET /api/v1/user", () => {
       });
     });
 
+    test("With a disabled user's session should return 403 Forbidden (degraded to anonymous-level access, not logged out)", async () => {
+      const createdUser = await orchestrator.createUser({
+        username: "UserWithDisabledFeatures",
+      });
+      await orchestrator.activateUser(createdUser.id);
+      const createdSession = await orchestrator.createSession(createdUser.id);
+      await orchestrator.disableUser(createdUser.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/user`, {
+        method: "GET",
+        headers: {
+          Cookie: `session_id=${createdSession.token}`,
+        },
+      });
+      // The session itself is still valid (not 401) — the user is simply
+      // left without the `read:session` feature this route requires, same
+      // as any anonymous visitor would be.
+      expect(response.status).toBe(403);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        name: "ForbiddenError",
+        message: "You do not have permission to perform this action",
+        action: "Verify your user has the following features: read:session",
+        status_code: 403,
+      });
+    });
+
     test("With expired session should return 401 Unauthorized", async () => {
       jest.useFakeTimers({
         now: new Date(

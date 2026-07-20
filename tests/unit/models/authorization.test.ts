@@ -131,4 +131,38 @@ describe("models/authorization.ts", () => {
       );
     });
   });
+
+  describe(".DISABLED_USER_FEATURES", () => {
+    test("is a strict subset of ANONYMOUS_USER_FEATURES", () => {
+      for (const feature of authorization.DISABLED_USER_FEATURES) {
+        expect(authorization.ANONYMOUS_USER_FEATURES).toContain(feature);
+      }
+      expect(authorization.DISABLED_USER_FEATURES.length).toBeLessThan(
+        authorization.ANONYMOUS_USER_FEATURES.length,
+      );
+    });
+
+    test("excludes session/account-bootstrap features so a disabled user can't log back in or sign up again", () => {
+      expect(authorization.DISABLED_USER_FEATURES).not.toContain(
+        "create:session",
+      );
+      expect(authorization.DISABLED_USER_FEATURES).not.toContain("create:otp");
+      expect(authorization.DISABLED_USER_FEATURES).not.toContain("create:user");
+      expect(authorization.DISABLED_USER_FEATURES).not.toContain(
+        "read:activation_token",
+      );
+    });
+
+    test("still allows public read access, same as an anonymous visitor", () => {
+      expect(authorization.DISABLED_USER_FEATURES).toContain(
+        "read:public_game",
+      );
+      expect(authorization.DISABLED_USER_FEATURES).toContain(
+        "read:public_store",
+      );
+      expect(authorization.DISABLED_USER_FEATURES).toContain(
+        "read:public_studio",
+      );
+    });
+  });
 });
