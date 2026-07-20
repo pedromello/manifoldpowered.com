@@ -11,6 +11,7 @@ import library from "models/library";
 import store from "models/store";
 import storeCuration from "models/store_curation";
 import studio from "models/studio";
+import authorization from "models/authorization";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -90,6 +91,13 @@ const activateUser = async (userId) => {
 
 const addFeaturesToUser = async (userId, features) => {
   return user.addFeatures(userId, features);
+};
+
+const createAdminUser = async (userDto = {}) => {
+  const createdUser = await createUser(userDto);
+  await activateUser(createdUser.id);
+  await addFeaturesToUser(createdUser.id, authorization.ADMIN_ONLY_FEATURES);
+  return getUserById(createdUser.id);
 };
 
 const createSession = async (userId) => {
@@ -220,6 +228,7 @@ const orchestrator = {
   clearDatabaseRows,
   createUser,
   activateUser,
+  createAdminUser,
   createSession,
   deleteAllEmails,
   getLastEmail,

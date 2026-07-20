@@ -82,7 +82,62 @@ const AVAILABLE_FEATURES = [
   "update:studio:any",
   "manage:studio_members",
   "manage:studio_members:any",
+
+  // Backoffice (admin)
+  "read:user:any",
+  "update:user:status:any",
+  "read:studio:any",
+  "read:store:any",
+  "read:game:any",
+  "update:game:status:any",
+  "read:dashboard:any",
+  "read:audit_log:any",
 ];
+
+// The feature set granted to every user once they activate their account
+// (see models/activation.ts). Kept here, rather than inline in activation.ts,
+// so it can be reused as the base of the admin feature bundle below without a
+// circular import between the two modules.
+const ACTIVATED_USER_FEATURES = [
+  "create:session",
+  "read:session",
+  "update:user",
+  "read:public_game",
+  "create:wishlist",
+  "read:wishlist",
+  "delete:wishlist",
+  "create:review",
+  "read:review",
+  "delete:review",
+  "read:game_file",
+  "read:library",
+  "create:library",
+  "create:store",
+  "read:public_store",
+  "update:store",
+  "manage:store_members",
+  "create:studio",
+  "read:public_studio",
+  "update:studio",
+  "manage:studio_members",
+];
+
+// Admin-only features layered on top of the activated-user set. Granted as a
+// whole via the admin bootstrap script (scripts/create-admin.js) and the
+// tests/orchestrator.js `createAdminUser` helper — there are no partial admin
+// tiers today.
+const ADMIN_ONLY_FEATURES = [
+  "read:user:any",
+  "update:user:status:any",
+  "read:studio:any",
+  "read:store:any",
+  "read:game:any",
+  "update:game:status:any",
+  "read:dashboard:any",
+  "read:audit_log:any",
+];
+
+const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
   validateUser(user);
@@ -216,6 +271,18 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     }
   }
 
+  if (feature === "read:user:any" || feature === "update:user:status:any") {
+    const userOutput = resource as User;
+    return {
+      id: userOutput.id,
+      username: userOutput.username,
+      email: userOutput.email,
+      features: userOutput.features,
+      created_at: userOutput.created_at,
+      updated_at: userOutput.updated_at,
+    };
+  }
+
   if (feature === "read:session") {
     const sessionOutput = resource as Session;
     if (user.id === sessionOutput.user_id) {
@@ -278,7 +345,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   if (
     feature === "create:game" ||
     feature === "read:public_game" ||
-    feature === "update:game"
+    feature === "update:game" ||
+    feature === "read:game:any" ||
+    feature === "update:game:status:any"
   ) {
     const gameOutput = resource as Game;
     return {
@@ -352,7 +421,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   if (
     feature === "create:store" ||
     feature === "read:public_store" ||
-    feature === "update:store"
+    feature === "update:store" ||
+    feature === "read:store:any"
   ) {
     const storeOutput = resource as Store;
     return {
@@ -418,7 +488,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   if (
     feature === "create:studio" ||
     feature === "read:public_studio" ||
-    feature === "update:studio"
+    feature === "update:studio" ||
+    feature === "read:studio:any"
   ) {
     const studioOutput = resource as Studio;
     return {
@@ -497,6 +568,9 @@ function validateFeature(feature: string) {
 const authorization = {
   can,
   filterOutput,
+  ACTIVATED_USER_FEATURES,
+  ADMIN_ONLY_FEATURES,
+  ADMIN_FEATURES,
 };
 
 export default authorization;
