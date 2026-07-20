@@ -1,7 +1,7 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
-import { Prisma, ReviewScore } from "generated/prisma/client";
+import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
 
 export const gameSchema = z.object({
@@ -104,6 +104,29 @@ export const gameQuerySchema = z
       path: ["min_price"],
     },
   );
+
+export const gameStatusValues = ["ACTIVE", "INACTIVE", "PRIVATE"] as const;
+
+export const gameAdminQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.enum(gameStatusValues).optional(),
+  studio_id: z.uuid().optional(),
+  q: z.string().optional(),
+});
+
+// `reason` is required whenever a game is being taken off (or kept off) the
+// public storefront — an admin approving a game doesn't owe anyone an
+// explanation, but rejecting/hiding one does.
+export const gameStatusUpdateSchema = z
+  .object({
+    status: z.enum(gameStatusValues),
+    reason: z.string().min(1).max(1000).optional(),
+  })
+  .refine((data) => data.status === "ACTIVE" || !!data.reason, {
+    message: "reason is required when moving a game to PRIVATE or INACTIVE",
+    path: ["reason"],
+  });
 
 async function create(gameData: GameCreateDto) {
   const slug = generateSlug(gameData.title);
@@ -497,15 +520,75 @@ async function findAllPaginated({
   };
 }
 
-async function makePublic(id: string) {
+async function findAllPaginatedAdmin({
+  page = 1,
+  limit = 20,
+  status,
+  studio_id,
+  q,
+}: {
+  page?: number;
+  limit?: number;
+  status?: GameStatus;
+  studio_id?: string;
+  q?: string;
+}) {
+  const where: Prisma.GameWhereInput = {};
+
+  if (status) {
+    where.status = status;
+  }
+
+  if (studio_id) {
+    where.studio_id = studio_id;
+  }
+
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  // Pending games (PRIVATE) surface oldest-first so the review queue works
+  // through its backlog in submission order; everything else is newest-first.
+  const orderBy: Prisma.GameOrderByWithRelationInput =
+    status === "PRIVATE" ? { created_at: "asc" } : { created_at: "desc" };
+
+  const [games, total] = await Promise.all([
+    prisma.game.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.game.count({ where }),
+  ]);
+
+  return {
+    games,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+}
+
+async function setStatus(id: string, status: GameStatus) {
   return await prisma.game.update({
     where: {
       id,
     },
     data: {
-      status: "ACTIVE",
+      status,
     },
   });
+}
+
+async function makePublic(id: string) {
+  return await setStatus(id, "ACTIVE");
 }
 
 const game = {
@@ -515,7 +598,9 @@ const game = {
   findOneBySlugWithStudio,
   findOnePublicBySlug,
   findAllPaginated,
+  findAllPaginatedAdmin,
   makePublic,
+  setStatus,
   calculateReviewScore,
 };
 
