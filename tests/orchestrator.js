@@ -10,6 +10,7 @@ import game from "models/game";
 import library from "models/library";
 import store from "models/store";
 import storeCuration from "models/store_curation";
+import studio from "models/studio";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -136,15 +137,22 @@ const extractOtpCode = (text) => {
 
 // Games
 const createGame = async (userId, gameData = {}) => {
+  let studioId = gameData.studio_id;
+
+  if (!studioId) {
+    const soloStudio = await createStudio(userId, { is_publisher: true });
+    studioId = soloStudio.id;
+  }
+
   return game.create({
-    user_id: userId,
+    studio_id: studioId,
+    publisher_id: gameData.publisher_id || undefined,
     title: gameData.title || faker.commerce.productName(),
     description: gameData.description || faker.lorem.sentence(),
     detailed_description:
       gameData.detailed_description || faker.lorem.paragraph(),
     launch_date: gameData.launch_date || faker.date.past(),
     price: gameData.price || faker.number.float(),
-    developer_name: gameData.developer_name || faker.company.name(),
     tags: gameData.tags || [faker.lorem.word()],
     meta_tags: gameData.meta_tags || {},
     media: gameData.media || { screenshots: [], videos: [] },
@@ -192,6 +200,20 @@ const addStoreGameOverride = async (storeId, gameSlug, visibility) => {
   return storeCuration.addGameOverride(storeId, gameSlug, visibility);
 };
 
+// Studios
+const createStudio = async (ownerId, studioData = {}) => {
+  return studio.create({
+    name: studioData.name || faker.company.name(),
+    description: studioData.description || faker.lorem.sentence(),
+    is_publisher: studioData.is_publisher || false,
+    owner_id: ownerId,
+  });
+};
+
+const addStudioMember = async (studioId, username, permissions) => {
+  return studio.addMember(studioId, username, permissions);
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -214,6 +236,8 @@ const orchestrator = {
   addStoreMember,
   addStoreTagFilter,
   addStoreGameOverride,
+  createStudio,
+  addStudioMember,
   extractOtpCode,
 };
 

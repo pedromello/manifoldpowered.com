@@ -30,7 +30,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { slug } = queryParse.data;
-  const gameResource = await game.findOneBySlug(slug);
+  const gameResource = await game.findOneBySlugWithStudio(slug);
 
   if (!gameResource) {
     throw new NotFoundError({
@@ -39,7 +39,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const hasGameOwnership = req.context.user.id === gameResource.user_id;
+  const hasGameOwnership = authorization.can(
+    req.context.user,
+    "update:game",
+    gameResource,
+  );
   const hasLibraryItem = await library.hasItem(
     req.context.user.id,
     gameResource.id,
@@ -76,7 +80,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { slug } = queryParse.data;
-  const gameResource = await game.findOneBySlug(slug);
+  const gameResource = await game.findOneBySlugWithStudio(slug);
 
   if (!gameResource) {
     throw new NotFoundError({

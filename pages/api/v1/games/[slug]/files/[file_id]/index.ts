@@ -29,7 +29,7 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { slug, file_id: fileId } = queryParse.data;
 
-  const gameResource = await game.findOneBySlug(slug);
+  const gameResource = await game.findOneBySlugWithStudio(slug);
 
   if (!gameResource) {
     throw new NotFoundError({

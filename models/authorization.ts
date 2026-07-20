@@ -8,10 +8,14 @@ import {
   StoreMember,
   StoreTagFilter,
   StoreGameOverride,
+  Studio,
+  StudioMember,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
 type StoreWithMembers = Store & { members: StoreMember[] };
+type StudioWithMembers = Studio & { members: StudioMember[] };
+type GameWithStudio = Game & { studio: StudioWithMembers };
 
 const AVAILABLE_FEATURES = [
   // User
@@ -37,6 +41,7 @@ const AVAILABLE_FEATURES = [
 
   // Games
   "create:game",
+  "create:game:any",
   "read:public_game",
   "update:game",
   "update:game:any",
@@ -69,6 +74,14 @@ const AVAILABLE_FEATURES = [
   "manage:store_members:any",
   "read:store_tag_filter",
   "read:store_game_override",
+
+  // Studios
+  "create:studio",
+  "read:public_studio",
+  "update:studio",
+  "update:studio:any",
+  "manage:studio_members",
+  "manage:studio_members:any",
 ];
 
 function can(user: Partial<User>, feature: string, resource?: unknown) {
@@ -97,9 +110,32 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     resource
   ) {
     authorized = false;
-    const gameResource = resource as Game;
+    const gameResource = resource as GameWithStudio;
+    const studioResource = gameResource.studio;
 
-    if (user.id === gameResource.user_id || can(user, "update:game:any")) {
+    const isOwner = user.id === studioResource.owner_id;
+    const isPermittedMember = studioResource.members?.some(
+      (member) =>
+        member.user_id === user.id && member.permissions.includes(feature),
+    );
+
+    if (isOwner || isPermittedMember || can(user, "update:game:any")) {
+      authorized = true;
+    }
+  }
+
+  if (feature === "create:game" && resource) {
+    authorized = false;
+    const studioResource = resource as StudioWithMembers;
+
+    const isOwner = user.id === studioResource.owner_id;
+    const isPermittedMember = studioResource.members?.some(
+      (member) =>
+        member.user_id === user.id &&
+        member.permissions.includes("create:game"),
+    );
+
+    if (isOwner || isPermittedMember || can(user, "create:game:any")) {
       authorized = true;
     }
   }
@@ -117,6 +153,28 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 
     const isOwner = user.id === storeResource.owner_id;
     const isPermittedMember = storeResource.members?.some(
+      (member) =>
+        member.user_id === user.id && member.permissions.includes(feature),
+    );
+
+    if (isOwner || isPermittedMember || can(user, anyFeature)) {
+      authorized = true;
+    }
+  }
+
+  if (
+    (feature === "update:studio" || feature === "manage:studio_members") &&
+    resource
+  ) {
+    authorized = false;
+    const studioResource = resource as StudioWithMembers;
+    const anyFeature =
+      feature === "update:studio"
+        ? "update:studio:any"
+        : "manage:studio_members:any";
+
+    const isOwner = user.id === studioResource.owner_id;
+    const isPermittedMember = studioResource.members?.some(
       (member) =>
         member.user_id === user.id && member.permissions.includes(feature),
     );
@@ -238,7 +296,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       media: gameOutput.media,
       social_links: gameOutput.social_links,
       requirements: gameOutput.requirements,
-      user_id: gameOutput.user_id,
+      studio_id: gameOutput.studio_id,
+      publisher_id: gameOutput.publisher_id,
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
@@ -353,6 +412,46 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       visibility: overrideOutput.visibility,
       created_at: overrideOutput.created_at,
       updated_at: overrideOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "create:studio" ||
+    feature === "read:public_studio" ||
+    feature === "update:studio"
+  ) {
+    const studioOutput = resource as Studio;
+    return {
+      id: studioOutput.id,
+      slug: studioOutput.slug,
+      name: studioOutput.name,
+      description: studioOutput.description,
+      is_publisher: studioOutput.is_publisher,
+      owner_id: studioOutput.owner_id,
+      created_at: studioOutput.created_at,
+      updated_at: studioOutput.updated_at,
+    };
+  }
+
+  if (feature === "manage:studio_members") {
+    interface StudioMemberOutput {
+      id: string;
+      studio_id: string;
+      user_id: string;
+      username?: string;
+      permissions: string[];
+      created_at: Date;
+      updated_at: Date;
+    }
+    const memberOutput = resource as StudioMemberOutput;
+    return {
+      id: memberOutput.id,
+      studio_id: memberOutput.studio_id,
+      user_id: memberOutput.user_id,
+      username: memberOutput.username,
+      permissions: memberOutput.permissions,
+      created_at: memberOutput.created_at,
+      updated_at: memberOutput.updated_at,
     };
   }
 
