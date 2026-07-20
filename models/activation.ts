@@ -82,29 +82,7 @@ async function activateUserByUserId(userId: string) {
     });
   }
 
-  return await user.setFeatures(userId, [
-    "create:session",
-    "read:session",
-    "update:user",
-    "read:public_game",
-    "create:wishlist",
-    "read:wishlist",
-    "delete:wishlist",
-    "create:review",
-    "read:review",
-    "delete:review",
-    "read:game_file",
-    "read:library",
-    "create:library",
-    "create:store",
-    "read:public_store",
-    "update:store",
-    "manage:store_members",
-    "create:studio",
-    "read:public_studio",
-    "update:studio",
-    "manage:studio_members",
-  ]);
+  return await user.setFeatures(userId, authorization.ACTIVATED_USER_FEATURES);
 }
 
 const activation = {
