@@ -19,6 +19,12 @@ export const memberPermissionsSchema = z.object({
   permissions: z.array(z.enum(MEMBER_PERMISSIONS)).min(1),
 });
 
+export const storeAdminQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  q: z.string().optional(),
+});
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -61,6 +67,45 @@ async function create(storeData: StoreCreateDto) {
       slug,
     },
   });
+}
+
+async function findAllPaginated({
+  page = 1,
+  limit = 20,
+  q,
+}: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) {
+  const where: Prisma.StoreWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { slug: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const [stores, total] = await Promise.all([
+    prisma.store.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.store.count({ where }),
+  ]);
+
+  return {
+    stores,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
 }
 
 async function findOneBySlug(slug: string) {
@@ -277,6 +322,7 @@ async function listMembersWithUsernames(storeId: string) {
 
 const store = {
   create,
+  findAllPaginated,
   findOneBySlug,
   findOneBySlugWithMembers,
   update,
