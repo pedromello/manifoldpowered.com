@@ -15,7 +15,14 @@ beforeAll(async () => {
 
 describe("POST /api/v1/items/games/steam-import", () => {
   describe("Authenticated user", () => {
-    test("With 'create:game' feature and studio ownership should return 201 Created", async () => {
+    test("With 'create:game' feature and studio ownership should return 201 Created, and re-importing the same app should return 400 Bad Request", async () => {
+      // steam_app_id is globally unique, and STEAM_TEST_APP_ID is the only
+      // real, deterministic fixture available (per the product owner's
+      // explicit choice to hit the real Steam API rather than mock it) — so
+      // the fresh-import and duplicate-import assertions must share the same
+      // single successful import within one test, rather than each getting
+      // their own "first" import across separate tests.
+
       // Arrange
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
@@ -66,6 +73,33 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(persistedGame.studio_id).toBe(studio.id);
       expect(persistedGame.developer_name).toBe(studio.name);
       expect(persistedGame.base_price).toBe(persistedGame.price);
+
+      // Act again: re-import the same Steam app.
+      const duplicateResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${session.token}`,
+          },
+          body: JSON.stringify({
+            studio_id: studio.id,
+            steam_app_id: STEAM_TEST_APP_ID,
+          }),
+        },
+      );
+
+      // Assert
+      expect(duplicateResponse.status).toBe(400);
+      const duplicateResponseBody = await duplicateResponse.json();
+      expect(duplicateResponseBody).toEqual({
+        name: "ValidationError",
+        message: `Steam app "${STEAM_TEST_APP_ID}" has already been imported as "${responseBody.title}".`,
+        action:
+          "Check if this game was already imported, or import a different Steam app.",
+        status_code: 400,
+      });
     });
 
     test("Without membership in the target studio should return 403 Forbidden", async () => {
@@ -170,59 +204,6 @@ describe("POST /api/v1/items/games/steam-import", () => {
         message: `Steam app with id "${nonexistentAppId}" was not found or is not available.`,
         action: "Check the Steam app id or store link and try again.",
         status_code: 404,
-      });
-    });
-
-    test("Re-importing the same Steam app should return 400 Bad Request", async () => {
-      // Arrange
-      const user = await orchestrator.createUser();
-      await orchestrator.activateUser(user.id);
-      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
-      const session = await orchestrator.createSession(user.id);
-      const studio = await orchestrator.createStudio(user.id);
-
-      const firstResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${session.token}`,
-          },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
-          }),
-        },
-      );
-      expect(firstResponse.status).toBe(201);
-      const firstResponseBody = await firstResponse.json();
-
-      // Act
-      const secondResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${session.token}`,
-          },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
-          }),
-        },
-      );
-
-      // Assert
-      expect(secondResponse.status).toBe(400);
-      const secondResponseBody = await secondResponse.json();
-      expect(secondResponseBody).toEqual({
-        name: "ValidationError",
-        message: `Steam app "${STEAM_TEST_APP_ID}" has already been imported as "${firstResponseBody.title}".`,
-        action:
-          "Check if this game was already imported, or import a different Steam app.",
-        status_code: 400,
       });
     });
   });
