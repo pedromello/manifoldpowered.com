@@ -27,6 +27,12 @@ export const memberPermissionsSchema = z.object({
   permissions: z.array(z.enum(MEMBER_PERMISSIONS)).min(1),
 });
 
+export const studioAdminQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  q: z.string().optional(),
+});
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -70,6 +76,45 @@ async function create(studioData: StudioCreateDto) {
       slug,
     },
   });
+}
+
+async function findAllPaginated({
+  page = 1,
+  limit = 20,
+  q,
+}: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) {
+  const where: Prisma.StudioWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { slug: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const [studios, total] = await Promise.all([
+    prisma.studio.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.studio.count({ where }),
+  ]);
+
+  return {
+    studios,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
 }
 
 async function findOneById(id: string) {
@@ -315,6 +360,7 @@ async function listMembersWithUsernames(studioId: string) {
 
 const studio = {
   create,
+  findAllPaginated,
   findOneById,
   findOneByIdWithMembers,
   findOneBySlug,
