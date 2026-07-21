@@ -15,7 +15,7 @@ Tracks delivery of the admin backoffice described in the planning session on 202
 - [x] **9. Backoffice UI shell** — `BackofficeLayout`, nav, client-side auth-gate redirect. Tailwind + SWR + `lucide-react`, matching `components/store/UserMenu.tsx` conventions. _Depends on 1._ ([#113](https://github.com/pedromello/manifoldpowered.com/pull/113))
 - [x] **10. Games review queue UI** — `pages/backoffice/games/index.tsx`: status filter, search, multi-select approve, reject-with-reason modal. _Depends on 5, 9._ ([#115](https://github.com/pedromello/manifoldpowered.com/pull/115))
 - [x] **11. Users UI** — `pages/backoffice/users/index.tsx` + `[id].tsx`: search/list, detail, disable/enable with confirm dialog. _Depends on 6, 9._ ([#129](https://github.com/pedromello/manifoldpowered.com/pull/129))
-- [ ] **12. Studios + Stores UI** — `pages/backoffice/studios/index.tsx` + `[slug].tsx`, `pages/backoffice/stores/index.tsx` + `[slug].tsx`: search/list, read-only detail. _Depends on 7, 9._ ([#130](https://github.com/pedromello/manifoldpowered.com/pull/130) — open, pending manual review)
+- [x] **12. Studios + Stores UI** — `pages/backoffice/studios/index.tsx` + `[slug].tsx`, `pages/backoffice/stores/index.tsx` + `[slug].tsx`: search/list, read-only detail. _Depends on 7, 9._ ([#130](https://github.com/pedromello/manifoldpowered.com/pull/130))
 - [ ] **13. Dashboard UI** — `pages/backoffice/index.tsx`: pending-approvals and signups at top, then totals. _Depends on 8, 9._
 
 ## Phase 2+ (explicitly deferred — do not build yet)

@@ -190,10 +190,16 @@ const clearStorage = async () => {
   await storage.createBucket();
 };
 
+// faker.company.name() draws from a finite pool, so plain repeated calls
+// across a full suite run eventually collide on the slug studio/store
+// derive from the name. Suffix with a random string to keep names unique.
+const uniqueFakerName = () =>
+  `${faker.company.name()} ${faker.string.alphanumeric(8)}`;
+
 // Stores
 const createStore = async (ownerId, storeData = {}) => {
   return store.create({
-    name: storeData.name || faker.company.name(),
+    name: storeData.name || uniqueFakerName(),
     description: storeData.description || faker.lorem.sentence(),
     owner_id: ownerId,
   });
@@ -215,7 +221,7 @@ const addStoreGameOverride = async (storeId, gameSlug, visibility) => {
 // Studios
 const createStudio = async (ownerId, studioData = {}) => {
   return studio.create({
-    name: studioData.name || faker.company.name(),
+    name: studioData.name || uniqueFakerName(),
     description: studioData.description || faker.lorem.sentence(),
     is_publisher: studioData.is_publisher || false,
     owner_id: ownerId,
