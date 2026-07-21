@@ -3,11 +3,18 @@ import password from "models/password";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { z } from "zod";
 import authorization from "models/authorization";
+import { Prisma } from "generated/prisma/client";
 
 export const userSchema = z.object({
   username: z.string().min(1).max(30),
   email: z.email(),
   password: z.string().min(1).nullable(),
+});
+
+export const userAdminQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  q: z.string().optional(),
 });
 
 export type CreateUserDto = z.infer<typeof userSchema> & {
@@ -198,6 +205,45 @@ const addFeatures = async (id: string, features: string[]) => {
   return updatedUser;
 };
 
+const findAllPaginated = async ({
+  page = 1,
+  limit = 20,
+  q,
+}: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) => {
+  const where: Prisma.UserWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { username: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
+
 const disable = async (id: string) => {
   const existingUser = await findOneById(id);
   const previousFeatures = existingUser.features;
@@ -214,17 +260,26 @@ const enable = async (id: string, features: string[]) => {
   return setFeatures(id, features);
 };
 
+const isDisabled = (targetUser: { features: string[] }) => {
+  return (
+    JSON.stringify(targetUser.features) ===
+    JSON.stringify(authorization.DISABLED_USER_FEATURES)
+  );
+};
+
 const user = {
   create,
   findOneById,
   findOneByUsername,
   findOneByEmail,
+  findAllPaginated,
   updateByUsername,
   update,
   setFeatures,
   addFeatures,
   disable,
   enable,
+  isDisabled,
 };
 
 export default user;
