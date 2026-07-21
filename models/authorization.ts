@@ -578,6 +578,35 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     };
   }
 
+  if (feature === "read:dashboard:any") {
+    interface DashboardOutput {
+      games: {
+        pending_count: number;
+        oldest_pending: {
+          id: string;
+          slug: string;
+          title: string;
+          created_at: Date;
+        }[];
+        by_status: Record<string, number>;
+      };
+      users: {
+        total: number;
+        signups_last_7_days: number;
+        signups_previous_7_days: number;
+      };
+      studios: { total: number };
+      stores: { total: number };
+    }
+    const dashboardOutput = resource as DashboardOutput;
+    return {
+      games: dashboardOutput.games,
+      users: dashboardOutput.users,
+      studios: dashboardOutput.studios,
+      stores: dashboardOutput.stores,
+    };
+  }
+
   return {};
 }
 
