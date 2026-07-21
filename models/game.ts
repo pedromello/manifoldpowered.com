@@ -3,18 +3,25 @@ import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
+import steamInfra from "infra/steam";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().min(1).max(300),
   detailed_description: z.string().min(1),
   launch_date: z.iso.datetime(),
-  price: z.coerce.number().positive().max(1000000),
-  base_price: z.coerce.number().positive().max(1000000).optional(),
+  price: z.coerce.number().min(0).max(1000000),
+  base_price: z.coerce.number().min(0).max(1000000).optional(),
   // developer_name/publisher_name are not client input: they are derived from
   // studio_id/publisher_id (see create()) and denormalized onto the game.
   studio_id: z.uuid(),
   publisher_id: z.uuid().optional(),
+  // Set only by the Steam import flow (models/game.ts's buildGameDataFromSteam).
+  // Immutable after creation — omitted from update()'s schema below.
+  steam_app_id: z
+    .string()
+    .regex(/^[1-9]\d*$/, "steam_app_id must be a positive integer string")
+    .optional(),
   tags: z.array(z.string()).default([]),
   meta_tags: z
     .object({
@@ -225,6 +232,143 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
+interface SteamAppDetailsData {
+  name: string;
+  short_description?: string;
+  detailed_description?: string;
+  about_the_game?: string;
+  is_free?: boolean;
+  price_overview?: { currency: string; initial: number; final: number };
+  header_image?: string;
+  capsule_image?: string;
+  screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
+  genres?: { id: string; description: string }[];
+  categories?: { id: number; description: string }[];
+  platforms?: { windows?: boolean; mac?: boolean; linux?: boolean };
+  supported_languages?: string;
+  website?: string;
+  required_age?: number | string;
+  release_date?: { coming_soon: boolean; date: string };
+}
+
+export type SteamImportedGameData = Omit<
+  GameCreateDto,
+  "studio_id" | "publisher_id"
+>;
+
+async function findOneBySteamAppId(steamAppId: string) {
+  return await prisma.game.findUnique({
+    where: {
+      steam_app_id: steamAppId,
+    },
+  });
+}
+
+async function buildGameDataFromSteam(
+  steamAppId: string,
+): Promise<SteamImportedGameData> {
+  const result = await steamInfra.fetchAppDetails(steamAppId);
+
+  if (!result?.success || !result.data) {
+    throw new NotFoundError({
+      message: `Steam app with id "${steamAppId}" was not found or is not available.`,
+      action: "Check the Steam app id or store link and try again.",
+    });
+  }
+
+  return mapSteamAppToGameData(result.data as SteamAppDetailsData, steamAppId);
+}
+
+function mapSteamAppToGameData(
+  steamGame: SteamAppDetailsData,
+  steamAppId: string,
+): SteamImportedGameData {
+  const priceCents = steamGame.is_free
+    ? 0
+    : (steamGame.price_overview?.final ?? 0);
+  const price = priceCents / 100;
+
+  const genreTags = (steamGame.genres ?? []).map((g) => g.description);
+  const categoryTags = (steamGame.categories ?? []).map((c) => c.description);
+  const tags = Array.from(new Set([...genreTags, ...categoryTags]));
+
+  const platforms = Object.entries(steamGame.platforms ?? {})
+    .filter(([, supported]) => supported)
+    .map(([platform]) => platform);
+
+  const languages = parseSupportedLanguages(steamGame.supported_languages);
+  const website = isValidUrl(steamGame.website) ? steamGame.website : undefined;
+
+  return {
+    title: steamGame.name,
+    description: (steamGame.short_description || steamGame.name).slice(0, 300),
+    detailed_description:
+      steamGame.detailed_description ||
+      steamGame.about_the_game ||
+      steamGame.name,
+    launch_date: parseSteamReleaseDate(steamGame.release_date),
+    price,
+    tags,
+    meta_tags: {
+      category: steamGame.genres?.[0]?.description,
+      rating: toAgeRatingLabel(steamGame.required_age),
+      languages,
+      platforms,
+    },
+    media: {
+      banner: steamGame.header_image,
+      screenshots: (steamGame.screenshots ?? []).map((s) => s.path_full),
+      icon: steamGame.capsule_image,
+      // Steam trailers aren't YouTube-hosted; validateVideoUrl only allows
+      // YouTube, so trailer import is intentionally out of scope.
+      videos: [],
+    },
+    social_links: {
+      website,
+      steam_page: `https://store.steampowered.com/app/${steamAppId}/`,
+    },
+    steam_app_id: steamAppId,
+  };
+}
+
+function parseSteamReleaseDate(releaseDate?: {
+  coming_soon: boolean;
+  date: string;
+}): string {
+  if (releaseDate && !releaseDate.coming_soon && releaseDate.date) {
+    const parsed = new Date(releaseDate.date);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  return new Date().toISOString();
+}
+
+function toAgeRatingLabel(requiredAge?: number | string): string | undefined {
+  const age = Number(requiredAge);
+  return age > 0 ? `${age}+` : undefined;
+}
+
+function parseSupportedLanguages(raw?: string): string[] | undefined {
+  if (!raw) return undefined;
+  const withoutTags = raw.replace(/<[^>]*>/g, "");
+  const languages = withoutTags
+    .split(",")
+    .map((language) => language.trim())
+    .filter((language) => language.length > 0);
+  return languages.length > 0 ? languages : undefined;
+}
+
+function isValidUrl(value?: string): boolean {
+  if (!value) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function calculateDiscountLabel(
   price: number,
   basePrice: number,
@@ -298,7 +442,7 @@ async function update(
   }
 
   const gameUpdateSchema = gameSchema
-    .omit({ studio_id: true, publisher_id: true })
+    .omit({ studio_id: true, publisher_id: true, steam_app_id: true })
     .extend({
       meta_tags: z
         .object({
@@ -596,6 +740,8 @@ const game = {
   update,
   findOneBySlug,
   findOneBySlugWithStudio,
+  findOneBySteamAppId,
+  buildGameDataFromSteam,
   findOnePublicBySlug,
   findAllPaginated,
   findAllPaginatedAdmin,

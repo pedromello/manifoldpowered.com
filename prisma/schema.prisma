@@ -124,6 +124,11 @@ model Game {
   developer_name String   @db.VarChar(255)
   publisher_name String?  @db.VarChar(255)
 
+  // Source Steam app id, set only for games imported via the Steam import
+  // flow. Nullable + unique: multiple NULLs are allowed (manual games), but
+  // the same Steam app can't be imported twice.
+  steam_app_id String? @unique @db.VarChar(20)
+
   // Flexibility (JSONB) to facilitate expansion
   meta_tags    Json @default("{}")
   media        Json @default("{}")
