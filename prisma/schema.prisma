@@ -213,6 +213,27 @@ model LibraryItem {
   @@map("library_items")
 }
 
+// Append-only record of each acquisition event, separate from LibraryItem
+// (which is an idempotent entitlement — a no-op on re-acquire). A Sale is
+// written on every acquisition, letting the same user acquire the same game
+// through multiple stores over time without losing any of those events.
+// store_id is nullable: null means the acquisition happened through the
+// global storefront (no store attribution), not through a specific store.
+model Sale {
+  id            String   @id @default(uuid())
+  user_id       String // Logical reference to User.id (who acquired)
+  game_id       String // Logical reference to Game.id (what was acquired)
+  store_id      String? // Logical reference to Store.id; null = platform/global acquisition
+  price_at_sale String   @db.VarChar(20) // Snapshot of Game.price at acquisition time
+  // No updated_at: sale records are append-only and never modified.
+  created_at    DateTime @default(now())
+
+  @@index([store_id, created_at])
+  @@index([user_id])
+  @@index([game_id])
+  @@map("sales")
+}
+
 model Store {
   id          String   @id @default(uuid())
   name        String   @db.VarChar(255)

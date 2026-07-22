@@ -4,8 +4,7 @@ import library from "models/library";
 import authorization from "models/authorization";
 import { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
-import { NotFoundError, ValidationError } from "infra/errors";
-import game from "models/game";
+import { ValidationError } from "infra/errors";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -49,6 +48,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
 const postBodySchema = z.object({
   slug: z.string().min(1).max(255),
+  store_slug: z.string().min(1).max(255).optional(),
 });
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -63,18 +63,10 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const existingGame = await game.findOneBySlug(parsedBody.data.slug);
-  if (!existingGame) {
-    throw new NotFoundError({
-      message: "Game not found",
-      action: "Verify the game exists",
-    });
-  }
-
-  const result = await library.add(
+  const result = await library.acquireGame(
     req.context.user.id!,
-    existingGame.id,
-    "GAME",
+    parsedBody.data.slug,
+    parsedBody.data.store_slug,
   );
 
   return res.status(201).json({
