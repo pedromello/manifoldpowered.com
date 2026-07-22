@@ -37,6 +37,7 @@ model User {
 
   @@index([username])
   @@index([email])
+  @@index([features], type: Gin)
   @@map("users")
 }
 

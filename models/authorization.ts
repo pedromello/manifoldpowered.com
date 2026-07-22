@@ -88,6 +88,7 @@ const AVAILABLE_FEATURES = [
   // Backoffice (admin)
   "read:user:any",
   "update:user:status:any",
+  "update:user:features:any",
   "read:studio:any",
   "read:store:any",
   "read:game:any",
@@ -131,6 +132,7 @@ const ACTIVATED_USER_FEATURES = [
 const ADMIN_ONLY_FEATURES = [
   "read:user:any",
   "update:user:status:any",
+  "update:user:features:any",
   "read:studio:any",
   "read:store:any",
   "read:game:any",
@@ -623,6 +625,23 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       studios: dashboardOutput.studios,
       stores: dashboardOutput.stores,
     };
+  }
+
+  if (feature === "update:user:features:any") {
+    interface PassResult {
+      scanned: number;
+      updated: number;
+      skipped_ineligible: number;
+    }
+    interface BackfillReportOutput {
+      baseline: PassResult;
+      studio_owners: PassResult;
+      studio_members: PassResult;
+      store_owners: PassResult;
+      store_members: PassResult;
+      total_unique_users_updated: number;
+    }
+    return resource as BackfillReportOutput;
   }
 
   return {};

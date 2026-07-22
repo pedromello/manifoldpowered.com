@@ -1,0 +1,27 @@
+name: Feature Backfill
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backfill:
+    name: Reconcile user feature grants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - run: npm run features:backfill:ci
+        env:
+          NODE_ENV: production
+          POSTGRES_HOST: ${{ secrets.PRODUCTION_POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.PRODUCTION_POSTGRES_PORT }}
+          POSTGRES_USER: ${{ secrets.PRODUCTION_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.PRODUCTION_POSTGRES_DB }}

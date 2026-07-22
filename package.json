@@ -28,6 +28,8 @@
     "migrate:create": "npx prisma migrate dev --create-only",
     "prisma:generate": "npx prisma generate",
     "admin:grant": "tsx --env-file=.env.development scripts/create-admin.ts",
+    "features:backfill": "tsx --env-file=.env.development scripts/backfill-features.ts",
+    "features:backfill:ci": "tsx scripts/backfill-features.ts",
     "build": "next build",
     "lint:prettier:check": "prettier --check .",
     "lint:prettier:fix": "prettier --write .",
