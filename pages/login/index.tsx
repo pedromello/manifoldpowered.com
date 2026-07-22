@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import AuthLayout from "../../components/AuthLayout";
@@ -12,6 +12,34 @@ export default function LoginPage() {
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/v1/user")
+      .then((response) => {
+        if (!isMounted) return;
+
+        if (response.ok) {
+          const callbackUrl = router.query.callbackUrl;
+          const redirectUrl =
+            typeof callbackUrl === "string" ? callbackUrl : "/store";
+          router.replace(redirectUrl);
+          return;
+        }
+
+        setIsCheckingSession(false);
+      })
+      .catch(() => {
+        if (isMounted) setIsCheckingSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,6 +123,17 @@ export default function LoginPage() {
     setStep("email");
     setCode("");
     setErrorMessage("");
+  }
+
+  if (isCheckingSession) {
+    return (
+      <AuthLayout
+        title="Login | Manifold"
+        description="Login to your Manifold account."
+      >
+        <p role="status">Loading...</p>
+      </AuthLayout>
+    );
   }
 
   return (
