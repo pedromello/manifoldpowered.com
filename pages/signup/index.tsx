@@ -79,8 +79,8 @@ export default function SignupPage() {
         <div className="modal-success" role="status">
           <h2 id="early-access-title">Check your inbox</h2>
           <p>{successMessage}</p>
-          <Link href="/" className="submit-button back-link">
-            Got it
+          <Link href="/store" className="submit-button back-link">
+            Browse games while you wait
           </Link>
         </div>
       ) : (
