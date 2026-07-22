@@ -131,7 +131,16 @@ describe("POST /api/v1/backoffice/feature-backfill", () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
       await orchestrator.createStore(owner.id);
-      await user.setFeatures(owner.id, authorization.ACTIVATED_USER_FEATURES);
+      // Unlike studio.MEMBER_PERMISSIONS, every entry in
+      // store.MEMBER_PERMISSIONS is already part of ACTIVATED_USER_FEATURES
+      // -- resetting to the full baseline would never actually create a gap
+      // for this pass to fix. Strip just the store-scoped entries back out.
+      await user.setFeatures(
+        owner.id,
+        authorization.ACTIVATED_USER_FEATURES.filter(
+          (feature) => !STORE_MEMBER_PERMISSIONS.includes(feature),
+        ),
+      );
 
       const admin = await orchestrator.createAdminUser();
       const session = await orchestrator.createSession(admin.id);
@@ -158,7 +167,15 @@ describe("POST /api/v1/backoffice/feature-backfill", () => {
       await orchestrator.addStoreMember(createdStore.id, member.username, [
         "update:store",
       ]);
-      await user.setFeatures(member.id, authorization.ACTIVATED_USER_FEATURES);
+      // update:store is already part of ACTIVATED_USER_FEATURES -- strip
+      // just that one back out to simulate a genuine pre-fix gap (see the
+      // store owner test above for why the full baseline doesn't work here).
+      await user.setFeatures(
+        member.id,
+        authorization.ACTIVATED_USER_FEATURES.filter(
+          (feature) => feature !== "update:store",
+        ),
+      );
 
       const admin = await orchestrator.createAdminUser();
       const session = await orchestrator.createSession(admin.id);
