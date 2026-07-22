@@ -60,7 +60,7 @@ async function create(storeData: StoreCreateDto) {
   const slug = generateSlug(storeData.name);
   await validateUniqueSlug(slug);
 
-  return await prisma.store.create({
+  const createdStore = await prisma.store.create({
     data: {
       name: storeData.name,
       description: storeData.description,
@@ -69,6 +69,14 @@ async function create(storeData: StoreCreateDto) {
       slug,
     },
   });
+
+  // The owner is authorized for every store-scoped action via the isOwner
+  // check in authorization.can(), but controller.canRequest(feature) also
+  // gates on the *global* feature before that resource check ever runs.
+  // Grant those features here so a fresh store owner can actually use them.
+  await userModel.addFeatures(storeData.owner_id, MEMBER_PERMISSIONS);
+
+  return createdStore;
 }
 
 async function findAllPaginated({
@@ -222,8 +230,9 @@ async function addMember(
     });
   }
 
+  let createdMember;
   try {
-    return await prisma.storeMember.create({
+    createdMember = await prisma.storeMember.create({
       data: {
         store_id: storeId,
         user_id: targetUser.id,
@@ -242,6 +251,12 @@ async function addMember(
     }
     throw error;
   }
+
+  // Mirror the granted permissions into the member's global features, same
+  // reasoning as in create() above.
+  await userModel.addFeatures(targetUser.id, permissions);
+
+  return createdMember;
 }
 
 async function findOneMemberByUsername(storeId: string, username: string) {
@@ -273,7 +288,7 @@ async function updateMemberPermissions(
 ) {
   const member = await findOneMemberByUsername(storeId, username);
 
-  return await prisma.storeMember.update({
+  const updatedMember = await prisma.storeMember.update({
     where: {
       id: member.id,
     },
@@ -281,6 +296,10 @@ async function updateMemberPermissions(
       permissions,
     },
   });
+
+  await userModel.addFeatures(member.user_id, permissions);
+
+  return updatedMember;
 }
 
 async function removeMember(storeId: string, username: string) {

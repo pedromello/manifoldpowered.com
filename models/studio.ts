@@ -68,7 +68,7 @@ async function create(studioData: StudioCreateDto) {
   const slug = generateSlug(studioData.name);
   await validateUniqueSlug(slug);
 
-  return await prisma.studio.create({
+  const createdStudio = await prisma.studio.create({
     data: {
       name: studioData.name,
       description: studioData.description,
@@ -78,6 +78,15 @@ async function create(studioData: StudioCreateDto) {
       slug,
     },
   });
+
+  // The owner is authorized for every studio-scoped action via the isOwner
+  // check in authorization.can(), but routes like create:game/update:game/
+  // create:game_file/delete:game_file also gate on the *global*
+  // controller.canRequest(feature) before that resource check ever runs.
+  // Grant those features here so a fresh studio owner can actually use them.
+  await userModel.addFeatures(studioData.owner_id, MEMBER_PERMISSIONS);
+
+  return createdStudio;
 }
 
 async function findAllPaginated({
@@ -260,8 +269,9 @@ async function addMember(
     });
   }
 
+  let createdMember;
   try {
-    return await prisma.studioMember.create({
+    createdMember = await prisma.studioMember.create({
       data: {
         studio_id: studioId,
         user_id: targetUser.id,
@@ -280,6 +290,13 @@ async function addMember(
     }
     throw error;
   }
+
+  // Mirror the granted permissions into the member's global features, same
+  // reasoning as in create() above — otherwise controller.canRequest(feature)
+  // rejects them before authorization.can() ever sees their studio membership.
+  await userModel.addFeatures(targetUser.id, permissions);
+
+  return createdMember;
 }
 
 async function findOneMemberByUsername(studioId: string, username: string) {
@@ -311,7 +328,7 @@ async function updateMemberPermissions(
 ) {
   const member = await findOneMemberByUsername(studioId, username);
 
-  return await prisma.studioMember.update({
+  const updatedMember = await prisma.studioMember.update({
     where: {
       id: member.id,
     },
@@ -319,6 +336,10 @@ async function updateMemberPermissions(
       permissions,
     },
   });
+
+  await userModel.addFeatures(member.user_id, permissions);
+
+  return updatedMember;
 }
 
 async function removeMember(studioId: string, username: string) {
