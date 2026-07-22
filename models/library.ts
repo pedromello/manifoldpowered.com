@@ -1,5 +1,68 @@
 import { prisma } from "infra/database";
 import { ItemType } from "generated/prisma/client";
+import { NotFoundError } from "infra/errors";
+import game from "models/game";
+import store from "models/store";
+
+async function acquireGame(
+  userId: string,
+  gameSlug: string,
+  storeSlug?: string,
+) {
+  const existingGame = await game.findOneBySlug(gameSlug);
+  if (!existingGame) {
+    throw new NotFoundError({
+      message: "Game not found",
+      action: "Verify the game exists",
+    });
+  }
+
+  const storeId = await resolveStoreIdLeniently(storeSlug);
+
+  return await prisma.$transaction(async (tx) => {
+    const libraryItem = await tx.libraryItem.upsert({
+      where: {
+        user_id_item_id_item_type: {
+          user_id: userId,
+          item_id: existingGame.id,
+          item_type: "GAME",
+        },
+      },
+      update: {},
+      create: {
+        user_id: userId,
+        item_id: existingGame.id,
+        item_type: "GAME",
+      },
+    });
+
+    await tx.sale.create({
+      data: {
+        user_id: userId,
+        game_id: existingGame.id,
+        store_id: storeId,
+        price_at_sale: existingGame.price,
+      },
+    });
+
+    return libraryItem;
+  });
+}
+
+// Resolve store_slug leniently: an absent or unknown store must never block
+// acquisition — it just means the sale isn't attributed to a store.
+async function resolveStoreIdLeniently(
+  storeSlug?: string,
+): Promise<string | null> {
+  if (!storeSlug) return null;
+
+  try {
+    const foundStore = await store.findOneBySlug(storeSlug);
+    return foundStore.id;
+  } catch {
+    return null;
+  }
+}
 
 async function add(
   userId: string,
@@ -102,6 +165,7 @@ const library = {
   add,
   hasItem,
   findAllPaginatedGamesByUserId,
+  acquireGame,
 };
 
 export default library;

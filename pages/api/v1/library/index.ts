@@ -4,10 +4,7 @@ import library from "models/library";
 import authorization from "models/authorization";
 import { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
-import { NotFoundError, ValidationError } from "infra/errors";
-import game from "models/game";
-import store from "models/store";
-import { prisma } from "infra/database";
+import { ValidationError } from "infra/errors";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -66,56 +63,11 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const existingGame = await game.findOneBySlug(parsedBody.data.slug);
-  if (!existingGame) {
-    throw new NotFoundError({
-      message: "Game not found",
-      action: "Verify the game exists",
-    });
-  }
-
-  // Resolve store_slug leniently: an absent or unknown store must never
-  // block acquisition — it just means the sale isn't attributed to a store.
-  let storeId: string | null = null;
-  if (parsedBody.data.store_slug) {
-    try {
-      const foundStore = await store.findOneBySlug(parsedBody.data.store_slug);
-      storeId = foundStore.id;
-    } catch {
-      storeId = null;
-    }
-  }
-
-  const userId = req.context.user.id!;
-
-  const result = await prisma.$transaction(async (tx) => {
-    const libraryItem = await tx.libraryItem.upsert({
-      where: {
-        user_id_item_id_item_type: {
-          user_id: userId,
-          item_id: existingGame.id,
-          item_type: "GAME",
-        },
-      },
-      update: {},
-      create: {
-        user_id: userId,
-        item_id: existingGame.id,
-        item_type: "GAME",
-      },
-    });
-
-    await tx.sale.create({
-      data: {
-        user_id: userId,
-        game_id: existingGame.id,
-        store_id: storeId,
-        price_at_sale: existingGame.price,
-      },
-    });
-
-    return libraryItem;
-  });
+  const result = await library.acquireGame(
+    req.context.user.id!,
+    parsedBody.data.slug,
+    parsedBody.data.store_slug,
+  );
 
   return res.status(201).json({
     id: result.id,
