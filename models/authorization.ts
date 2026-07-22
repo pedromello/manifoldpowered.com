@@ -399,6 +399,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       requirements: gameOutput.requirements,
       studio_id: gameOutput.studio_id,
       publisher_id: gameOutput.publisher_id,
+      steam_app_id: gameOutput.steam_app_id,
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,

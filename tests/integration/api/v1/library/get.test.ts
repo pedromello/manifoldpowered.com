@@ -125,6 +125,7 @@ describe("GET /api/v1/library", () => {
         requirements: game.requirements || null,
         studio_id: game.studio_id,
         publisher_id: game.publisher_id,
+        steam_app_id: game.steam_app_id,
         status: game.status,
         positive_reviews: game.positive_reviews,
         negative_reviews: game.negative_reviews,

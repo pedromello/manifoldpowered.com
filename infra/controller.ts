@@ -4,6 +4,7 @@ import {
   InternalServerError,
   MethodNotAllowedError,
   NotFoundError,
+  ServiceError,
   UnauthorizedError,
   ValidationError,
 } from "./errors";
@@ -36,7 +37,8 @@ const onErrorHandler = (
   if (
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
-    error instanceof ForbiddenError
+    error instanceof ForbiddenError ||
+    error instanceof ServiceError
   ) {
     return res.status(error.statusCode).json(error);
   }
