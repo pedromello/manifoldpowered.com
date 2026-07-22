@@ -1,16 +1,43 @@
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { useRouter } from "next/router";
+import { FormEvent, useEffect, useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9]{3,30}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignupPage() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/v1/user")
+      .then((response) => {
+        if (!isMounted) return;
+
+        if (response.ok) {
+          router.replace("/store");
+          return;
+        }
+
+        setIsCheckingSession(false);
+      })
+      .catch(() => {
+        if (isMounted) setIsCheckingSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const trimmedUsername = username.trim();
   const trimmedEmail = email.trim();
@@ -68,6 +95,17 @@ export default function SignupPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isCheckingSession) {
+    return (
+      <AuthLayout
+        title="Request Early Access | Manifold"
+        description="Create your Manifold early access account."
+      >
+        <p role="status">Loading...</p>
+      </AuthLayout>
+    );
   }
 
   return (

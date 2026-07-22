@@ -198,7 +198,7 @@ const addFeatures = async (id: string, features: string[]) => {
       id,
     },
     data: {
-      features: [...user.features, ...features],
+      features: [...new Set([...user.features, ...features])],
     },
   });
 
