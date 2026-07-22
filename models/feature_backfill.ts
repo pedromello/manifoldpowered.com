@@ -139,6 +139,13 @@ async function reconcileStudioMembers(
   return result;
 }
 
+// Both of store.MEMBER_PERMISSIONS (update:store, manage:store_members) are
+// already plain ACTIVATED_USER_FEATURES entries, and reconcileBaseline runs
+// before this pass — so today this pass's `updated` count is always 0: any
+// gap it would have fixed is already closed by the baseline pass first. It
+// only starts doing real work if store.MEMBER_PERMISSIONS ever gains an
+// entry that isn't also a baseline feature (mirroring how studio's
+// create:game/update:game/create:game_file/delete:game_file aren't).
 async function reconcileStoreOwners(
   eligibleUsers: EligibleUsers,
   touchedIds: Set<string>,
