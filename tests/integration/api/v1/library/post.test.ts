@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import { version as uuidVersion } from "uuid";
+import { prisma } from "infra/database";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -120,6 +121,135 @@ describe("POST /api/v1/library", () => {
       expect(uuidVersion(responseBody.user_id)).toBe(4);
 
       expect(Date.parse(responseBody.acquired_at)).not.toBeNaN();
+    });
+
+    test("Without store_slug should record a Sale with a null store_id", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id);
+
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const buyerSession = await orchestrator.createSession(buyer.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          Cookie: `session_id=${buyerSession.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: game.slug,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const sales = await prisma.sale.findMany({
+        where: { user_id: buyer.id, game_id: game.id },
+      });
+      expect(sales).toHaveLength(1);
+      expect(sales[0].store_id).toBeNull();
+      expect(sales[0].price_at_sale).toBe(game.price);
+    });
+
+    test("With a valid store_slug should record a Sale attributed to that store", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id);
+
+      const storeOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(storeOwner.id);
+      const createdStore = await orchestrator.createStore(storeOwner.id);
+
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const buyerSession = await orchestrator.createSession(buyer.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          Cookie: `session_id=${buyerSession.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: game.slug,
+          store_slug: createdStore.slug,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const sales = await prisma.sale.findMany({
+        where: { user_id: buyer.id, game_id: game.id },
+      });
+      expect(sales).toHaveLength(1);
+      expect(sales[0].store_id).toBe(createdStore.id);
+    });
+
+    test("With an unknown store_slug should still return 201 and record a Sale with a null store_id", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id);
+
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const buyerSession = await orchestrator.createSession(buyer.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          Cookie: `session_id=${buyerSession.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          slug: game.slug,
+          store_slug: "does-not-exist-store",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const sales = await prisma.sale.findMany({
+        where: { user_id: buyer.id, game_id: game.id },
+      });
+      expect(sales).toHaveLength(1);
+      expect(sales[0].store_id).toBeNull();
+    });
+
+    test("Re-acquiring an owned game should record a new Sale each time while LibraryItem stays a single row", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id);
+
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const buyerSession = await orchestrator.createSession(buyer.id);
+
+      for (let i = 0; i < 2; i++) {
+        const response = await fetch(
+          `${webserver.getOrigin()}/api/v1/library`,
+          {
+            method: "POST",
+            headers: {
+              Cookie: `session_id=${buyerSession.token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ slug: game.slug }),
+          },
+        );
+        expect(response.status).toBe(201);
+      }
+
+      const sales = await prisma.sale.findMany({
+        where: { user_id: buyer.id, game_id: game.id },
+      });
+      expect(sales).toHaveLength(2);
+
+      const libraryItems = await prisma.libraryItem.findMany({
+        where: { user_id: buyer.id, item_id: game.id, item_type: "GAME" },
+      });
+      expect(libraryItems).toHaveLength(1);
     });
   });
 });
