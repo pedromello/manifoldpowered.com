@@ -157,7 +157,11 @@ describe("POST /api/v1/items/games/steam-import", () => {
       await orchestrator.addFeaturesToUser(outsider.id, ["create:game"]);
       const outsiderSession = await orchestrator.createSession(outsider.id);
 
-      // Act
+      // Act: the create-path's studio-membership check runs before any
+      // Steam API call, so a syntactically valid but unused app id (rather
+      // than the shared STEAM_TEST_APP_ID fixture, which other tests in
+      // this file already import) keeps this test independent of file
+      // execution order and of steam_app_id's global-uniqueness constraint.
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
@@ -168,7 +172,7 @@ describe("POST /api/v1/items/games/steam-import", () => {
           },
           body: JSON.stringify({
             studio_id: studio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
+            steam_app_id: "1",
           }),
         },
       );
