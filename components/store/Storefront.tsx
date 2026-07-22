@@ -13,19 +13,29 @@ import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
 import { GameListItem, type GameApi } from "components/store/GameListItem";
 
-function HeroBento({ featured }: { featured: GameApi[] }) {
+function HeroBento({
+  featured,
+  storeSlug,
+}: {
+  featured: GameApi[];
+  storeSlug?: string;
+}) {
   if (!featured || featured.length < 3) return null;
   const [main, side1, side2] = featured;
 
   const isDemo = (price: string) => !price || Number(price) === 0;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const itemHref = (slug: string) =>
+    storeSlug
+      ? `/item/${slug}?store=${encodeURIComponent(storeSlug)}`
+      : `/item/${slug}`;
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
       {/* Main Massive Tile */}
       <Link
-        href={`/item/${main.slug}`}
+        href={itemHref(main.slug)}
         className="md:col-span-2 md:row-span-2 rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-2xl"
       >
         {/* Background Layer */}
@@ -98,7 +108,7 @@ function HeroBento({ featured }: { featured: GameApi[] }) {
       {[side1, side2].map((game) => (
         <Link
           key={game.id}
-          href={`/item/${game.slug}`}
+          href={itemHref(game.slug)}
           className="rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-xl"
         >
           {/* Background Layer */}
@@ -196,6 +206,8 @@ export type StorefrontProps = {
   pageTitle: string;
   metaDescription: string;
   heading?: string;
+  /** When set, item links carry `?store=` so acquisitions attribute to this store. */
+  storeSlug?: string;
 };
 
 export function Storefront({
@@ -206,6 +218,7 @@ export function Storefront({
   pageTitle,
   metaDescription,
   heading = "Just Arrived at Manifold",
+  storeSlug,
 }: StorefrontProps) {
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
@@ -266,7 +279,10 @@ export function Storefront({
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
               </div>
             ) : (
-              <HeroBento featured={featuredGames.slice(0, 3)} />
+              <HeroBento
+                featured={featuredGames.slice(0, 3)}
+                storeSlug={storeSlug}
+              />
             )}
           </div>
         </section>
@@ -317,7 +333,11 @@ export function Storefront({
                   </div>
                 ) : displayGames.length > 0 ? (
                   displayGames.map((game) => (
-                    <GameListItem key={game.id} game={game} />
+                    <GameListItem
+                      key={game.id}
+                      game={game}
+                      storeSlug={storeSlug}
+                    />
                   ))
                 ) : (
                   <div className="py-20 text-center text-white/20 font-black italic text-4xl uppercase tracking-tighter">

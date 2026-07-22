@@ -522,11 +522,12 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   }
 
   if (feature === "read:store_sale") {
-    const saleOutput = resource as Sale;
+    const saleOutput = resource as Sale & { game_title?: string };
     return {
       id: saleOutput.id,
       user_id: saleOutput.user_id,
       game_id: saleOutput.game_id,
+      game_title: saleOutput.game_title,
       store_id: saleOutput.store_id,
       price_at_sale: saleOutput.price_at_sale,
       created_at: saleOutput.created_at,

@@ -88,6 +88,7 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
       const responseBody = await response.json();
       expect(responseBody.sales).toHaveLength(1);
       expect(responseBody.sales[0].game_id).toBe(createdGame.id);
+      expect(responseBody.sales[0].game_title).toBe(createdGame.title);
       expect(responseBody.sales[0].store_id).toBe(createdStore.id);
       expect(responseBody.pagination.total).toBe(1);
     });
