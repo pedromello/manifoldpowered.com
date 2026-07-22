@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useState } from "react";
 import useSWR from "swr";
 import {
   Loader2,
@@ -9,6 +10,7 @@ import {
   Building2,
   Store as StoreIcon,
   Gamepad2,
+  Wrench,
 } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
 
@@ -30,6 +32,21 @@ interface DashboardMetrics {
   };
   studios: { total: number };
   stores: { total: number };
+}
+
+interface PassResult {
+  scanned: number;
+  updated: number;
+  skipped_ineligible: number;
+}
+
+interface BackfillReport {
+  baseline: PassResult;
+  studio_owners: PassResult;
+  studio_members: PassResult;
+  store_owners: PassResult;
+  store_members: PassResult;
+  total_unique_users_updated: number;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -68,9 +85,42 @@ export default function BackofficeIndexPage() {
     fetcher,
   );
 
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [backfillReport, setBackfillReport] = useState<BackfillReport | null>(
+    null,
+  );
+  const [backfillError, setBackfillError] = useState<string | null>(null);
+
   const signupsDelta = data
     ? data.users.signups_last_7_days - data.users.signups_previous_7_days
     : 0;
+
+  async function runFeatureBackfill() {
+    const confirmed = window.confirm(
+      "Reconcile feature grants for all activated users, studio owners/members, and store owners/members against current permission definitions? Only adds missing features — never removes any.",
+    );
+    if (!confirmed) return;
+
+    setIsReconciling(true);
+    setBackfillError(null);
+    setBackfillReport(null);
+
+    const response = await fetch("/api/v1/backoffice/feature-backfill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setBackfillError(body?.message || "Failed to reconcile features.");
+      setIsReconciling(false);
+      return;
+    }
+
+    setBackfillReport(await response.json());
+    setIsReconciling(false);
+  }
 
   return (
     <>
@@ -177,6 +227,83 @@ export default function BackofficeIndexPage() {
                   label="Active Games"
                   value={data.games.by_status.ACTIVE}
                 />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h2 className="text-xl font-black">Maintenance</h2>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-white/10 text-white/60">
+                      <Wrench size={20} />
+                    </div>
+                    <div>
+                      <div className="font-black text-white">
+                        Reconcile Feature Grants
+                      </div>
+                      <div className="text-sm text-white/50 font-bold">
+                        Grants users any feature they&apos;re missing from the
+                        current baseline/studio/store permission definitions.
+                        Safe to re-run any time.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={runFeatureBackfill}
+                    disabled={isReconciling}
+                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-black font-black uppercase text-xs tracking-wider hover:bg-white/90 transition-colors disabled:opacity-50"
+                  >
+                    {isReconciling ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Wrench size={14} />
+                    )}
+                    {isReconciling ? "Reconciling..." : "Run Now"}
+                  </button>
+                </div>
+
+                {backfillError && (
+                  <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
+                    {backfillError}
+                  </div>
+                )}
+
+                {backfillReport && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <StatCard
+                      label="Users Updated"
+                      icon={Users}
+                      value={backfillReport.total_unique_users_updated}
+                      accent="bg-emerald-500/20 text-emerald-300"
+                    />
+                    <StatCard
+                      label="Baseline Updated"
+                      icon={Users}
+                      value={backfillReport.baseline.updated}
+                    />
+                    <StatCard
+                      label="Studio Owners Updated"
+                      icon={Building2}
+                      value={backfillReport.studio_owners.updated}
+                    />
+                    <StatCard
+                      label="Studio Members Updated"
+                      icon={Building2}
+                      value={backfillReport.studio_members.updated}
+                    />
+                    <StatCard
+                      label="Store Owners Updated"
+                      icon={StoreIcon}
+                      value={backfillReport.store_owners.updated}
+                    />
+                    <StatCard
+                      label="Store Members Updated"
+                      icon={StoreIcon}
+                      value={backfillReport.store_members.updated}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </>
