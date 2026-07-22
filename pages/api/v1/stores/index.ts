@@ -7,8 +7,24 @@ import { ValidationError } from "infra/errors";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
+  .get(controller.canRequest("create:store"), getHandler)
   .post(controller.canRequest("create:store"), postHandler)
   .handler(controller.errorHandlers);
+
+async function getHandler(req: NextApiRequest, res: NextApiResponse) {
+  const { stores, pagination } = await store.findAllPaginated({
+    owner_id: req.context.user.id,
+  });
+
+  const secureOutputValues = stores.map((storeItem) =>
+    authorization.filterOutput(req.context.user, "create:store", storeItem),
+  );
+
+  return res.status(200).json({
+    stores: secureOutputValues,
+    pagination,
+  });
+}
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const result = storeSchema.safeParse(req.body);

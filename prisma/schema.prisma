@@ -239,6 +239,7 @@ model Store {
   name        String   @db.VarChar(255)
   slug        String   @unique @db.VarChar(255)
   description String?  @db.Text
+  logo_url    String?  @db.VarChar(2048)
   owner_id    String // Logical reference to User.id (creator/owner)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt

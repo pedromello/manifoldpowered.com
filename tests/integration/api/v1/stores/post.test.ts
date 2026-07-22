@@ -53,10 +53,34 @@ describe("POST /api/v1/stores", () => {
         slug: "pixel-arcade",
         name: "Pixel Arcade",
         description: "Curated indie games",
+        logo_url: null,
         owner_id: user.id,
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
+    });
+
+    test("With a logo_url should persist and return it", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/stores`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({
+          name: "Logo Store",
+          logo_url: "https://example.com/logo.png",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const responseBody = await response.json();
+      expect(responseBody.logo_url).toBe("https://example.com/logo.png");
     });
 
     test("With missing name should return 400", async () => {
