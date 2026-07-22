@@ -7,8 +7,24 @@ import { ValidationError } from "infra/errors";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
+  .get(controller.canRequest("create:studio"), getHandler)
   .post(controller.canRequest("create:studio"), postHandler)
   .handler(controller.errorHandlers);
+
+async function getHandler(req: NextApiRequest, res: NextApiResponse) {
+  const { studios, pagination } = await studio.findAllPaginated({
+    owner_id: req.context.user.id,
+  });
+
+  const secureOutputValues = studios.map((studioItem) =>
+    authorization.filterOutput(req.context.user, "create:studio", studioItem),
+  );
+
+  return res.status(200).json({
+    studios: secureOutputValues,
+    pagination,
+  });
+}
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const result = studioSchema.safeParse(req.body);
