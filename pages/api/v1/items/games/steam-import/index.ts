@@ -34,6 +34,36 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const userTryingToImport = req.context.user;
   const { studio_id, publisher_id, steam_app_id } = result.data;
 
+  // Steam data (description, images, price, ...) changes over time, so
+  // re-importing an already-imported app refreshes it in place instead of
+  // being rejected as a duplicate. Authorization for this path is checked
+  // against the game's *actual* owning studio (via "update:game"), not the
+  // studio_id in the request body — otherwise an unrelated studio could
+  // hijack another studio's already-imported game just by re-submitting its
+  // Steam app id under their own studio_id.
+  const existingGame = await game.findOneBySteamAppIdWithStudio(steam_app_id);
+
+  if (existingGame) {
+    if (!authorization.can(userTryingToImport, "update:game", existingGame)) {
+      throw new ForbiddenError({
+        message: "You do not have permission to update this game",
+        action: "Verify if you are the owner of this game",
+      });
+    }
+
+    const steamGameData = await game.buildGameDataFromSteam(steam_app_id);
+    const updatedGame = await game.update(existingGame.id, steamGameData);
+    const publishedGame = await game.makePublic(updatedGame.id);
+
+    const secureOutputValues = authorization.filterOutput(
+      userTryingToImport,
+      "update:game",
+      publishedGame,
+    );
+
+    return res.status(200).json(secureOutputValues);
+  }
+
   const developerStudio = await studio.findOneByIdWithMembers(studio_id);
 
   if (!authorization.can(userTryingToImport, "create:game", developerStudio)) {
@@ -57,16 +87,6 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
           "Verify if you are a member of the publisher studio with game creation rights",
       });
     }
-  }
-
-  const existingImport = await game.findOneBySteamAppId(steam_app_id);
-
-  if (existingImport) {
-    throw new ValidationError({
-      message: `Steam app "${steam_app_id}" has already been imported as "${existingImport.title}".`,
-      action:
-        "Check if this game was already imported, or import a different Steam app.",
-    });
   }
 
   const steamGameData = await game.buildGameDataFromSteam(steam_app_id);

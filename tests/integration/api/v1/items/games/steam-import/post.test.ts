@@ -15,13 +15,13 @@ beforeAll(async () => {
 
 describe("POST /api/v1/items/games/steam-import", () => {
   describe("Authenticated user", () => {
-    test("With 'create:game' feature and studio ownership should return 201 Created, and re-importing the same app should return 400 Bad Request", async () => {
+    test("With 'create:game' feature and studio ownership should return 201 Created; re-importing refreshes it (200) instead of duplicating it; and an unrelated studio cannot hijack it via re-import", async () => {
       // steam_app_id is globally unique, and STEAM_TEST_APP_ID is the only
       // real, deterministic fixture available (per the product owner's
       // explicit choice to hit the real Steam API rather than mock it) — so
-      // the fresh-import and duplicate-import assertions must share the same
-      // single successful import within one test, rather than each getting
-      // their own "first" import across separate tests.
+      // every scenario that needs an "already imported" game must reuse the
+      // same single successful import within one test, rather than each
+      // getting their own "first" import across separate tests.
 
       // Arrange
       const user = await orchestrator.createUser();
@@ -30,7 +30,7 @@ describe("POST /api/v1/items/games/steam-import", () => {
       const session = await orchestrator.createSession(user.id);
       const studio = await orchestrator.createStudio(user.id);
 
-      // Act
+      // Act: fresh import.
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
@@ -74,8 +74,8 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(persistedGame.developer_name).toBe(studio.name);
       expect(persistedGame.base_price).toBe(persistedGame.price);
 
-      // Act again: re-import the same Steam app.
-      const duplicateResponse = await fetch(
+      // Act again: the same studio re-imports the same Steam app.
+      const reimportResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
           method: "POST",
@@ -90,16 +90,60 @@ describe("POST /api/v1/items/games/steam-import", () => {
         },
       );
 
-      // Assert
-      expect(duplicateResponse.status).toBe(400);
-      const duplicateResponseBody = await duplicateResponse.json();
-      expect(duplicateResponseBody).toEqual({
-        name: "ValidationError",
-        message: `Steam app "${STEAM_TEST_APP_ID}" has already been imported as "${responseBody.title}".`,
-        action:
-          "Check if this game was already imported, or import a different Steam app.",
-        status_code: 400,
+      // Assert: the existing game is refreshed in place, not duplicated.
+      expect(reimportResponse.status).toBe(200);
+      const reimportResponseBody = await reimportResponse.json();
+      expect(reimportResponseBody.id).toBe(responseBody.id);
+      expect(reimportResponseBody.slug).toBe(responseBody.slug);
+      expect(reimportResponseBody.steam_app_id).toBe(STEAM_TEST_APP_ID);
+      expect(reimportResponseBody.status).toBe("ACTIVE");
+      // Ownership is untouched by a refresh — still the original studio.
+      expect(reimportResponseBody.studio_id).toBe(studio.id);
+
+      const gameAfterRefresh = await orchestrator.getGameBySlug(
+        responseBody.slug,
+      );
+      expect(gameAfterRefresh.id).toBe(responseBody.id);
+
+      // Act again: an unrelated user, with their own unrelated studio and
+      // create:game rights there, tries to "re-import" the same Steam app
+      // under their own studio_id.
+      const outsider = await orchestrator.createUser();
+      await orchestrator.activateUser(outsider.id);
+      await orchestrator.addFeaturesToUser(outsider.id, ["create:game"]);
+      const outsiderSession = await orchestrator.createSession(outsider.id);
+      const outsiderStudio = await orchestrator.createStudio(outsider.id);
+
+      const hijackResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${outsiderSession.token}`,
+          },
+          body: JSON.stringify({
+            studio_id: outsiderStudio.id,
+            steam_app_id: STEAM_TEST_APP_ID,
+          }),
+        },
+      );
+
+      // Assert: authorized against the game's real studio, not the
+      // request's studio_id — the outsider cannot take it over.
+      expect(hijackResponse.status).toBe(403);
+      const hijackResponseBody = await hijackResponse.json();
+      expect(hijackResponseBody).toEqual({
+        name: "ForbiddenError",
+        message: "You do not have permission to update this game",
+        action: "Verify if you are the owner of this game",
+        status_code: 403,
       });
+
+      const gameAfterHijackAttempt = await orchestrator.getGameBySlug(
+        responseBody.slug,
+      );
+      expect(gameAfterHijackAttempt.studio_id).toBe(studio.id);
     });
 
     test("Without membership in the target studio should return 403 Forbidden", async () => {

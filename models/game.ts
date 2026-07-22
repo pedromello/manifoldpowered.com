@@ -264,6 +264,20 @@ async function findOneBySteamAppId(steamAppId: string) {
   });
 }
 
+async function findOneBySteamAppIdWithStudio(steamAppId: string) {
+  const gameResource = await findOneBySteamAppId(steamAppId);
+
+  if (!gameResource) {
+    return null;
+  }
+
+  const studioWithMembers = await studioModel.findOneByIdWithMembers(
+    gameResource.studio_id,
+  );
+
+  return { ...gameResource, studio: studioWithMembers };
+}
+
 async function buildGameDataFromSteam(
   steamAppId: string,
 ): Promise<SteamImportedGameData> {
@@ -741,6 +755,7 @@ const game = {
   findOneBySlug,
   findOneBySlugWithStudio,
   findOneBySteamAppId,
+  findOneBySteamAppIdWithStudio,
   buildGameDataFromSteam,
   findOnePublicBySlug,
   findAllPaginated,
