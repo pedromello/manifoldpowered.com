@@ -1,6 +1,6 @@
 import Link from "next/link";
 import useSWR from "swr";
-import { User, LogOut, Library, Loader2 } from "lucide-react";
+import { User, LogOut, Library, Building2, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 
@@ -93,6 +93,15 @@ export function UserMenu() {
             >
               <Library size={16} className="text-indigo-400" />
               My Library
+            </Link>
+
+            <Link
+              href="/studio"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Building2 size={16} className="text-indigo-400" />
+              My Studios
             </Link>
 
             <button

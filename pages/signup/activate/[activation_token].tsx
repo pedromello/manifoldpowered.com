@@ -77,12 +77,20 @@ export default function ActivateSignup() {
             Welcome to Manifold. We will notify you as soon as the early access
             begins.
           </p>
-          <Link
-            href="/"
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
-          >
-            Back to Manifold
-          </Link>
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/login?callbackUrl=/store"
+              className="flex-1 inline-flex items-center justify-center rounded-lg border-2 border-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--color-purple-dark)] transition-colors hover:bg-[var(--color-purple-dark)] hover:text-[var(--bg-primary)]"
+            >
+              I want to play
+            </Link>
+            <Link
+              href="/login?callbackUrl=/onboarding/create"
+              className="flex-1 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
+            >
+              I want to publish games
+            </Link>
+          </div>
         </>
       ) : null}
 
