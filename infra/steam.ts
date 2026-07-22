@@ -3,9 +3,28 @@ import { ServiceError } from "./errors";
 const STEAM_APPDETAILS_URL = "https://store.steampowered.com/api/appdetails";
 const REQUEST_TIMEOUT_MS = 8000;
 
+export interface SteamAppDetailsData {
+  name: string;
+  short_description?: string;
+  detailed_description?: string;
+  about_the_game?: string;
+  is_free?: boolean;
+  price_overview?: { currency: string; initial: number; final: number };
+  header_image?: string;
+  capsule_image?: string;
+  screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
+  genres?: { id: string; description: string }[];
+  categories?: { id: number; description: string }[];
+  platforms?: { windows?: boolean; mac?: boolean; linux?: boolean };
+  supported_languages?: string;
+  website?: string;
+  required_age?: number | string;
+  release_date?: { coming_soon: boolean; date: string };
+}
+
 export interface SteamAppDetailsResult {
   success: boolean;
-  data?: unknown;
+  data?: SteamAppDetailsData;
 }
 
 type SteamAppDetailsApiResponse = Record<string, SteamAppDetailsResult>;

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
-import steamInfra from "infra/steam";
+import steamInfra, { SteamAppDetailsData } from "infra/steam";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -232,25 +232,6 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
-interface SteamAppDetailsData {
-  name: string;
-  short_description?: string;
-  detailed_description?: string;
-  about_the_game?: string;
-  is_free?: boolean;
-  price_overview?: { currency: string; initial: number; final: number };
-  header_image?: string;
-  capsule_image?: string;
-  screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
-  genres?: { id: string; description: string }[];
-  categories?: { id: number; description: string }[];
-  platforms?: { windows?: boolean; mac?: boolean; linux?: boolean };
-  supported_languages?: string;
-  website?: string;
-  required_age?: number | string;
-  release_date?: { coming_soon: boolean; date: string };
-}
-
 export type SteamImportedGameData = Omit<
   GameCreateDto,
   "studio_id" | "publisher_id"
@@ -290,7 +271,7 @@ async function buildGameDataFromSteam(
     });
   }
 
-  return mapSteamAppToGameData(result.data as SteamAppDetailsData, steamAppId);
+  return mapSteamAppToGameData(result.data, steamAppId);
 }
 
 function mapSteamAppToGameData(
