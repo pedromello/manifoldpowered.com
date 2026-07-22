@@ -27,6 +27,7 @@ describe("GET /api/v1/stores/[slug]", () => {
         slug: createdStore.slug,
         name: createdStore.name,
         description: createdStore.description,
+        logo_url: createdStore.logo_url,
         owner_id: owner.id,
         created_at: createdStore.created_at.toISOString(),
         updated_at: responseBody.updated_at,

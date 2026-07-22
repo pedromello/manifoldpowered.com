@@ -8,6 +8,7 @@ import {
   StoreMember,
   StoreTagFilter,
   StoreGameOverride,
+  Sale,
   Studio,
   StudioMember,
 } from "generated/prisma/client";
@@ -74,6 +75,7 @@ const AVAILABLE_FEATURES = [
   "manage:store_members:any",
   "read:store_tag_filter",
   "read:store_game_override",
+  "read:store_sale",
 
   // Studios
   "create:studio",
@@ -463,6 +465,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       slug: storeOutput.slug,
       name: storeOutput.name,
       description: storeOutput.description,
+      logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
@@ -515,6 +518,18 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       visibility: overrideOutput.visibility,
       created_at: overrideOutput.created_at,
       updated_at: overrideOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:store_sale") {
+    const saleOutput = resource as Sale;
+    return {
+      id: saleOutput.id,
+      user_id: saleOutput.user_id,
+      game_id: saleOutput.game_id,
+      store_id: saleOutput.store_id,
+      price_at_sale: saleOutput.price_at_sale,
+      created_at: saleOutput.created_at,
     };
   }
 

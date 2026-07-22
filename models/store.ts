@@ -7,6 +7,7 @@ import userModel from "models/user";
 export const storeSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(1000).optional(),
+  logo_url: z.string().url().max(2048).optional(),
 });
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
@@ -63,6 +64,7 @@ async function create(storeData: StoreCreateDto) {
     data: {
       name: storeData.name,
       description: storeData.description,
+      logo_url: storeData.logo_url,
       owner_id: storeData.owner_id,
       slug,
     },
@@ -73,10 +75,12 @@ async function findAllPaginated({
   page = 1,
   limit = 20,
   q,
+  owner_id,
 }: {
   page?: number;
   limit?: number;
   q?: string;
+  owner_id?: string;
 }) {
   const where: Prisma.StoreWhereInput = {};
 
@@ -85,6 +89,10 @@ async function findAllPaginated({
       { name: { contains: q, mode: "insensitive" } },
       { slug: { contains: q, mode: "insensitive" } },
     ];
+  }
+
+  if (owner_id) {
+    where.owner_id = owner_id;
   }
 
   const [stores, total] = await Promise.all([
