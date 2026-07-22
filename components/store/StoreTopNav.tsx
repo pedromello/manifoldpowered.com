@@ -8,14 +8,26 @@ import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/GameListItem";
 
-export function StoreTopNav() {
+export type StoreNavContext = {
+  slug: string;
+  name: string;
+  logo_url?: string | null;
+};
+
+export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
 
+  const storeHref = store ? `/store/${store.slug}` : "/store";
+  const searchEndpoint = store
+    ? `/api/v1/stores/${store.slug}/search`
+    : "/api/v1/games";
+  const searchResultsHref = store ? storeHref : "/search";
+
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     searchQuery.trim()
-      ? `/api/v1/games?q=${encodeURIComponent(searchQuery)}&limit=5`
+      ? `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`
       : null,
     (url) => fetch(url).then((res) => res.json()),
   );
@@ -25,7 +37,9 @@ export function StoreTopNav() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       setIsFocused(false);
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(
+        `${searchResultsHref}?q=${encodeURIComponent(searchQuery.trim())}`,
+      );
     }
   };
 
@@ -37,7 +51,7 @@ export function StoreTopNav() {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-6">
           <Link
-            href="/store"
+            href={storeHref}
             className="flex items-center transition-opacity hover:opacity-80 shrink-0"
           >
             <Image
@@ -49,9 +63,30 @@ export function StoreTopNav() {
             />
           </Link>
 
+          {store && (
+            <Link
+              href={storeHref}
+              className="hidden md:flex items-center gap-2 pl-4 border-l border-white/10 transition-opacity hover:opacity-80 shrink-0"
+            >
+              {store.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={store.logo_url}
+                  alt={`${store.name} logo`}
+                  className="w-6 h-6 rounded-lg object-cover border border-white/10"
+                />
+              ) : (
+                <Store size={16} className="text-white/50" />
+              )}
+              <span className="font-bold text-sm text-white/80 truncate max-w-[12ch]">
+                {store.name}
+              </span>
+            </Link>
+          )}
+
           <nav className="hidden lg:flex items-center gap-2">
             <Link
-              href="/store"
+              href={storeHref}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-bold text-sm tracking-wide"
             >
               <Store size={18} />
