@@ -40,8 +40,26 @@ async function listByStore(
     prisma.sale.count({ where }),
   ]);
 
+  const gameIds = [...new Set(sales.map((saleItem) => saleItem.game_id))];
+  const games = await prisma.game.findMany({
+    where: { id: { in: gameIds } },
+    select: { id: true, title: true },
+  });
+  const titleByGameId = games.reduce(
+    (acc, gameRow) => {
+      acc[gameRow.id] = gameRow.title;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  const salesWithGameTitle = sales.map((saleItem) => ({
+    ...saleItem,
+    game_title: titleByGameId[saleItem.game_id] || "Unknown game",
+  }));
+
   return {
-    sales,
+    sales: salesWithGameTitle,
     pagination: {
       page,
       limit,

@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
+import Link from "next/link";
 import useSWR from "swr";
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 
 import { StoreLayout } from "components/store/StoreLayout";
 import { Storefront } from "components/store/Storefront";
@@ -14,9 +15,19 @@ interface StoreApi {
   owner_id: string;
 }
 
+interface CurrentUser {
+  id: string;
+}
+
 const fetcher = (url: string) =>
   fetch(url).then((res) => {
     if (!res.ok) throw new Error("Not found");
+    return res.json();
+  });
+
+const userFetcher = (url: string) =>
+  fetch(url).then(async (res) => {
+    if (!res.ok) throw new Error("Not logged in");
     return res.json();
   });
 
@@ -29,6 +40,12 @@ export default function StorePage() {
     isLoading,
     error,
   } = useSWR<StoreApi>(slug ? `/api/v1/stores/${slug}` : null, fetcher);
+
+  const { data: currentUser } = useSWR<CurrentUser>(
+    "/api/v1/user",
+    userFetcher,
+    { shouldRetryOnError: false },
+  );
 
   if (isLoading || !slug) {
     return (
@@ -65,7 +82,18 @@ export default function StorePage() {
           `Explore ${store.name}'s curated catalog on Manifold.`
         }
         heading={store.name}
+        storeSlug={store.slug}
       />
+
+      {currentUser?.id === store.owner_id && (
+        <Link
+          href={`/store/${store.slug}/manage`}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-wider shadow-2xl hover:bg-white/90 transition-colors"
+        >
+          <Settings size={16} />
+          Manage Store
+        </Link>
+      )}
     </StoreLayout>
   );
 }

@@ -210,12 +210,17 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
 
     if (isInLibrary || isRedeeming) return;
 
+    const storeSlug = router.query.store;
+
     setIsRedeeming(true);
     try {
       const res = await fetch("/api/v1/library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: game.slug }),
+        body: JSON.stringify({
+          slug: game.slug,
+          store_slug: typeof storeSlug === "string" ? storeSlug : undefined,
+        }),
       });
 
       if (!res.ok) throw new Error("Failed to redeem");

@@ -23,16 +23,25 @@ export type GameApi = {
   };
 };
 
-export function GameListItem({ game }: { game: GameApi }) {
+export function GameListItem({
+  game,
+  storeSlug,
+}: {
+  game: GameApi;
+  storeSlug?: string;
+}) {
   const isDemo = !game.price || Number(game.price) === 0;
   const isDiscounted =
     !isDemo && game.base_price && game.base_price !== game.price;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const itemHref = storeSlug
+    ? `/item/${game.slug}?store=${encodeURIComponent(storeSlug)}`
+    : `/item/${game.slug}`;
 
   return (
     <Link
-      href={`/item/${game.slug}`}
+      href={itemHref}
       className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 motion-safe:hover:-translate-y-1 relative overflow-hidden"
     >
       <div className="flex items-stretch gap-2 md:gap-6">
