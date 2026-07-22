@@ -530,6 +530,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       slug: studioOutput.slug,
       name: studioOutput.name,
       description: studioOutput.description,
+      logo_url: studioOutput.logo_url,
       is_publisher: studioOutput.is_publisher,
       owner_id: studioOutput.owner_id,
       created_at: studioOutput.created_at,

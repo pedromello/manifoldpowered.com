@@ -54,11 +54,35 @@ describe("POST /api/v1/studios", () => {
         slug: "pixel-forge-studio",
         name: "Pixel Forge Studio",
         description: "Indie game developer",
+        logo_url: null,
         is_publisher: true,
         owner_id: user.id,
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
+    });
+
+    test("With a logo_url should persist and return it", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/studios`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({
+          name: "Logo Studio",
+          logo_url: "https://example.com/logo.png",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const responseBody = await response.json();
+      expect(responseBody.logo_url).toBe("https://example.com/logo.png");
     });
 
     test("With is_publisher omitted should default to false", async () => {

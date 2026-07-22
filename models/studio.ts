@@ -7,6 +7,7 @@ import userModel from "models/user";
 export const studioSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(1000).optional(),
+  logo_url: z.string().url().max(2048).optional(),
   is_publisher: z.boolean().default(false),
 });
 
@@ -71,6 +72,7 @@ async function create(studioData: StudioCreateDto) {
     data: {
       name: studioData.name,
       description: studioData.description,
+      logo_url: studioData.logo_url,
       is_publisher: studioData.is_publisher,
       owner_id: studioData.owner_id,
       slug,
@@ -82,10 +84,12 @@ async function findAllPaginated({
   page = 1,
   limit = 20,
   q,
+  owner_id,
 }: {
   page?: number;
   limit?: number;
   q?: string;
+  owner_id?: string;
 }) {
   const where: Prisma.StudioWhereInput = {};
 
@@ -94,6 +98,10 @@ async function findAllPaginated({
       { name: { contains: q, mode: "insensitive" } },
       { slug: { contains: q, mode: "insensitive" } },
     ];
+  }
+
+  if (owner_id) {
+    where.owner_id = owner_id;
   }
 
   const [studios, total] = await Promise.all([

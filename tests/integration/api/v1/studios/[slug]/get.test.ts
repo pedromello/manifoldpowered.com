@@ -27,6 +27,7 @@ describe("GET /api/v1/studios/[slug]", () => {
         slug: createdStudio.slug,
         name: createdStudio.name,
         description: createdStudio.description,
+        logo_url: createdStudio.logo_url,
         is_publisher: createdStudio.is_publisher,
         owner_id: owner.id,
         created_at: createdStudio.created_at.toISOString(),
