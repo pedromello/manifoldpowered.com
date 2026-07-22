@@ -1,12 +1,18 @@
 import { ReactNode } from "react";
-import { StoreTopNav } from "./StoreTopNav";
+import { StoreTopNav, type StoreNavContext } from "./StoreTopNav";
 import { StoreFooter } from "./StoreFooter";
 
-export function StoreLayout({ children }: { children: ReactNode }) {
+export function StoreLayout({
+  children,
+  store,
+}: {
+  children: ReactNode;
+  store?: StoreNavContext;
+}) {
   return (
     <>
-      <StoreTopNav />
-      {/* 
+      <StoreTopNav store={store} />
+      {/*
         The top nav is fixed and transparent, some pages handle their own padding.
         We provide the common layout structure here.
       */}
