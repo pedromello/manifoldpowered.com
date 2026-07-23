@@ -11,6 +11,7 @@ export default function StoreOption2() {
       searchPagePath="/search"
       pageTitle="Discover (Dark) | Manifold Outlets"
       metaDescription="Explore the best games curated by the community in premium dark mode."
+      showDiscover
     />
   );
 }
