@@ -77,7 +77,7 @@ export default function StoreManagePage() {
   if (storeError || !storeData) {
     return (
       <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
-        <p className="text-rose-300 font-bold">Store not found.</p>
+        <p className="text-rose-300 font-bold">Outlet not found.</p>
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function StoreManagePage() {
     return (
       <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center px-4 text-center">
         <p className="text-rose-300 font-bold">
-          You do not have permission to manage this store.
+          You do not have permission to manage this outlet.
         </p>
       </div>
     );
@@ -216,7 +216,7 @@ function CurationTab({
           <h2 className="text-lg font-black">Tag Filters</h2>
           <p className="text-white/50 text-sm font-bold mt-1">
             Whitelist tags to show only matching games, or blacklist tags to
-            hide them. With no filters, your store shows the full catalog.
+            hide them. With no filters, your outlet shows the full catalog.
           </p>
         </div>
 
@@ -451,7 +451,7 @@ function SettingsTab({ store }: { store: StoreApi }) {
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(body?.message || "Failed to update store.");
+        setError(body?.message || "Failed to update outlet.");
         return;
       }
       setSuccess(true);
@@ -465,7 +465,7 @@ function SettingsTab({ store }: { store: StoreApi }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md">
       <label className="flex flex-col gap-2">
         <span className="text-xs font-black uppercase tracking-wider text-white/40">
-          Store name
+          Outlet name
         </span>
         <input
           type="text"
@@ -544,7 +544,7 @@ function SalesTab({ storeSlug }: { storeSlug: string }) {
     <div className="flex flex-col gap-4">
       <p className="text-white/50 text-sm font-bold">
         {data?.pagination.total ?? 0} sale
-        {data?.pagination.total === 1 ? "" : "s"} attributed to this store.
+        {data?.pagination.total === 1 ? "" : "s"} attributed to this outlet.
       </p>
 
       {sales.length === 0 ? (

@@ -66,7 +66,7 @@ const audiences: Record<
       "Manifold gives the gaming community the power to distribute games on their own terms.",
     features: [
       {
-        title: "Your Community, Your Store",
+        title: "Your Community, Your Outlet",
         description:
           "Stop sending your audience away to Steam. With Manifold, you open a verified, branded storefront in minutes. Handpick the catalog that fits your community's vibe perfectly.",
       },
@@ -94,7 +94,7 @@ const audiences: Record<
     hero: "Support creators directly without fracturing your game collection. One login, one library, endless storefronts.",
     manifestoLead: "",
     manifestoStrong:
-      "When you buy a game through a Manifold-powered store, your money goes to the people who actually made it and the community who championed it.",
+      "When you buy a game through a Manifold-powered outlet, your money goes to the people who actually made it and the community who championed it.",
     features: [
       {
         title: "One Epic Library",

@@ -295,7 +295,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
       <Head>
-        <title>{game.title} | Manifold Store</title>
+        <title>{game.title} | Manifold Outlets</title>
         <meta name="description" content={game.description} />
         <meta name="theme-color" content="#1D0F3B" />
       </Head>
@@ -379,7 +379,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                   size={16}
                   className="group-hover:-translate-x-1 transition-transform"
                 />
-                Back to Store
+                Back to Outlets
               </Link>
 
               <div className="flex flex-wrap items-center gap-3">

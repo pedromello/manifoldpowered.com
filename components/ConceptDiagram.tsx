@@ -117,7 +117,7 @@ function StoreNode({
           ))
         ) : (
           <span className="text-xs text-[rgba(53,34,89,0.3)] text-center py-4 font-bold uppercase tracking-widest">
-            Store Empty
+            Outlet Empty
           </span>
         )}
       </div>
@@ -332,26 +332,26 @@ export default function ConceptDiagram() {
         {/* TIER 2 */}
         <div className="flex flex-col items-center w-full mt-4 md:mt-0">
           <h2 className="text-sm md:text-base uppercase tracking-[0.2em] font-bold mb-8 text-[rgba(53,34,89,0.5)] text-center px-4">
-            2. Games are distributed across hundreds of Manifold stores. (Anyone
-            can create a store)
+            2. Games are distributed across hundreds of Manifold outlets.
+            (Anyone can create an outlet)
           </h2>
 
           <div className="flex flex-row md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory gap-6 md:gap-10 w-screen max-w-[100vw] -mx-4 px-8 md:w-full md:mx-0 md:px-0 place-items-stretch relative z-10 pb-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="min-w-[1vw] md:hidden"></div>
             <StoreNode
-              name="Cozy Streamer Store"
+              name="Cozy Streamer Outlet"
               description="A curated selection of the best relaxing and wholesome games."
               games={[games[1]]}
               storeIcon="🎙️"
             />
             <StoreNode
-              name="Games Curator Store"
+              name="Games Curator Outlet"
               description="The uncompromised catalog of top-tier independent games."
               games={games}
               storeIcon="🔎"
             />
             <StoreNode
-              name="RPG Gamers Store"
+              name="RPG Gamers Outlet"
               description="Everything for the hardcore story-driven role-playing enthusiast."
               games={[games[0]]}
               storeIcon="🎲"
@@ -436,9 +436,9 @@ export default function ConceptDiagram() {
             </h3>
 
             <div className="flex flex-col justify-center gap-4 md:gap-5 bg-[rgba(214,205,255,0.4)] p-4 md:p-6 rounded-[2.5rem] w-full border border-white/50 shadow-inner text-left">
-              <LibraryCard game={games[0]} purchasedAt="RPG Gamers Store" />
-              <LibraryCard game={games[1]} purchasedAt="Cozy Streamer Store" />
-              <LibraryCard game={games[2]} purchasedAt="Games Curator Store" />
+              <LibraryCard game={games[0]} purchasedAt="RPG Gamers Outlet" />
+              <LibraryCard game={games[1]} purchasedAt="Cozy Streamer Outlet" />
+              <LibraryCard game={games[2]} purchasedAt="Games Curator Outlet" />
             </div>
 
             <p className="mt-8 text-[rgba(53,34,89,0.7)] text-lg max-w-2xl leading-relaxed">

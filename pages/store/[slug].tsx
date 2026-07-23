@@ -58,7 +58,7 @@ export default function StorePage() {
   if (error || !store) {
     return (
       <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
-        <p className="text-rose-300 font-bold">Store not found.</p>
+        <p className="text-rose-300 font-bold">Outlet not found.</p>
       </div>
     );
   }
@@ -76,7 +76,7 @@ export default function StorePage() {
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
         browsePath={`/store/${store.slug}`}
         searchPagePath={`/store/${store.slug}`}
-        pageTitle={`${store.name} | Manifold Store`}
+        pageTitle={`${store.name} | Manifold Outlets`}
         metaDescription={
           store.description ||
           `Explore ${store.name}'s curated catalog on Manifold.`
@@ -91,7 +91,7 @@ export default function StorePage() {
           className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-wider shadow-2xl hover:bg-white/90 transition-colors"
         >
           <Settings size={16} />
-          Manage Store
+          Manage Outlet
         </Link>
       )}
     </StoreLayout>

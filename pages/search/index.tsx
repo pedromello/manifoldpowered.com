@@ -52,7 +52,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
       <Head>
-        <title>Search Results | Manifold Store</title>
+        <title>Search Results | Manifold Outlets</title>
         <meta name="theme-color" content="#1D0F3B" />
       </Head>
 

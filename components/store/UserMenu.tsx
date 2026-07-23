@@ -110,7 +110,7 @@ export function UserMenu() {
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Store size={16} className="text-indigo-400" />
-              My Stores
+              My Outlets
             </Link>
 
             <button
