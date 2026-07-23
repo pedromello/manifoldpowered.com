@@ -117,7 +117,10 @@ export default function SignupPage() {
         <div className="modal-success" role="status">
           <h2 id="early-access-title">Check your inbox</h2>
           <p>{successMessage}</p>
-          <Link href="/store" className="submit-button back-link">
+          <Link href="/onboarding" className="submit-button back-link">
+            See what you can build
+          </Link>
+          <Link href="/store" className="submit-button ghost-link">
             Browse games while you wait
           </Link>
         </div>
@@ -279,6 +282,16 @@ export default function SignupPage() {
           justify-content: center;
           text-decoration: none;
           margin-top: 1.5rem;
+        }
+
+        .ghost-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          background: transparent;
+          color: var(--color-purple-dark);
+          border: 1px solid rgba(53, 34, 89, 0.24);
         }
 
         @media (max-width: 520px) {
