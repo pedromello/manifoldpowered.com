@@ -98,7 +98,7 @@ export default function StudioSteamImportPage() {
           <div>
             <h1 className="text-2xl font-black">Import from Steam</h1>
             {studio && (
-              <p className="text-white/50 text-sm font-bold mt-1">
+              <p className="text-white/50 text-sm font-bold mt-1 break-words">
                 Importing into {studio.name}
               </p>
             )}
