@@ -29,7 +29,7 @@ export default function LibraryPage() {
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
       <Head>
-        <title>My Library | Manifold Store</title>
+        <title>My Library | Manifold Outlets</title>
         <meta name="theme-color" content="#1D0F3B" />
       </Head>
 
@@ -113,13 +113,13 @@ export default function LibraryPage() {
               </h2>
               <p className="text-white/40 font-bold max-w-md mb-8">
                 You haven&apos;t added any games to your library yet. Discover
-                your next adventure in the store.
+                your next adventure in the outlets.
               </p>
               <Link
                 href="/store"
                 className="px-8 py-4 rounded-xl border border-white/20 text-white font-black uppercase tracking-wider hover:bg-white hover:text-black transition-all"
               >
-                Browse Store
+                Browse Outlets
               </Link>
             </div>
           )}

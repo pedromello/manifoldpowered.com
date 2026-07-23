@@ -52,7 +52,7 @@ export default function MyStoresPage() {
   return (
     <>
       <Head>
-        <title>My Stores | Manifold</title>
+        <title>My Outlets | Manifold</title>
       </Head>
 
       <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4">
@@ -60,7 +60,7 @@ export default function MyStoresPage() {
           <Loader2 className="animate-spin text-white/30" />
         ) : (
           <div className="w-full max-w-md flex flex-col gap-4">
-            <h1 className="text-2xl font-black">My Stores</h1>
+            <h1 className="text-2xl font-black">My Outlets</h1>
             {stores.map((storeItem) => (
               <Link
                 key={storeItem.id}

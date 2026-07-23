@@ -55,7 +55,7 @@ export default function StoreCreatePage() {
       const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setFormError(body?.message || "Failed to create store.");
+        setFormError(body?.message || "Failed to create outlet.");
         return;
       }
 
@@ -68,15 +68,15 @@ export default function StoreCreatePage() {
   return (
     <>
       <Head>
-        <title>Create Your Store | Manifold</title>
+        <title>Create Your Outlet | Manifold</title>
       </Head>
 
       <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4">
         <div className="w-full max-w-md flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-black">Create Your Store</h1>
+            <h1 className="text-2xl font-black">Create Your Outlet</h1>
             <p className="text-white/50 text-sm font-bold mt-1">
-              A store is your own curated storefront on Manifold.
+              An Outlet is your own curated storefront on Manifold.
             </p>
           </div>
 
@@ -86,7 +86,7 @@ export default function StoreCreatePage() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="flex flex-col gap-2">
                 <span className="text-xs font-black uppercase tracking-wider text-white/40">
-                  Store name
+                  Outlet name
                 </span>
                 <input
                   type="text"
@@ -105,7 +105,7 @@ export default function StoreCreatePage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  placeholder="Tell players what your store is about."
+                  placeholder="Tell players what your outlet is about."
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20 resize-none"
                 />
               </label>
@@ -124,7 +124,7 @@ export default function StoreCreatePage() {
               </label>
 
               <p className="text-xs font-bold text-white/40">
-                Your store shows the full Manifold catalog by default. You can
+                Your outlet shows the full Manifold catalog by default. You can
                 curate what it shows after creating it.
               </p>
 
@@ -139,7 +139,7 @@ export default function StoreCreatePage() {
                 disabled={isSubmitting || !name.trim()}
                 className="px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Creating..." : "Create Store"}
+                {isSubmitting ? "Creating..." : "Create Outlet"}
               </button>
             </form>
           )}
