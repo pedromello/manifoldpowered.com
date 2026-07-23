@@ -62,7 +62,7 @@ export function BackofficeLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white">
       <BackofficeTopNav username={user.username} />
-      <main className="pt-24 pb-16 px-4 md:px-10 max-w-7xl mx-auto">
+      <main className="pt-32 md:pt-24 pb-16 px-4 md:px-10 max-w-7xl mx-auto">
         {children}
       </main>
     </div>
