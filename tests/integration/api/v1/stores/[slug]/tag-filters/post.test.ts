@@ -92,6 +92,45 @@ describe("POST /api/v1/stores/[slug]/tag-filters", () => {
       expect(responseBody.name).toBe("ValidationError");
     });
 
+    test("Adding the same tag in a different case is a duplicate (400), and tags are stored lowercase", async () => {
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const ownerSession = await orchestrator.createSession(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id);
+
+      const firstResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/tag-filters`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${ownerSession.token}`,
+          },
+          body: JSON.stringify({ tag: "RPG", mode: "WHITELIST" }),
+        },
+      );
+
+      expect(firstResponse.status).toBe(201);
+      const firstBody = await firstResponse.json();
+      expect(firstBody.tag).toBe("rpg");
+
+      const secondResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/tag-filters`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${ownerSession.token}`,
+          },
+          body: JSON.stringify({ tag: "rpg", mode: "BLACKLIST" }),
+        },
+      );
+
+      expect(secondResponse.status).toBe(400);
+      const secondBody = await secondResponse.json();
+      expect(secondBody.name).toBe("ValidationError");
+    });
+
     test("With invalid mode should return 400", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);

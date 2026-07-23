@@ -28,16 +28,27 @@ export const gameOverrideVisibilitySchema = gameOverrideSchema.pick({
   visibility: true,
 });
 
+// Tag filters are stored and matched case-insensitively: "RPG" and "rpg" are
+// the same filter. We canonicalize to lowercase on write and on every lookup
+// so the (store_id, tag) unique constraint dedupes case variants, and resolve
+// back to the catalog's actual tag casing at match time (see
+// getCurationWhereClause) rather than mutating how game tags are stored.
+function normalizeTag(tag: string): string {
+  return tag.trim().toLowerCase();
+}
+
 async function addTagFilter(
   storeId: string,
   tag: string,
   mode: (typeof TAG_FILTER_MODES)[number],
 ) {
+  const normalizedTag = normalizeTag(tag);
+
   try {
     return await prisma.storeTagFilter.create({
       data: {
         store_id: storeId,
-        tag,
+        tag: normalizedTag,
         mode,
       },
     });
@@ -47,7 +58,7 @@ async function addTagFilter(
       error.code === "P2002"
     ) {
       throw new ValidationError({
-        message: `Tag "${tag}" already has a filter configured for this store.`,
+        message: `Tag "${normalizedTag}" already has a filter configured for this store.`,
         action: "Update the existing filter instead of creating a new one.",
       });
     }
@@ -56,18 +67,20 @@ async function addTagFilter(
 }
 
 async function findOneTagFilterByTag(storeId: string, tag: string) {
+  const normalizedTag = normalizeTag(tag);
+
   const filter = await prisma.storeTagFilter.findUnique({
     where: {
       store_id_tag: {
         store_id: storeId,
-        tag,
+        tag: normalizedTag,
       },
     },
   });
 
   if (!filter) {
     throw new NotFoundError({
-      message: `No filter configured for tag "${tag}" in this store.`,
+      message: `No filter configured for tag "${normalizedTag}" in this store.`,
       action: "Check the tag and try again.",
     });
   }
@@ -250,10 +263,10 @@ async function getCurationWhereClause(
 
   const whitelist = filters
     .filter((filter) => filter.mode === "WHITELIST")
-    .map((filter) => filter.tag);
+    .map((filter) => filter.tag.toLowerCase());
   const blacklist = filters
     .filter((filter) => filter.mode === "BLACKLIST")
-    .map((filter) => filter.tag);
+    .map((filter) => filter.tag.toLowerCase());
   const forceShowIds = overrides
     .filter((override) => override.visibility === "SHOW")
     .map((override) => override.game_id);
@@ -274,11 +287,27 @@ async function getCurationWhereClause(
   // even if it matches the whitelist, and a force-shown game is included even
   // if it carries a blacklisted tag or doesn't match the whitelist.
   const tagRuleWhere: Prisma.GameWhereInput = {};
-  if (whitelist.length > 0) {
-    tagRuleWhere.tags = { hasSome: whitelist };
-  }
-  if (blacklist.length > 0) {
-    tagRuleWhere.NOT = { tags: { hasSome: blacklist } };
+
+  if (whitelist.length > 0 || blacklist.length > 0) {
+    // Filter tags are stored lowercase, but game tags keep their original
+    // casing (e.g. "RPG", "Story-Rich"). Resolve each lowercase filter tag to
+    // the actual casing(s) present in the catalog so matching is
+    // case-insensitive without mutating how game tags are stored. This only
+    // runs when a store actually has tag filters configured.
+    const casingsByLowerTag = await getGameTagCasings();
+    const toGameTagCasings = (lowerTags: string[]) =>
+      lowerTags.flatMap((lowerTag) => casingsByLowerTag.get(lowerTag) ?? []);
+
+    if (whitelist.length > 0) {
+      // If the whitelist resolves to no catalog casing, hasSome:[] matches no
+      // games — the correct result for whitelisting a tag nothing carries.
+      tagRuleWhere.tags = { hasSome: toGameTagCasings(whitelist) };
+    }
+
+    const blacklistCasings = toGameTagCasings(blacklist);
+    if (blacklistCasings.length > 0) {
+      tagRuleWhere.NOT = { tags: { hasSome: blacklistCasings } };
+    }
   }
 
   return {
@@ -287,6 +316,25 @@ async function getCurationWhereClause(
       { OR: [{ id: { in: forceShowIds } }, tagRuleWhere] },
     ],
   };
+}
+
+// Returns a map of lowercased tag -> the actual casing(s) that tag appears
+// under across the games catalog, from a single DISTINCT unnest query so the
+// result stays small regardless of catalog size.
+async function getGameTagCasings(): Promise<Map<string, string[]>> {
+  const rows = await prisma.$queryRaw<{ tag: string }[]>`
+    SELECT DISTINCT unnest(tags) AS tag FROM games
+  `;
+
+  const casingsByLowerTag = new Map<string, string[]>();
+  for (const row of rows) {
+    const lowerTag = row.tag.toLowerCase();
+    const casings = casingsByLowerTag.get(lowerTag) ?? [];
+    casings.push(row.tag);
+    casingsByLowerTag.set(lowerTag, casings);
+  }
+
+  return casingsByLowerTag;
 }
 
 const storeCuration = {
