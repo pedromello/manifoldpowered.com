@@ -145,4 +145,52 @@ describe("models/store_curation.ts curation rules", () => {
     expect(titles).toContain("Still Visible RPG");
     expect(titles).not.toContain("Force Hide RPG");
   });
+
+  test("A filter matches games case-insensitively, regardless of the case the curator typed", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id);
+
+    // Games carry mixed-case catalog tags (as CATEGORIES / Steam produce them).
+    const rpgGame = await orchestrator.createGame(owner.id, {
+      title: "CaseInsensitive RPG",
+      tags: ["RPG"],
+    });
+    await gameModel.makePublic(rpgGame.id);
+
+    const horrorGame = await orchestrator.createGame(owner.id, {
+      title: "CaseInsensitive Horror",
+      tags: ["Horror"],
+    });
+    await gameModel.makePublic(horrorGame.id);
+
+    // Curator whitelists with a different case than the game's tag.
+    await orchestrator.addStoreTagFilter(createdStore.id, "rpg", "WHITELIST");
+
+    const titles = await findCuratedTitles(createdStore.id);
+    expect(titles).toContain("CaseInsensitive RPG");
+    expect(titles).not.toContain("CaseInsensitive Horror");
+  });
+
+  test("The same tag in a different case is the same filter: stored lowercase, deduped, and resolvable by any case", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id);
+
+    const created = await orchestrator.addStoreTagFilter(
+      createdStore.id,
+      "RPG",
+      "WHITELIST",
+    );
+    expect(created.tag).toBe("rpg");
+
+    await expect(
+      orchestrator.addStoreTagFilter(createdStore.id, "rpg", "BLACKLIST"),
+    ).rejects.toThrow();
+
+    // Removing by yet another case resolves the same lowercase row.
+    await storeCuration.removeTagFilter(createdStore.id, "rPg");
+    const remaining = await storeCuration.listTagFilters(createdStore.id);
+    expect(remaining).toHaveLength(0);
+  });
 });
