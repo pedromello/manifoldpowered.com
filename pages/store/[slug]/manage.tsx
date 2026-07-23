@@ -98,17 +98,19 @@ export default function StoreManagePage() {
         <title>Manage {storeData.name} | Manifold</title>
       </Head>
 
-      <div className="max-w-3xl mx-auto px-6 pt-16 flex flex-col gap-8">
-        <div className="flex items-center justify-between gap-4">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-16 flex flex-col gap-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-black">Manage {storeData.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-black break-words">
+              Manage {storeData.name}
+            </h1>
             <p className="text-white/50 text-sm font-bold mt-1">
               Curate your storefront and track your sales.
             </p>
           </div>
           <Link
             href={`/store/${storeData.slug}`}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
+            className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
           >
             View my storefront
             <ExternalLink size={14} />
@@ -226,7 +228,7 @@ function CurationTab({
             value={tag}
             onChange={(e) => setTag(e.target.value)}
             placeholder="e.g. RPG"
-            className="flex-1 min-w-[160px] rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
+            className="w-full sm:w-auto sm:flex-1 sm:min-w-[160px] rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
           />
           <select
             value={mode}
