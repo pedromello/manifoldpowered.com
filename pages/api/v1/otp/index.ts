@@ -7,7 +7,7 @@ import { ValidationError } from "infra/errors";
 import { z } from "zod";
 
 const requestOtpSchema = z.object({
-  email: z.email(),
+  login: z.string().trim().min(1),
 });
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -26,7 +26,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const userRequestingCode = await user.findOneByEmail(result.data.email);
+  const userRequestingCode = await user.findOneByLogin(result.data.login);
 
   const { code } = await otp.create(userRequestingCode.id);
   await otp.sendEmailToUser(userRequestingCode, code);

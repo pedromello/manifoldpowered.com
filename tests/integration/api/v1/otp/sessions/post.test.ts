@@ -11,7 +11,7 @@ beforeAll(async () => {
 
 describe("POST /api/v1/otp/sessions", () => {
   describe("Anonymous user", () => {
-    test("With valid and unexpired code should create a session and return 201", async () => {
+    test("With a valid and unexpired code (by email) should create a session and return 201", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
 
@@ -22,7 +22,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code }),
+          body: JSON.stringify({ login: user.email, code }),
         },
       );
 
@@ -49,6 +49,27 @@ describe("POST /api/v1/otp/sessions", () => {
       });
     });
 
+    test("With a valid and unexpired code (by username) should create a session and return 201", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+
+      const { code } = await otp.create(user.id);
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/otp/sessions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ login: user.username, code }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+
+      const responseBody = await response.json();
+      expect(responseBody.user_id).toBe(user.id);
+    });
+
     test("With invalid code should return 401", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
@@ -59,7 +80,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code: "000000" }),
+          body: JSON.stringify({ login: user.email, code: "000000" }),
         },
       );
 
@@ -74,14 +95,14 @@ describe("POST /api/v1/otp/sessions", () => {
       });
     });
 
-    test("With non-existent email should return 401", async () => {
+    test("With non-existent login should return 401", async () => {
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: "non-existent@pedro.tec.br",
+            login: "non-existent@pedro.tec.br",
             code: "123456",
           }),
         },
@@ -116,7 +137,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code }),
+          body: JSON.stringify({ login: user.email, code }),
         },
       );
 
@@ -141,7 +162,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code }),
+          body: JSON.stringify({ login: user.email, code }),
         },
       );
       expect(firstResponse.status).toBe(201);
@@ -151,7 +172,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code }),
+          body: JSON.stringify({ login: user.email, code }),
         },
       );
 
@@ -175,7 +196,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, code }),
+          body: JSON.stringify({ login: user.email, code }),
         },
       );
 
@@ -196,7 +217,7 @@ describe("POST /api/v1/otp/sessions", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: "not-an-email", code: "1" }),
+          body: JSON.stringify({ login: "someone", code: "1" }),
         },
       );
 

@@ -63,7 +63,7 @@ manifoldpowered.com`,
   });
 }
 
-async function validateAndConsume(providedEmail: string, providedCode: string) {
+async function validateAndConsume(providedLogin: string, providedCode: string) {
   const invalidOrExpiredError = new UnauthorizedError({
     message: "Invalid or expired code",
     action: "Request a new code and try again",
@@ -71,7 +71,7 @@ async function validateAndConsume(providedEmail: string, providedCode: string) {
 
   let userFound: User;
   try {
-    userFound = await user.findOneByEmail(providedEmail);
+    userFound = await user.findOneByLogin(providedLogin);
   } catch {
     throw invalidOrExpiredError;
   }

@@ -23,7 +23,7 @@ describe("Use case: Passwordless login flow via OTP (all successful)", () => {
     const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newUser.email }),
+      body: JSON.stringify({ login: newUser.email }),
     });
 
     expect(response.status).toBe(201);
@@ -45,7 +45,7 @@ describe("Use case: Passwordless login flow via OTP (all successful)", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newUser.email, code }),
+        body: JSON.stringify({ login: newUser.email, code }),
       },
     );
 
@@ -80,7 +80,7 @@ describe("Use case: Passwordless login flow via OTP (all successful)", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newUser.email, code }),
+        body: JSON.stringify({ login: newUser.email, code }),
       },
     );
 

@@ -129,6 +129,20 @@ const findOneByEmail = async (email: string) => {
   return user;
 };
 
+// Resolves a login identifier to a user: treated as an email when it contains
+// "@", otherwise as a username. Reuses the existing finders, so it throws the
+// same NotFoundError they do when nothing matches. Used by the passwordless
+// login flow so users can sign in with either their username or their email.
+const findOneByLogin = async (login: string) => {
+  const normalizedLogin = login.trim();
+
+  if (normalizedLogin.includes("@")) {
+    return findOneByEmail(normalizedLogin);
+  }
+
+  return findOneByUsername(normalizedLogin);
+};
+
 const findOneById = async (id: string) => {
   const user = await prisma.user.findUnique({
     where: {
@@ -272,6 +286,7 @@ const user = {
   findOneById,
   findOneByUsername,
   findOneByEmail,
+  findOneByLogin,
   findAllPaginated,
   updateByUsername,
   update,

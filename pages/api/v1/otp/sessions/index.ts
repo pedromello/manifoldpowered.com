@@ -8,7 +8,7 @@ import { ForbiddenError, ValidationError } from "infra/errors";
 import { z } from "zod";
 
 const verifyOtpSchema = z.object({
-  email: z.email(),
+  login: z.string().trim().min(1),
   code: z.string().length(6),
 });
 
@@ -29,7 +29,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const authUser = await otp.validateAndConsume(
-    result.data.email,
+    result.data.login,
     result.data.code,
   );
 
