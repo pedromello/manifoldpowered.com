@@ -65,7 +65,7 @@ export default function MyStudiosPage() {
               <Link
                 key={studio.id}
                 href={`/studio/${studio.slug}`}
-                className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 font-bold text-white hover:bg-white/10 transition-colors"
+                className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 font-bold text-white hover:bg-white/10 transition-colors break-words"
               >
                 {studio.name}
               </Link>

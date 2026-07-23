@@ -46,16 +46,18 @@ export default function StudioPage() {
                 <img
                   src={studio.logo_url}
                   alt={`${studio.name} logo`}
-                  className="w-16 h-16 rounded-2xl object-cover border border-white/10 bg-white/5"
+                  className="w-16 h-16 shrink-0 rounded-2xl object-cover border border-white/10 bg-white/5"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-white/30">
+                <div className="w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-white/30">
                   <Building2 size={28} />
                 </div>
               )}
 
-              <div>
-                <h1 className="text-2xl font-black">{studio.name}</h1>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-black break-words">
+                  {studio.name}
+                </h1>
                 {studio.is_publisher && (
                   <span className="inline-block mt-1 px-2 py-0.5 rounded-lg bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
                     Publisher
