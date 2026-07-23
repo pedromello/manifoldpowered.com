@@ -12,6 +12,7 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
 import { GameListItem, type GameApi } from "components/store/GameListItem";
+import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 
 function HeroBento({
   featured,
@@ -208,6 +209,8 @@ export type StorefrontProps = {
   heading?: string;
   /** When set, item links carry `?store=` so acquisitions attribute to this store. */
   storeSlug?: string;
+  /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
+  showDiscover?: boolean;
 };
 
 export function Storefront({
@@ -219,6 +222,7 @@ export function Storefront({
   metaDescription,
   heading = "Just Arrived at Manifold",
   storeSlug,
+  showDiscover = false,
 }: StorefrontProps) {
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
@@ -348,6 +352,7 @@ export function Storefront({
             </div>
           </div>
         </div>
+        {showDiscover && <DiscoverOutlets />}
       </main>
 
       <style jsx global>{`
