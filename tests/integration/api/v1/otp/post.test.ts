@@ -9,7 +9,7 @@ beforeAll(async () => {
 
 describe("POST /api/v1/otp", () => {
   describe("Anonymous user", () => {
-    test("With existing email should send a code and return 201", async () => {
+    test("With an existing email should send a code and return 201", async () => {
       const user = await orchestrator.createUser({
         email: "otp-request@pedro.tec.br",
       });
@@ -17,7 +17,7 @@ describe("POST /api/v1/otp", () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email }),
+        body: JSON.stringify({ login: user.email }),
       });
 
       expect(response.status).toBe(201);
@@ -34,11 +34,35 @@ describe("POST /api/v1/otp", () => {
       expect(code).toMatch(/^\d{6}$/);
     });
 
-    test("With non-existent email should return 404", async () => {
+    test("With an existing username should send a code to that user's email and return 201", async () => {
+      const user = await orchestrator.createUser({
+        username: "otpbyusername",
+        email: "otp-by-username@pedro.tec.br",
+      });
+
       const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "non-existent@pedro.tec.br" }),
+        body: JSON.stringify({ login: user.username }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({ message: "OTP code sent to your email" });
+
+      const lastEmail = await orchestrator.getLastEmail();
+      expect(lastEmail.recipients[0]).toBe("<otp-by-username@pedro.tec.br>");
+
+      const code = orchestrator.extractOtpCode(lastEmail.text);
+      expect(code).toMatch(/^\d{6}$/);
+    });
+
+    test("With a non-existent email should return 404", async () => {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: "non-existent@pedro.tec.br" }),
       });
 
       expect(response.status).toBe(404);
@@ -52,11 +76,29 @@ describe("POST /api/v1/otp", () => {
       });
     });
 
-    test("With invalid email format should return 400", async () => {
+    test("With a non-existent username should return 404", async () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "not-an-email" }),
+        body: JSON.stringify({ login: "nonexistentuser" }),
+      });
+
+      expect(response.status).toBe(404);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        message: "User with username nonexistentuser not found",
+        name: "NotFoundError",
+        action: "Try another username",
+        status_code: 404,
+      });
+    });
+
+    test("With a missing login should return 400", async () => {
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
 
       expect(response.status).toBe(400);

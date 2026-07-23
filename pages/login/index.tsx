@@ -3,12 +3,12 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import AuthLayout from "../../components/AuthLayout";
 
-type Step = "email" | "code";
+type Step = "login" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<Step>("login");
+  const [login, setLogin] = useState("");
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +54,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.trim(),
+          login: login.trim(),
         }),
       });
 
@@ -91,7 +91,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.trim(),
+          login: login.trim(),
           code: code.trim(),
         }),
       });
@@ -119,8 +119,8 @@ export default function LoginPage() {
     }
   }
 
-  function handleUseDifferentEmail() {
-    setStep("email");
+  function handleUseDifferentAccount() {
+    setStep("login");
     setCode("");
     setErrorMessage("");
   }
@@ -143,26 +143,26 @@ export default function LoginPage() {
     >
       <form
         className="auth-form"
-        onSubmit={step === "email" ? handleRequestCode : handleVerifyCode}
+        onSubmit={step === "login" ? handleRequestCode : handleVerifyCode}
       >
         <div className="modal-heading">
           <h2 id="login-title">Log In</h2>
           <p>
-            {step === "email"
+            {step === "login"
               ? "Welcome back to Manifold."
-              : `Enter the code we sent to ${email.trim()}.`}
+              : "Enter the 6-digit code we sent to your email."}
           </p>
         </div>
 
-        {step === "email" ? (
+        {step === "login" ? (
           <label className="field">
-            <span>Email</span>
+            <span>Username or email</span>
             <input
-              autoComplete="email"
+              autoComplete="username"
               required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              type="text"
+              value={login}
+              onChange={(event) => setLogin(event.target.value)}
             />
           </label>
         ) : (
@@ -190,10 +190,10 @@ export default function LoginPage() {
 
         <button className="submit-button" disabled={isSubmitting} type="submit">
           {isSubmitting
-            ? step === "email"
+            ? step === "login"
               ? "Sending..."
               : "Verifying..."
-            : step === "email"
+            : step === "login"
               ? "Send Code"
               : "Log In"}
         </button>
@@ -203,9 +203,9 @@ export default function LoginPage() {
             className="submit-button"
             type="button"
             disabled={isSubmitting}
-            onClick={handleUseDifferentEmail}
+            onClick={handleUseDifferentAccount}
           >
-            Use a different email
+            Use a different account
           </button>
         ) : null}
 
