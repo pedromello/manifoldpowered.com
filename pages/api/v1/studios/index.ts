@@ -12,9 +12,10 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
-  const { studios, pagination } = await studio.findAllPaginated({
-    owner_id: req.context.user.id,
-  });
+  // "My Studios": studios the user owns OR is a member of (see
+  // studio.findAllForUser). The full set is returned unpaginated; the
+  // pagination envelope is kept for response-shape compatibility.
+  const studios = await studio.findAllForUser(req.context.user.id);
 
   const secureOutputValues = studios.map((studioItem) =>
     authorization.filterOutput(req.context.user, "create:studio", studioItem),
@@ -22,7 +23,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   return res.status(200).json({
     studios: secureOutputValues,
-    pagination,
+    pagination: {
+      page: 1,
+      limit: studios.length,
+      total: studios.length,
+      pages: studios.length > 0 ? 1 : 0,
+    },
   });
 }
 

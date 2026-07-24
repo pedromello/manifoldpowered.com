@@ -24,34 +24,77 @@ describe("GET /api/v1/studios", () => {
   });
 
   describe("Authenticated user", () => {
-    test("Should return only the requesting user's own studios", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const ownerSession = await orchestrator.createSession(owner.id);
-      const ownedStudio = await orchestrator.createStudio(owner.id, {
-        name: "My Owned Studio",
+    test("Returns studios the user owns and studios they are a member of, but not others'", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      const ownedStudio = await orchestrator.createStudio(user.id, {
+        name: "Owned Studio",
       });
 
-      const otherUser = await orchestrator.createUser();
-      await orchestrator.activateUser(otherUser.id);
-      await orchestrator.createStudio(otherUser.id, {
-        name: "Someone Elses Studio",
+      // A studio owned by someone else, that our user is a MEMBER of.
+      const otherOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(otherOwner.id);
+      const memberStudio = await orchestrator.createStudio(otherOwner.id, {
+        name: "Member Studio",
+      });
+      await orchestrator.addStudioMember(memberStudio.id, user.username, [
+        "update:studio",
+      ]);
+
+      // A studio our user neither owns nor belongs to.
+      const unrelatedStudio = await orchestrator.createStudio(otherOwner.id, {
+        name: "Unrelated Studio",
       });
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/studios`, {
-        headers: { Cookie: `session_id=${ownerSession.token}` },
+        headers: { Cookie: `session_id=${session.token}` },
       });
 
       expect(response.status).toBe(200);
 
       const responseBody = await response.json();
-      expect(responseBody.studios).toHaveLength(1);
-      expect(responseBody.studios[0].id).toBe(ownedStudio.id);
-      expect(responseBody.studios[0].name).toBe("My Owned Studio");
-      expect(responseBody.pagination.total).toBe(1);
+      const ids = responseBody.studios.map((item: { id: string }) => item.id);
+      expect(ids).toContain(ownedStudio.id);
+      expect(ids).toContain(memberStudio.id);
+      expect(ids).not.toContain(unrelatedStudio.id);
+      expect(responseBody.studios).toHaveLength(2);
+      expect(responseBody.pagination.total).toBe(2);
     });
 
-    test("With zero studios should return an empty list", async () => {
+    test("Lists owned studios before member-of studios", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      // Owned name sorts AFTER the member name alphabetically, so if owned
+      // still comes first the owned-first ordering is proven.
+      const ownedStudio = await orchestrator.createStudio(user.id, {
+        name: "Zeta Owned Studio",
+      });
+
+      const otherOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(otherOwner.id);
+      const memberStudio = await orchestrator.createStudio(otherOwner.id, {
+        name: "Alpha Member Studio",
+      });
+      await orchestrator.addStudioMember(memberStudio.id, user.username, [
+        "update:studio",
+      ]);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/studios`, {
+        headers: { Cookie: `session_id=${session.token}` },
+      });
+
+      const responseBody = await response.json();
+      const ids = responseBody.studios.map((item: { id: string }) => item.id);
+      expect(ids.indexOf(ownedStudio.id)).toBeLessThan(
+        ids.indexOf(memberStudio.id),
+      );
+    });
+
+    test("With no owned or member studios should return an empty list", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);

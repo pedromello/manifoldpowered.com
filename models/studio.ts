@@ -134,6 +134,40 @@ async function findAllPaginated({
   };
 }
 
+// Every studio the user can act on: those they own plus those they're a member
+// of (via StudioMember). Powers the "My Studios" resolver. There is no
+// Studio<->StudioMember relation (the repo forbids foreign keys), so the
+// membership side is resolved to studio ids first, then those studios are
+// fetched by id and unioned with the owned ones. Owned and member sets are
+// disjoint (addMember rejects the owner) but we dedup defensively. Ordered
+// owned-first, then alphabetical by name within each group.
+async function findAllForUser(userId: string) {
+  const [ownedStudios, memberRows] = await Promise.all([
+    prisma.studio.findMany({ where: { owner_id: userId } }),
+    prisma.studioMember.findMany({
+      where: { user_id: userId },
+      select: { studio_id: true },
+    }),
+  ]);
+
+  const ownedIds = new Set(ownedStudios.map((studio) => studio.id));
+  const memberStudioIds = memberRows
+    .map((row) => row.studio_id)
+    .filter((id) => !ownedIds.has(id));
+
+  const memberStudios =
+    memberStudioIds.length > 0
+      ? await prisma.studio.findMany({
+          where: { id: { in: memberStudioIds } },
+        })
+      : [];
+
+  const byName = (a: { name: string }, b: { name: string }) =>
+    a.name.localeCompare(b.name);
+
+  return [...ownedStudios.sort(byName), ...memberStudios.sort(byName)];
+}
+
 async function findOneById(id: string) {
   const studio = await prisma.studio.findUnique({
     where: {
@@ -390,6 +424,7 @@ async function listMembersWithUsernames(studioId: string) {
 const studio = {
   create,
   findAllPaginated,
+  findAllForUser,
   findOneById,
   findOneByIdWithMembers,
   findOneBySlug,
