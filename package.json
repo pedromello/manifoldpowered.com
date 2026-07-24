@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/pedromello/manifoldpowered.com.git"
   },
-  "license": "ISC",
+  "license": "MIT",
   "author": "Pedro Mello",
   "main": "index.js",
   "type": "module",
