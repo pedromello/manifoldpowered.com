@@ -4,6 +4,8 @@ import Head from "next/head";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 import { Loader2, ExternalLink, X, ChevronDown } from "lucide-react";
+import { GameAutocomplete } from "components/store/GameAutocomplete";
+import { type GameApi } from "components/store/GameListItem";
 
 interface StoreApi {
   id: string;
@@ -319,28 +321,28 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
     fetcher,
   );
 
-  const [gameSlug, setGameSlug] = useState("");
+  const [selectedGame, setSelectedGame] = useState<GameApi | null>(null);
   const [visibility, setVisibility] = useState<"SHOW" | "HIDE">("SHOW");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleAddOverride(event: React.FormEvent) {
     event.preventDefault();
-    if (!gameSlug.trim()) return;
+    if (!selectedGame) return;
     setError(null);
     setIsSubmitting(true);
     try {
       const response = await fetch(overridesKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game_slug: gameSlug.trim(), visibility }),
+        body: JSON.stringify({ game_slug: selectedGame.slug, visibility }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         setError(body?.message || "Failed to add game override.");
         return;
       }
-      setGameSlug("");
+      setSelectedGame(null);
       mutate(overridesKey);
     } finally {
       setIsSubmitting(false);
@@ -361,13 +363,34 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
       </p>
 
       <form onSubmit={handleAddOverride} className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          value={gameSlug}
-          onChange={(e) => setGameSlug(e.target.value)}
-          placeholder="game-slug"
-          className="flex-1 min-w-[160px] rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
-        />
+        {selectedGame ? (
+          <div className="flex-1 min-w-[160px] flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <div
+              className="h-8 aspect-[16/9] rounded-md shrink-0 border border-white/5"
+              style={{
+                background: selectedGame.media.banner
+                  ? `url(${selectedGame.media.banner}) center/cover no-repeat`
+                  : "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)",
+              }}
+            />
+            <span className="flex-1 font-bold text-white text-sm truncate">
+              {selectedGame.title}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedGame(null)}
+              className="text-white/40 hover:text-white transition-colors shrink-0"
+              aria-label="Clear selected game"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <GameAutocomplete
+            onSelect={(game) => setSelectedGame(game)}
+            placeholder="Search games..."
+          />
+        )}
         <select
           value={visibility}
           onChange={(e) => setVisibility(e.target.value as "SHOW" | "HIDE")}
@@ -378,7 +401,7 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
         </select>
         <button
           type="submit"
-          disabled={isSubmitting || !gameSlug.trim()}
+          disabled={isSubmitting || !selectedGame}
           className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Add
@@ -400,29 +423,57 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           </p>
         ) : (
           overrides.map((override) => (
-            <div
+            <OverrideChip
               key={override.id}
-              className={`flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border text-sm font-bold ${
-                override.visibility === "SHOW"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                  : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-              }`}
-            >
-              <span>
-                {override.visibility === "SHOW" ? "Shown" : "Hidden"}:{" "}
-                {override.game_slug}
-              </span>
-              <button
-                onClick={() => handleRemoveOverride(override)}
-                className="text-white/40 hover:text-white transition-colors"
-                aria-label={`Remove override for ${override.game_slug}`}
-              >
-                <X size={14} />
-              </button>
-            </div>
+              override={override}
+              onRemove={handleRemoveOverride}
+            />
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+function OverrideChip({
+  override,
+  onRemove,
+}: {
+  override: GameOverrideApi;
+  onRemove: (override: GameOverrideApi) => void;
+}) {
+  const { data: game } = useSWR<GameApi>(
+    `/api/v1/items/games/${override.game_slug}`,
+    (url) => fetch(url).then((res) => (res.ok ? res.json() : null)),
+  );
+
+  return (
+    <div
+      className={`flex items-center gap-2 pl-2 pr-2 py-1.5 rounded-xl border text-sm font-bold ${
+        override.visibility === "SHOW"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+          : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+      }`}
+    >
+      {game?.media.banner && (
+        <div
+          className="h-6 aspect-[16/9] rounded shrink-0 border border-white/10"
+          style={{
+            background: `url(${game.media.banner}) center/cover no-repeat`,
+          }}
+        />
+      )}
+      <span>
+        {override.visibility === "SHOW" ? "Shown" : "Hidden"}:{" "}
+        {game?.title ?? override.game_slug}
+      </span>
+      <button
+        onClick={() => onRemove(override)}
+        className="text-white/40 hover:text-white transition-colors"
+        aria-label={`Remove override for ${game?.title ?? override.game_slug}`}
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }

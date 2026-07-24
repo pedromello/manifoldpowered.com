@@ -21,6 +21,10 @@ export type GameApi = {
     icon?: string;
     videos: string[];
   };
+  status?: "ACTIVE" | "INACTIVE" | "PRIVATE";
+  positive_reviews?: number;
+  negative_reviews?: number;
+  review_score?: string | null;
 };
 
 export function GameListItem({
