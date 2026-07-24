@@ -24,34 +24,77 @@ describe("GET /api/v1/stores", () => {
   });
 
   describe("Authenticated user", () => {
-    test("Should return only the requesting user's own stores", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const ownerSession = await orchestrator.createSession(owner.id);
-      const ownedStore = await orchestrator.createStore(owner.id, {
-        name: "My Owned Store",
+    test("Returns stores the user owns and stores they are a member of, but not others'", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      const ownedStore = await orchestrator.createStore(user.id, {
+        name: "Owned Store",
       });
 
-      const otherUser = await orchestrator.createUser();
-      await orchestrator.activateUser(otherUser.id);
-      await orchestrator.createStore(otherUser.id, {
-        name: "Someone Elses Store",
+      // A store owned by someone else, that our user is a MEMBER of.
+      const otherOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(otherOwner.id);
+      const memberStore = await orchestrator.createStore(otherOwner.id, {
+        name: "Member Store",
+      });
+      await orchestrator.addStoreMember(memberStore.id, user.username, [
+        "update:store",
+      ]);
+
+      // A store our user neither owns nor belongs to.
+      const unrelatedStore = await orchestrator.createStore(otherOwner.id, {
+        name: "Unrelated Store",
       });
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/stores`, {
-        headers: { Cookie: `session_id=${ownerSession.token}` },
+        headers: { Cookie: `session_id=${session.token}` },
       });
 
       expect(response.status).toBe(200);
 
       const responseBody = await response.json();
-      expect(responseBody.stores).toHaveLength(1);
-      expect(responseBody.stores[0].id).toBe(ownedStore.id);
-      expect(responseBody.stores[0].name).toBe("My Owned Store");
-      expect(responseBody.pagination.total).toBe(1);
+      const ids = responseBody.stores.map((item: { id: string }) => item.id);
+      expect(ids).toContain(ownedStore.id);
+      expect(ids).toContain(memberStore.id);
+      expect(ids).not.toContain(unrelatedStore.id);
+      expect(responseBody.stores).toHaveLength(2);
+      expect(responseBody.pagination.total).toBe(2);
     });
 
-    test("With zero stores should return an empty list", async () => {
+    test("Lists owned stores before member-of stores", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      // Owned name sorts AFTER the member name alphabetically, so if owned
+      // still comes first the owned-first ordering is proven.
+      const ownedStore = await orchestrator.createStore(user.id, {
+        name: "Zeta Owned Store",
+      });
+
+      const otherOwner = await orchestrator.createUser();
+      await orchestrator.activateUser(otherOwner.id);
+      const memberStore = await orchestrator.createStore(otherOwner.id, {
+        name: "Alpha Member Store",
+      });
+      await orchestrator.addStoreMember(memberStore.id, user.username, [
+        "update:store",
+      ]);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/stores`, {
+        headers: { Cookie: `session_id=${session.token}` },
+      });
+
+      const responseBody = await response.json();
+      const ids = responseBody.stores.map((item: { id: string }) => item.id);
+      expect(ids.indexOf(ownedStore.id)).toBeLessThan(
+        ids.indexOf(memberStore.id),
+      );
+    });
+
+    test("With no owned or member stores should return an empty list", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);

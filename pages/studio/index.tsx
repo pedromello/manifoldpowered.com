@@ -9,10 +9,15 @@ interface Studio {
   id: string;
   slug: string;
   name: string;
+  owner_id: string;
 }
 
 interface StudiosResponse {
   studios: Studio[];
+}
+
+interface CurrentUser {
+  id: string;
 }
 
 const fetcher = (url: string) =>
@@ -29,6 +34,10 @@ export default function MyStudiosPage() {
     fetcher,
     { shouldRetryOnError: false },
   );
+
+  const { data: currentUser } = useSWR<CurrentUser>("/api/v1/user", fetcher, {
+    shouldRetryOnError: false,
+  });
 
   useEffect(() => {
     if (isLoading) return;
@@ -60,14 +69,24 @@ export default function MyStudiosPage() {
           <Loader2 className="animate-spin text-white/30" />
         ) : (
           <div className="w-full max-w-md flex flex-col gap-4">
-            <h1 className="text-2xl font-black">My Studios</h1>
+            <div>
+              <h1 className="text-2xl font-black">Choose a Studio</h1>
+              <p className="text-white/50 text-sm font-bold mt-1">
+                Pick which one to open.
+              </p>
+            </div>
             {studios.map((studio) => (
               <Link
                 key={studio.id}
                 href={`/studio/${studio.slug}`}
-                className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 font-bold text-white hover:bg-white/10 transition-colors break-words"
+                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 font-bold text-white hover:bg-white/10 transition-colors"
               >
-                {studio.name}
+                <span className="truncate">{studio.name}</span>
+                {currentUser && (
+                  <span className="shrink-0 px-2 py-0.5 rounded-md bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
+                    {studio.owner_id === currentUser.id ? "Owner" : "Member"}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

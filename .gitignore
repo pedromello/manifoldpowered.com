@@ -12,4 +12,4 @@ build
 
 /generated/prisma
 
-.env
+.envtsconfig.tsbuildinfo

@@ -124,6 +124,38 @@ async function findAllPaginated({
   };
 }
 
+// Every store the user can act on: those they own plus those they're a member
+// of (via StoreMember). Powers the "My Outlets" resolver. There is no
+// Store<->StoreMember relation (the repo forbids foreign keys), so the
+// membership side is resolved to store ids first, then those stores are
+// fetched by id and unioned with the owned ones. Owned and member sets are
+// disjoint (addMember rejects the owner) but we dedup defensively. Ordered
+// owned-first, then alphabetical by name within each group.
+async function findAllForUser(userId: string) {
+  const [ownedStores, memberRows] = await Promise.all([
+    prisma.store.findMany({ where: { owner_id: userId } }),
+    prisma.storeMember.findMany({
+      where: { user_id: userId },
+      select: { store_id: true },
+    }),
+  ]);
+
+  const ownedIds = new Set(ownedStores.map((store) => store.id));
+  const memberStoreIds = memberRows
+    .map((row) => row.store_id)
+    .filter((id) => !ownedIds.has(id));
+
+  const memberStores =
+    memberStoreIds.length > 0
+      ? await prisma.store.findMany({ where: { id: { in: memberStoreIds } } })
+      : [];
+
+  const byName = (a: { name: string }, b: { name: string }) =>
+    a.name.localeCompare(b.name);
+
+  return [...ownedStores.sort(byName), ...memberStores.sort(byName)];
+}
+
 async function findOneBySlug(slug: string) {
   const store = await prisma.store.findUnique({
     where: {
@@ -350,6 +382,7 @@ async function listMembersWithUsernames(storeId: string) {
 const store = {
   create,
   findAllPaginated,
+  findAllForUser,
   findOneBySlug,
   findOneBySlugWithMembers,
   update,

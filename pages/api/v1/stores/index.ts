@@ -12,9 +12,10 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .handler(controller.errorHandlers);
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
-  const { stores, pagination } = await store.findAllPaginated({
-    owner_id: req.context.user.id,
-  });
+  // "My Outlets": stores the user owns OR is a member of (see
+  // store.findAllForUser). The full set is returned unpaginated; the
+  // pagination envelope is kept for response-shape compatibility.
+  const stores = await store.findAllForUser(req.context.user.id);
 
   const secureOutputValues = stores.map((storeItem) =>
     authorization.filterOutput(req.context.user, "create:store", storeItem),
@@ -22,7 +23,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   return res.status(200).json({
     stores: secureOutputValues,
-    pagination,
+    pagination: {
+      page: 1,
+      limit: stores.length,
+      total: stores.length,
+      pages: stores.length > 0 ? 1 : 0,
+    },
   });
 }
 
