@@ -12,4 +12,7 @@ build
 
 /generated/prisma
 
-.envtsconfig.tsbuildinfo
+.env
+
+# TypeScript incremental build info
+tsconfig.tsbuildinfo
