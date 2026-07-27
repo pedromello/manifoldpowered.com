@@ -13,7 +13,7 @@ Status key: [ ] not started · [~] in progress · [x] done
 under the model described in `business-description.md`.
 
 - [ ] Submit `business-description.md` to Stripe. Ask explicitly: *"Please
-      confirm our account is approved for the sale of prepaid digital game codes
+      confirm our account is approved for the sale of branded digital gift cards
       under this model."* Get it in writing — a support ticket reply is fine, a
       verbal from sales is not.
 - [ ] Ask specifically whether the affiliate storefront model requires Connect,
@@ -31,29 +31,40 @@ under the model described in `business-description.md`.
 approval, and a category violation discovered post-launch means frozen funds
 plus undelivered orders you have already been paid for.
 
-## 2. CodesWholesale supply agreement [ ]
+## 2. Reloadly supply agreement [ ]
 
 Questions to get answered in writing before integrating:
 
-- [ ] Does our contract permit resale to consumers via affiliate-branded
+- [ ] Does our agreement permit resale to consumers via affiliate-branded
       storefronts under our own brand? Any restriction on white-labelling?
-- [ ] Who bears the loss on a dead, duplicate, region-locked, or
-      already-redeemed key? What is the claim window and evidence standard?
-- [ ] Is there an API SLA? What is the documented behaviour when a code reserve
-      call fails or times out mid-transaction — is a timed-out call ever
-      chargeable to us?
-- [ ] Are there territorial restrictions on where we may sell? (This determines
-      geo-blocking rules at checkout.)
-- [ ] What are the pricing/stock refresh guarantees? If wholesale price moves
-      between catalogue sync and sale, who absorbs it?
-- [ ] Are there minimum volume commitments or prepayment/float requirements?
-      (Affects working capital — you pay the supplier before consumer funds
-      settle.)
+      (Reloadly markets itself as a reseller-enablement API, so this is likely
+      yes — get it confirmed in writing anyway.)
+- [ ] **Dead/invalid code liability.** Reloadly's published terms state refunds,
+      exchanges and returns are *not applicable* to digital products, with a
+      narrow exception where we can show publisher confirmation that the code
+      was redeemed before delivery. Confirm the exact claim process, window, and
+      evidence standard — and assume most bad codes are our loss.
+- [ ] Is there an API SLA? Documented behaviour when an order call fails or
+      times out mid-transaction — is a timed-out order ever chargeable to us,
+      and how do we reconcile an ambiguous order state?
+- [ ] Territorial restrictions on where we may sell, and confirmation that US
+      and Brazil consumer sales are permitted.
+- [ ] Discount/commission structure per product, and whether discounts are
+      guaranteed for a period or can move without notice. **This is our entire
+      gross margin** — if a product discount drops after we set a retail price,
+      we absorb it.
+- [ ] Prepaid wallet mechanics: minimum balance, top-up settlement time,
+      supported funding currencies, whether balance is refundable on exit, and
+      what happens to in-flight orders if balance runs out mid-day.
+- [ ] Volume commitments or tiering thresholds.
 
-**Working-capital note:** processor settlement is typically T+2 to T+7, and any
-rolling reserve extends that, while CodesWholesale is likely prepaid. Model the
-gap before launch — this is the most common way a marketplace MVP dies with
-healthy-looking revenue.
+**Working-capital note (now sharper):** Reloadly operates a **prepaid wallet**
+— we fund before we sell, with no credit terms. Card settlement is typically
+T+2 to T+7, and any rolling reserve extends that. So we float the entire
+inventory cost plus the settlement gap. Model this before launch; it is the most
+common way a marketplace MVP dies with healthy-looking revenue. A wallet
+auto-top-up threshold and low-balance alerting are launch requirements, not
+nice-to-haves — an empty wallet means paid orders we cannot fulfil.
 
 ## 3. Entity and tax posture [ ]
 
@@ -101,8 +112,10 @@ Record here as each closes, with date and evidence link:
 | Processor approval (backup) | | | |
 | Connect required? | | | |
 | Rolling reserve terms | | | |
-| CodesWholesale resale permitted | | | |
-| Dead-key liability | | | |
+| Reloadly resale permitted | | | |
+| Dead-code liability | | | |
+| Discount stability / margin | | | |
+| Wallet float requirement | | | |
 | VAT/place-of-supply treatment | | | |
 | Affiliate tax reporting required | | | |
 

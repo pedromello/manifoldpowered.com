@@ -8,9 +8,9 @@
 ## Summary
 
 Manifold is a digital goods storefront operated by <LEGAL ENTITY NAME>,
-incorporated in <JURISDICTION>. Manifold sells prepaid digital game codes and
-gift cards to consumers at manifoldpowered.com and on branded sub-storefronts
-hosted on the same platform.
+incorporated in <JURISDICTION>. Manifold sells branded digital gift cards to
+consumers at manifoldpowered.com and on branded sub-storefronts hosted on the
+same platform. Launch markets are the United States and Brazil.
 
 **Manifold is the seller and merchant of record for every transaction.** There
 is no third-party seller. All consumer payments are collected by Manifold, all
@@ -19,12 +19,13 @@ disputes are handled by Manifold.
 
 ## Inventory sourcing
 
-All codes are purchased wholesale from CodesWholesale
-(https://codeswholesale.com/), a licensed B2B distributor of digital game keys,
-under a supply agreement. Manifold takes title to inventory. Codes are drawn
-from CodesWholesale's API at the moment of fulfilment. Manifold does not accept
-user-supplied, user-uploaded, or user-traded codes at any point — there is no
-consumer-to-consumer or seller-to-consumer resale channel on the platform.
+All gift cards are sourced from Reloadly (https://www.reloadly.com/), a
+regulated digital gift card and payments distributor, under a commercial
+agreement. Manifold funds a prepaid balance with Reloadly and draws each code
+from Reloadly's API at the moment of fulfilment, taking title to the code on
+purchase. Manifold does not accept user-supplied, user-uploaded, or user-traded
+codes at any point — there is no consumer-to-consumer or seller-to-consumer
+resale channel on the platform, and no secondary market.
 
 ## The affiliate storefront model
 
@@ -55,7 +56,8 @@ facilitator or intermediary for any third party.
 ## Fulfilment
 
 1. Consumer pays Manifold at checkout.
-2. On payment confirmation, Manifold requests a code from CodesWholesale.
+2. On payment confirmation, Manifold places an order against Reloadly's Gift
+   Cards API and retrieves the redeem code/PIN.
 3. If the supplier call succeeds, the code is assigned to the order and revealed
    to the consumer (in-account reveal plus email). Reveal time is recorded.
 4. If the supplier call fails, the order is auto-refunded in full and no code is
