@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Image from "next/image";
+import Hls from "hls.js";
 import {
   IconPlayerPlayFilled,
   IconChevronLeft,
@@ -18,6 +19,52 @@ type MediaItem = {
   url: string;
   id?: string;
 };
+
+// Steam serves newer trailers only as HLS (.m3u8) manifests, which play
+// natively in Safari/iOS but need hls.js everywhere else. Older mp4/webm
+// URLs (also passed through here) play fine as a direct <video src>.
+function SteamVideoPlayer({
+  url,
+  className,
+}: {
+  url: string;
+  className: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (
+      !url.includes(".m3u8") ||
+      video.canPlayType("application/vnd.apple.mpegurl")
+    ) {
+      video.src = url;
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      return () => hls.destroy();
+    }
+
+    video.src = url;
+  }, [url]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      autoPlay
+      muted
+      playsInline
+      className={className}
+    />
+  );
+}
 
 export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -158,12 +205,8 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
               allowFullScreen
             />
           ) : (
-            <video
-              src={activeMedia.url}
-              controls
-              autoPlay
-              muted
-              playsInline
+            <SteamVideoPlayer
+              url={activeMedia.url}
               className="absolute inset-0 w-full h-full object-cover"
             />
           )
