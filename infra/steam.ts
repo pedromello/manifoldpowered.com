@@ -20,6 +20,14 @@ export interface SteamAppDetailsData {
   website?: string;
   required_age?: number | string;
   release_date?: { coming_soon: boolean; date: string };
+  movies?: {
+    id: number;
+    name: string;
+    thumbnail: string;
+    webm?: { "480"?: string; max?: string };
+    mp4?: { "480"?: string; max?: string };
+    highlight?: boolean;
+  }[];
 }
 
 export interface SteamAppDetailsResult {

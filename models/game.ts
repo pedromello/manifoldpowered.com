@@ -213,15 +213,16 @@ function validateVideoUrl(url: string) {
   try {
     const videoUrl = new URL(url);
     const allowedHosts = ["www.youtube.com", "youtube.com", "youtu.be"];
+    const isSteamCdnHost = videoUrl.hostname.endsWith(".steamstatic.com");
 
-    if (!allowedHosts.includes(videoUrl.hostname)) {
+    if (!allowedHosts.includes(videoUrl.hostname) && !isSteamCdnHost) {
       throw new Error("Invalid video host");
     }
   } catch (error) {
     throw new ValidationError({
-      message: `Invalid video URL: ${url}. Videos must be a valid URL hosted on YouTube.`,
+      message: `Invalid video URL: ${url}. Videos must be a valid URL hosted on YouTube or Steam.`,
       cause: error,
-      action: "Check if video URL is valid and from YouTube.",
+      action: "Check if video URL is valid and from YouTube or Steam.",
     });
   }
 }
@@ -314,9 +315,7 @@ function mapSteamAppToGameData(
       banner: steamGame.header_image,
       screenshots: (steamGame.screenshots ?? []).map((s) => s.path_full),
       icon: steamGame.capsule_image,
-      // Steam trailers aren't YouTube-hosted; validateVideoUrl only allows
-      // YouTube, so trailer import is intentionally out of scope.
-      videos: [],
+      videos: extractSteamTrailerUrls(steamGame.movies),
     },
     social_links: {
       website,
@@ -324,6 +323,14 @@ function mapSteamAppToGameData(
     },
     steam_app_id: steamAppId,
   };
+}
+
+function extractSteamTrailerUrls(
+  movies?: SteamAppDetailsData["movies"],
+): string[] {
+  return (movies ?? [])
+    .map((movie) => movie.mp4?.max || movie.mp4?.["480"])
+    .filter((url): url is string => Boolean(url));
 }
 
 function parseSteamReleaseDate(releaseDate?: {

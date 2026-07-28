@@ -731,8 +731,8 @@ describe("POST /api/v1/items/games", () => {
       expect(responseBody).toEqual({
         name: "ValidationError",
         message:
-          "Invalid video URL: https://vimeo.com/123456789. Videos must be a valid URL hosted on YouTube.",
-        action: "Check if video URL is valid and from YouTube.",
+          "Invalid video URL: https://vimeo.com/123456789. Videos must be a valid URL hosted on YouTube or Steam.",
+        action: "Check if video URL is valid and from YouTube or Steam.",
         status_code: 400,
       });
     });

@@ -61,7 +61,13 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(responseBody.social_links.steam_page).toBe(
         `https://store.steampowered.com/app/${STEAM_TEST_APP_ID}/`,
       );
-      expect(responseBody.media.videos).toEqual([]);
+      expect(Array.isArray(responseBody.media.videos)).toBe(true);
+      for (const videoUrl of responseBody.media.videos) {
+        expect(() => new URL(videoUrl)).not.toThrow();
+        expect(new URL(videoUrl).hostname.endsWith(".steamstatic.com")).toBe(
+          true,
+        );
+      }
       expect(Number(responseBody.price)).toBeGreaterThan(0);
       expect(typeof responseBody.title).toBe("string");
       expect(responseBody.title.length).toBeGreaterThan(0);
