@@ -329,7 +329,13 @@ function extractSteamTrailerUrls(
   movies?: SteamAppDetailsData["movies"],
 ): string[] {
   return (movies ?? [])
-    .map((movie) => movie.mp4?.max || movie.mp4?.["480"])
+    .map(
+      (movie) =>
+        movie.mp4?.max ||
+        movie.mp4?.["480"] ||
+        movie.webm?.max ||
+        movie.webm?.["480"],
+    )
     .filter((url): url is string => Boolean(url));
 }
 
