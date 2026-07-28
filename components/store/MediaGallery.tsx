@@ -14,6 +14,7 @@ interface MediaGalleryProps {
 
 type MediaItem = {
   type: "video" | "image";
+  videoType?: "youtube" | "steam";
   url: string;
   id?: string;
 };
@@ -102,11 +103,15 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
 
   // Combine media items: Videos first, then Images
   const mediaList = useMemo(() => {
-    const videoItems: MediaItem[] = videos.map((url) => ({
-      type: "video",
-      url,
-      id: getYouTubeID(url) || "",
-    }));
+    const videoItems: MediaItem[] = videos.map((url) => {
+      const ytId = getYouTubeID(url);
+      return {
+        type: "video",
+        videoType: ytId ? "youtube" : "steam",
+        url,
+        id: ytId || "",
+      };
+    });
 
     const imageItems: MediaItem[] = images.map((url) => ({
       type: "image",
@@ -144,13 +149,24 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
       <div className="group relative aspect-video w-full rounded-[2.5rem] overflow-hidden bg-black/40 border border-white/10 shadow-2xl">
         {/* Stage Content */}
         {activeMedia.type === "video" ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${activeMedia.id}?rel=0&modestbranding=1&autoplay=1&mute=1`}
-            title={`${gameTitle} Trailer`}
-            className="absolute inset-0 w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+          activeMedia.videoType === "youtube" ? (
+            <iframe
+              src={`https://www.youtube.com/embed/${activeMedia.id}?rel=0&modestbranding=1&autoplay=1&mute=1`}
+              title={`${gameTitle} Trailer`}
+              className="absolute inset-0 w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video
+              src={activeMedia.url}
+              controls
+              autoPlay
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )
         ) : (
           <Image
             src={activeMedia.url}
@@ -201,13 +217,15 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
             onMouseLeave={onMouseLeave}
             onMouseUp={onMouseUp}
             onMouseMove={onMouseMove}
-            className="flex gap-4 overflow-x-auto pb-2 no-scrollbar snap-x scroll-smooth cursor-grab select-none active:cursor-grabbing"
+            className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-x scroll-smooth cursor-grab select-none active:cursor-grabbing"
           >
             {mediaList.map((item, idx) => {
               const isActive = idx === activeIndex;
               const thumbUrl =
                 item.type === "video"
-                  ? `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`
+                  ? item.videoType === "youtube"
+                    ? `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`
+                    : images[0] || "/placeholder-game.png"
                   : item.url;
 
               return (
@@ -266,16 +284,6 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </section>
   );
 }
