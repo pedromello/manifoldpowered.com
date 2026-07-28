@@ -24,8 +24,16 @@ export interface SteamAppDetailsData {
     id: number;
     name: string;
     thumbnail: string;
+    // Legacy progressive-download encodes. Steam has largely moved to
+    // streaming-only manifests (dash_h264/hls_h264 below) for newer titles,
+    // so these are frequently absent.
     webm?: { "480"?: string; max?: string };
     mp4?: { "480"?: string; max?: string };
+    // Streaming manifests. hls_h264 plays natively in Safari/iOS and via
+    // hls.js elsewhere (see components/store/MediaGallery.tsx).
+    hls_h264?: string;
+    dash_h264?: string;
+    dash_av1?: string;
     highlight?: boolean;
   }[];
 }

@@ -334,7 +334,8 @@ function extractSteamTrailerUrls(
         movie.mp4?.max ||
         movie.mp4?.["480"] ||
         movie.webm?.max ||
-        movie.webm?.["480"],
+        movie.webm?.["480"] ||
+        movie.hls_h264,
     )
     .filter((url): url is string => Boolean(url));
 }
