@@ -225,7 +225,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                 item.type === "video"
                   ? item.videoType === "youtube"
                     ? `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`
-                    : (images[0] || "/placeholder-game.png")
+                    : images[0] || "/placeholder-game.png"
                   : item.url;
 
               return (
@@ -284,7 +284,6 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
           </div>
         )}
       </div>
-
     </section>
   );
 }
