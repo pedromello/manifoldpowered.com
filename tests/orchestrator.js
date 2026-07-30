@@ -12,6 +12,8 @@ import store from "models/store";
 import storeCuration from "models/store_curation";
 import studio from "models/studio";
 import authorization from "models/authorization";
+import currency from "models/currency";
+import exchangeRate from "models/exchange_rate";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -232,6 +234,29 @@ const addStudioMember = async (studioId, username, permissions) => {
   return studio.addMember(studioId, username, permissions);
 };
 
+// Currencies and exchange rates
+const createCurrency = async (currencyData = {}) => {
+  return currency.create({
+    code: currencyData.code || "USD",
+    symbol: currencyData.symbol || "$",
+    decimal_places:
+      currencyData.decimal_places === undefined
+        ? 2
+        : currencyData.decimal_places,
+    enabled: currencyData.enabled === undefined ? true : currencyData.enabled,
+  });
+};
+
+const createExchangeRate = async (rateData = {}) => {
+  return exchangeRate.record({
+    base_currency: rateData.base_currency || "USD",
+    quote_currency: rateData.quote_currency || "BRL",
+    rate: rateData.rate === undefined ? 5 : rateData.rate,
+    source: rateData.source || "MANUAL",
+    effective_at: rateData.effective_at || new Date(),
+  });
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -259,6 +284,8 @@ const orchestrator = {
   createStudio,
   addStudioMember,
   extractOtpCode,
+  createCurrency,
+  createExchangeRate,
 };
 
 export default orchestrator;
