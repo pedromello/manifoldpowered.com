@@ -14,6 +14,7 @@ import studio from "models/studio";
 import authorization from "models/authorization";
 import currency from "models/currency";
 import exchangeRate from "models/exchange_rate";
+import pricing from "models/pricing";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -247,6 +248,10 @@ const createCurrency = async (currencyData = {}) => {
   });
 };
 
+const setGamePriceOverride = async (gameId, currencyCode, amount) => {
+  return pricing.setOverride(gameId, { currency: currencyCode, amount });
+};
+
 const createExchangeRate = async (rateData = {}) => {
   return exchangeRate.record({
     base_currency: rateData.base_currency || "USD",
@@ -286,6 +291,7 @@ const orchestrator = {
   extractOtpCode,
   createCurrency,
   createExchangeRate,
+  setGamePriceOverride,
 };
 
 export default orchestrator;

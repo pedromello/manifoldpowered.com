@@ -395,3 +395,26 @@ model ExchangeRate {
   @@index([base_currency, quote_currency, effective_at])
   @@map("exchange_rates")
 }
+
+// A price set explicitly by a developer/admin for one currency. Its presence
+// means "this is the price, do not convert" — it always wins over conversion
+// from the game's USD base price. This is also where commercially-shaped
+// prices live (e.g. 49.90 rather than a converted 51.37), which keeps the
+// conversion path a plain, auditable calculation.
+//
+// Catalog-level only: storefront owners must never gain price control, since
+// that is what keeps them affiliates rather than sellers (see
+// docs/legal/phase-0-checklist.md). There is deliberately no store_id here.
+model GamePriceOverride {
+  id         String   @id @default(uuid())
+  game_id    String // Logical reference to Game.id
+  currency   String   @db.VarChar(3) // Logical reference to Currency.code
+  amount     Decimal  @db.Decimal(19, 4)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([game_id, currency])
+  @@index([game_id])
+  @@index([currency])
+  @@map("game_price_overrides")
+}

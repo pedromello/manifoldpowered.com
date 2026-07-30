@@ -8,8 +8,8 @@ Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issue
 | --------------------------------- | ---------------------------------------------------------------------------- |
 | 1. Foundation — features          | not started (deferred: no endpoints yet, so no new features needed)          |
 | 2. Money → `Decimal(19,4)`        | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
-| 3. Currency + exchange rate model | ✅ done                                                                      |
-| 4. Price resolution               | next                                                                         |
+| 3. Currency + exchange rate model | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
+| 4. Price resolution               | ✅ done                                                                      |
 | 5–11                              | not started                                                                  |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -158,12 +158,16 @@ priceFor(game, currency) = fixedPriceOverride(game, currency)
                         ?? convert(game.base_price_usd, currency)
 ```
 
-Two things this task must settle, because they're easy to get wrong and expensive to change later:
+Two decisions this task settled:
 
-- **Rounding policy.** Storage is 4 decimals, presentation is usually 2. Converted prices need a documented rule (round half-up to the currency's decimal places, at minimum). Whether to snap to psychological endings is a product decision worth making explicitly.
-- **Missing-rate behaviour.** If no rate exists for a currency and there's no override, does the product fall back to USD or disappear from the storefront? Silently showing a wrong price is the worst option.
+- **Missing price → hide the product.** If there is no rate and no override, the item does not appear for that currency. It never falls back to USD, because showing a price in the wrong currency is worse than showing nothing. This is why `resolvableGameIds` exists alongside `priceFor`: listing queries have to filter too, or the item shows up in search and only breaks on the detail page.
+- **Rounding is half-up to the currency's `decimal_places`.** No psychological endings in the conversion path — a commercially-shaped price like 49.90 is set as an override instead, which keeps conversion a plain, auditable calculation.
 
-**Done when:** resolution is a single tested function used by every read path, both branches are covered, and rounding and missing-rate behaviour are documented in code.
+A disabled currency behaves exactly like an unregistered one, so turning a currency off removes it from every storefront without deleting any price.
+
+**Done when:** resolution is a single tested function used by every read path, both branches are covered, and rounding and missing-price behaviour are documented in code.
+
+**Still open:** how the platform decides which currency a visitor sees. There is no user preference or region detection modelled yet — `priceFor` takes the currency explicitly, and choosing it is a separate task.
 
 **Constraint that must not break:** this is developer/admin pricing only. **Storefront owners must never gain price control** — that is what keeps them affiliates rather than sellers (`docs/legal/phase-0-checklist.md`). Overrides are set at the catalog level, never per store.
 
