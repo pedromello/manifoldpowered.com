@@ -72,7 +72,8 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(persistedGame.steam_app_id).toBe(STEAM_TEST_APP_ID);
       expect(persistedGame.studio_id).toBe(studio.id);
       expect(persistedGame.developer_name).toBe(studio.name);
-      expect(persistedGame.base_price).toBe(persistedGame.price);
+      // Both are Prisma Decimal instances, so compare values not references.
+      expect(persistedGame.base_price?.equals(persistedGame.price)).toBe(true);
 
       // Act again: the same studio re-imports the same Steam app.
       const reimportResponse = await fetch(

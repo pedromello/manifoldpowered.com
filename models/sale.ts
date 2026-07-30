@@ -1,10 +1,11 @@
 import { prisma } from "infra/database";
+import { Prisma } from "generated/prisma/client";
 
 interface RecordSaleDto {
   user_id: string;
   game_id: string;
   store_id: string | null;
-  price_at_sale: string;
+  price_at_sale: Prisma.Decimal;
 }
 
 async function record(saleDto: RecordSaleDto) {

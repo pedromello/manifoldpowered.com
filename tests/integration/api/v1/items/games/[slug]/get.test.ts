@@ -27,7 +27,8 @@ describe("GET /api/v1/items/games/[slug]", () => {
       expect(responseBody.slug).toBe(game.slug);
       expect(responseBody.title).toBe(game.title);
       expect(responseBody.description).toBe(game.description);
-      expect(responseBody.price).toBe(game.price);
+      // The API serialises Decimal to a fixed 2-decimal string.
+      expect(responseBody.price).toBe(game.price.toFixed(2));
     });
 
     test("With non-existent slug should return 404", async () => {

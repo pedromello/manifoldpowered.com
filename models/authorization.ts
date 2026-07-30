@@ -393,7 +393,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: gameOutput.description,
       detailed_description: gameOutput.detailed_description,
       launch_date: gameOutput.launch_date,
-      price: gameOutput.price,
+      // Decimal is serialised at this boundary so the wire format stays a
+      // fixed 2-decimal string, independent of the stored 4-decimal scale.
+      price: gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
       publisher_name: gameOutput.publisher_name,
       tags: gameOutput.tags,
@@ -408,7 +410,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
-      base_price: gameOutput.base_price,
+      base_price: gameOutput.base_price?.toFixed(2) ?? null,
       discount_label: gameOutput.discount_label,
       created_at: gameOutput.created_at,
       updated_at: gameOutput.updated_at,
@@ -531,7 +533,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       game_id: saleOutput.game_id,
       game_title: saleOutput.game_title,
       store_id: saleOutput.store_id,
-      price_at_sale: saleOutput.price_at_sale,
+      price_at_sale: saleOutput.price_at_sale.toFixed(2),
       created_at: saleOutput.created_at,
     };
   }

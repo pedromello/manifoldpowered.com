@@ -160,16 +160,14 @@ async function create(gameData: GameCreateDto) {
     }
   }
 
-  const priceAsString = gameData.price.toFixed(2);
-
   return await prisma.game.create({
     data: {
       ...gameData,
       developer_name: developerStudio.name,
       publisher_name: publisherStudio.name,
       slug,
-      price: priceAsString,
-      base_price: priceAsString,
+      // A new game has no prior price, so base_price starts equal to price.
+      base_price: gameData.price,
       launch_date: new Date(gameData.launch_date),
       meta_tags: gameData.meta_tags || {},
       media: gameData.media || {},
@@ -503,19 +501,9 @@ async function update(
     await validateVideoUrls(validatedData.media.videos);
   }
 
-  const priceAsString =
-    validatedData.price !== undefined
-      ? validatedData.price.toFixed(2)
-      : undefined;
-
-  const basePriceAsString =
-    validatedData.base_price !== undefined
-      ? validatedData.base_price.toFixed(2)
-      : undefined;
-
   const discountLabel = calculateDiscountLabel(
-    validatedData.price ?? Number(existingGame.price),
-    validatedData.base_price ?? Number(existingGame.base_price),
+    validatedData.price ?? existingGame.price.toNumber(),
+    validatedData.base_price ?? existingGame.base_price?.toNumber() ?? 0,
   );
 
   return await prisma.game.update({
@@ -525,8 +513,6 @@ async function update(
     data: {
       ...validatedData,
       slug: newSlug,
-      price: priceAsString,
-      base_price: basePriceAsString,
       discount_label: discountLabel,
       launch_date: validatedData.launch_date
         ? new Date(validatedData.launch_date)
@@ -604,23 +590,10 @@ async function findAllPaginated({
   }
 
   if (min_price !== undefined || max_price !== undefined) {
-    // `price` is stored as VARCHAR for financial precision, so a plain
-    // Prisma string comparison would sort/filter lexicographically
-    // (e.g. "9.99" > "19.99"). Cast to numeric in raw SQL to get a
-    // correct range, then constrain the typed query by the matching ids.
-    const priceConditions: Prisma.Sql[] = [];
-    if (min_price !== undefined) {
-      priceConditions.push(Prisma.sql`price::numeric >= ${min_price}`);
-    }
-    if (max_price !== undefined) {
-      priceConditions.push(Prisma.sql`price::numeric <= ${max_price}`);
-    }
-
-    const matchingGames = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM games WHERE ${Prisma.join(priceConditions, " AND ")}
-    `;
-
-    where.id = { in: matchingGames.map((matchingGame) => matchingGame.id) };
+    where.price = {
+      ...(min_price !== undefined && { gte: min_price }),
+      ...(max_price !== undefined && { lte: max_price }),
+    };
   }
 
   if (curationWhere && Object.keys(curationWhere).length > 0) {
