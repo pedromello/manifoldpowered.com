@@ -352,3 +352,46 @@ model AdminActionLog {
   @@index([target_type, target_id])
   @@map("admin_action_logs")
 }
+
+// USD is the platform's base currency. Every product carries a USD price and
+// prices in other currencies are derived from it (see GamePriceOverride and
+// ExchangeRate), so this table is a registry of what we are allowed to price
+// and pay in — not a source of prices itself.
+model Currency {
+  id             String   @id @default(uuid())
+  code           String   @unique @db.VarChar(3) // ISO 4217, uppercase (USD, BRL)
+  symbol         String   @db.VarChar(8)
+  // Presentation scale only. Storage is always Decimal(19,4) regardless, so
+  // that intermediate calculations keep more precision than we display.
+  decimal_places Int      @default(2)
+  enabled        Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([enabled])
+  @@map("currencies")
+}
+
+enum ExchangeRateSource {
+  AUTOMATIC // fetched from an external rate provider
+  BULK // loaded in advance, e.g. an agreed fixed monthly set
+  MANUAL // written directly by an admin
+}
+
+// Append-only: rates are never updated or deleted, so a conversion made months
+// ago stays reproducible from the rate that was effective at the time. Reads
+// take the newest row whose effective_at is at or before the moment of
+// interest.
+model ExchangeRate {
+  id             String             @id @default(uuid())
+  base_currency  String             @db.VarChar(3) // Logical reference to Currency.code
+  quote_currency String             @db.VarChar(3) // Logical reference to Currency.code
+  rate           Decimal            @db.Decimal(19, 8)
+  source         ExchangeRateSource
+  effective_at   DateTime
+  // No updated_at: rate rows are append-only and never modified.
+  created_at     DateTime           @default(now())
+
+  @@index([base_currency, quote_currency, effective_at])
+  @@map("exchange_rates")
+}

@@ -2,7 +2,15 @@
 
 Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issues/177) (Milestone 3: Payment Structure — Sales and Payouts).
 
-**Status: under review. Do not implement yet.** This document is the input for a public design discussion; the sequence below is expected to change before any code is written.
+**Status: in progress.** The design is also under public discussion, so tasks not yet started may still change.
+
+| Task                              | State                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| 1. Foundation — features          | not started (deferred: no endpoints yet, so no new features needed)          |
+| 2. Money → `Decimal(19,4)`        | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
+| 3. Currency + exchange rate model | ✅ done                                                                      |
+| 4. Price resolution               | next                                                                         |
+| 5–11                              | not started                                                                  |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
