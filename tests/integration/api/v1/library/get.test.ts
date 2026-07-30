@@ -115,7 +115,8 @@ describe("GET /api/v1/library", () => {
         description: game.description,
         detailed_description: game.detailed_description,
         launch_date: expect.any(String),
-        price: game.price,
+        // The API serialises Decimal to a fixed 2-decimal string.
+        price: game.price.toFixed(2),
         developer_name: game.developer_name,
         publisher_name: game.publisher_name,
         tags: game.tags,
@@ -130,7 +131,7 @@ describe("GET /api/v1/library", () => {
         positive_reviews: game.positive_reviews,
         negative_reviews: game.negative_reviews,
         review_score: game.review_score,
-        base_price: game.base_price,
+        base_price: game.base_price?.toFixed(2) ?? null,
         discount_label: game.discount_label,
         created_at: expect.any(String),
         updated_at: expect.any(String),

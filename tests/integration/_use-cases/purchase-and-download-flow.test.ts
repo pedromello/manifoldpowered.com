@@ -255,6 +255,9 @@ describe("Use case: Purchase and Download Flow", () => {
         launch_date: game.launch_date.toISOString(),
         created_at: game.created_at.toISOString(),
         updated_at: game.updated_at.toISOString(),
+        // The API serialises Decimal to a fixed 2-decimal string.
+        price: game.price.toFixed(2),
+        base_price: game.base_price?.toFixed(2) ?? null,
       };
       expect(gamesInLibrary).toContainEqual(gameWithDatesAsString);
 

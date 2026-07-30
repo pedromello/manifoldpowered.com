@@ -150,7 +150,8 @@ describe("POST /api/v1/library", () => {
       });
       expect(sales).toHaveLength(1);
       expect(sales[0].store_id).toBeNull();
-      expect(sales[0].price_at_sale).toBe(game.price);
+      // Both are Prisma Decimal instances, so compare values not references.
+      expect(sales[0].price_at_sale.equals(game.price)).toBe(true);
     });
 
     test("With a valid store_slug should record a Sale attributed to that store", async () => {

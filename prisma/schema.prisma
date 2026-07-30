@@ -113,10 +113,14 @@ model Game {
   launch_date          DateTime
   status               GameStatus @default(PRIVATE)
 
-  // Financial (String for absolute precision as standard for financial systems)
-  price          String  @db.VarChar(20)
-  base_price     String? @db.VarChar(20)
-  discount_label String? @db.VarChar(10)
+  // Financial. Decimal(19,4) is the standard scale for amounts subject to
+  // tax: intermediate calculations (commission splits, tax lines, FX) need
+  // more precision than the two decimals a currency displays. Rounding
+  // happens at the presentation boundary (authorization.filterOutput),
+  // never in storage.
+  price          Decimal  @db.Decimal(19, 4)
+  base_price     Decimal? @db.Decimal(19, 4)
+  discount_label String?  @db.VarChar(10)
 
   // Taxonomy and Authorship
   // developer_name/publisher_name are denormalized from Studio.name at creation time
@@ -225,7 +229,7 @@ model Sale {
   user_id       String // Logical reference to User.id (who acquired)
   game_id       String // Logical reference to Game.id (what was acquired)
   store_id      String? // Logical reference to Store.id; null = platform/global acquisition
-  price_at_sale String   @db.VarChar(20) // Snapshot of Game.price at acquisition time
+  price_at_sale Decimal  @db.Decimal(19, 4) // Snapshot of Game.price at acquisition time
   // No updated_at: sale records are append-only and never modified.
   created_at    DateTime @default(now())
 
