@@ -3,7 +3,7 @@
 > Purpose: the disclosure text submitted to payment processors (Stripe, and any
 > backup provider) when applying for approval to sell digital game/gift card
 > codes. Written to be handed over as-is. Keep it accurate — if the product
-> changes, update this file *before* the change ships.
+> changes, update this file _before_ the change ships.
 
 ## Summary
 

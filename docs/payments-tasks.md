@@ -10,7 +10,7 @@ Each task is a separate small PR, landed in order, with `npm run test` passing o
 
 ## The model in one paragraph
 
-Manifold is the **merchant of record**. Consumers buy from us; storefront owners are **marketing affiliates** who never take title, never set prices and never touch consumer money. We collect the full payment, hold the affiliate's commission for 30 days so refunds and chargebacks can resolve, then pay a **periodic lump sum** per affiliate — a real fiscal payment against a statement, the way Steam pays developers. This is deliberately *not* a per-transaction payment split.
+Manifold is the **merchant of record**. Consumers buy from us; storefront owners are **marketing affiliates** who never take title, never set prices and never touch consumer money. We collect the full payment, hold the affiliate's commission for 30 days so refunds and chargebacks can resolve, then pay a **periodic lump sum** per affiliate — a real fiscal payment against a statement, the way Steam pays developers. This is deliberately _not_ a per-transaction payment split.
 
 ## Settled decisions
 
@@ -128,6 +128,7 @@ Migration is a hand-written SQL data migration (precedent: `20260723060000_lower
 `Currency` — code (ISO 4217), display symbol, decimal places for presentation, enabled flag. `ExchangeRate` — base currency, quote currency, `rate Decimal(19,8)`, source, `effective_at`. Rates are append-only and read newest-first, so historical conversions stay reproducible.
 
 Three ways a rate arrives, all writing to the same table:
+
 1. **Automatic** — a fetch from an external rate provider, run as a batch job.
 2. **Pre-made table** — rates loaded in bulk, e.g. a monthly fixed set agreed in advance.
 3. **Manual** — an admin writes a rate directly.

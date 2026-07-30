@@ -1,7 +1,7 @@
 # Phase 0 — Legal & Financial Groundwork
 
 Blocking work that must complete before payment/ledger code ships. Nothing in
-Phase 1+ is safe to launch (though it is safe to *build*) until items 1–4 close.
+Phase 1+ is safe to launch (though it is safe to _build_) until items 1–4 close.
 
 Status key: [ ] not started · [~] in progress · [x] done
 
@@ -12,9 +12,9 @@ Status key: [ ] not started · [~] in progress · [x] done
 **Deliverable:** written approval to process the digital game/gift card category
 under the model described in `business-description.md`.
 
-- [ ] Submit `business-description.md` to Stripe. Ask explicitly: *"Please
+- [ ] Submit `business-description.md` to Stripe. Ask explicitly: _"Please
       confirm our account is approved for the sale of branded digital gift cards
-      under this model."* Get it in writing — a support ticket reply is fine, a
+      under this model."_ Get it in writing — a support ticket reply is fine, a
       verbal from sales is not.
 - [ ] Ask specifically whether the affiliate storefront model requires Connect,
       or whether commission payouts as an ordinary expense are acceptable on a
@@ -40,7 +40,7 @@ Questions to get answered in writing before integrating:
       (Reloadly markets itself as a reseller-enablement API, so this is likely
       yes — get it confirmed in writing anyway.)
 - [ ] **Dead/invalid code liability.** Reloadly's published terms state refunds,
-      exchanges and returns are *not applicable* to digital products, with a
+      exchanges and returns are _not applicable_ to digital products, with a
       narrow exception where we can show publisher confirmation that the code
       was redeemed before delivery. Confirm the exact claim process, window, and
       evidence standard — and assume most bad codes are our loss.
@@ -74,7 +74,7 @@ the data model, so close this before Phase 1 migrations are finalised.
 - [ ] Confirm the entity and where it is incorporated.
 - [ ] VAT/OSS/sales-tax: where are we registered, what are the thresholds, and
       does selling prepaid codes cross-border change the place-of-supply
-      treatment? (Digital goods rules commonly tax at the *consumer's*
+      treatment? (Digital goods rules commonly tax at the _consumer's_
       location — this drives what we must collect and store at checkout.)
 - [ ] Are affiliate commissions reportable income requiring tax-ID collection
       and annual reporting? Determine per affiliate jurisdiction and set the
@@ -106,18 +106,18 @@ than starting from a blank page.
 
 Record here as each closes, with date and evidence link:
 
-| Decision | Outcome | Date | Evidence |
-| --- | --- | --- | --- |
-| Processor approval (primary) | | | |
-| Processor approval (backup) | | | |
-| Connect required? | | | |
-| Rolling reserve terms | | | |
-| Reloadly resale permitted | | | |
-| Dead-code liability | | | |
-| Discount stability / margin | | | |
-| Wallet float requirement | | | |
-| VAT/place-of-supply treatment | | | |
-| Affiliate tax reporting required | | | |
+| Decision                         | Outcome | Date | Evidence |
+| -------------------------------- | ------- | ---- | -------- |
+| Processor approval (primary)     |         |      |          |
+| Processor approval (backup)      |         |      |          |
+| Connect required?                |         |      |          |
+| Rolling reserve terms            |         |      |          |
+| Reloadly resale permitted        |         |      |          |
+| Dead-code liability              |         |      |          |
+| Discount stability / margin      |         |      |          |
+| Wallet float requirement         |         |      |          |
+| VAT/place-of-supply treatment    |         |      |          |
+| Affiliate tax reporting required |         |      |          |
 
 ---
 

@@ -20,21 +20,21 @@ The agreement must state plainly that the Storefront Owner:
 
 ## Commercial terms
 
-| Term | Value | System behaviour |
-| --- | --- | --- |
-| Commission rate | <FILL>% of net sale value | `LedgerEntry.affiliate_commission` |
-| Commission basis | Net of tax, refunds, supplier cost | Computed at fulfilment |
-| Hold period | 30 days from payment | Maturation job |
-| Payout schedule | Monthly, matured balances only | `Payout` batch |
-| Minimum payout | <FILL> | Blocks payout below threshold |
-| Payment method | <FILL> | — |
-| Currency / FX | <FILL>, FX cost borne by <FILL> | — |
+| Term             | Value                              | System behaviour                   |
+| ---------------- | ---------------------------------- | ---------------------------------- |
+| Commission rate  | <FILL>% of net sale value          | `LedgerEntry.affiliate_commission` |
+| Commission basis | Net of tax, refunds, supplier cost | Computed at fulfilment             |
+| Hold period      | 30 days from payment               | Maturation job                     |
+| Payout schedule  | Monthly, matured balances only     | `Payout` batch                     |
+| Minimum payout   | <FILL>                             | Blocks payout below threshold      |
+| Payment method   | <FILL>                             | —                                  |
+| Currency / FX    | <FILL>, FX cost borne by <FILL>    | —                                  |
 
 ## Terms the platform's risk position depends on
 
 **Pricing control.** Manifold sets all prices. The Storefront Owner has no right
-to set, alter, discount, or bundle prices. *(Enforced today by
-`StoreGameOverride` carrying visibility only.)*
+to set, alter, discount, or bundle prices. _(Enforced today by
+`StoreGameOverride` carrying visibility only.)_
 
 **No funds handling.** All consumer payments are collected by Manifold. The
 Storefront Owner has no right to collect payment, request payment off-platform,
