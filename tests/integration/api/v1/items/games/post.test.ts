@@ -96,11 +96,12 @@ describe("POST /api/v1/items/games", () => {
       expect(game.status).toBe("PRIVATE");
       expect(game.developer_name).toBe(studio.name);
       expect(game.publisher_name).toBe(studio.name);
-      expect(game.price).toBe(gameData.price);
+      // price is a Prisma Decimal; compare at the currency's display scale.
+      expect(game.price.toFixed(2)).toBe(gameData.price);
 
       expect(game.positive_reviews).toBe(0);
       expect(game.negative_reviews).toBe(0);
-      expect(game.base_price).toBe(gameData.price);
+      expect(game.base_price?.toFixed(2)).toBe(gameData.price);
     });
 
     test("Without 'create:game' feature should return 403 Forbidden", async () => {
@@ -575,9 +576,16 @@ describe("POST /api/v1/items/games", () => {
 
       // Assert
       expect(response.status).toBe(201);
+
+      // Two-decimal formatting is now a presentation concern: storage keeps the
+      // full Decimal(19,4) scale and the API serialises it to a fixed string.
+      const responseBody = await response.json();
+      expect(responseBody.price).toBe("50.00");
+      expect(responseBody.base_price).toBe("50.00");
+
       const game = await orchestrator.getGameBySlug("price-formatting-test");
-      expect(game.price).toBe("50.00");
-      expect(game.base_price).toBe("50.00");
+      expect(game.price.toFixed(2)).toBe("50.00");
+      expect(game.base_price?.toFixed(2)).toBe("50.00");
     });
 
     test("With negative price should return 400 Bad Request", async () => {
