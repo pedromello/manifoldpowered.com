@@ -576,6 +576,7 @@ async function findAllPaginated({
   min_price,
   max_price,
   curationWhere,
+  priceableGameIds,
 }: {
   page?: number;
   limit?: number;
@@ -585,6 +586,11 @@ async function findAllPaginated({
   min_price?: number;
   max_price?: number;
   curationWhere?: Prisma.GameWhereInput;
+  // Restricts results to games that can be priced in the visitor's currency.
+  // Applied in the query rather than filtered afterwards, so pagination counts
+  // stay honest — post-filtering a page of 20 could render 15. Null or
+  // undefined means every game is priceable, which is the common case.
+  priceableGameIds?: string[] | null;
 }) {
   const where: Prisma.GameWhereInput = {
     status: "ACTIVE",
@@ -610,8 +616,18 @@ async function findAllPaginated({
     };
   }
 
+  const andClauses: Prisma.GameWhereInput[] = [];
+
   if (curationWhere && Object.keys(curationWhere).length > 0) {
-    where.AND = [curationWhere];
+    andClauses.push(curationWhere);
+  }
+
+  if (priceableGameIds) {
+    andClauses.push({ id: { in: priceableGameIds } });
+  }
+
+  if (andClauses.length > 0) {
+    where.AND = andClauses;
   }
 
   const orderByMap = {

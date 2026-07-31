@@ -3,6 +3,8 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import game from "models/game";
 import authorization from "models/authorization";
+import storefrontPricing from "models/storefront_pricing";
+import region from "models/region";
 import { ForbiddenError, NotFoundError } from "infra/errors";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -23,13 +25,26 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const secureOutputValues = authorization.filterOutput(
+  const currency = await region.currencyForRequest(req);
+  const context = await storefrontPricing.contextFor(currency, [foundGame]);
+  const [pricedGame] = storefrontPricing.filterAndPrice(
     req.context.user,
-    "read:public_game",
-    foundGame,
+    [foundGame],
+    context,
   );
 
-  return res.status(200).json(secureOutputValues);
+  // A game with no price in the visitor's currency is not purchasable by them,
+  // so it is absent from every listing. Its detail page has to agree —
+  // otherwise a shared link would show a product that cannot be bought, with
+  // no price to display.
+  if (!pricedGame) {
+    throw new NotFoundError({
+      message: `The game with slug "${slug}" is not available in ${currency}.`,
+      action: "Check back later, or browse the games available in your region.",
+    });
+  }
+
+  return res.status(200).json(pricedGame);
 }
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {

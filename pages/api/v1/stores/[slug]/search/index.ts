@@ -4,7 +4,7 @@ import controller from "infra/controller";
 import store from "models/store";
 import game, { gameQuerySchema } from "models/game";
 import storeCuration from "models/store_curation";
-import authorization from "models/authorization";
+import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -32,18 +32,21 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
   );
 
+  const { currency, gameIds } =
+    await storefrontPricing.idConstraintForRequest(req);
+
   const { games, pagination } = await game.findAllPaginated({
+    priceableGameIds: gameIds,
     ...rest,
     order: sort_by ?? order ?? "newest",
     curationWhere,
   });
 
-  const secureOutputValues = games.map((gameItem) =>
-    authorization.filterOutput(req.context.user, "read:public_game", gameItem),
-  );
+  const context = await storefrontPricing.contextFor(currency, games);
 
   return res.status(200).json({
-    games: secureOutputValues,
+    games: storefrontPricing.filterAndPrice(req.context.user, games, context),
     pagination,
+    currency,
   });
 }

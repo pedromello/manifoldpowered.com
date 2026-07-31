@@ -9,6 +9,10 @@ import exchangeRate from "models/exchange_rate";
 // currency are derived from it.
 export const BASE_CURRENCY = "USD";
 
+// Used when the base currency has not been registered yet, so the storefront
+// works before any currency is configured. A registered USD row always wins.
+const BASE_CURRENCY_DEFAULTS = { symbol: "$", decimal_places: 2 };
+
 export const gamePriceOverrideSchema = z.object({
   currency: currencyCodeSchema,
   amount: z.coerce.number().min(0).max(1_000_000),
@@ -191,6 +195,169 @@ async function priceForOrFail(
   return resolved;
 }
 
+export interface DisplayPrice {
+  amount: string;
+  // The "was" price, for a struck-through discount. Null when there is nothing
+  // meaningful to compare against: an override states an absolute price with no
+  // localised original, so showing the USD original beside it would misprice
+  // the discount. Conversion preserves the ratio, so both sides convert.
+  base_amount: string | null;
+  currency: string;
+  symbol: string;
+}
+
+// Prices a batch of games in one currency with a fixed number of queries: one
+// for the currency, one for the rate, one for the overrides. Resolving each
+// game individually would issue two queries per game, which on a 20-item
+// storefront page is 40 round trips for information that does not vary.
+//
+// Games that cannot be priced are simply absent from the returned map. Callers
+// must treat a missing entry as "not purchasable here" and hide the item —
+// never fall back to the base currency, which would show a price in the wrong
+// denomination.
+async function displayPricesFor(
+  games: Pick<Game, "id" | "price" | "base_price">[],
+  currencyCode: string,
+  asOf: Date = new Date(),
+): Promise<Map<string, DisplayPrice>> {
+  const prices = new Map<string, DisplayPrice>();
+
+  if (games.length === 0) {
+    return prices;
+  }
+
+  const normalizedCode = currency.normalizeCode(currencyCode);
+
+  const registeredCurrency = await prisma.currency.findUnique({
+    where: { code: normalizedCode },
+  });
+
+  // The base currency works without being registered. Localisation is purely
+  // additive: with no currency rows at all the platform still sells in USD,
+  // and registering currencies and rates only ever adds places to sell. The
+  // alternative — treating an unregistered base currency as "unpriceable" —
+  // would empty the entire storefront the moment this shipped unconfigured.
+  const foundCurrency =
+    registeredCurrency?.enabled === true
+      ? registeredCurrency
+      : normalizedCode === BASE_CURRENCY
+        ? BASE_CURRENCY_DEFAULTS
+        : null;
+
+  if (!foundCurrency) {
+    return prices;
+  }
+
+  const overrides = await prisma.gamePriceOverride.findMany({
+    where: {
+      game_id: { in: games.map((game) => game.id) },
+      currency: normalizedCode,
+    },
+  });
+
+  const overrideByGameId = new Map(
+    overrides.map((override) => [override.game_id, override.amount]),
+  );
+
+  const rate =
+    normalizedCode === BASE_CURRENCY
+      ? null
+      : await exchangeRate.findLatest(BASE_CURRENCY, normalizedCode, asOf);
+
+  for (const game of games) {
+    const override = overrideByGameId.get(game.id);
+
+    const amount =
+      override ??
+      (normalizedCode === BASE_CURRENCY
+        ? game.price
+        : rate
+          ? game.price
+              .mul(rate.rate)
+              .toDecimalPlaces(
+                foundCurrency.decimal_places,
+                Prisma.Decimal.ROUND_HALF_UP,
+              )
+          : null);
+
+    if (amount === null) {
+      continue;
+    }
+
+    // An override has no localised "was" price, so no discount is shown.
+    const baseAmount =
+      override || !game.base_price
+        ? null
+        : normalizedCode === BASE_CURRENCY
+          ? game.base_price
+          : rate
+            ? game.base_price
+                .mul(rate.rate)
+                .toDecimalPlaces(
+                  foundCurrency.decimal_places,
+                  Prisma.Decimal.ROUND_HALF_UP,
+                )
+            : null;
+
+    const formattedAmount = amount.toFixed(foundCurrency.decimal_places);
+    const formattedBase = baseAmount
+      ? baseAmount.toFixed(foundCurrency.decimal_places)
+      : null;
+
+    prices.set(game.id, {
+      amount: formattedAmount,
+      // Equal means no discount, so there is nothing to strike through.
+      base_amount: formattedBase === formattedAmount ? null : formattedBase,
+      currency: normalizedCode,
+      symbol: foundCurrency.symbol,
+    });
+  }
+
+  return prices;
+}
+
+// The id constraint a storefront query needs so unpriceable games never enter
+// the result set in the first place.
+//
+// Returns null when no constraint is needed — the common case, since every
+// game has a base price and one rate makes the whole catalogue priceable.
+// Filtering after the query instead would corrupt pagination: a page of 20
+// could silently render 15.
+async function priceableGameIdConstraint(
+  currencyCode: string,
+  asOf: Date = new Date(),
+): Promise<string[] | null> {
+  const normalizedCode = currency.normalizeCode(currencyCode);
+
+  // Mirrors displayPricesFor: the base currency needs no registration, so the
+  // catalogue is fully priceable before anything is configured.
+  if (normalizedCode === BASE_CURRENCY) {
+    return null;
+  }
+
+  if (!(await isUsable(normalizedCode))) {
+    return [];
+  }
+
+  const rate = await exchangeRate.findLatest(
+    BASE_CURRENCY,
+    normalizedCode,
+    asOf,
+  );
+
+  if (rate) {
+    return null;
+  }
+
+  // No rate: only games explicitly priced in this currency are purchasable.
+  const overrides = await prisma.gamePriceOverride.findMany({
+    where: { currency: normalizedCode },
+    select: { game_id: true },
+  });
+
+  return overrides.map((override) => override.game_id);
+}
+
 // The ids from `gameIds` that can be priced in the given currency.
 //
 // Cheap in the common case: every game has a base price, so once a rate exists
@@ -278,6 +445,8 @@ const pricing = {
   priceFor,
   priceForOrFail,
   priceViewFor,
+  displayPricesFor,
+  priceableGameIdConstraint,
   resolvableGameIds,
   isUsable,
 };
