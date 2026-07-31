@@ -11,8 +11,8 @@ Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issue
 | 4. Price resolution                      | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183)) |
 | 4a. Admin currency + rate endpoints      | ✅ done ([#184](https://github.com/pedromello/manifoldpowered.com/pull/184)) |
 | 4b. Studio price override endpoints      | ✅ done                                                                      |
-| 4c. Backoffice UI for currencies + rates | next                                                                         |
-| 4d. Currency selection by region header  | after 4c                                                                     |
+| 4c. Backoffice UI for currencies + rates | ✅ done                                                                      |
+| 4d. Currency selection by region header  | next                                                                         |
 | 5–11 (ledger, payouts)                   | not started                                                                  |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -289,7 +289,12 @@ Follows the existing backoffice conventions (`BackofficeLayout`, Tailwind, SWR, 
 
 Screens: a currency list with create and edit, and a rate list filtered by pair with a form to record a new rate. Disabling a currency needs a confirm dialog that says plainly it hides every product priced in that currency.
 
-**Done when:** an admin can register a currency, toggle it, and record a rate entirely from the UI.
+**Done when:** an admin can register a currency, toggle it, and record a rate entirely from the UI. ✅
+
+Two details worth keeping if these screens are extended:
+
+- The currency **code** is disabled in the edit form, with the reason shown inline. It is the reference every rate and override points at, so it can only be set at creation.
+- Rates whose `effective_at` is in the future are badged **Scheduled**, because a rate that exists but is not affecting prices yet is otherwise indistinguishable from one that is.
 
 ---
 

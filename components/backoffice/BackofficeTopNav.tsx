@@ -6,6 +6,8 @@ import {
   Users,
   Building2,
   Store as StoreIcon,
+  Coins,
+  ArrowLeftRight,
   LogOut,
   ArrowLeft,
   ShieldCheck,
@@ -17,6 +19,12 @@ const NAV_ITEMS = [
   { href: "/backoffice/users", label: "Users", icon: Users },
   { href: "/backoffice/studios", label: "Studios", icon: Building2 },
   { href: "/backoffice/stores", label: "Stores", icon: StoreIcon },
+  { href: "/backoffice/currencies", label: "Currencies", icon: Coins },
+  {
+    href: "/backoffice/exchange-rates",
+    label: "Rates",
+    icon: ArrowLeftRight,
+  },
 ];
 
 export function BackofficeTopNav({ username }: { username: string }) {
@@ -61,7 +69,10 @@ export function BackofficeTopNav({ username }: { username: string }) {
               <span className="hidden sm:inline">Manifold Admin</span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1">
+            {/* Scrollable and shrinkable: the item list has outgrown the
+                available width on mid-size screens, and without this the
+                last link overlaps the controls on the right. */}
+            <nav className="hidden md:flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {renderNavLinks()}
             </nav>
           </div>
@@ -69,7 +80,7 @@ export function BackofficeTopNav({ username }: { username: string }) {
           <div className="flex items-center gap-3 shrink-0">
             <Link
               href="/store"
-              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-white/50 hover:text-white hover:bg-white/5 text-xs font-bold uppercase tracking-wider transition-colors"
+              className="hidden 2xl:flex items-center gap-2 px-3 py-2 rounded-xl text-white/50 hover:text-white hover:bg-white/5 text-xs font-bold uppercase tracking-wider transition-colors"
             >
               <ArrowLeft size={14} />
               Back to Store
