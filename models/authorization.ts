@@ -11,6 +11,8 @@ import {
   Sale,
   Studio,
   StudioMember,
+  Currency,
+  ExchangeRate,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
@@ -95,6 +97,13 @@ const AVAILABLE_FEATURES = [
   "update:game:status:any",
   "read:dashboard:any",
   "read:audit_log:any",
+
+  // Pricing (admin)
+  "read:currency:any",
+  "create:currency:any",
+  "update:currency:any",
+  "read:exchange_rate:any",
+  "create:exchange_rate:any",
 ];
 
 // The feature set granted to every user once they activate their account
@@ -139,6 +148,11 @@ const ADMIN_ONLY_FEATURES = [
   "update:game:status:any",
   "read:dashboard:any",
   "read:audit_log:any",
+  "read:currency:any",
+  "create:currency:any",
+  "update:currency:any",
+  "read:exchange_rate:any",
+  "create:exchange_rate:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -644,6 +658,41 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       total_unique_users_updated: number;
     }
     return resource as BackfillReportOutput;
+  }
+
+  if (
+    feature === "read:currency:any" ||
+    feature === "create:currency:any" ||
+    feature === "update:currency:any"
+  ) {
+    const currencyOutput = resource as Currency;
+    return {
+      id: currencyOutput.id,
+      code: currencyOutput.code,
+      symbol: currencyOutput.symbol,
+      decimal_places: currencyOutput.decimal_places,
+      enabled: currencyOutput.enabled,
+      created_at: currencyOutput.created_at,
+      updated_at: currencyOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "read:exchange_rate:any" ||
+    feature === "create:exchange_rate:any"
+  ) {
+    const rateOutput = resource as ExchangeRate;
+    return {
+      id: rateOutput.id,
+      base_currency: rateOutput.base_currency,
+      quote_currency: rateOutput.quote_currency,
+      // Decimal is serialised here so the wire format is a fixed string at the
+      // rate's full 8-decimal scale, independent of how the driver stringifies.
+      rate: rateOutput.rate.toFixed(8),
+      source: rateOutput.source,
+      effective_at: rateOutput.effective_at,
+      created_at: rateOutput.created_at,
+    };
   }
 
   return {};

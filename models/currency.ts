@@ -20,6 +20,29 @@ export const currencySchema = z.object({
 
 export type CurrencyCreateDto = z.infer<typeof currencySchema>;
 
+// Code is immutable: it is the logical reference other tables point at, and
+// with no foreign keys a rename would silently orphan every rate and override.
+export const currencyUpdateSchema = z
+  .object({
+    symbol: z.string().trim().min(1).max(8).optional(),
+    decimal_places: z.coerce.number().int().min(0).max(4).optional(),
+    enabled: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+export type CurrencyUpdateDto = z.infer<typeof currencyUpdateSchema>;
+
+export const currencyAdminQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  enabled: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+});
+
 async function create(currencyDto: CurrencyCreateDto) {
   try {
     return await prisma.currency.create({
@@ -64,12 +87,54 @@ async function findAllEnabled() {
 }
 
 async function setEnabled(code: string, enabled: boolean) {
+  return await update(code, { enabled });
+}
+
+async function update(code: string, updateDto: CurrencyUpdateDto) {
   const foundCurrency = await findOneByCode(code);
 
   return await prisma.currency.update({
     where: { id: foundCurrency.id },
-    data: { enabled },
+    data: updateDto,
   });
+}
+
+// Admin listing: unlike findAllEnabled this returns disabled currencies too,
+// since the backoffice has to be able to see and re-enable them.
+async function findAllPaginated({
+  page = 1,
+  limit = 20,
+  enabled,
+}: {
+  page?: number;
+  limit?: number;
+  enabled?: boolean;
+} = {}) {
+  const where: Prisma.CurrencyWhereInput = {};
+
+  if (enabled !== undefined) {
+    where.enabled = enabled;
+  }
+
+  const [currencies, total] = await Promise.all([
+    prisma.currency.findMany({
+      where,
+      orderBy: { code: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.currency.count({ where }),
+  ]);
+
+  return {
+    currencies,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
 }
 
 // Returns the subset of the given codes that are not registered, so callers
@@ -98,7 +163,9 @@ const currency = {
   create,
   findOneByCode,
   findAllEnabled,
+  findAllPaginated,
   setEnabled,
+  update,
   findUnregisteredCodes,
   normalizeCode,
 };

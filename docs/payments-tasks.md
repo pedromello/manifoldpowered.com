@@ -4,15 +4,19 @@ Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issue
 
 **Status: in progress.** The design is also under public discussion, so tasks not yet started may still change.
 
-| Task                              | State                                                                        |
-| --------------------------------- | ---------------------------------------------------------------------------- |
-| 1. Foundation — features          | not started (deferred: no endpoints yet, so no new features needed)          |
-| 2. Money → `Decimal(19,4)`        | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
-| 3. Currency + exchange rate model | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
-| 4. Price resolution               | ✅ done                                                                      |
-| 5–11                              | not started                                                                  |
+| Task                                    | State                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| 2. Money → `Decimal(19,4)`              | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
+| 3. Currency + exchange rate model       | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
+| 4. Price resolution                     | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183)) |
+| 4a. Admin currency + rate endpoints     | ✅ done                                                                      |
+| 4b. Studio price override endpoints     | next                                                                         |
+| 4c. Currency selection by region header | after 4b                                                                     |
+| 5–11 (ledger, payouts)                  | not started                                                                  |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
+
+**Ordering principle (revised after task 4).** Tasks 2–4 shipped three PRs of data layer with nothing reachable, which is too much invisible infrastructure to stack. From here, each piece of plumbing is followed by the endpoints that make it usable, so every PR is independently testable and delivers something. Task 1 ("register features up front") is dissolved into this: features get registered by the PR that introduces the endpoint needing them, when their shape is actually known.
 
 ---
 
@@ -103,15 +107,14 @@ sequenceDiagram
 
 ## Tasks
 
-### 1. Foundation — features, fixtures, checklist
+### 1. Foundation — features (dissolved)
 
-**TLDR:** Register the new permission strings before anything else exists, and fix the tests that assert the old permission list.
+**Superseded.** This task planned to register all payment features up front. In practice the feature list only becomes knowable once the endpoint shape is decided, and registering names early risks a rename plus a backfill later. Features are now registered by whichever PR introduces the endpoint that needs them.
 
-Nothing on this platform can be built before its features are registered in `AVAILABLE_FEATURES` (CLAUDE.md, non-negotiable). This task adds the payments group, assigns each to the right progression tier, and writes a `filterOutput` branch per feature — that function returns `{}` for unhandled features, so a missing branch silently empties the response body rather than failing loudly.
+Two things from the original task still apply to every PR that adds a feature:
 
-The catch: adding features to `ACTIVATED_USER_FEATURES` changes an array that four existing test files assert with whole-object equality. They must be updated in the same PR or it lands red.
-
-**Done when:** features registered, tiers assigned, filters written, existing fixtures green, and a decision recorded on how existing admins get the new admin features (`feature_backfill.ts` does not reconcile admin-only features today).
+- `filterOutput` returns `{}` for unhandled features, so a missing branch silently empties the response body rather than failing loudly. Every new feature needs its own branch.
+- Adding to `ACTIVATED_USER_FEATURES` changes an array that four existing test files assert with whole-object equality, so those fixtures must be updated in the same PR. Adding to `ADMIN_ONLY_FEATURES` does not have that problem, but existing admins do not pick the new features up from `npm run features:backfill` — `feature_backfill.ts` does not reconcile admin-only features. Re-running `npm run admin:grant -- --email=<email>` is the fix; it computes the missing set from `ADMIN_ONLY_FEATURES` and is idempotent.
 
 ---
 
