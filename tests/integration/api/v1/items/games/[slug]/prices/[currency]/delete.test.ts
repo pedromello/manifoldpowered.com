@@ -148,6 +148,38 @@ describe("DELETE /api/v1/items/games/[slug]/prices/[currency]", () => {
     });
   });
 
+  describe("Studio member without the permission", () => {
+    test("Should return 403 Forbidden and leave the price in place", async () => {
+      const { studio, game } = await setupOwnedGame();
+      await orchestrator.setGamePriceOverride(game.id, "BRL", 49.9);
+
+      // Holds the feature globally so canRequest lets the request through,
+      // but their studio membership does not grant price control — the
+      // resource check is what has to stop them.
+      const member = await orchestrator.createUser();
+      await orchestrator.activateUser(member.id);
+      await orchestrator.addFeaturesToUser(member.id, ["update:game_price"]);
+      await orchestrator.addStudioMember(studio.id, member.username, [
+        "update:game",
+      ]);
+      const memberSession = await orchestrator.createSession(member.id);
+
+      const response = await deletePrice(memberSession.token, game.slug, "BRL");
+
+      expect(response.status).toBe(403);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        message: "You do not have permission to update this game's prices",
+        name: "ForbiddenError",
+        action: "Verify if you are a member of the studio that owns this game",
+        status_code: 403,
+      });
+
+      expect(await pricing.listOverrides(game.id)).toHaveLength(1);
+    });
+  });
+
   describe("Studio member with the permission", () => {
     test("Should return 204 No Content", async () => {
       const { studio, game } = await setupOwnedGame();

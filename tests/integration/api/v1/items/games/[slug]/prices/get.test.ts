@@ -179,6 +179,37 @@ describe("GET /api/v1/items/games/[slug]/prices", () => {
     });
   });
 
+  describe("Studio member without the permission", () => {
+    test("Should return 403 Forbidden", async () => {
+      const { studio, game } = await setupOwnedGame();
+
+      // Holds the feature globally so canRequest lets the request through,
+      // but their studio membership does not grant price access — the
+      // resource check is what has to stop them.
+      const member = await orchestrator.createUser();
+      await orchestrator.activateUser(member.id);
+      await orchestrator.addFeaturesToUser(member.id, ["read:game_price"]);
+      await orchestrator.addStudioMember(studio.id, member.username, [
+        "update:game",
+      ]);
+      const memberSession = await orchestrator.createSession(member.id);
+
+      const response = await fetch(pricesUrl(game.slug), {
+        headers: { Cookie: `session_id=${memberSession.token}` },
+      });
+
+      expect(response.status).toBe(403);
+
+      const responseBody = await response.json();
+      expect(responseBody).toEqual({
+        message: "You do not have permission to read this game's prices",
+        name: "ForbiddenError",
+        action: "Verify if you are a member of the studio that owns this game",
+        status_code: 403,
+      });
+    });
+  });
+
   describe("Studio member with the permission", () => {
     test("Should return 200 OK", async () => {
       const { studio, game } = await setupOwnedGame();
