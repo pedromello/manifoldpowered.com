@@ -4,15 +4,16 @@ Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issue
 
 **Status: in progress.** The design is also under public discussion, so tasks not yet started may still change.
 
-| Task                                    | State                                                                        |
-| --------------------------------------- | ---------------------------------------------------------------------------- |
-| 2. Money → `Decimal(19,4)`              | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
-| 3. Currency + exchange rate model       | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
-| 4. Price resolution                     | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183)) |
-| 4a. Admin currency + rate endpoints     | ✅ done                                                                      |
-| 4b. Studio price override endpoints     | next                                                                         |
-| 4c. Currency selection by region header | after 4b                                                                     |
-| 5–11 (ledger, payouts)                  | not started                                                                  |
+| Task                                     | State                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------- |
+| 2. Money → `Decimal(19,4)`               | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
+| 3. Currency + exchange rate model        | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
+| 4. Price resolution                      | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183)) |
+| 4a. Admin currency + rate endpoints      | ✅ done ([#184](https://github.com/pedromello/manifoldpowered.com/pull/184)) |
+| 4b. Studio price override endpoints      | ✅ done                                                                      |
+| 4c. Backoffice UI for currencies + rates | next                                                                         |
+| 4d. Currency selection by region header  | after 4c                                                                     |
+| 5–11 (ledger, payouts)                   | not started                                                                  |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
@@ -253,6 +254,52 @@ If a balance must be converted to the affiliate's payout currency, the conversio
 Statement and payout history endpoints, gated by the base feature in the router plus a resource-scoped ownership check in the handler. Balances shown per currency. **Never** buyer personal data, never gift card codes.
 
 **Done when:** an affiliate can see their own numbers and provably cannot see another store's.
+
+---
+
+### 4a. Admin currency + exchange rate endpoints
+
+**TLDR:** Backoffice CRUD so currencies and rates can be managed without touching the database.
+
+`GET`/`POST /api/v1/backoffice/currencies`, `GET`/`PATCH /api/v1/backoffice/currencies/[code]`, `GET`/`POST /api/v1/backoffice/exchange-rates`. Every mutation writes an `AdminActionLog`.
+
+The currency code is immutable — it is the logical reference every rate and override points at, and with no foreign keys a rename would orphan them silently.
+
+**Done when:** an admin can register a currency and record a rate through the API. ✅
+
+---
+
+### 4b. Studio price override endpoints
+
+**TLDR:** Let whoever manages a game set its price per currency.
+
+`GET /api/v1/items/games/[slug]/prices` returns one row per enabled currency, showing exactly what a buyer in each would see — including the currencies where the game is unavailable, which is the case most worth noticing. `PUT`/`DELETE /api/v1/items/games/[slug]/prices/[currency]` set and clear an override.
+
+Authorization reuses the `update:game` resource branch: `read:game_price` and `update:game_price` resolve through the game's studio, and both are in `studio.MEMBER_PERMISSIONS`. Anyone who can already change a game's USD price has no reason to be blocked from its price in another currency. Existing studio owners pick the new permissions up from `npm run features:backfill`, which reconciles studio owners against `MEMBER_PERMISSIONS`.
+
+**Done when:** a studio owner can price a game in every enabled currency and see where it is unavailable. ✅
+
+---
+
+### 4c. Backoffice UI for currencies and exchange rates
+
+**TLDR:** Screens for the endpoints from 4a, so currencies and rates are managed without curl.
+
+Follows the existing backoffice conventions (`BackofficeLayout`, Tailwind, SWR, `lucide-react`) and the ground rules in `docs/backoffice-tasks.md`: server-side `canRequest` already enforces access, client gating is cosmetic, and every mutating action gets a confirm dialog naming the resource.
+
+Screens: a currency list with create and edit, and a rate list filtered by pair with a form to record a new rate. Disabling a currency needs a confirm dialog that says plainly it hides every product priced in that currency.
+
+**Done when:** an admin can register a currency, toggle it, and record a rate entirely from the UI.
+
+---
+
+### 4d. Currency selection by region
+
+**TLDR:** Decide which currency a visitor sees, from a geolocation header.
+
+Nothing in the storefront reacts to any of the pricing work until this lands — `priceFor` takes the currency explicitly and nobody chooses it. Detection reads the hosting platform's region header, falling back to the base currency when the region is unknown or its currency is not enabled.
+
+Storefront and detail reads then have to use `resolvableGameIds`/`priceFor`, so a product with no resolvable price disappears rather than showing a price in the wrong currency.
 
 ---
 

@@ -135,6 +135,42 @@ async function priceFor(
   };
 }
 
+export interface GamePriceView {
+  currency: string;
+  // Null means the game is not purchasable in this currency and must be hidden
+  // from anyone browsing in it.
+  amount: string | null;
+  source: "BASE" | "OVERRIDE" | "CONVERTED" | null;
+  exchange_rate: string | null;
+  is_override: boolean;
+}
+
+// One row per enabled currency, so whoever manages a game sees exactly what a
+// buyer in each currency would see — including the currencies where the game
+// is currently unavailable, which is the case most worth noticing.
+async function priceViewFor(
+  game: Pick<Game, "id" | "price">,
+  asOf: Date = new Date(),
+): Promise<GamePriceView[]> {
+  const enabledCurrencies = await currency.findAllEnabled();
+
+  return await Promise.all(
+    enabledCurrencies.map(async (enabledCurrency) => {
+      const resolved = await priceFor(game, enabledCurrency.code, asOf);
+
+      return {
+        currency: enabledCurrency.code,
+        amount: resolved
+          ? resolved.amount.toFixed(enabledCurrency.decimal_places)
+          : null,
+        source: resolved?.source ?? null,
+        exchange_rate: resolved?.exchange_rate?.toFixed(8) ?? null,
+        is_override: resolved?.source === "OVERRIDE",
+      };
+    }),
+  );
+}
+
 // Same as priceFor but for callers that cannot render anything without a
 // price, e.g. a checkout that has already committed to a currency.
 async function priceForOrFail(
@@ -241,6 +277,7 @@ const pricing = {
   listOverrides,
   priceFor,
   priceForOrFail,
+  priceViewFor,
   resolvableGameIds,
   isUsable,
 };
