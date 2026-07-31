@@ -24,6 +24,13 @@ export const exchangeRateSchema = z
 
 export type ExchangeRateCreateDto = z.infer<typeof exchangeRateSchema>;
 
+export const exchangeRateAdminQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  base_currency: currencyCodeSchema.optional(),
+  quote_currency: currencyCodeSchema.optional(),
+});
+
 async function record(rateDto: ExchangeRateCreateDto) {
   await validateCurrenciesAreRegistered([
     rateDto.base_currency,
@@ -125,6 +132,49 @@ async function listByPair(
   };
 }
 
+// Admin listing across every pair, newest-first, optionally filtered.
+async function findAllPaginated({
+  page = 1,
+  limit = 20,
+  base_currency,
+  quote_currency,
+}: {
+  page?: number;
+  limit?: number;
+  base_currency?: string;
+  quote_currency?: string;
+} = {}) {
+  const where: Prisma.ExchangeRateWhereInput = {};
+
+  if (base_currency) {
+    where.base_currency = currency.normalizeCode(base_currency);
+  }
+
+  if (quote_currency) {
+    where.quote_currency = currency.normalizeCode(quote_currency);
+  }
+
+  const [rates, total] = await Promise.all([
+    prisma.exchangeRate.findMany({
+      where,
+      orderBy: { effective_at: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.exchangeRate.count({ where }),
+  ]);
+
+  return {
+    rates,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+}
+
 // There are no foreign keys in this schema, so referential integrity for
 // currency codes is enforced here instead. Without it a typo becomes a rate
 // that silently never matches anything.
@@ -145,6 +195,7 @@ const exchangeRate = {
   findLatest,
   findLatestOrFail,
   listByPair,
+  findAllPaginated,
 };
 
 export default exchangeRate;
