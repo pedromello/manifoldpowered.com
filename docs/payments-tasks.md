@@ -117,7 +117,7 @@ sequenceDiagram
 Two things from the original task still apply to every PR that adds a feature:
 
 - `filterOutput` returns `{}` for unhandled features, so a missing branch silently empties the response body rather than failing loudly. Every new feature needs its own branch.
-- Adding to `ACTIVATED_USER_FEATURES` changes an array that four existing test files assert with whole-object equality, so those fixtures must be updated in the same PR. Adding to `ADMIN_ONLY_FEATURES` does not have that problem, but existing admins do not pick the new features up from `npm run features:backfill` — `feature_backfill.ts` does not reconcile admin-only features. Re-running `npm run admin:grant -- --email=<email>` is the fix; it computes the missing set from `ADMIN_ONLY_FEATURES` and is idempotent.
+- Adding to `ACTIVATED_USER_FEATURES` changes an array that four existing test files assert with whole-object equality, so those fixtures must be updated in the same PR. Adding to `ADMIN_ONLY_FEATURES` does not have that problem. Existing admins pick new admin features up from `npm run features:backfill` (or the backoffice "Reconcile feature grants" button) — `reconcileAll()` has an admin pass that tops up anyone already holding at least one admin-only feature. It cannot promote a non-admin. `npm run admin:grant -- --email=<email>` remains available for granting admin to a specific account.
 
 ---
 

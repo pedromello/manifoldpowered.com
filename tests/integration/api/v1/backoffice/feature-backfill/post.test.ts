@@ -42,6 +42,50 @@ describe("POST /api/v1/backoffice/feature-backfill", () => {
   });
 
   describe("Authenticated admin user", () => {
+    test("Tops up an existing admin missing a newer admin-only feature", async () => {
+      const staleAdmin = await orchestrator.createAdminUser();
+      // Simulate an admin granted before a newer admin feature shipped.
+      await user.setFeatures(
+        staleAdmin.id,
+        [
+          ...authorization.ACTIVATED_USER_FEATURES,
+          ...authorization.ADMIN_ONLY_FEATURES,
+        ].filter((feature) => feature !== "create:currency:any"),
+      );
+
+      const admin = await orchestrator.createAdminUser();
+      const session = await orchestrator.createSession(admin.id);
+
+      const response = await postBackfill(session.token);
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      expect(responseBody.admins.updated).toBeGreaterThanOrEqual(1);
+
+      const updated = await orchestrator.getUserById(staleAdmin.id);
+      expect(updated.features).toEqual(
+        expect.arrayContaining(authorization.ADMIN_ONLY_FEATURES),
+      );
+    });
+
+    test("Never promotes a non-admin to admin", async () => {
+      const plainUser = await orchestrator.createUser();
+      await orchestrator.activateUser(plainUser.id);
+
+      const admin = await orchestrator.createAdminUser();
+      const session = await orchestrator.createSession(admin.id);
+
+      const response = await postBackfill(session.token);
+      expect(response.status).toBe(200);
+
+      // Eligibility for the admin pass is "already holds an admin-only
+      // feature", so a plain activated user must come out untouched.
+      const updated = await orchestrator.getUserById(plainUser.id);
+      for (const adminFeature of authorization.ADMIN_ONLY_FEATURES) {
+        expect(updated.features).not.toContain(adminFeature);
+      }
+    });
+
     test("Tops up a user missing a baseline feature", async () => {
       const target = await orchestrator.createUser();
       await orchestrator.activateUser(target.id);

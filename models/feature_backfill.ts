@@ -12,6 +12,7 @@ interface PassResult {
 
 interface BackfillReport {
   baseline: PassResult;
+  admins: PassResult;
   studio_owners: PassResult;
   studio_members: PassResult;
   store_owners: PassResult;
@@ -84,6 +85,43 @@ async function reconcileBaseline(
       userId,
       eligibleUsers,
       authorization.ACTIVATED_USER_FEATURES,
+      result,
+      touchedIds,
+    );
+  }
+
+  return result;
+}
+
+// Tops up existing admins with any ADMIN_ONLY_FEATURES added since they were
+// granted. Without this pass, every new admin feature silently 403s for every
+// pre-existing admin until someone remembers to re-run `npm run admin:grant`
+// per account — and the backoffice's "Reconcile feature grants" button, which
+// looks like it covers everything, quietly did not.
+//
+// Eligibility is "already holds at least one admin-only feature", so this can
+// only ever close a gap for someone who is already an admin. It cannot promote
+// anyone: a user with no admin features is skipped entirely rather than
+// counted, since they are not a candidate in the first place.
+async function reconcileAdmins(
+  eligibleUsers: EligibleUsers,
+  touchedIds: Set<string>,
+): Promise<PassResult> {
+  const result = newPassResult();
+
+  for (const [userId, currentFeatures] of eligibleUsers) {
+    const isAlreadyAdmin = currentFeatures.some((feature) =>
+      authorization.ADMIN_ONLY_FEATURES.includes(feature),
+    );
+
+    if (!isAlreadyAdmin) {
+      continue;
+    }
+
+    await applyIfMissing(
+      userId,
+      eligibleUsers,
+      authorization.ADMIN_ONLY_FEATURES,
       result,
       touchedIds,
     );
@@ -211,7 +249,8 @@ function groupPermissionsByUser(
 }
 
 // Reconciles every activated, non-disabled user's global features against
-// the *current* code-level definitions of ACTIVATED_USER_FEATURES and the
+// the *current* code-level definitions of ACTIVATED_USER_FEATURES,
+// ADMIN_ONLY_FEATURES (for users who are already admins) and the
 // studio/store MEMBER_PERMISSIONS lists. Safe to re-run at any time (a no-op
 // wherever nothing is missing) — intended to be re-run after every future
 // change to those definitions, from the CLI script, a CI job, or the
@@ -222,6 +261,7 @@ async function reconcileAll(): Promise<BackfillReport> {
   const touchedIds = new Set<string>();
 
   const baseline = await reconcileBaseline(eligibleUsers, touchedIds);
+  const admins = await reconcileAdmins(eligibleUsers, touchedIds);
   const studio_owners = await reconcileStudioOwners(eligibleUsers, touchedIds);
   const studio_members = await reconcileStudioMembers(
     eligibleUsers,
@@ -232,6 +272,7 @@ async function reconcileAll(): Promise<BackfillReport> {
 
   return {
     baseline,
+    admins,
     studio_owners,
     studio_members,
     store_owners,
