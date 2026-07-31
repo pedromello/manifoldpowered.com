@@ -43,6 +43,7 @@ import {
 } from "components/store/ReviewCard";
 import { ReviewSummary } from "components/store/ReviewSummary";
 import webserver from "infra/webserver";
+import { DisplayPrice, formatBasePrice, formatPrice } from "lib/price";
 
 type GameApi = {
   id: string;
@@ -53,6 +54,7 @@ type GameApi = {
   launch_date: string;
   price: string;
   base_price?: string;
+  display_price?: DisplayPrice | null;
   discount_label?: string;
   developer_name: string;
   publisher_name?: string;
@@ -440,9 +442,9 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
-                    {!isDemo && game.base_price && (
+                    {!isDemo && formatBasePrice(game) && (
                       <span className="text-xl font-bold text-white/30 line-through">
-                        ${game.base_price}
+                        {formatBasePrice(game)}
                       </span>
                     )}
                     <span
@@ -451,7 +453,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
                         color: discountBadgeColor,
                       }}
                     >
-                      {isDemo ? "Free" : `$${game.price}`}
+                      {isDemo ? "Free" : formatPrice(game)}
                     </span>
                   </div>
                   {!isDemo && game.discount_label && (

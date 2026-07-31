@@ -13,6 +13,7 @@ import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
 import { GameListItem, type GameApi } from "components/store/GameListItem";
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
 
 function HeroBento({
   featured,
@@ -24,7 +25,8 @@ function HeroBento({
   if (!featured || featured.length < 3) return null;
   const [main, side1, side2] = featured;
 
-  const isDemo = (price: string) => !price || Number(price) === 0;
+  // Kept as a local alias so the many call sites below read the same as before.
+  const isDemo = (item: PricedItem) => isFree(item);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const itemHref = (slug: string) =>
@@ -51,8 +53,8 @@ function HeroBento({
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
 
-        {!isDemo(main.price) &&
-          main.base_price !== main.price &&
+        {!isDemo(main) &&
+          formatBasePrice(main) !== null &&
           main.discount_label && (
             <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
               <DiscountBadge label={main.discount_label} />
@@ -69,11 +71,11 @@ function HeroBento({
           <div className="flex items-center gap-4 mt-2">
             <div className="flex items-center gap-3">
               <span
-                className={`text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase ${!isDemo(main.price) && main.base_price && main.base_price !== main.price ? "" : "text-white border-white/20"}`}
+                className={`text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase ${!isDemo(main) && formatBasePrice(main) !== null ? "" : "text-white border-white/20"}`}
                 style={
-                  !isDemo(main.price) &&
+                  !isDemo(main) &&
                   main.base_price &&
-                  main.base_price !== main.price
+                  formatBasePrice(main) !== null
                     ? {
                         color: discountBadgeColor,
                         borderColor: discountBadgeColor,
@@ -81,13 +83,13 @@ function HeroBento({
                     : {}
                 }
               >
-                {isDemo(main.price) ? "Free Demo" : `$${main.price}`}
+                {isDemo(main) ? "Free Demo" : formatPrice(main)}
               </span>
-              {!isDemo(main.price) &&
+              {!isDemo(main) &&
                 main.base_price &&
-                main.base_price !== main.price && (
+                formatBasePrice(main) !== null && (
                   <span className="text-sm md:text-lg text-white/40 line-through font-bold">
-                    ${main.base_price}
+                    {formatBasePrice(main)}
                   </span>
                 )}
             </div>
@@ -124,8 +126,8 @@ function HeroBento({
 
           <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-[#1D0F3B]/20 to-transparent opacity-80" />
 
-          {!isDemo(game.price) &&
-            game.base_price !== game.price &&
+          {!isDemo(game) &&
+            formatBasePrice(game) !== null &&
             game.discount_label && (
               <div className="absolute top-5 right-5 z-10">
                 <DiscountBadge label={game.discount_label} />
@@ -138,11 +140,11 @@ function HeroBento({
             </h3>
             <div className="flex items-center gap-3">
               <span
-                className={`text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase ${!isDemo(game.price) && game.base_price && game.base_price !== game.price ? "" : "text-white border-white/20"}`}
+                className={`text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase ${!isDemo(game) && formatBasePrice(game) !== null ? "" : "text-white border-white/20"}`}
                 style={
-                  !isDemo(game.price) &&
+                  !isDemo(game) &&
                   game.base_price &&
-                  game.base_price !== game.price
+                  formatBasePrice(game) !== null
                     ? {
                         color: discountBadgeColor,
                         borderColor: discountBadgeColor,
@@ -150,11 +152,11 @@ function HeroBento({
                     : {}
                 }
               >
-                {isDemo(game.price) ? "Free Demo" : `$${game.price}`}
+                {isDemo(game) ? "Free Demo" : formatPrice(game)}
               </span>
-              {!isDemo(game.price) &&
+              {!isDemo(game) &&
                 game.base_price &&
-                game.base_price !== game.price && (
+                formatBasePrice(game) !== null && (
                   <span className="text-sm md:text-base text-white/40 line-through font-bold">
                     ${game.base_price}
                   </span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
+import { DisplayPrice, formatBasePrice, formatPrice, isFree } from "lib/price";
 
 export type GameApi = {
   id: string;
@@ -11,6 +12,7 @@ export type GameApi = {
   launch_date: string;
   price: string;
   base_price?: string;
+  display_price?: DisplayPrice | null;
   discount_label?: string;
   developer_name: string;
   publisher_name?: string;
@@ -34,9 +36,8 @@ export function GameListItem({
   game: GameApi;
   storeSlug?: string;
 }) {
-  const isDemo = !game.price || Number(game.price) === 0;
-  const isDiscounted =
-    !isDemo && game.base_price && game.base_price !== game.price;
+  const isDemo = isFree(game);
+  const isDiscounted = !isDemo && formatBasePrice(game) !== null;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const itemHref = storeSlug
@@ -75,17 +76,15 @@ export function GameListItem({
           <div className="flex items-end gap-1 w-fit">
             <div className="flex w-full h-full">
               <div className="flex items-center">
-                {!isDemo &&
-                  game.base_price !== game.price &&
-                  game.discount_label && (
-                    <DiscountBadge label={game.discount_label} size="small" />
-                  )}
+                {isDiscounted && game.discount_label && (
+                  <DiscountBadge label={game.discount_label} size="small" />
+                )}
               </div>
             </div>
             <div className="flex flex-col h-full justify-center pr-2">
-              {!isDemo && game.base_price && game.base_price !== game.price && (
+              {isDiscounted && (
                 <span className="text-sm md:text-xl font-bold text-white/30 line-through">
-                  ${game.base_price}
+                  {formatBasePrice(game)}
                 </span>
               )}
               <div
@@ -99,7 +98,7 @@ export function GameListItem({
                     : {}
                 }
               >
-                {isDemo ? "Free" : `$${game.price}`}
+                {isDemo ? "Free" : formatPrice(game)}
               </div>
             </div>
           </div>

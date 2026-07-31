@@ -2,18 +2,20 @@
 
 Delivery plan for [#177](https://github.com/pedromello/manifoldpowered.com/issues/177) (Milestone 3: Payment Structure — Sales and Payouts).
 
+For the runtime design of the pricing path — how a game gets a price in the visitor's currency, and why the modules are split the way they are — see [`payments-architecture.md`](./payments-architecture.md).
+
 **Status: in progress.** The design is also under public discussion, so tasks not yet started may still change.
 
-| Task                                     | State                                                                        |
-| ---------------------------------------- | ---------------------------------------------------------------------------- |
-| 2. Money → `Decimal(19,4)`               | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181)) |
-| 3. Currency + exchange rate model        | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182)) |
-| 4. Price resolution                      | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183)) |
-| 4a. Admin currency + rate endpoints      | ✅ done ([#184](https://github.com/pedromello/manifoldpowered.com/pull/184)) |
-| 4b. Studio price override endpoints      | ✅ done                                                                      |
-| 4c. Backoffice UI for currencies + rates | ✅ done                                                                      |
-| 4d. Currency selection by region header  | next                                                                         |
-| 5–11 (ledger, payouts)                   | not started                                                                  |
+| Task                                     | State                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| 2. Money → `Decimal(19,4)`               | ✅ done ([#181](https://github.com/pedromello/manifoldpowered.com/pull/181))   |
+| 3. Currency + exchange rate model        | ✅ done ([#182](https://github.com/pedromello/manifoldpowered.com/pull/182))   |
+| 4. Price resolution                      | ✅ done ([#183](https://github.com/pedromello/manifoldpowered.com/pull/183))   |
+| 4a. Admin currency + rate endpoints      | ✅ done ([#184](https://github.com/pedromello/manifoldpowered.com/pull/184))   |
+| 4b. Studio price override endpoints      | ✅ done                                                                        |
+| 4c. Backoffice UI for currencies + rates | ✅ done ([#186](https://github.com/pedromello/manifoldpowered.com/pull/186))   |
+| 4d. Currency selection by region header  | ✅ done ([#188](https://github.com/pedromello/manifoldpowered.com/issues/188)) |
+| 5–11 (ledger, payouts)                   | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
@@ -300,11 +302,20 @@ Two details worth keeping if these screens are extended:
 
 ### 4d. Currency selection by region
 
-**TLDR:** Decide which currency a visitor sees, from a geolocation header.
+**TLDR:** Decide which currency a visitor sees, from a geolocation header. This is what finally makes the pricing work visible to a buyer.
 
-Nothing in the storefront reacts to any of the pricing work until this lands — `priceFor` takes the currency explicitly and nobody chooses it. Detection reads the hosting platform's region header, falling back to the base currency when the region is unknown or its currency is not enabled.
+`models/region.ts` reads Vercel's `x-vercel-ip-country` and maps it to a currency, falling back to the base currency whenever the region is unknown, unmapped, ungeolocatable (`XX`), or maps to a currency that is not enabled. The country→currency map is static in code rather than a table: it is a property of the world, not of the catalogue, so a database copy could only ever be edited to be wrong.
 
-Storefront and detail reads then have to use `resolvableGameIds`/`priceFor`, so a product with no resolvable price disappears rather than showing a price in the wrong currency.
+`models/storefront_pricing.ts` centralises what every storefront read needs, because seven endpoints require identical behaviour and a storefront that prices differently depending on which list a game came from is worse than one that never localises.
+
+Responses gain `display_price` (`amount`, `base_amount`, `currency`, `symbol`) alongside the untouched USD `price`, so the change is additive.
+
+**Two things worth remembering:**
+
+- **Filtering happens in the query, not after it.** `findAllPaginated` takes `priceableGameIds`; post-filtering a page of 20 could render 15 while pagination still claimed 20.
+- **The base currency works unregistered.** With no currency rows at all the platform still sells in USD, and localisation is purely additive. Treating an unregistered base currency as unpriceable would have emptied the entire storefront the moment this shipped unconfigured.
+
+**Done when:** a visitor in a mapped region with a rate sees local prices, and products with no price in their currency are absent from listings and 404 on detail. ✅
 
 ---
 

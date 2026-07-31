@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Loader2, Building2, Copy, Check, Gamepad2 } from "lucide-react";
 import { ReviewSummary } from "components/store/ReviewSummary";
 import { type GameApi } from "components/store/GameListItem";
+import { formatPrice, isFree } from "lib/price";
 
 interface Studio {
   id: string;
@@ -138,7 +139,7 @@ export default function StudioPage() {
 function StudioGameCard({ game }: { game: GameApi }) {
   const [copied, setCopied] = useState(false);
 
-  const isDemo = !game.price || Number(game.price) === 0;
+  const isDemo = isFree(game);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
@@ -181,7 +182,7 @@ function StudioGameCard({ game }: { game: GameApi }) {
         </div>
 
         <div className="flex items-center gap-3 text-xs text-white/40 font-bold">
-          <span>{isDemo ? "Free" : `$${game.price}`}</span>
+          <span>{isDemo ? "Free" : formatPrice(game)}</span>
           <span className="text-white/20">•</span>
           <span>{launchDate}</span>
         </div>

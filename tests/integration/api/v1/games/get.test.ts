@@ -1,5 +1,7 @@
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
+import gameModel from "models/game";
+import currencyModel from "models/currency";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -183,6 +185,125 @@ describe("GET /api/v1/games", () => {
           "Budget Bundle",
         ]);
       });
+    });
+  });
+  describe("Regional pricing", () => {
+    async function setupPricedGame(priceInUsd = 10) {
+      await orchestrator.clearDatabaseRows();
+      await orchestrator.createCurrency({ code: "USD", symbol: "$" });
+      await orchestrator.createCurrency({ code: "BRL", symbol: "R$" });
+
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const game = await orchestrator.createGame(owner.id, {
+        price: priceInUsd,
+      });
+      await gameModel.setStatus(game.id, "ACTIVE");
+
+      return game;
+    }
+
+    function listAs(country?: string) {
+      return fetch(`${webserver.getOrigin()}/api/v1/games`, {
+        headers: country ? { "x-vercel-ip-country": country } : {},
+      });
+    }
+
+    test("Without a region header should price in the base currency", async () => {
+      await setupPricedGame(10);
+
+      const response = await listAs();
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.currency).toBe("USD");
+      expect(body.games[0].display_price).toEqual({
+        amount: "10.00",
+        base_amount: null,
+        currency: "USD",
+        symbol: "$",
+      });
+      // price stays the USD base, so this is additive for existing clients.
+      expect(body.games[0].price).toBe("10.00");
+    });
+
+    test("With a Brazilian region and a rate should price in BRL", async () => {
+      await setupPricedGame(10);
+      await orchestrator.createExchangeRate({ rate: 5.5 });
+
+      const body = await (await listAs("BR")).json();
+
+      expect(body.currency).toBe("BRL");
+      expect(body.games[0].display_price).toEqual({
+        amount: "55.00",
+        base_amount: null,
+        currency: "BRL",
+        symbol: "R$",
+      });
+    });
+
+    test("An override wins over the rate", async () => {
+      const game = await setupPricedGame(10);
+      await orchestrator.createExchangeRate({ rate: 5.5 });
+      await orchestrator.setGamePriceOverride(game.id, "BRL", 49.9);
+
+      const body = await (await listAs("BR")).json();
+
+      expect(body.games[0].display_price.amount).toBe("49.90");
+    });
+
+    test("With no rate and no override the game is hidden from the region", async () => {
+      await setupPricedGame(10);
+
+      const body = await (await listAs("BR")).json();
+
+      expect(body.currency).toBe("BRL");
+      expect(body.games).toHaveLength(0);
+      // Pagination reflects the constrained query rather than a filtered page.
+      expect(body.pagination.total).toBe(0);
+    });
+
+    test("With no rate, only games priced explicitly in BRL are listed", async () => {
+      const priced = await setupPricedGame(10);
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const unpriced = await orchestrator.createGame(owner.id, { price: 20 });
+      await gameModel.setStatus(unpriced.id, "ACTIVE");
+
+      await orchestrator.setGamePriceOverride(priced.id, "BRL", 49.9);
+
+      const body = await (await listAs("BR")).json();
+
+      expect(body.games.map((g) => g.id)).toEqual([priced.id]);
+      expect(body.pagination.total).toBe(1);
+    });
+
+    test("A disabled currency falls back to the base currency", async () => {
+      await setupPricedGame(10);
+      await orchestrator.createExchangeRate({ rate: 5.5 });
+      await currencyModel.setEnabled("BRL", false);
+
+      const body = await (await listAs("BR")).json();
+
+      expect(body.currency).toBe("USD");
+      expect(body.games[0].display_price.currency).toBe("USD");
+    });
+
+    test("An unmapped region falls back to the base currency", async () => {
+      await setupPricedGame(10);
+
+      const body = await (await listAs("AQ")).json();
+
+      expect(body.currency).toBe("USD");
+    });
+
+    test("An ungeolocatable request falls back to the base currency", async () => {
+      await setupPricedGame(10);
+
+      // Vercel sends XX when it cannot place the request.
+      const body = await (await listAs("XX")).json();
+
+      expect(body.currency).toBe("USD");
     });
   });
 });
