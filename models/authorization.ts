@@ -658,6 +658,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     }
     interface BackfillReportOutput {
       baseline: PassResult;
+      admins: PassResult;
       studio_owners: PassResult;
       studio_members: PassResult;
       store_owners: PassResult;
