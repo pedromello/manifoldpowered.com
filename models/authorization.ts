@@ -48,6 +48,11 @@ const AVAILABLE_FEATURES = [
   "read:public_game",
   "update:game",
   "update:game:any",
+  // Per-currency price overrides. Resolved through the game's studio exactly
+  // like update:game, since anyone who can already change a game's USD price
+  // has no reason to be blocked from its price in another currency.
+  "read:game_price",
+  "update:game_price",
 
   // Wishlists
   "create:wishlist",
@@ -211,7 +216,9 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   if (
     (feature === "update:game" ||
       feature === "create:game_file" ||
-      feature === "delete:game_file") &&
+      feature === "delete:game_file" ||
+      feature === "read:game_price" ||
+      feature === "update:game_price") &&
     resource
   ) {
     authorized = false;
@@ -674,6 +681,24 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       enabled: currencyOutput.enabled,
       created_at: currencyOutput.created_at,
       updated_at: currencyOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:game_price" || feature === "update:game_price") {
+    interface GamePriceOutput {
+      currency: string;
+      amount: string | null;
+      source: "BASE" | "OVERRIDE" | "CONVERTED" | null;
+      exchange_rate: string | null;
+      is_override: boolean;
+    }
+    const priceOutput = resource as GamePriceOutput;
+    return {
+      currency: priceOutput.currency,
+      amount: priceOutput.amount,
+      source: priceOutput.source,
+      exchange_rate: priceOutput.exchange_rate,
+      is_override: priceOutput.is_override,
     };
   }
 

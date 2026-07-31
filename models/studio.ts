@@ -22,6 +22,8 @@ export const MEMBER_PERMISSIONS = [
   "update:game",
   "create:game_file",
   "delete:game_file",
+  "read:game_price",
+  "update:game_price",
 ];
 
 export const memberPermissionsSchema = z.object({
