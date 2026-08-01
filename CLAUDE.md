@@ -70,6 +70,36 @@ Focus on writing robust **integration tests**. Use `tests/integration/api/v1/use
   });
   ```
 
+- **The error body is not always 4 keys.** `ValidationError` and `ServiceError` also serialise a `context` field (see `infra/errors.ts`), and every Zod `safeParse` failure passes `context: result.error.issues` — so the most common validation path returns **five** keys, not four. Asserting the 4-key shape there fails. When `context` is a large Zod dump, assert field by field instead:
+
+  ```typescript
+  expect(responseBody.name).toBe("ValidationError");
+  expect(responseBody.message).toBe("One or more fields are invalid");
+  expect(responseBody.action).toBe("Check the fields and try again");
+  expect(responseBody.status_code).toBe(400);
+  ```
+
+### Other Test Locations
+
+`tests/integration/api/` is the main surface, but two other directories exist and are the right home for some tests:
+
+- `tests/integration/models/` — model-level integration tests that need a database but no HTTP call (see `audit_log.test.ts`).
+- `tests/unit/` — pure functions with no I/O (see `unit/models/authorization.test.ts`).
+- `tests/integration/_use-cases/` — multi-endpoint flows (see `purchase-and-download-flow.test.ts`).
+
+**There is no frontend test setup.** No testing-library, no component tests. Pages and components under `pages/` and `components/` are verified by hand or by driving a browser, not by the suite. Do not assume a component test can be written without introducing the whole stack first.
+
+### Linting
+
+Run the npm scripts, not a scoped `prettier`/`eslint` invocation:
+
+```bash
+npm run lint:prettier:check   # prettier --check .  — the WHOLE repo, markdown included
+npm run lint:eslint:check
+```
+
+`lint:prettier:check` covers every file in the repository. Formatting only the directories you touched will pass locally and fail in CI, most often on Markdown in `docs/`.
+
 ### The Test Orchestrator
 
 The `tests/orchestrator.js` file is the core utility for test environment setup.
@@ -80,6 +110,18 @@ The `tests/orchestrator.js` file is the core utility for test environment setup.
 ### Database Constraints (CRITICAL)
 
 - **No Foreign Keys:** The database architecture strictly forbids the use of Foreign Keys. Do not create FK constraints in migrations or schemas to ensure maximum horizontal scalability.
+- **Referential integrity is the model layer's job.** With no FKs, a bad id or currency code becomes a row that silently never matches anything. Validate references in the model before writing (see `exchange_rate.validateCurrenciesAreRegistered`).
+- **Append-only tables omit `updated_at`**, with a comment explaining why (see `Sale`, `AdminActionLog`, `ExchangeRate`). Correcting an append-only row means writing a new one, never an `UPDATE`.
+
+### Money (CRITICAL)
+
+- **All money is `Decimal @db.Decimal(19, 4)`.** Four decimal places is the standard scale for amounts subject to tax, where intermediate calculations need more precision than the two decimals a currency displays. Exchange rates use `Decimal(19, 8)`.
+- **Prisma returns `Decimal` objects, not numbers or strings.** They must be serialised explicitly at the `filterOutput` boundary, the same way `GameFile.size_bytes` (a `BigInt`) already is.
+- **Use `.toFixed(n)`, not `.toString()`.** `Decimal.toString()` normalises trailing zeros, so a stored `199.9000` becomes `"199.9"` rather than `"199.90"`. This does not fail the typecheck and only surfaces at runtime.
+- Comparing two `Decimal` instances needs `.equals()`. `toBe` compares references and always fails.
+- Never do money arithmetic in JavaScript numbers. Use the `Decimal` methods (`.mul()`, `.toDecimalPlaces()`).
+
+For how prices are resolved per currency, see [`docs/payments-architecture.md`](./docs/payments-architecture.md).
 
 ### MVC Architecture
 
@@ -113,37 +155,50 @@ When building or modifying endpoints (reference `pages/api/v1/items/games/index.
 
 1. **Input Protection (Zod):**
    - All inputs must be strictly validated using Zod.
-   - _Architecture Note:_ Currently, Zod validation is done manually inside handlers (e.g., `gameSchema.safeParse`). In the future, this should be encapsulated under a `filterInput` function that does not exist yet. Until then, handle the Zod parse result and throw a `ValidationError` se falhar.
+   - _Architecture Note:_ Currently, Zod validation is done manually inside handlers (e.g., `gameSchema.safeParse`). In the future, this should be encapsulated under a `filterInput` function that does not exist yet. Until then, handle the Zod parse result and throw a `ValidationError` when it fails.
 2. **Output Filtering:**
    - All outputs MUST be correctly filtered before being sent to the client to prevent data leaks.
    - Use `authorization.filterOutput(user, 'action:name', data)` to ensure the payload only contains fields the requester is permitted to see.
+   - **`filterOutput` returns `{}` for any feature it has no branch for.** It does not throw. A new feature without its own branch produces an empty response body, silently, and the symptom shows up far from the cause. Every feature you register needs a matching branch.
 
 ### Authorization Pattern (Self vs Others)
 
 When implementing features that distinguish between an owner and an administrator (e.g., `update:user` or `update:game`), follow this pattern in `models/authorization.ts`:
 
-1.  **Define granular features:** e.g., `update:game:self` and `update:game:any`.
-2.  **Expose a base feature to controllers:** e.g., `update:game`.
-3.  **Implement logic in `can()`:**
+1.  **Expose a base feature to controllers:** e.g., `update:game`. This is the string `controller.canRequest()` takes.
+2.  **Add an escape hatch for staff:** e.g., `update:game:any`.
+3.  **Derive ownership from the resource, not from a `:self` feature.** There is no `update:game:self` — the base feature is granted to owners and members, and `can()` decides by comparing the resource against the user:
+
     ```typescript
     if (feature === "update:game" && resource) {
-      const gameResource = resource as Game;
-      if (
-        (user.features.includes("update:game:self") &&
-          user.id === gameResource.user_id) ||
-        user.features.includes("update:game:any")
-      ) {
-        return true;
+      authorized = false;
+      const gameResource = resource as GameWithStudio;
+      const studioResource = gameResource.studio;
+
+      const isOwner = user.id === studioResource.owner_id;
+      const isPermittedMember = studioResource.members?.some(
+        (member) =>
+          member.user_id === user.id && member.permissions.includes(feature),
+      );
+
+      if (isOwner || isPermittedMember || can(user, "update:game:any")) {
+        authorized = true;
       }
     }
     ```
-4.  **Enforce in Controller:**
+
+    Note the `authorized = false` reset: passing a resource is strictly narrowing, so a resource-scoped check can only ever revoke access the plain feature list already implied.
+
+4.  **Enforce in the controller — both steps.** `controller.canRequest()` calls `can()` **without** a resource, so it is only a coarse "does this user hold the feature at all" gate. The resource check must be repeated inside the handler, or a user who holds the feature can act on someone else's resource:
+
     ```typescript
-    const resource = await model.findOne(id);
+    const resource = await model.findOneWithOwner(id);
     if (!authorization.can(req.context.user, "update:game", resource)) {
-      throw new ForbiddenError({ ... });
+      throw new ForbiddenError({ message: "...", action: "..." });
     }
     ```
+
+    Related features can share one `can()` branch when they resolve ownership identically — `update:game`, `create:game_file`, `delete:game_file` and the `*:game_price` pair all do.
 
 ## 4. User Feature Progression & Tags (CRITICAL)
 
@@ -153,9 +208,26 @@ The application uses a strictly defined progression of features/permissions base
 
 When adding new features, you MUST ensure they are added to the correct state:
 
-1.  **Anonymous User:** Defined in `infra/controller.ts` (`injectAnonymousUser`). Basic public access (e.g., `read:public_game`, `create:session`).
+1.  **Anonymous User:** `authorization.ANONYMOUS_USER_FEATURES`, applied by `infra/controller.ts` (`injectAnonymousUser`). Basic public access (e.g., `read:public_game`, `create:session`).
 2.  **Unactivated User:** Defined in `models/user.ts` (`injectDefaultFeaturesInObject`). Features available immediately after registration (e.g., `read:activation_token`).
-3.  **Activated User:** Defined in `models/activation.ts` (`activateUserByUserId`). Full user features (e.g., `update:user`, `read:session`, `create:wishlist`). **Note:** Activating a user replaces their feature set entirely; it does not append.
+3.  **Activated User:** `authorization.ACTIVATED_USER_FEATURES`, applied by `models/activation.ts` (`activateUserByUserId`). Full user features (e.g., `update:user`, `read:session`, `create:wishlist`). **Note:** Activating a user replaces their feature set entirely; it does not append.
+4.  **Admin:** `authorization.ADMIN_ONLY_FEATURES`, layered on top of the activated set. Granted by `scripts/create-admin.ts` (`npm run admin:grant`).
+
+**Every list above lives in `models/authorization.ts`.** The files that _apply_ them only import — edit the arrays in `authorization.ts`, not at the call sites.
+
+### Checklist for adding a feature
+
+Registering the string is the first step, not the only one. Each tier has a different consequence:
+
+| You added it to             | Also required                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `AVAILABLE_FEATURES`        | Always. `can()` and `filterOutput` throw `InternalServerError` for unregistered features.                               |
+| `filterOutput`              | Always. A missing branch returns `{}` silently.                                                                         |
+| `ACTIVATED_USER_FEATURES`   | Update the test fixtures that assert the whole array — currently four files, including `api/v1/user/get.test.ts`.       |
+| `ADMIN_ONLY_FEATURES`       | Existing admins need `npm run features:backfill` (the admin pass tops up anyone already holding an admin-only feature). |
+| `studio`/`store` member set | Existing owners and members need `npm run features:backfill`.                                                           |
+
+Run `npm run features:backfill` after any change to these lists. It is idempotent, reconciles every tier, and cannot promote a non-admin.
 
 ## 5. Error Handling (CRITICAL)
 
