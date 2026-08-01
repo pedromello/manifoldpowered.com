@@ -19,11 +19,11 @@ likely conclusion is "tests can't run here", which is wrong.
 
 ## What it substitutes
 
-| Container            | Substitute                         | Port(s)    |
-| -------------------- | ---------------------------------- | ---------- |
-| `postgres:16-alpine` | native PostgreSQL 16 binaries      | 6432       |
-| `sj26/mailcatcher`   | the `mailcatcher` Ruby gem         | 1025, 1080 |
-| `minio/minio`        | `moto[server]` (S3-compatible)     | 9000       |
+| Container            | Substitute                     | Port(s)    |
+| -------------------- | ------------------------------ | ---------- |
+| `postgres:16-alpine` | native PostgreSQL 16 binaries  | 6432       |
+| `sj26/mailcatcher`   | the `mailcatcher` Ruby gem     | 1025, 1080 |
+| `minio/minio`        | `moto[server]` (S3-compatible) | 9000       |
 
 Same protocols on the same ports, so no application code or test knows the
 difference. Credentials and ports come from `.env.development`, which is
@@ -32,7 +32,7 @@ committed.
 Each substitute is load-bearing:
 
 - **MailCatcher** — `orchestrator.waitForAllServices()` blocks on its HTTP API,
-  so *every* suite hangs without it. Note the orchestrator speaks MailCatcher's
+  so _every_ suite hangs without it. Note the orchestrator speaks MailCatcher's
   API (`/messages`, `/messages/:id.plain`), not MailHog's.
 - **S3** — the game-file suites fail in `beforeAll` on `clearStorage()` without
   an endpoint on 9000. `moto` covers presigned upload and download URLs.
@@ -57,7 +57,7 @@ Two suites fail in this environment for reasons unrelated to any change:
   which is unreachable through the egress proxy, so the endpoint correctly
   returns 503.
 
-Both pass in CI. Treat any *other* failure as real.
+Both pass in CI. Treat any _other_ failure as real.
 
 ## Maintenance
 
