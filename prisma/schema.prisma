@@ -462,9 +462,15 @@ model LedgerEntry {
   matures_at DateTime?
 
   // Logical reference to LedgerEntry.id, set on rows written by reverse().
-  // Per-row rather than per-set so a partial refund can reverse part of a set
-  // later without a schema change.
-  reverses_entry_id String?
+  //
+  // Unique, so an entry can be cancelled exactly once. reverse() checks first
+  // and reports a clear error, but two chargeback handlers racing would both
+  // pass that check and claw the same commission back twice — and with no
+  // UPDATE available, a ledger wrong in that direction cannot be repaired.
+  // Refunds in this business are all-or-nothing (see
+  // docs/legal/business-description.md), so nothing legitimate needs to reverse
+  // an entry in parts.
+  reverses_entry_id String? @unique
 
   description String? @db.VarChar(255)
 
@@ -472,10 +478,12 @@ model LedgerEntry {
   created_at DateTime @default(now())
 
   @@index([entry_group_id])
-  @@index([owner_id, account_type, currency])
+  // Leads on the balance query's grouping and carries matures_at as the last
+  // column, so the matured filter is served by the same index rather than a
+  // separate one on matures_at alone — which nothing would ever choose, since
+  // no query filters on maturity without an owner.
+  @@index([owner_id, account_type, currency, matures_at])
   @@index([source_type, source_id])
-  @@index([matures_at])
-  @@index([reverses_entry_id])
   @@map("ledger_entries")
 }
 

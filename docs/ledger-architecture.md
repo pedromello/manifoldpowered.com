@@ -59,6 +59,12 @@ await ledger.balancesFor(affiliateId); //  -10.0000  what the ledger holds
 await ledger.payableBalancesFor(affiliateId); //  +10.0000  what we owe them
 ```
 
+A payout run wants both the sign flip _and_ the hold, so it calls
+`maturedPayableBalancesFor()`. That function exists specifically because the
+obvious name for the number it needs — `maturedBalancesFor` — returns the raw
+ledger sign, and a payout run reaching for the obviously-named function and
+transferring a negative amount is the worst bug this model could ship.
+
 ## Balances are per currency
 
 An affiliate can hold a BRL balance and a USD balance at the same time. They are
@@ -88,7 +94,19 @@ original was still held. The matured balance would then show the commission as
 payable with nothing offsetting it — a clawback that silently claws nothing
 back. Copying the hold makes the pair cancel at the same instant.
 
-A set can only be reversed once. Further corrections are new balanced sets.
+A set can only be reversed once, and a reversal cannot itself be reversed.
+Further corrections are new balanced sets. The unique index on
+`reverses_entry_id` is what actually enforces the first rule: `reverse()` checks
+before writing, but two concurrent chargeback handlers would both pass that
+check, and a commission clawed back twice leaves the affiliate owing us money
+with no `UPDATE` available to repair it.
+
+**`isSourceReversed()` is introspection, not a payability test.** It only sees
+corrections made through `reverse()`; one written as a fresh `ADJUSTMENT` set
+carries no back-pointer and is invisible to it. The number that is always right
+is the balance — a reversal negates the original _and_ copies its `matures_at`,
+so a cancelled commission already nets to zero in `maturedPayableBalancesFor`
+without anyone having to ask.
 
 ## Referencing the source
 
@@ -171,6 +189,34 @@ and there is no `UPDATE` available to repair it.
 
 `sumByCurrency()` is exported and pure, so a caller assembling a set can check
 it balances before attempting the write.
+
+## Which accounts may name a user
+
+`AFFILIATE_COMMISSION` and `PAYOUT` must carry an `owner_id`. Every other
+account is the platform's own and must not.
+
+Both directions are enforced in `record()`, and both matter. An unowned account
+naming a storefront owner would be a database row asserting that an affiliate
+received consumer funds — the one fact the affiliate characterisation depends on
+never being true (`docs/legal/phase-0-checklist.md`). An owned account with _no_
+owner is a liability owed to nobody: balances are looked up by owner, so the row
+would sit in the books invisible to every read path.
+
+With no foreign keys, `owner_id` is also checked against `User` before the
+write, for the same reason currency codes are — an id that matches nothing
+becomes a commission that never appears in any statement or payout.
+
+## What is not modelled here
+
+- **Idempotency.** Nothing stops the same sale being recorded twice; a
+  duplicated payment webhook would write a second balanced set and the affiliate
+  would be owed double. `(source_type, source_id)` cannot simply be unique
+  because reversals share it. This needs deciding before checkout writes to the
+  ledger — see the open questions in `payments-tasks.md`.
+- **Platform-side reads.** `balancesFor` requires an owner, and all three
+  platform accounts have `owner_id NULL`, so "what was our revenue this month"
+  has no read path yet. Task 11 is affiliate-facing only, so no task currently
+  covers this.
 
 ## Currencies the ledger will accept
 

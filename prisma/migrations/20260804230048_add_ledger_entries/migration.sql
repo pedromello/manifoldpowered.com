@@ -22,16 +22,13 @@ CREATE TABLE "ledger_entries" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ledger_entries_reverses_entry_id_key" ON "ledger_entries"("reverses_entry_id");
+
+-- CreateIndex
 CREATE INDEX "ledger_entries_entry_group_id_idx" ON "ledger_entries"("entry_group_id");
 
 -- CreateIndex
-CREATE INDEX "ledger_entries_owner_id_account_type_currency_idx" ON "ledger_entries"("owner_id", "account_type", "currency");
+CREATE INDEX "ledger_entries_owner_id_account_type_currency_matures_at_idx" ON "ledger_entries"("owner_id", "account_type", "currency", "matures_at");
 
 -- CreateIndex
 CREATE INDEX "ledger_entries_source_type_source_id_idx" ON "ledger_entries"("source_type", "source_id");
-
--- CreateIndex
-CREATE INDEX "ledger_entries_matures_at_idx" ON "ledger_entries"("matures_at");
-
--- CreateIndex
-CREATE INDEX "ledger_entries_reverses_entry_id_idx" ON "ledger_entries"("reverses_entry_id");

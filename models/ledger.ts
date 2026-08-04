@@ -12,13 +12,38 @@ import { BASE_CURRENCY } from "models/pricing";
 // of bug the zero-sum rule exists to catch.
 const MONEY_SCALE = 4;
 
-const ledgerAccountTypeValues = [
-  "CONSUMER_PAYMENT",
-  "SUPPLIER_COST",
-  "AFFILIATE_COMMISSION",
-  "PLATFORM_REVENUE",
-  "PAYOUT",
-] as const;
+// Exchange rates are Decimal(19,8) and are refused past that scale for the same
+// reason: a rate silently rounded on the way in no longer reproduces the amount
+// it converted, which is exactly what the snapshot exists to allow.
+const RATE_SCALE = 8;
+
+// How long a commission is held after payment so refunds and chargebacks can
+// resolve. This is a control the payment processor disclosure relies on
+// (docs/legal/business-description.md), so it lives here rather than being
+// picked separately by each caller that writes a commission.
+export const COMMISSION_HOLD_DAYS = 30;
+
+// Upper bounds, so an out-of-range amount fails as a ValidationError here
+// instead of as a numeric overflow from Postgres. Decimal(19,4) leaves 15
+// integer digits; these sit well inside that and match the ceilings already
+// used by models/pricing and models/exchange_rate.
+const MAX_AMOUNT = 1_000_000_000_000;
+const MAX_RATE = 1_000_000_000;
+
+// Descriptions are VarChar(255). A derived reversal description is truncated to
+// fit rather than being allowed to overflow the column, which would surface as
+// an unhandled Postgres 22001 rather than anything a caller could act on.
+const MAX_DESCRIPTION_LENGTH = 255;
+
+// Accounts that belong to a specific user. Every other account is the
+// platform's own and must carry no owner: a CONSUMER_PAYMENT row naming a
+// storefront owner would be a record asserting an affiliate received consumer
+// funds, which is the single fact the affiliate characterisation depends on
+// never being true (docs/legal/phase-0-checklist.md).
+const OWNED_ACCOUNT_TYPES: LedgerAccountType[] = [
+  LedgerAccountType.AFFILIATE_COMMISSION,
+  LedgerAccountType.PAYOUT,
+];
 
 // What a set of entries can point at. A plain string column rather than an
 // enum, so pointing at an Order once checkout exists costs no migration. The
@@ -80,10 +105,17 @@ const ledgerAmountSchema = z
         message: `amount must have at most ${MONEY_SCALE} decimal places`,
       });
     }
+
+    if (amount.abs().greaterThan(MAX_AMOUNT)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `amount must be between -${MAX_AMOUNT} and ${MAX_AMOUNT}`,
+      });
+    }
   })
   .transform((value) => new Prisma.Decimal(value));
 
-const exchangeRateSchema = z
+const ledgerExchangeRateSchema = z
   .union([z.number(), z.string()])
   .superRefine((value, ctx) => {
     if (!isDecimalLike(value)) {
@@ -101,18 +133,36 @@ const exchangeRateSchema = z
         code: "custom",
         message: "exchange_rate must be a positive number",
       });
+      return;
+    }
+
+    if (rate.decimalPlaces() > RATE_SCALE) {
+      ctx.addIssue({
+        code: "custom",
+        message: `exchange_rate must have at most ${RATE_SCALE} decimal places`,
+      });
+    }
+
+    if (rate.greaterThan(MAX_RATE)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `exchange_rate must not exceed ${MAX_RATE}`,
+      });
     }
   })
   .transform((value) => new Prisma.Decimal(value));
 
 export const ledgerEntrySchema = z
   .object({
-    account_type: z.enum(ledgerAccountTypeValues),
+    // Taken from the generated enum rather than a hand-copied list, so adding
+    // an account really is just ALTER TYPE plus a regenerate. A duplicated list
+    // would leave the database accepting a value that record() then rejects.
+    account_type: z.enum(LedgerAccountType),
     // Null for platform accounts, which belong to no user.
     owner_id: z.uuid().nullish().default(null),
     amount: ledgerAmountSchema,
     currency: currencyCodeSchema,
-    exchange_rate: exchangeRateSchema.nullish().default(null),
+    exchange_rate: ledgerExchangeRateSchema.nullish().default(null),
     exchange_rate_from_currency: currencyCodeSchema.nullish().default(null),
     // Null means the amount is available immediately, with no hold.
     matures_at: z.coerce.date().nullish().default(null),
@@ -187,13 +237,16 @@ interface BalanceOptions {
   // affiliate holds. Pass PAYOUT to see what has been settled to them instead.
   account_type?: LedgerAccountType;
   matured_only?: boolean;
-  as_of?: Date;
+  // Named for what it does: it only has an effect when matured_only is set.
+  // A plain `as_of` would read like a point-in-time balance, which this model
+  // cannot produce.
+  matured_as_of?: Date;
 }
 
 // Totals a set of entries per currency. Pure, so a caller assembling a set can
 // check it balances before attempting the write — and so the invariant itself
 // is testable without a database.
-export function sumByCurrency(
+function sumByCurrency(
   entries: Array<{ amount: Prisma.Decimal; currency: string }>,
 ): Map<string, Prisma.Decimal> {
   const totals = new Map<string, Prisma.Decimal>();
@@ -237,9 +290,9 @@ async function record(recordDto: RecordLedgerEntriesDto) {
   const { source_type, source_id } = result.data;
   const entries = result.data.entries as ParsedLedgerEntry[];
 
-  // Balance first: it is pure, and an unbalanced set is never worth a database
-  // round trip to check its currencies.
+  // Pure checks first: neither is worth a database round trip to discover.
   assertBalanced(entries);
+  assertOwnershipMatchesAccounts(entries);
 
   await validateCurrenciesAreRecordable(
     entries.flatMap((entry) =>
@@ -247,6 +300,12 @@ async function record(recordDto: RecordLedgerEntriesDto) {
         (code): code is string => code !== null,
       ),
     ),
+  );
+
+  await validateOwnersExist(
+    entries
+      .map((entry) => entry.owner_id)
+      .filter((ownerId): ownerId is string => ownerId !== null),
   );
 
   const entryGroupId = randomUUID();
@@ -257,7 +316,9 @@ async function record(recordDto: RecordLedgerEntriesDto) {
       account_type: entry.account_type,
       owner_id: entry.owner_id,
       amount: entry.amount,
-      currency: currency.normalizeCode(entry.currency),
+      // Already uppercased by currencyCodeSchema, on both this and the
+      // exchange_rate_from_currency below.
+      currency: entry.currency,
       exchange_rate: entry.exchange_rate,
       exchange_rate_from_currency: entry.exchange_rate_from_currency,
       source_type,
@@ -290,6 +351,17 @@ async function reverse(
     });
   }
 
+  // Reversing a reversal would reinstate the original set while leaving every
+  // "has this been reversed" check still answering yes. A correction on top of
+  // a correction is a new balanced set, not another mirror.
+  if (originalEntries.some((entry) => entry.reverses_entry_id)) {
+    throw new ValidationError({
+      message: `The ledger entry group "${entryGroupId}" is itself a reversal and cannot be reversed.`,
+      action:
+        "Record a new balanced set to correct this, rather than reversing a reversal.",
+    });
+  }
+
   const alreadyReversed = await prisma.ledgerEntry.findFirst({
     where: {
       reverses_entry_id: { in: originalEntries.map((entry) => entry.id) },
@@ -318,8 +390,12 @@ async function reverse(
     source_id: entry.source_id,
     matures_at: entry.matures_at,
     reverses_entry_id: entry.id,
-    description:
-      description ?? `Reversal of ${entry.description ?? entry.account_type}`,
+    // Truncated, not left to overflow: an original sitting near the 255-char
+    // limit would otherwise push the derived text past the column and fail the
+    // whole reversal on a Postgres 22001.
+    description: (
+      description ?? `Reversal of ${entry.description ?? entry.account_type}`
+    ).slice(0, MAX_DESCRIPTION_LENGTH),
   }));
 
   // Negating a balanced set cannot unbalance it, but the invariant is cheap to
@@ -327,9 +403,28 @@ async function reverse(
   // through record().
   assertBalanced(reversalEntries);
 
-  return await prisma.ledgerEntry.createManyAndReturn({
-    data: reversalEntries,
-  });
+  try {
+    return await prisma.ledgerEntry.createManyAndReturn({
+      data: reversalEntries,
+    });
+  } catch (error) {
+    // The check above is read-then-write, so two concurrent chargeback
+    // handlers can both find no reversal and both try to write one. The
+    // unique index on reverses_entry_id is what actually stops the second.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new ValidationError({
+        message: `The ledger entry group "${entryGroupId}" has already been reversed.`,
+        action:
+          "Record a new balanced set if a further correction is needed, rather than reversing this one twice.",
+        cause: error,
+      });
+    }
+
+    throw error;
+  }
 }
 
 // Signed balances straight from the ledger, one row per currency. Never summed
@@ -343,9 +438,20 @@ async function balancesFor(
   {
     account_type = LedgerAccountType.AFFILIATE_COMMISSION,
     matured_only = false,
-    as_of = new Date(),
+    matured_as_of = new Date(),
   }: BalanceOptions = {},
 ): Promise<CurrencyBalance[]> {
+  // Prisma drops an undefined field from `where`, so a missing owner id would
+  // silently widen this to every owner plus every platform row and return a
+  // number that looks like a balance. strictNullChecks is off here, so nothing
+  // upstream would have caught it.
+  if (!ownerId) {
+    throw new ValidationError({
+      message: "An owner id is required to read a ledger balance.",
+      action: "Pass the id of the user whose balance you want.",
+    });
+  }
+
   const where: Prisma.LedgerEntryWhereInput = {
     owner_id: ownerId,
     account_type,
@@ -354,7 +460,7 @@ async function balancesFor(
   if (matured_only) {
     // A null hold means the amount was never held in the first place, so it
     // has always been matured.
-    where.OR = [{ matures_at: null }, { matures_at: { lte: as_of } }];
+    where.OR = [{ matures_at: null }, { matures_at: { lte: matured_as_of } }];
   }
 
   const grouped = await prisma.ledgerEntry.groupBy({
@@ -396,6 +502,21 @@ async function maturedBalancesFor(
   return await balancesFor(ownerId, { ...options, matured_only: true });
 }
 
+// When a commission paid at `paidAt` becomes payable. The hold is the
+// platform's chargeback defence, so the length lives in one constant rather
+// than being restated by every caller that writes a commission entry.
+//
+// This answers "when is this safe to pay", which is independent of which
+// statement period the payment eventually lands in — that is the payout run's
+// decision and does not change this column.
+function maturityFor(paidAt: Date = new Date()): Date {
+  const maturesAt = new Date(paidAt.getTime());
+
+  maturesAt.setUTCDate(maturesAt.getUTCDate() + COMMISSION_HOLD_DAYS);
+
+  return maturesAt;
+}
+
 // The single place the sign is flipped for anything a person reads.
 //
 // The ledger stores what the platform holds, so a commission it owes is
@@ -403,6 +524,9 @@ async function maturedBalancesFor(
 // and a payout run expects to transfer a positive amount. Every such caller
 // goes through here rather than negating by hand, because one call site
 // forgetting to would pay backwards.
+// Note the account_type option reads differently here: a negated PAYOUT balance
+// means "already sent to them", not "owed to them". Only AFFILIATE_COMMISSION —
+// the default — reads as a debt.
 async function payableBalancesFor(
   ownerId: string,
   options: BalanceOptions = {},
@@ -415,25 +539,53 @@ async function payableBalancesFor(
   }));
 }
 
+// What a payout run may actually pay: cleared its hold, and signed the way a
+// person expects.
+//
+// This exists because the obvious name for that number is maturedBalancesFor,
+// which returns the raw ledger sign — negative while owed. A payout run
+// reaching for the obviously-named function and transferring a negative amount
+// is the worst bug this model could ship, so the convenient name is also the
+// safe one.
+async function maturedPayableBalancesFor(
+  ownerId: string,
+  options: Omit<BalanceOptions, "matured_only"> = {},
+): Promise<CurrencyBalance[]> {
+  return await payableBalancesFor(ownerId, { ...options, matured_only: true });
+}
+
 async function findByGroup(entryGroupId: string) {
   return await prisma.ledgerEntry.findMany({
     where: { entry_group_id: entryGroupId },
-    orderBy: { created_at: "asc" },
+    // Every row in a set shares one CURRENT_TIMESTAMP, so created_at alone is a
+    // total tie and the returned order would be whatever the heap gives back.
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
   });
 }
 
 // Everything ever written about one source, reversals included, since a
 // reversal keeps the source of the set it cancels.
-async function findBySource(sourceType: string, sourceId: string) {
+async function findBySource(sourceType: LedgerSourceType, sourceId: string) {
   return await prisma.ledgerEntry.findMany({
     where: { source_type: sourceType, source_id: sourceId },
-    orderBy: { created_at: "asc" },
+    // Every row in a set shares one CURRENT_TIMESTAMP, so created_at alone is a
+    // total tie and the returned order would be whatever the heap gives back.
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
   });
 }
 
-// Whether anything written against this source has since been reversed. The
-// maturation job uses this to decide a commission is safe to pay.
-async function isSourceReversed(sourceType: string, sourceId: string) {
+// Whether anything written against this source was cancelled by reverse().
+//
+// This is introspection, not a payability test, and must not be used as one.
+// It only sees corrections made through reverse() — a correction written as a
+// fresh balanced ADJUSTMENT set carries no back-pointer and is invisible here.
+// The number that is always right is the balance: a reversal negates the
+// original and copies its matures_at, so a cancelled commission already nets to
+// zero in maturedPayableBalancesFor without anyone having to ask this question.
+async function isSourceReversed(
+  sourceType: LedgerSourceType,
+  sourceId: string,
+) {
   const reversal = await prisma.ledgerEntry.findFirst({
     where: {
       source_type: sourceType,
@@ -465,6 +617,58 @@ function assertBalanced(
   }
 }
 
+// Which accounts may name a user, and which must not.
+//
+// An owned account with no owner is a liability owed to nobody: balancesFor
+// looks entries up by owner, so the row is invisible to every read path while
+// still sitting in the books. An unowned account naming a user is worse — see
+// OWNED_ACCOUNT_TYPES above.
+function assertOwnershipMatchesAccounts(entries: ParsedLedgerEntry[]) {
+  for (const entry of entries) {
+    const isOwnedAccount = OWNED_ACCOUNT_TYPES.includes(entry.account_type);
+
+    if (isOwnedAccount && !entry.owner_id) {
+      throw new ValidationError({
+        message: `A ${entry.account_type} entry must name the user it belongs to.`,
+        action: "Set owner_id on this entry and try again.",
+      });
+    }
+
+    if (!isOwnedAccount && entry.owner_id) {
+      throw new ValidationError({
+        message: `A ${entry.account_type} entry is a platform account and must not name a user.`,
+        action: "Remove owner_id from this entry and try again.",
+      });
+    }
+  }
+}
+
+// Same reasoning as the currency check below: with no foreign keys, an owner id
+// that matches no user becomes a commission that never appears in any statement
+// or payout, and nothing fails until someone notices the money is missing.
+async function validateOwnersExist(ownerIds: string[]) {
+  const uniqueIds = [...new Set(ownerIds)];
+
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  const foundUsers = await prisma.user.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true },
+  });
+
+  const foundIds = new Set(foundUsers.map((user) => user.id));
+  const missingIds = uniqueIds.filter((ownerId) => !foundIds.has(ownerId));
+
+  if (missingIds.length > 0) {
+    throw new ValidationError({
+      message: `The following ledger entry owners do not exist: ${missingIds.join(", ")}.`,
+      action: "Check the owner_id of each entry and try again.",
+    });
+  }
+}
+
 // No foreign keys, so a currency code that matches nothing would become a row
 // that silently never appears in any balance.
 //
@@ -491,12 +695,15 @@ async function validateCurrenciesAreRecordable(codes: string[]) {
 
 const ledger = {
   LEDGER_SOURCE_TYPES,
+  COMMISSION_HOLD_DAYS,
   record,
   reverse,
+  maturityFor,
   balancesFor,
   balanceFor,
   maturedBalancesFor,
   payableBalancesFor,
+  maturedPayableBalancesFor,
   findByGroup,
   findBySource,
   isSourceReversed,
