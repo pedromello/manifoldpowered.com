@@ -15,7 +15,9 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 4b. Studio price override endpoints      | ✅ done                                                                        |
 | 4c. Backoffice UI for currencies + rates | ✅ done ([#186](https://github.com/pedromello/manifoldpowered.com/pull/186))   |
 | 4d. Currency selection by region header  | ✅ done ([#188](https://github.com/pedromello/manifoldpowered.com/issues/188)) |
-| 5–11 (ledger, payouts)                   | not started                                                                    |
+| 5. Ledger schema                         | ✅ done                                                                        |
+| 6. Ledger model                          | ✅ done                                                                        |
+| 7–11 (providers, payouts)                | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
@@ -179,15 +181,17 @@ A disabled currency behaves exactly like an unregistered one, so turning a curre
 
 ---
 
-### 5. Ledger, payout account and payout schema
+### 5. Ledger schema
 
-**TLDR:** Three new tables, all money as `Decimal(19,4)`, all carrying an explicit currency, no foreign keys.
+**TLDR:** One new table, money as `Decimal(19,4)`, carrying an explicit currency, no foreign keys.
 
-`LedgerEntry` is append-only (no `updated_at`), carries a **signed** amount, and references its source polymorphically (`source_type` + `source_id`) so it can point at a `Sale` today and an `Order` later without a migration. `Payout` gets a uniqueness constraint on `(user_id, period_start, period_end)` so a re-run can't double-pay.
+**Scope narrowed during delivery.** This task originally covered three tables — `LedgerEntry`, `PayoutAccount` and `Payout`. Only `LedgerEntry` shipped here. `PayoutAccount`'s field list is exactly what the tax posture ([#175](https://github.com/pedromello/manifoldpowered.com/issues/175)) determines, so building it now would mean guessing at encrypted-at-rest tax identifiers and then migrating a table that already holds payout details. `PayoutAccount` moves to task 8 and `Payout` to task 10, which are where they are first used.
+
+`LedgerEntry` is append-only (no `updated_at`), carries a **signed** amount, and references its source polymorphically (`source_type` + `source_id`) so it can point at a `Sale` today and an `Order` later without a migration. When `Payout` lands it gets a uniqueness constraint on `(user_id, period_start, period_end)` so a re-run can't double-pay.
 
 **Every money row stores its currency, and any row produced by a conversion also stores the rate used.** Without the rate snapshot, a sale converted at last month's rate cannot be reconciled or audited later.
 
-**Done when:** migration created via `npm run migrate:create` and the suite passes.
+**Done when:** migration created via `npm run migrate:create` and the suite passes. ✅
 
 ---
 
@@ -199,7 +203,13 @@ A disabled currency behaves exactly like an unregistered one, so turning a curre
 
 Balances are **per currency**. A single affiliate can hold a BRL balance and a USD balance simultaneously; they are never silently added together.
 
-**Done when:** balance and matured-balance queries work per currency, the zero-sum rule has unit tests, and the orchestrator can seed ledger entries.
+**Done when:** balance and matured-balance queries work per currency, the zero-sum rule has unit tests, and the orchestrator can seed ledger entries. ✅
+
+The runtime design — the sign convention, why a reversal copies `matures_at`, and why over-scale amounts are refused rather than rounded — is documented in [`ledger-architecture.md`](./ledger-architecture.md).
+
+**Decided while building this.** A single signed column cannot make both "cash in is positive" and "commission owed is positive" true under a zero-sum rule, because one is an asset and the other a liability. Cash-in stays positive, so **a commission balance is negative while it is owed**, and `ledger.payableBalancesFor()` is the single place that sign is flipped for anything a person reads. The shorthand in the "One sale, end to end" diagram above (`supplier_cost −, platform_revenue +, affiliate_commission +`) predates that decision and was never a complete balanced set.
+
+**Still open, and it belongs to task 10 rather than here.** The 30-day hold is a per-sale rolling maturation (`matures_at`), while Steam — the model this is patterned on — pays a fixed date after a calendar month closes: month M's sales are paid on M+1's 30th, so the hold varies from 30 to 60 days per sale and 30 days is the floor. Run a monthly payout against a rolling 30-day maturation and the two produce nearly identical payment dates, so nothing here needs to change. What differs is which statement a sale lands on: a calendar-month period keyed on sale date is far easier for an affiliate to reconcile than "everything that happened to mature since the last run". `matures_at` records _when a commission is safe to pay_ and stays independent of whichever rule computes it, so task 10 can choose the period without touching the ledger.
 
 ---
 

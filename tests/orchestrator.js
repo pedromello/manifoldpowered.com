@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import retry from "async-retry";
 import * as database from "infra/database";
 import storage from "infra/storage";
@@ -15,6 +16,7 @@ import authorization from "models/authorization";
 import currency from "models/currency";
 import exchangeRate from "models/exchange_rate";
 import pricing from "models/pricing";
+import ledger from "models/ledger";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -262,6 +264,60 @@ const createExchangeRate = async (rateData = {}) => {
   });
 };
 
+// Ledger
+const recordLedgerEntries = async (entries, sourceData = {}) => {
+  return ledger.record({
+    source_type: sourceData.source_type || "SALE",
+    source_id: sourceData.source_id || randomUUID(),
+    entries,
+  });
+};
+
+// The shape almost every ledger test needs: one sale distributed across the
+// four accounts it touches, already balanced. Amounts follow the sign
+// convention in models/ledger — positive is money the platform received,
+// negative is money it owes or spent.
+const recordLedgerSale = async (saleData = {}) => {
+  const gross = saleData.gross === undefined ? 100 : saleData.gross;
+  const supplierCost =
+    saleData.supplier_cost === undefined ? 70 : saleData.supplier_cost;
+  const commission =
+    saleData.commission === undefined ? 10 : saleData.commission;
+  const currencyCode = saleData.currency || "USD";
+  const maturesAt =
+    saleData.matures_at === undefined
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      : saleData.matures_at;
+
+  return recordLedgerEntries(
+    [
+      {
+        account_type: "CONSUMER_PAYMENT",
+        amount: gross,
+        currency: currencyCode,
+      },
+      {
+        account_type: "SUPPLIER_COST",
+        amount: -supplierCost,
+        currency: currencyCode,
+      },
+      {
+        account_type: "AFFILIATE_COMMISSION",
+        owner_id: saleData.affiliate_id,
+        amount: -commission,
+        currency: currencyCode,
+        matures_at: maturesAt,
+      },
+      {
+        account_type: "PLATFORM_REVENUE",
+        amount: -(gross - supplierCost - commission),
+        currency: currencyCode,
+      },
+    ],
+    { source_type: "SALE", source_id: saleData.source_id },
+  );
+};
+
 const orchestrator = {
   waitForAllServices,
   clearDatabase,
@@ -292,6 +348,8 @@ const orchestrator = {
   createCurrency,
   createExchangeRate,
   setGamePriceOverride,
+  recordLedgerEntries,
+  recordLedgerSale,
 };
 
 export default orchestrator;

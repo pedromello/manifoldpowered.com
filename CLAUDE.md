@@ -121,7 +121,7 @@ The `tests/orchestrator.js` file is the core utility for test environment setup.
 - Comparing two `Decimal` instances needs `.equals()`. `toBe` compares references and always fails.
 - Never do money arithmetic in JavaScript numbers. Use the `Decimal` methods (`.mul()`, `.toDecimalPlaces()`).
 
-For how prices are resolved per currency, see [`docs/payments-architecture.md`](./docs/payments-architecture.md).
+For how prices are resolved per currency, see [`docs/payments-architecture.md`](./docs/payments-architecture.md). For how money movements are recorded — the zero-sum rule, the sign convention, and why ledger rows are never updated — see [`docs/ledger-architecture.md`](./docs/ledger-architecture.md).
 
 ### MVC Architecture
 
