@@ -17,6 +17,8 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 4d. Currency selection by region header  | ✅ done ([#188](https://github.com/pedromello/manifoldpowered.com/issues/188)) |
 | 5. Ledger schema                         | ✅ done                                                                        |
 | 6. Ledger model                          | ✅ done                                                                        |
+| 6a. Commercial terms                     | ✅ done                                                                        |
+| 6b. Ledger writes on acquisition         | not started                                                                    |
 | 7–11 (providers, payouts)                | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -212,6 +214,43 @@ The runtime design — the sign convention, why a reversal copies `matures_at`, 
 **Also decided here, and provisionally.** Commission is booked as a liability at the moment of sale, which means `PLATFORM_REVENUE` holds the residual margin rather than gross revenue. `docs/legal/business-description.md` describes commission as "an ordinary marketing expense" paid out of Manifold's own revenue, and phase-0 item 3 asks counsel to settle accrued-liability versus unearned treatment. Accruing at sale is the only option that lets the set balance at write time, but the account name and the disclosure wording should be reconciled once that answer lands.
 
 **Still open, and it belongs to task 10 rather than here.** The 30-day hold is a per-sale rolling maturation (`matures_at`), while Steam — the model this is patterned on — pays a fixed date after a calendar month closes: month M's sales are paid on M+1's 30th, so the hold varies from 30 to 60 days per sale and 30 days is the floor. Run a monthly payout against a rolling 30-day maturation and the two produce nearly identical payment dates, so nothing here needs to change. What differs is which statement a sale lands on: a calendar-month period keyed on sale date is far easier for an affiliate to reconcile than "everything that happened to mature since the last run". `matures_at` records _when a commission is safe to pay_ and stays independent of whichever rule computes it, so task 10 can choose the period without touching the ledger.
+
+---
+
+### 6a. Commercial terms — commission and supplier cost
+
+**TLDR:** The two rates a balanced sale needs, neither of which existed anywhere.
+
+Tasks 5 and 6 shipped a ledger that nothing could write to, because a sale's entry set needs three numbers and only one of them (the price) existed. This adds the other two.
+
+**Commission** is `Store.commission_rate`, nullable — null means the platform default applies, which is honest about the fact that most outlets never get a bespoke rate where a copied default would look like a decision someone made. **Admin-set only**, and unreachable from the owner-facing `PATCH /api/v1/stores/[slug]` because `storeSchema` does not carry the field. An outlet influencing its own commission is the same category of problem as one setting its own prices.
+
+**Supplier cost** is `SupplierTerms`, pointing at a supplier polymorphically (`supplier_type` + `supplier_id`) exactly as `LedgerEntry` points at its source. A studio supplies the games in the catalogue today; a gift-card distributor will supply codes later. `supplier_type` is a string column rather than an enum because onboarding a new kind of supplier is a commercial event, not a schema change.
+
+Three decisions worth keeping:
+
+- **Commission is a fraction of the gross**, not of the margin left after supplier cost. It makes an affiliate's earnings depend only on the price a buyer saw, which is the number they can actually verify. **This diverges from `docs/legal/storefront-owner-agreement-termsheet.md`**, which still describes commission as a percentage of net — the term sheet needs updating with counsel, and until it does the agreement and the code disagree. The default is 10%.
+- **`SupplierTerms` is mutable, not append-only like `ExchangeRate`.** Rates are append-only there so a conversion made months ago stays reproducible. That reasoning does not carry: the ledger already snapshots the actual amounts at sale time, so a rate table with `effective_at` would add a second historical record that could only ever disagree with the first. `AdminActionLog` keeps the audit trail.
+- **An integration supplier has no default rate.** A studio-supplied game has a house rate that has always applied (70%), but an integration's cost comes from a negotiated contract, so assuming one would book a margin nobody agreed to. An unconfigured integration fails loudly.
+
+**Done when:** an admin can set an outlet's commission and a supplier's cost rate, and neither is reachable by the party it pays. ✅
+
+---
+
+### 6b. Ledger writes on acquisition
+
+**TLDR:** Make a sale actually produce the balanced entry set.
+
+`Sale` gains a currency and rate snapshot — `models/pricing.ResolvedPrice` already returns exactly `{ amount, currency, exchange_rate }` "so a sale recorded from this price can be reconciled later", and is simply not wired up. `ledger.record()` gains a transaction client, because it currently writes with the module-level `prisma` and would commit outside `acquireGame`'s transaction.
+
+Platform revenue is computed as the **residual** (`gross − supplierCost − commission`), never independently. `record()` refuses over-scale amounts rather than rounding them, so `gross × (1 − s − c)` would leave a sub-cent remainder and fail the zero-sum check; the residual absorbs all rounding.
+
+Two defects to fix while here, both found during 6a:
+
+- `acquireGame` **discards the `Sale` it creates**, so there is no id to key entries on.
+- Re-acquiring writes a **second `Sale`** — the `LibraryItem` upsert is idempotent, `tx.sale.create` is not. Harmless today; double commission once money attaches.
+
+**Done when:** an acquisition through an outlet writes four entries summing to zero, and a second acquisition writes none.
 
 ---
 

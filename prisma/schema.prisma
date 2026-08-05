@@ -246,8 +246,20 @@ model Store {
   description String?  @db.Text
   logo_url    String?  @db.VarChar(2048)
   owner_id    String // Logical reference to User.id (creator/owner)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+
+  // What this outlet earns on a sale it referred, as a fraction of the gross.
+  // Null means the platform default applies — most outlets never get a bespoke
+  // rate, and a null is honest about that where a copied default would look
+  // like a decision someone made.
+  //
+  // Admin-set only. Storefront owners must never influence their own commission
+  // for the same reason they cannot set prices (docs/legal/phase-0-checklist.md),
+  // which is why this is absent from storeSchema and unreachable through the
+  // owner-facing PATCH.
+  commission_rate Decimal? @db.Decimal(19, 8)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([owner_id])
   @@index([slug])
@@ -485,6 +497,36 @@ model LedgerEntry {
   @@index([owner_id, account_type, currency, matures_at])
   @@index([source_type, source_id])
   @@map("ledger_entries")
+}
+
+// What a supplier keeps from a sale, as a fraction of the gross.
+//
+// Suppliers come in kinds: a Studio supplies the games in the catalogue today,
+// and a gift-card distributor will supply codes later. They share nothing but
+// the fact that they take a cut, so this points at one polymorphically
+// (supplier_type + supplier_id) exactly as LedgerEntry points at its source.
+//
+// supplier_type is deliberately not an enum. Onboarding a new kind of supplier
+// is a commercial event, not a schema change, and it must not cost a migration.
+// The allowed values live in models/commercial_terms, which is where
+// referential integrity lives in a schema with no foreign keys.
+//
+// Unlike ExchangeRate this is mutable rather than append-only. Rates are
+// append-only there so a conversion made months ago stays reproducible; that
+// reasoning does not carry here, because the ledger already snapshots the
+// actual amounts at sale time. A second historical record could only ever
+// disagree with the first. AdminActionLog keeps the audit trail.
+model SupplierTerms {
+  id            String  @id @default(uuid())
+  supplier_type String  @db.VarChar(50) // STUDIO, INTEGRATION — see models/commercial_terms
+  supplier_id   String // Logical reference to Studio.id, or to a future integration
+  cost_rate     Decimal @db.Decimal(19, 8)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([supplier_type, supplier_id])
+  @@map("supplier_terms")
 }
 
 // A price set explicitly by a developer/admin for one currency. Its presence
