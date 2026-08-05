@@ -273,7 +273,7 @@ export function Storefront({
       <main className="w-full flex flex-col items-center">
         {/* Banner Section with high-contrast background */}
         <section
-          className="w-full pt-28 lg:pt-36 pb-12 overflow-hidden"
+          className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] pb-12 overflow-hidden"
           style={{
             background:
               "linear-gradient(to bottom, rgba(165,180,252,0.05) 0%, rgba(53,34,89,0.2) 60%, transparent 100%)",
@@ -322,7 +322,7 @@ export function Storefront({
                     name="q"
                     defaultValue={q || ""}
                     placeholder="Search games..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-base md:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner"
                   />
                   {category && (
                     <input type="hidden" name="category" value={category} />

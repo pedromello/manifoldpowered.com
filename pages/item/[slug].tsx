@@ -355,7 +355,7 @@ export default function GameDetailsPage({ game }: { game: GameApi }) {
         }
       `}</style>
 
-      <main className="w-full pt-19">
+      <main className="w-full pt-[calc(env(safe-area-inset-top)+4.75rem)]">
         {/* Hero Section */}
         <section className="relative w-full max-h-[700px] overflow-hidden">
           <div className="absolute inset-0">

@@ -279,7 +279,7 @@ export default function Home({
         }
       `}</style>
 
-      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 pb-10 md:gap-16 md:pb-16 overflow-x-hidden">
+      <main className="mx-auto flex w-full max-w-[100vw] flex-col gap-16 pt-[env(safe-area-inset-top)] pb-10 md:gap-16 md:pb-16 overflow-x-hidden">
         <section
           className="mx-auto flex w-full flex-col items-center gap-8 px-6 py-4 text-center md:px-10"
           style={{
@@ -354,13 +354,22 @@ export default function Home({
             </p>
           </div>
 
-          <Link
-            href="/signup"
-            className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black text-center"
-            aria-label="Secure Your Username"
-          >
-            Secure Your Username
-          </Link>
+          <div className="flex flex-col gap-4">
+            <Link
+              href="/signup"
+              className="w-65 mx-auto rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] hover:bg-black text-center"
+              aria-label="Secure Your Username"
+            >
+              Secure Your Username
+            </Link>
+            <Link
+              href="/store"
+              className="w-65 mx-auto rounded-lg border-2 border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60 text-center text-[var(--color-purple-dark)]"
+              aria-label="Visit Sample Store"
+            >
+              Visit Sample Store
+            </Link>
+          </div>
         </section>
 
         {/* =========================================
@@ -484,6 +493,13 @@ export default function Home({
                 aria-label="Secure Your Username"
               >
                 Secure Your Username
+              </Link>
+              <Link
+                href="/store"
+                className="rounded-lg border-2 border-[var(--color-purple-dark)] px-6 py-3 font-bold hover:bg-white/60 flex items-center justify-center text-[var(--color-purple-dark)]"
+                aria-label="Visit Sample Store"
+              >
+                Visit Sample Store
               </Link>
             </div>
           </section>

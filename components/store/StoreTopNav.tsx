@@ -48,7 +48,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-[#1D0F3B]/80 backdrop-blur-xl border-b border-white/5 py-3 px-4 md:px-10">
+    <header className="fixed top-0 inset-x-0 z-50 bg-[#1D0F3B]/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-4 md:px-10">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-6">
           <Link
@@ -115,7 +115,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             <input
               type="text"
               placeholder="Search outlets..."
-              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-sm md:text-base font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -124,7 +124,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             />
 
             {isFocused && searchQuery && (
-              <div className="flex flex-col gap-2 absolute top-full mt-3 right-0 w-[calc(100vw-2rem)] md:w-full max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex flex-col gap-2 fixed left-4 right-4 mx-auto top-[calc(env(safe-area-inset-top)+4rem)] md:absolute md:top-full md:mt-3 md:left-auto md:right-0 md:mx-0 md:w-full max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200 z-50">
                 {isLoading ? (
                   <div className="px-6 py-8 flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/20"></div>
