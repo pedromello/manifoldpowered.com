@@ -2,6 +2,7 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import library from "models/library";
 import authorization from "models/authorization";
+import region from "models/region";
 import { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 import { ValidationError } from "infra/errors";
@@ -63,10 +64,15 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  // The same currency the visitor was shown a price in, so the sale and its
+  // ledger entries record what they were actually charged.
+  const currencyCode = await region.currencyForRequest(req);
+
   const result = await library.acquireGame(
     req.context.user.id!,
     parsedBody.data.slug,
     parsedBody.data.store_slug,
+    currencyCode,
   );
 
   return res.status(201).json({

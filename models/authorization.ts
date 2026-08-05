@@ -605,6 +605,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       game_title: saleOutput.game_title,
       store_id: saleOutput.store_id,
       price_at_sale: saleOutput.price_at_sale.toFixed(2),
+      // Without the currency the amount above is a number with no unit, which
+      // for an outlet reading its own sales is worse than showing nothing.
+      currency: saleOutput.currency,
       created_at: saleOutput.created_at,
     };
   }

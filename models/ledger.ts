@@ -269,7 +269,15 @@ function sumByCurrency(
 // Currencies are never mixed in a single sum. A set spanning BRL and USD must
 // balance in each independently — the conversion between them is itself a pair
 // of entries carrying the rate that produced it.
-async function record(recordDto: RecordLedgerEntriesDto) {
+//
+// `client` lets a caller write the set inside a transaction it already owns.
+// An acquisition that recorded its Sale but not the entries describing it, or
+// the reverse, would leave the books disagreeing with the thing they describe —
+// and with no UPDATE available on an append-only table, nothing could repair it.
+async function record(
+  recordDto: RecordLedgerEntriesDto,
+  { client = prisma }: { client?: Prisma.TransactionClient } = {},
+) {
   const result = recordLedgerEntriesSchema.safeParse({
     ...recordDto,
     entries: (recordDto.entries ?? []).map((entry) => ({
@@ -306,11 +314,12 @@ async function record(recordDto: RecordLedgerEntriesDto) {
     entries
       .map((entry) => entry.owner_id)
       .filter((ownerId): ownerId is string => ownerId !== null),
+    client,
   );
 
   const entryGroupId = randomUUID();
 
-  return await prisma.ledgerEntry.createManyAndReturn({
+  return await client.ledgerEntry.createManyAndReturn({
     data: entries.map((entry) => ({
       entry_group_id: entryGroupId,
       account_type: entry.account_type,
@@ -646,14 +655,17 @@ function assertOwnershipMatchesAccounts(entries: ParsedLedgerEntry[]) {
 // Same reasoning as the currency check below: with no foreign keys, an owner id
 // that matches no user becomes a commission that never appears in any statement
 // or payout, and nothing fails until someone notices the money is missing.
-async function validateOwnersExist(ownerIds: string[]) {
+async function validateOwnersExist(
+  ownerIds: string[],
+  client: Prisma.TransactionClient = prisma,
+) {
   const uniqueIds = [...new Set(ownerIds)];
 
   if (uniqueIds.length === 0) {
     return;
   }
 
-  const foundUsers = await prisma.user.findMany({
+  const foundUsers = await client.user.findMany({
     where: { id: { in: uniqueIds } },
     select: { id: true },
   });

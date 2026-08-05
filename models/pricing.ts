@@ -89,7 +89,14 @@ async function priceFor(
 ): Promise<ResolvedPrice | null> {
   const normalizedCode = currency.normalizeCode(currencyCode);
 
-  const isCurrencyUsable = await isUsable(normalizedCode);
+  // The base currency resolves whether or not it has been registered, matching
+  // displayPricesFor. Without this the two disagree: a storefront with no
+  // currency rows shows a USD price — deliberately, so localisation stays
+  // additive on a working default — while this function calls the same game
+  // unpriceable, so it could be browsed but never bought.
+  const isCurrencyUsable =
+    normalizedCode === BASE_CURRENCY || (await isUsable(normalizedCode));
+
   if (!isCurrencyUsable) {
     return null;
   }
