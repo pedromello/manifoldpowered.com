@@ -63,7 +63,7 @@ export default function SearchPage() {
         }
       `}</style>
 
-      <main className="w-full pt-28 lg:pt-32 flex flex-col items-center">
+      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+8rem)] flex flex-col items-center">
         <div className="max-w-7xl mx-auto w-full px-4 md:px-10 flex flex-col lg:flex-row gap-8">
           {/* Main Column - Search Results */}
           <div className="flex-1 flex flex-col gap-6">

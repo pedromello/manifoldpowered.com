@@ -40,7 +40,7 @@ export default function LibraryPage() {
         }
       `}</style>
 
-      <main className="w-full pt-28 lg:pt-36 flex flex-col items-center">
+      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] flex flex-col items-center">
         <div className="w-full max-w-7xl mx-auto px-6 md:px-10 flex flex-col gap-12">
           <header className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 w-fit text-white/80 backdrop-blur-sm">

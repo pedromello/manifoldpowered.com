@@ -57,7 +57,7 @@ export function BackofficeTopNav({ username }: { username: string }) {
     });
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-[#130b25]/90 backdrop-blur-xl border-b border-white/10 py-3 px-4 md:px-10">
+    <header className="fixed top-0 inset-x-0 z-50 bg-[#130b25]/90 backdrop-blur-xl border-b border-white/10 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-4 md:px-10">
       <div className="max-w-7xl mx-auto flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 min-w-0">

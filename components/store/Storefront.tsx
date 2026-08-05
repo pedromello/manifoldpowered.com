@@ -273,7 +273,7 @@ export function Storefront({
       <main className="w-full flex flex-col items-center">
         {/* Banner Section with high-contrast background */}
         <section
-          className="w-full pt-28 lg:pt-36 pb-12 overflow-hidden"
+          className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] pb-12 overflow-hidden"
           style={{
             background:
               "linear-gradient(to bottom, rgba(165,180,252,0.05) 0%, rgba(53,34,89,0.2) 60%, transparent 100%)",
