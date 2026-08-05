@@ -30,6 +30,13 @@ function amountOf(
     ?.amount.toFixed(4);
 }
 
+// A payee is an outlet, not a person: the outlet holds the balance and the
+// payout account, so a commission survives it changing hands.
+async function createOutlet() {
+  const owner = await orchestrator.createUser();
+  return await orchestrator.createStore(owner.id);
+}
+
 // A balanced two-entry set, the smallest thing the ledger will accept.
 function balancedPair(amount: number, currencyCode = "USD") {
   return [
@@ -67,7 +74,7 @@ describe("models/ledger.ts", () => {
     test("stores the fields a sale entry carries", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const saleId = randomUUID();
       const maturesAt = new Date("2026-09-30T00:00:00.000Z");
 
@@ -83,6 +90,7 @@ describe("models/ledger.ts", () => {
           },
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -100,
             currency: "USD",
@@ -330,7 +338,7 @@ describe("models/ledger.ts", () => {
     test("rejects a platform account that names a user", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
 
       await expect(
         ledger.record({
@@ -339,6 +347,7 @@ describe("models/ledger.ts", () => {
           entries: [
             {
               account_type: "CONSUMER_PAYMENT",
+              owner_type: "STORE",
               owner_id: affiliate.id,
               amount: 100,
               currency: "USD",
@@ -349,8 +358,8 @@ describe("models/ledger.ts", () => {
       ).rejects.toMatchObject({
         name: "ValidationError",
         message:
-          "A CONSUMER_PAYMENT entry is a platform account and must not name a user.",
-        action: "Remove owner_id from this entry and try again.",
+          "A CONSUMER_PAYMENT entry is a platform account and must not name an owner.",
+        action: "Remove owner_type and owner_id from this entry and try again.",
         statusCode: 400,
       });
     });
@@ -374,14 +383,40 @@ describe("models/ledger.ts", () => {
       ).rejects.toMatchObject({
         name: "ValidationError",
         message:
-          "A AFFILIATE_COMMISSION entry must name the user it belongs to.",
-        action: "Set owner_id on this entry and try again.",
+          "A AFFILIATE_COMMISSION entry must name the owner it belongs to.",
+        action: "Set owner_type and owner_id on this entry and try again.",
         statusCode: 400,
       });
     });
 
     // No foreign keys, so an owner id matching no user would become a
     // commission that never surfaces in any statement or payout.
+    // An id with no type matches no balance query, so the row would sit in the
+    // books owed to nobody findable.
+    test("rejects an owner id with no owner type", async () => {
+      await registerBaseCurrencies();
+
+      await expect(
+        ledger.record({
+          source_type: "SALE",
+          source_id: randomUUID(),
+          entries: [
+            { account_type: "CONSUMER_PAYMENT", amount: 100, currency: "USD" },
+            {
+              account_type: "AFFILIATE_COMMISSION",
+              owner_id: randomUUID(),
+              amount: -100,
+              currency: "USD",
+            },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        name: "ValidationError",
+        message: "One or more ledger entries are invalid",
+        statusCode: 400,
+      });
+    });
+
     test("rejects an owner that does not exist", async () => {
       await registerBaseCurrencies();
 
@@ -395,6 +430,7 @@ describe("models/ledger.ts", () => {
             { account_type: "CONSUMER_PAYMENT", amount: 100, currency: "USD" },
             {
               account_type: "AFFILIATE_COMMISSION",
+              owner_type: "STORE",
               owner_id: missingId,
               amount: -100,
               currency: "USD",
@@ -648,7 +684,7 @@ describe("models/ledger.ts", () => {
     test("copies the original's matures_at", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const maturesAt = new Date(Date.now() + 30 * DAY_IN_MS);
 
       const original = await ledger.record({
@@ -658,6 +694,7 @@ describe("models/ledger.ts", () => {
           { account_type: "CONSUMER_PAYMENT", amount: 10, currency: "USD" },
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -10,
             currency: "USD",
@@ -710,16 +747,16 @@ describe("models/ledger.ts", () => {
     test("nets the source to zero once reversed", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const sale = await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
       });
 
       await ledger.reverse(sale[0].entry_group_id);
 
-      expect((await ledger.balanceFor(affiliate.id, "USD")).toFixed(4)).toBe(
-        "0.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "USD")).toFixed(4),
+      ).toBe("0.0000");
     });
 
     test("refuses to reverse the same set twice", async () => {
@@ -769,9 +806,9 @@ describe("models/ledger.ts", () => {
     test("survives two concurrent reversals of the same set", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const sale = await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
       });
 
       const outcomes = await Promise.allSettled([
@@ -785,9 +822,9 @@ describe("models/ledger.ts", () => {
 
       // Exactly one clawback landed, so the affiliate is owed nothing rather
       // than owing us the commission back.
-      expect((await ledger.balanceFor(affiliate.id, "USD")).toFixed(4)).toBe(
-        "0.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "USD")).toFixed(4),
+      ).toBe("0.0000");
     });
 
     // VarChar(255): an original sitting near the limit must not push the
@@ -834,20 +871,20 @@ describe("models/ledger.ts", () => {
     test("returns nothing for an owner with no entries", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
 
-      expect(await ledger.balancesFor(affiliate.id)).toEqual([]);
+      expect(await ledger.balancesFor("STORE", affiliate.id)).toEqual([]);
     });
 
     // Signed as stored: negative while the platform owes it.
     test("sums the commission entries an owner holds", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      const balances = await ledger.balancesFor(affiliate.id);
+      const balances = await ledger.balancesFor("STORE", affiliate.id);
 
       expect(balances).toHaveLength(1);
       expect(balances[0].currency).toBe("USD");
@@ -859,20 +896,20 @@ describe("models/ledger.ts", () => {
     test("keeps each currency as its own balance", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         commission: 10,
       });
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         currency: "BRL",
         gross: 550,
         supplier_cost: 385,
         commission: 55,
       });
 
-      const balances = await ledger.balancesFor(affiliate.id);
+      const balances = await ledger.balancesFor("STORE", affiliate.id);
 
       expect(balances).toEqual([
         { currency: "BRL", amount: expect.anything() },
@@ -885,12 +922,12 @@ describe("models/ledger.ts", () => {
     test("does not mix one owner's balance into another's", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      const otherAffiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
+      const otherAffiliate = await createOutlet();
 
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      expect(await ledger.balancesFor(otherAffiliate.id)).toEqual([]);
+      expect(await ledger.balancesFor("STORE", otherAffiliate.id)).toEqual([]);
     });
 
     // Prisma drops an undefined field from `where`, so without this guard a
@@ -899,10 +936,12 @@ describe("models/ledger.ts", () => {
     test("refuses to compute a balance without an owner", async () => {
       await registerBaseCurrencies();
 
-      await expect(ledger.balancesFor(undefined)).rejects.toMatchObject({
+      await expect(
+        ledger.balancesFor("STORE", undefined),
+      ).rejects.toMatchObject({
         name: "ValidationError",
-        message: "An owner id is required to read a ledger balance.",
-        action: "Pass the id of the user whose balance you want.",
+        message: "An owner type and id are required to read a ledger balance.",
+        action: "Pass the type and id of the owner whose balance you want.",
         statusCode: 400,
       });
     });
@@ -910,10 +949,10 @@ describe("models/ledger.ts", () => {
     test("only counts the requested account type", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      const payouts = await ledger.balancesFor(affiliate.id, {
+      const payouts = await ledger.balancesFor("STORE", affiliate.id, {
         account_type: "PAYOUT",
       });
 
@@ -925,23 +964,23 @@ describe("models/ledger.ts", () => {
     test("returns zero when the owner has nothing in that currency", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      expect((await ledger.balanceFor(affiliate.id, "BRL")).toFixed(4)).toBe(
-        "0.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "BRL")).toFixed(4),
+      ).toBe("0.0000");
     });
 
     test("is case-insensitive on the currency code", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      expect((await ledger.balanceFor(affiliate.id, "usd")).toFixed(4)).toBe(
-        "-10.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "usd")).toFixed(4),
+      ).toBe("-10.0000");
     });
 
     // The clawback case from task 9: a reversal after the commission was paid
@@ -949,9 +988,9 @@ describe("models/ledger.ts", () => {
     test("carries a negative balance after a clawback", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const sale = await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
       });
 
       // Settle the commission, as a payout run would.
@@ -961,12 +1000,14 @@ describe("models/ledger.ts", () => {
         entries: [
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: 10,
             currency: "USD",
           },
           {
             account_type: "PAYOUT",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -10,
             currency: "USD",
@@ -974,15 +1015,17 @@ describe("models/ledger.ts", () => {
         ],
       });
 
-      expect((await ledger.balanceFor(affiliate.id, "USD")).toFixed(4)).toBe(
-        "0.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "USD")).toFixed(4),
+      ).toBe("0.0000");
 
       // The sale is charged back after the money already left.
       await ledger.reverse(sale[0].entry_group_id);
 
       expect(
-        (await ledger.payableBalancesFor(affiliate.id))[0].amount.toFixed(4),
+        (
+          await ledger.payableBalancesFor("STORE", affiliate.id)
+        )[0].amount.toFixed(4),
       ).toBe("-10.0000");
     });
   });
@@ -991,25 +1034,27 @@ describe("models/ledger.ts", () => {
     test("excludes a commission still inside its hold", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: new Date(Date.now() + 30 * DAY_IN_MS),
       });
 
-      expect(await ledger.maturedBalancesFor(affiliate.id)).toEqual([]);
+      expect(await ledger.maturedBalancesFor("STORE", affiliate.id)).toEqual(
+        [],
+      );
     });
 
     test("includes a commission whose hold has passed", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: new Date(Date.now() - DAY_IN_MS),
       });
 
-      const matured = await ledger.maturedBalancesFor(affiliate.id);
+      const matured = await ledger.maturedBalancesFor("STORE", affiliate.id);
 
       expect(matured).toHaveLength(1);
       expect(matured[0].amount.toFixed(4)).toBe("-10.0000");
@@ -1018,13 +1063,13 @@ describe("models/ledger.ts", () => {
     test("treats a null hold as always matured", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: null,
       });
 
-      const matured = await ledger.maturedBalancesFor(affiliate.id);
+      const matured = await ledger.maturedBalancesFor("STORE", affiliate.id);
 
       expect(matured[0].amount.toFixed(4)).toBe("-10.0000");
     });
@@ -1032,19 +1077,19 @@ describe("models/ledger.ts", () => {
     test("counts a commission as of the given moment", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: new Date("2026-09-30T00:00:00.000Z"),
       });
 
       expect(
-        await ledger.maturedBalancesFor(affiliate.id, {
+        await ledger.maturedBalancesFor("STORE", affiliate.id, {
           matured_as_of: new Date("2026-09-29T00:00:00.000Z"),
         }),
       ).toEqual([]);
 
-      const matured = await ledger.maturedBalancesFor(affiliate.id, {
+      const matured = await ledger.maturedBalancesFor("STORE", affiliate.id, {
         matured_as_of: new Date("2026-10-01T00:00:00.000Z"),
       });
 
@@ -1056,17 +1101,17 @@ describe("models/ledger.ts", () => {
     test("a reversed commission never matures", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const maturesAt = new Date("2026-09-30T00:00:00.000Z");
 
       const sale = await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: maturesAt,
       });
 
       await ledger.reverse(sale[0].entry_group_id);
 
-      const matured = await ledger.maturedBalancesFor(affiliate.id, {
+      const matured = await ledger.maturedBalancesFor("STORE", affiliate.id, {
         matured_as_of: new Date("2026-10-01T00:00:00.000Z"),
       });
 
@@ -1080,10 +1125,10 @@ describe("models/ledger.ts", () => {
     test("reports an owed commission as positive", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
 
-      const payable = await ledger.payableBalancesFor(affiliate.id);
+      const payable = await ledger.payableBalancesFor("STORE", affiliate.id);
 
       expect(payable[0].currency).toBe("USD");
       expect(payable[0].amount.toFixed(4)).toBe("10.0000");
@@ -1092,17 +1137,17 @@ describe("models/ledger.ts", () => {
     test("keeps each currency separate", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      const affiliate = await createOutlet();
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         currency: "BRL",
         gross: 550,
         supplier_cost: 385,
         commission: 55,
       });
 
-      const payable = await ledger.payableBalancesFor(affiliate.id);
+      const payable = await ledger.payableBalancesFor("STORE", affiliate.id);
 
       expect(payable.map((balance) => balance.currency)).toEqual([
         "BRL",
@@ -1120,13 +1165,16 @@ describe("models/ledger.ts", () => {
     test("reports a matured commission as positive", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: new Date(Date.now() - DAY_IN_MS),
       });
 
-      const payable = await ledger.maturedPayableBalancesFor(affiliate.id);
+      const payable = await ledger.maturedPayableBalancesFor(
+        "STORE",
+        affiliate.id,
+      );
 
       expect(payable[0].currency).toBe("USD");
       expect(payable[0].amount.toFixed(4)).toBe("10.0000");
@@ -1135,13 +1183,15 @@ describe("models/ledger.ts", () => {
     test("excludes a commission still inside its hold", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: new Date(Date.now() + DAY_IN_MS),
       });
 
-      expect(await ledger.maturedPayableBalancesFor(affiliate.id)).toEqual([]);
+      expect(
+        await ledger.maturedPayableBalancesFor("STORE", affiliate.id),
+      ).toEqual([]);
     });
   });
 
@@ -1165,15 +1215,16 @@ describe("models/ledger.ts", () => {
     test("is inclusive of the maturity instant", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const maturesAt = new Date("2026-09-30T00:00:00.000Z");
 
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: maturesAt,
       });
 
       const atTheInstant = await ledger.maturedPayableBalancesFor(
+        "STORE",
         affiliate.id,
         { matured_as_of: maturesAt },
       );
@@ -1184,17 +1235,21 @@ describe("models/ledger.ts", () => {
     test("excludes the millisecond before", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       const maturesAt = new Date("2026-09-30T00:00:00.000Z");
 
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         matures_at: maturesAt,
       });
 
-      const justBefore = await ledger.maturedPayableBalancesFor(affiliate.id, {
-        matured_as_of: new Date(maturesAt.getTime() - 1),
-      });
+      const justBefore = await ledger.maturedPayableBalancesFor(
+        "STORE",
+        affiliate.id,
+        {
+          matured_as_of: new Date(maturesAt.getTime() - 1),
+        },
+      );
 
       expect(justBefore).toEqual([]);
     });
@@ -1207,12 +1262,12 @@ describe("models/ledger.ts", () => {
     test("nets to zero per currency after sales, reversals and a payout", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
-      const otherAffiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
+      const otherAffiliate = await createOutlet();
 
-      await orchestrator.recordLedgerSale({ affiliate_id: affiliate.id });
+      await orchestrator.recordLedgerSale({ store_id: affiliate.id });
       await orchestrator.recordLedgerSale({
-        affiliate_id: otherAffiliate.id,
+        store_id: otherAffiliate.id,
         currency: "BRL",
         gross: 550,
         supplier_cost: 385,
@@ -1221,7 +1276,7 @@ describe("models/ledger.ts", () => {
       await orchestrator.recordLedgerSale();
 
       const reversed = await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
       });
       await ledger.reverse(reversed[0].entry_group_id);
 
@@ -1231,12 +1286,14 @@ describe("models/ledger.ts", () => {
         entries: [
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: 10,
             currency: "USD",
           },
           {
             account_type: "PAYOUT",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -10,
             currency: "USD",
@@ -1262,11 +1319,11 @@ describe("models/ledger.ts", () => {
     test("balances in both currencies and records the rate on both legs", async () => {
       await registerBaseCurrencies();
 
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
 
       // Earn a BRL commission first — there has to be a balance to convert.
       await orchestrator.recordLedgerSale({
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
         currency: "BRL",
         gross: 550,
         supplier_cost: 385,
@@ -1281,12 +1338,14 @@ describe("models/ledger.ts", () => {
           // The BRL commission balance is settled...
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: 55,
             currency: "BRL",
           },
           {
             account_type: "PAYOUT",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -55,
             currency: "BRL",
@@ -1294,6 +1353,7 @@ describe("models/ledger.ts", () => {
           // ...and re-expressed in the currency it will actually be paid in.
           {
             account_type: "PAYOUT",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: 10,
             currency: "USD",
@@ -1302,6 +1362,7 @@ describe("models/ledger.ts", () => {
           },
           {
             account_type: "AFFILIATE_COMMISSION",
+            owner_type: "STORE",
             owner_id: affiliate.id,
             amount: -10,
             currency: "USD",
@@ -1321,10 +1382,10 @@ describe("models/ledger.ts", () => {
       }
 
       // The BRL balance is cleared and the USD balance now carries the debt.
-      expect((await ledger.balanceFor(affiliate.id, "BRL")).toFixed(4)).toBe(
-        "0.0000",
-      );
-      const payable = await ledger.payableBalancesFor(affiliate.id);
+      expect(
+        (await ledger.balanceFor("STORE", affiliate.id, "BRL")).toFixed(4),
+      ).toBe("0.0000");
+      const payable = await ledger.payableBalancesFor("STORE", affiliate.id);
       expect(
         payable
           .find((balance) => balance.currency === "USD")
@@ -1338,10 +1399,10 @@ describe("models/ledger.ts", () => {
       await registerBaseCurrencies();
 
       const saleId = randomUUID();
-      const affiliate = await orchestrator.createUser();
+      const affiliate = await createOutlet();
       await orchestrator.recordLedgerSale({
         source_id: saleId,
-        affiliate_id: affiliate.id,
+        store_id: affiliate.id,
       });
 
       const entries = await ledger.findBySource("SALE", saleId);

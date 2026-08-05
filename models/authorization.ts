@@ -84,10 +84,10 @@ const AVAILABLE_FEATURES = [
   "read:store_tag_filter",
   "read:store_game_override",
   "read:store_sale",
-  // An affiliate reading their own earnings. Scoped to the session user rather
-  // than to an outlet, because a commission is owed to a person — see the
-  // comment on the statement endpoint.
-  "read:statement",
+  // An outlet's own earnings. Scoped to the outlet rather than to its owner,
+  // because the outlet is the payee — see the comment on the statement endpoint.
+  "read:store_statement",
+  "read:store_statement:any",
 
   // Studios
   "create:studio",
@@ -145,7 +145,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:public_store",
   "update:store",
   "manage:store_members",
-  "read:statement",
+  "read:store_statement",
   "create:studio",
   "read:public_studio",
   "update:studio",
@@ -174,6 +174,7 @@ const ADMIN_ONLY_FEATURES = [
   "update:store_commission:any",
   "read:supplier_terms:any",
   "update:supplier_terms:any",
+  "read:store_statement:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -269,15 +270,20 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   }
 
   if (
-    (feature === "update:store" || feature === "manage:store_members") &&
+    (feature === "update:store" ||
+      feature === "manage:store_members" ||
+      feature === "read:store_statement") &&
     resource
   ) {
     authorized = false;
     const storeResource = resource as StoreWithMembers;
-    const anyFeature =
-      feature === "update:store"
-        ? "update:store:any"
-        : "manage:store_members:any";
+    // A map rather than a ternary: with three features a nested conditional
+    // stops being readable, and a fourth would be added to the wrong branch.
+    const anyFeature = {
+      "update:store": "update:store:any",
+      "manage:store_members": "manage:store_members:any",
+      "read:store_statement": "read:store_statement:any",
+    }[feature] as string;
 
     const isOwner = user.id === storeResource.owner_id;
     const isPermittedMember = storeResource.members?.some(
@@ -601,7 +607,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     };
   }
 
-  if (feature === "read:statement") {
+  if (feature === "read:store_statement") {
     const balanceOutput = resource as {
       currency: string;
       total: { toFixed: (places: number) => string };

@@ -298,7 +298,7 @@ const recordLedgerEntries = async (entries, sourceData = {}) => {
 // models/ledger — positive is money the platform received, negative is money it
 // owes or spent.
 //
-// With no affiliate_id this writes a three-entry set and no commission at all,
+// With no store_id this writes a three-entry set and no commission at all,
 // which is the global-storefront sale (Sale.store_id is nullable, and null
 // means no store attribution). Emitting an unowned commission instead would
 // book a liability owed to nobody.
@@ -312,7 +312,7 @@ const recordLedgerSale = async (saleData = {}) => {
       ? ledger.maturityFor()
       : saleData.matures_at;
 
-  const commission = saleData.affiliate_id
+  const commission = saleData.store_id
     ? saleData.commission === undefined
       ? 10
       : saleData.commission
@@ -342,10 +342,12 @@ const recordLedgerSale = async (saleData = {}) => {
     },
   ];
 
-  if (saleData.affiliate_id) {
+  if (saleData.store_id) {
     entries.push({
       account_type: "AFFILIATE_COMMISSION",
-      owner_id: saleData.affiliate_id,
+      // The outlet is the payee, not whoever owns it.
+      owner_type: "STORE",
+      owner_id: saleData.store_id,
       amount: -commission,
       currency: currencyCode,
       matures_at: maturesAt,

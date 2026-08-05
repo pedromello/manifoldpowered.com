@@ -19,7 +19,7 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 6. Ledger model                          | ✅ done                                                                        |
 | 6a. Commercial terms                     | ✅ done                                                                        |
 | 6b. Ledger writes on acquisition         | ✅ done                                                                        |
-| 6c. Affiliate statement                  | ✅ done                                                                        |
+| 6c. Outlet statement                     | ✅ done                                                                        |
 | 7–11 (providers, payouts)                | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -30,7 +30,7 @@ Each task is a separate small PR, landed in order, with `npm run test` passing o
 
 ## The model in one paragraph
 
-Manifold is the **merchant of record**. Consumers buy from us; storefront owners are **marketing affiliates** who never take title, never set prices and never touch consumer money. We collect the full payment, hold the affiliate's commission for 30 days so refunds and chargebacks can resolve, then pay a **periodic lump sum** per affiliate — a real fiscal payment against a statement, the way Steam pays developers. This is deliberately _not_ a per-transaction payment split.
+Manifold is the **merchant of record**. Consumers buy from us; storefront owners are **marketing affiliates** who never take title, never set prices and never touch consumer money. We collect the full payment, hold the affiliate's commission for 30 days so refunds and chargebacks can resolve, then pay a **periodic lump sum** per outlet — a real fiscal payment against a statement, the way Steam pays developers. This is deliberately _not_ a per-transaction payment split.
 
 ## Settled decisions
 
@@ -66,7 +66,7 @@ flowchart TD
     PO --> IF[PayoutProvider interface]
     IF --> ST[Stripe]
     IF --> BR[Alternate rail — Pix]
-    ST --> A[Affiliate]
+    ST --> A[Outlet payout account]
     BR --> A
 ```
 
@@ -190,7 +190,7 @@ A disabled currency behaves exactly like an unregistered one, so turning a curre
 
 **Scope narrowed during delivery.** This task originally covered three tables — `LedgerEntry`, `PayoutAccount` and `Payout`. Only `LedgerEntry` shipped here. `PayoutAccount`'s field list is exactly what the tax posture ([#175](https://github.com/pedromello/manifoldpowered.com/issues/175)) determines, so building it now would mean guessing at encrypted-at-rest tax identifiers and then migrating a table that already holds payout details. `PayoutAccount` moves to task 8 and `Payout` to task 10, which are where they are first used.
 
-`LedgerEntry` is append-only (no `updated_at`), carries a **signed** amount, and references its source polymorphically (`source_type` + `source_id`) so it can point at a `Sale` today and an `Order` later without a migration. When `Payout` lands it gets a uniqueness constraint on `(user_id, period_start, period_end)` so a re-run can't double-pay.
+`LedgerEntry` is append-only (no `updated_at`), carries a **signed** amount, and references its source polymorphically (`source_type` + `source_id`) so it can point at a `Sale` today and an `Order` later without a migration. When `Payout` lands it gets a uniqueness constraint on `(store_id, period_start, period_end)` so a re-run can't double-pay — per outlet, since the outlet is the payee.
 
 **Every money row stores its currency, and any row produced by a conversion also stores the rate used.** Without the rate snapshot, a sale converted at last month's rate cannot be reconciled or audited later.
 
@@ -204,7 +204,7 @@ A disabled currency behaves exactly like an unregistered one, so turning a curre
 
 `record()` accepts a set of entries and **rejects any set that does not sum to zero within a currency**. That single invariant is what makes the ledger auditable: every money movement is balanced by construction, and a bug that loses money fails at write time instead of surfacing in a payout three weeks later. `reverse()` writes a new negative entry rather than mutating the original, so history is never rewritten.
 
-Balances are **per currency**. A single affiliate can hold a BRL balance and a USD balance simultaneously; they are never silently added together.
+Balances are **per currency**. A single outlet can hold a BRL balance and a USD balance simultaneously; they are never silently added together.
 
 **Done when:** balance and matured-balance queries work per currency, the zero-sum rule has unit tests, and the orchestrator can seed ledger entries. ✅
 
@@ -256,24 +256,27 @@ Platform revenue is computed as the **residual** (`gross − supplierCost − co
 
 ---
 
-### 6c. Affiliate statement
+### 6c. Outlet statement
 
 **TLDR:** The first thing in this milestone a non-admin human can see.
 
-`GET /api/v1/user/statement` returns what an affiliate is owed, per currency, as three figures: `total` (everything earned and unsettled), `payable` (the part that has cleared the 30-day hold), and `held`. `held` is derived by subtraction rather than queried separately, so the three cannot drift into disagreeing — the failure mode where a statement says one thing and a payout does another. `hold_days` ships in the response so a UI can explain the hold without hardcoding it.
+`GET /api/v1/stores/[slug]/statement` returns what one outlet has earned, per currency, as three figures: `total` (everything earned and unsettled), `payable` (the part that has cleared the 30-day hold), and `held`. `held` is derived by subtraction rather than queried separately, so the three cannot drift into disagreeing — the failure mode where a statement says one thing and a payout does another. `hold_days` ships in the response so a UI can explain the hold without hardcoding it.
 
-**Scoped to the session user, not to an outlet — a deliberate change from what task 11 describes.** `LedgerEntry.owner_id` is a `User` id: a commission is owed to a person and a payout pays a person, and there is no `store_id` on an entry. An outlet-scoped statement would therefore show an affiliate who runs two outlets the same combined figure on both, which is worse than showing nothing because it looks like per-outlet data and is not. True per-outlet balances would need a join from every entry back through its source `Sale`, or a new column on the ledger; neither is justified for a number that is inherently per-person. Per-outlet attribution of individual sales already lives at `GET /api/v1/stores/[slug]/sales`, so sales are per outlet and money is per affiliate.
+**Scoped to the outlet, which is the payee.** An outlet holds its own balance and its own payout account, so a commission survives it changing hands and a payment goes to the account registered against the outlet rather than to whoever owns it today. `LedgerEntry` names the payee polymorphically (`owner_type` + `owner_id`, `STORE` today) exactly as it names its source, so paying a studio later costs no migration.
 
-Two details worth keeping:
+> An earlier draft of this task scoped the statement to the **user** and argued that a commission is owed to a person. That was reversed: the outlet is the payee. The reversal landed before the endpoint merged, so no rejected design ever reached the ledger — see the migration `20260805211227_ledger_owner_is_polymorphic`, which backfills any commission written under the old shape from its sale's `store_id`.
 
-- **There is no identifier in the request.** No slug, no query parameter. The handler reads the session user and nothing else, so one affiliate cannot ask for another's numbers even in principle — a stronger property than the resource-check pattern used elsewhere, available here because the resource *is* the caller.
-- **Amounts serialise at 4 decimal places, not 2.** This is the figure someone reconciles against a bank payment, so the sub-cent fractions the ledger actually holds are not rounded away in the one place they are being checked.
+Three details worth keeping:
+
+- **Balance queries filter on the owner _pair_, never the id alone.** Store ids and user ids are both bare UUIDs with no foreign keys between them, so matching on the id would merge two ledgers the moment a second owner type exists — and nothing would fail.
+- **`reverse()` copies `owner_type` as well as `owner_id`.** A reversal that kept the id and lost the type matches no balance query, so a clawback would look like it succeeded while clawing nothing back.
+- **Amounts serialise at 4 decimal places, not 2.** This is the figure someone reconciles against a bank payment, so the sub-cent fractions the ledger holds are not rounded away in the one place they are being checked.
+
+Read by the outlet's owner and by members granted `read:store_statement`, which is in `store.MEMBER_PERMISSIONS`: the books can be delegated without handing over the outlet, which matters more now that ownership no longer follows the balance. The slug is caller-supplied, so the router's `canRequest` is backed by a resource-scoped `authorization.can()` check in the handler.
 
 Never buyer identity, never codes, never per-sale detail — affiliates see aggregate data only (`docs/legal/phase-0-checklist.md`). Payout history waits for the `Payout` table in task 10.
 
-`read:statement` is an activated-user feature, so it lands in the eight literal copies of `ACTIVATED_USER_FEATURES` across four test files. Two other fixtures contain `"manage:store_members"` inside a store `MEMBER_PERMISSIONS` list and must **not** gain it.
-
-**Done when:** an affiliate can see their own numbers and provably cannot see another's. ✅
+**Done when:** an outlet's operators can see that outlet's numbers and provably cannot see another's. ✅
 
 ---
 
@@ -293,7 +296,7 @@ Providers declare which currencies they can pay in, so the payout run can route 
 
 **TLDR:** Affiliates register where their money should go; nothing is payable until verification passes.
 
-Create and read a `PayoutAccount`, with `payouts_enabled` defaulting to false and a preferred payout currency. The output filter must never expose the provider's external account ID — or, later, tax identifiers.
+Create and read a `PayoutAccount` **belonging to an outlet**, with `payouts_enabled` defaulting to false and a preferred payout currency. The account hangs off `Store`, not `User`: payment details survive a change of ownership, which is the whole point of the outlet being the payee. The output filter must never expose the provider's external account ID — or, later, tax identifiers.
 
 **Done when:** both endpoints follow the standard router chain, validate with Zod, and pass every response through `filterOutput`.
 
@@ -313,7 +316,7 @@ This repo has no scheduler, so this follows the existing precedent for batch wor
 
 ### 10. Payout run
 
-**TLDR:** Monthly batch — pay everyone whose matured balance clears the threshold and whose verification is done.
+**TLDR:** Monthly batch — pay every outlet whose matured balance clears the threshold and whose verification is done.
 
 Writes the `Payout` row and its balancing ledger entries in one transaction, then calls the provider. Sub-threshold balances roll forward with no row written. Idempotent per period.
 
@@ -325,7 +328,7 @@ If a balance must be converted to the affiliate's payout currency, the conversio
 
 ### 11. Affiliate-facing reads
 
-**TLDR:** Let affiliates see their own earnings — and nothing else.
+**TLDR:** Let an outlet's operators see that outlet's earnings — and nothing else.
 
 Statement and payout history endpoints, gated by the base feature in the router plus a resource-scoped ownership check in the handler. Balances shown per currency. **Never** buyer personal data, never gift card codes.
 
@@ -390,6 +393,18 @@ Responses gain `display_price` (`amount`, `base_amount`, `currency`, `symbol`) a
 - **The base currency works unregistered.** With no currency rows at all the platform still sells in USD, and localisation is purely additive. Treating an unregistered base currency as unpriceable would have emptied the entire storefront the moment this shipped unconfigured.
 
 **Done when:** a visitor in a mapped region with a rate sees local prices, and products with no price in their currency are absent from listings and 404 on detail. ✅
+
+---
+
+## Flagged for counsel — raised by outlet-scoped payouts
+
+Making the outlet the payee has three consequences that are commercial and legal rather than technical. None is settled by code:
+
+1. **An outlet that holds its own payout account and survives a change of ownership reads more like a business entity than a marketing surface.** That cuts against the affiliate characterisation the compliance posture rests on — it belongs on the "Standing constraint" list in `docs/legal/phase-0-checklist.md` before counsel sees it.
+2. **It is adjacent to a pattern the term sheet already warns about.** Open decision 4 in `storefront-owner-agreement-termsheet.md` recommends capping storefronts per user at MVP because "multiple storefronts per identity is a standard laundering pattern". Outlet-scoped payouts, plus payout details that survive a transfer, make that more attractive rather than less.
+3. **Clawback set-off is no longer automatic across a person's outlets.** The term sheet says negative balances carry forward against future commissions; with balances per outlet, a debt on one outlet does not offset earnings on another owned by the same person.
+
+Also open: whose identity is verified for an outlet's payout account — the owner at setup, or the owner at payout time. The point of this design is that those can differ.
 
 ---
 

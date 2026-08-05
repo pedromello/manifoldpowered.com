@@ -35,15 +35,26 @@ const MAX_RATE = 1_000_000_000;
 // an unhandled Postgres 22001 rather than anything a caller could act on.
 const MAX_DESCRIPTION_LENGTH = 255;
 
-// Accounts that belong to a specific user. Every other account is the
-// platform's own and must carry no owner: a CONSUMER_PAYMENT row naming a
-// storefront owner would be a record asserting an affiliate received consumer
-// funds, which is the single fact the affiliate characterisation depends on
-// never being true (docs/legal/phase-0-checklist.md).
+// Accounts that belong to a specific payee. Every other account is the
+// platform's own and must carry no owner: a CONSUMER_PAYMENT row naming an
+// outlet would be a record asserting an affiliate received consumer funds,
+// which is the single fact the affiliate characterisation depends on never
+// being true (docs/legal/phase-0-checklist.md).
 const OWNED_ACCOUNT_TYPES: LedgerAccountType[] = [
   LedgerAccountType.AFFILIATE_COMMISSION,
   LedgerAccountType.PAYOUT,
 ];
+
+// What kind of thing can be owed money. An outlet today: it holds its own
+// balance and its own payout account, so a commission survives the outlet
+// changing hands, which is the whole reason this is not a user.
+//
+// A plain string column rather than an enum, so paying a studio later — they
+// are already suppliers — costs no migration. Same reasoning, and the same
+// shape, as LEDGER_SOURCE_TYPES.
+export const LEDGER_OWNER_TYPES = ["STORE"] as const;
+
+export type LedgerOwnerType = (typeof LEDGER_OWNER_TYPES)[number];
 
 // What a set of entries can point at. A plain string column rather than an
 // enum, so pointing at an Order once checkout exists costs no migration. The
@@ -158,7 +169,8 @@ export const ledgerEntrySchema = z
     // an account really is just ALTER TYPE plus a regenerate. A duplicated list
     // would leave the database accepting a value that record() then rejects.
     account_type: z.enum(LedgerAccountType),
-    // Null for platform accounts, which belong to no user.
+    // Both null for platform accounts, which are owed to nobody.
+    owner_type: z.enum(LEDGER_OWNER_TYPES).nullish().default(null),
     owner_id: z.uuid().nullish().default(null),
     amount: ledgerAmountSchema,
     currency: currencyCodeSchema,
@@ -181,7 +193,16 @@ export const ledgerEntrySchema = z
   .refine((entry) => entry.exchange_rate_from_currency !== entry.currency, {
     message: "exchange_rate_from_currency must differ from currency",
     path: ["exchange_rate_from_currency"],
-  });
+  })
+  // An id with no type is unreadable — balances filter on the pair, so such a
+  // row would sit in the books matching no query at all.
+  .refine(
+    (entry) => (entry.owner_type === null) === (entry.owner_id === null),
+    {
+      message: "owner_type and owner_id must be set together",
+      path: ["owner_type"],
+    },
+  );
 
 // Widened from the schema's input so callers can pass the Prisma.Decimal they
 // already hold — a converted price, a commission from .mul() — without
@@ -218,6 +239,7 @@ export interface RecordLedgerEntriesDto {
 // the parse result is narrowed to it.
 interface ParsedLedgerEntry {
   account_type: LedgerAccountType;
+  owner_type: LedgerOwnerType | null;
   owner_id: string | null;
   amount: Prisma.Decimal;
   currency: string;
@@ -310,12 +332,7 @@ async function record(
     ),
   );
 
-  await validateOwnersExist(
-    entries
-      .map((entry) => entry.owner_id)
-      .filter((ownerId): ownerId is string => ownerId !== null),
-    client,
-  );
+  await validateOwnersExist(entries, client);
 
   const entryGroupId = randomUUID();
 
@@ -323,6 +340,7 @@ async function record(
     data: entries.map((entry) => ({
       entry_group_id: entryGroupId,
       account_type: entry.account_type,
+      owner_type: entry.owner_type,
       owner_id: entry.owner_id,
       amount: entry.amount,
       // Already uppercased by currencyCodeSchema, on both this and the
@@ -390,6 +408,10 @@ async function reverse(
   const reversalEntries = originalEntries.map((entry) => ({
     entry_group_id: reversalGroupId,
     account_type: entry.account_type,
+    // Both halves of the owner, not just the id. Balances filter on the pair,
+    // so a reversal that kept the id and lost the type would match no query —
+    // the clawback would look like it succeeded while clawing nothing back.
+    owner_type: entry.owner_type,
     owner_id: entry.owner_id,
     amount: entry.amount.negated(),
     currency: entry.currency,
@@ -437,12 +459,13 @@ async function reverse(
 }
 
 // Signed balances straight from the ledger, one row per currency. Never summed
-// across currencies: an affiliate can hold a BRL balance and a USD balance at
-// once and they are not comparable, let alone addable.
+// across currencies: an outlet can hold a BRL balance and a USD balance at once
+// and they are not comparable, let alone addable.
 //
 // Under the sign convention these are negative while the platform owes them.
 // Use payableBalancesFor for anything user-facing.
 async function balancesFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   {
     account_type = LedgerAccountType.AFFILIATE_COMMISSION,
@@ -450,18 +473,22 @@ async function balancesFor(
     matured_as_of = new Date(),
   }: BalanceOptions = {},
 ): Promise<CurrencyBalance[]> {
-  // Prisma drops an undefined field from `where`, so a missing owner id would
-  // silently widen this to every owner plus every platform row and return a
-  // number that looks like a balance. strictNullChecks is off here, so nothing
-  // upstream would have caught it.
-  if (!ownerId) {
+  // Prisma drops an undefined field from `where`, so a missing half would
+  // silently widen this and return a number that looks like a balance.
+  // strictNullChecks is off here, so nothing upstream would have caught it.
+  if (!ownerType || !ownerId) {
     throw new ValidationError({
-      message: "An owner id is required to read a ledger balance.",
-      action: "Pass the id of the user whose balance you want.",
+      message: "An owner type and id are required to read a ledger balance.",
+      action: "Pass the type and id of the owner whose balance you want.",
     });
   }
 
+  // Filtered on the pair, never the id alone. Store ids and user ids are both
+  // bare UUIDs with no foreign keys between them, so matching on the id would
+  // merge two different ledgers the moment a second owner type exists — and
+  // nothing would fail.
   const where: Prisma.LedgerEntryWhereInput = {
+    owner_type: ownerType,
     owner_id: ownerId,
     account_type,
   };
@@ -488,12 +515,13 @@ async function balancesFor(
 // The signed balance in one currency. Zero when the owner has no entries in it,
 // so callers never have to distinguish "no rows" from "nets to nothing".
 async function balanceFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   currencyCode: string,
   options: BalanceOptions = {},
 ): Promise<Prisma.Decimal> {
   const normalizedCode = currency.normalizeCode(currencyCode);
-  const balances = await balancesFor(ownerId, options);
+  const balances = await balancesFor(ownerType, ownerId, options);
 
   return (
     balances.find((balance) => balance.currency === normalizedCode)?.amount ??
@@ -505,10 +533,14 @@ async function balanceFor(
 // against; the rest is still inside the window where a refund or chargeback
 // can take it back.
 async function maturedBalancesFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   options: Omit<BalanceOptions, "matured_only"> = {},
 ): Promise<CurrencyBalance[]> {
-  return await balancesFor(ownerId, { ...options, matured_only: true });
+  return await balancesFor(ownerType, ownerId, {
+    ...options,
+    matured_only: true,
+  });
 }
 
 // When a commission paid at `paidAt` becomes payable. The hold is the
@@ -537,10 +569,11 @@ function maturityFor(paidAt: Date = new Date()): Date {
 // means "already sent to them", not "owed to them". Only AFFILIATE_COMMISSION —
 // the default — reads as a debt.
 async function payableBalancesFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   options: BalanceOptions = {},
 ): Promise<CurrencyBalance[]> {
-  const balances = await balancesFor(ownerId, options);
+  const balances = await balancesFor(ownerType, ownerId, options);
 
   return balances.map((balance) => ({
     currency: balance.currency,
@@ -557,10 +590,14 @@ async function payableBalancesFor(
 // is the worst bug this model could ship, so the convenient name is also the
 // safe one.
 async function maturedPayableBalancesFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   options: Omit<BalanceOptions, "matured_only"> = {},
 ): Promise<CurrencyBalance[]> {
-  return await payableBalancesFor(ownerId, { ...options, matured_only: true });
+  return await payableBalancesFor(ownerType, ownerId, {
+    ...options,
+    matured_only: true,
+  });
 }
 
 export interface StatementBalance {
@@ -582,12 +619,13 @@ export interface StatementBalance {
 // `held` is derived by subtraction rather than queried separately, so the three
 // figures cannot disagree with each other.
 async function statementFor(
+  ownerType: LedgerOwnerType,
   ownerId: string,
   options: Omit<BalanceOptions, "matured_only"> = {},
 ): Promise<StatementBalance[]> {
   const [totals, payables] = await Promise.all([
-    payableBalancesFor(ownerId, options),
-    maturedPayableBalancesFor(ownerId, options),
+    payableBalancesFor(ownerType, ownerId, options),
+    maturedPayableBalancesFor(ownerType, ownerId, options),
   ]);
 
   const payableByCurrency = new Map(
@@ -670,11 +708,11 @@ function assertBalanced(
   }
 }
 
-// Which accounts may name a user, and which must not.
+// Which accounts may name a payee, and which must not.
 //
 // An owned account with no owner is a liability owed to nobody: balancesFor
 // looks entries up by owner, so the row is invisible to every read path while
-// still sitting in the books. An unowned account naming a user is worse — see
+// still sitting in the books. An unowned account naming a payee is worse — see
 // OWNED_ACCOUNT_TYPES above.
 function assertOwnershipMatchesAccounts(entries: ParsedLedgerEntry[]) {
   for (const entry of entries) {
@@ -682,40 +720,49 @@ function assertOwnershipMatchesAccounts(entries: ParsedLedgerEntry[]) {
 
     if (isOwnedAccount && !entry.owner_id) {
       throw new ValidationError({
-        message: `A ${entry.account_type} entry must name the user it belongs to.`,
-        action: "Set owner_id on this entry and try again.",
+        message: `A ${entry.account_type} entry must name the owner it belongs to.`,
+        action: "Set owner_type and owner_id on this entry and try again.",
       });
     }
 
     if (!isOwnedAccount && entry.owner_id) {
       throw new ValidationError({
-        message: `A ${entry.account_type} entry is a platform account and must not name a user.`,
-        action: "Remove owner_id from this entry and try again.",
+        message: `A ${entry.account_type} entry is a platform account and must not name an owner.`,
+        action: "Remove owner_type and owner_id from this entry and try again.",
       });
     }
   }
 }
 
 // Same reasoning as the currency check below: with no foreign keys, an owner id
-// that matches no user becomes a commission that never appears in any statement
+// that matches nothing becomes a commission that never appears in any statement
 // or payout, and nothing fails until someone notices the money is missing.
+//
+// Checked per owner type, because the id alone says nothing about which table
+// it should be found in.
 async function validateOwnersExist(
-  ownerIds: string[],
+  entries: ParsedLedgerEntry[],
   client: Prisma.TransactionClient = prisma,
 ) {
-  const uniqueIds = [...new Set(ownerIds)];
+  const storeIds = [
+    ...new Set(
+      entries
+        .filter((entry) => entry.owner_type === "STORE" && entry.owner_id)
+        .map((entry) => entry.owner_id as string),
+    ),
+  ];
 
-  if (uniqueIds.length === 0) {
+  if (storeIds.length === 0) {
     return;
   }
 
-  const foundUsers = await client.user.findMany({
-    where: { id: { in: uniqueIds } },
+  const foundStores = await client.store.findMany({
+    where: { id: { in: storeIds } },
     select: { id: true },
   });
 
-  const foundIds = new Set(foundUsers.map((user) => user.id));
-  const missingIds = uniqueIds.filter((ownerId) => !foundIds.has(ownerId));
+  const foundIds = new Set(foundStores.map((store) => store.id));
+  const missingIds = storeIds.filter((ownerId) => !foundIds.has(ownerId));
 
   if (missingIds.length > 0) {
     throw new ValidationError({
@@ -751,6 +798,7 @@ async function validateCurrenciesAreRecordable(codes: string[]) {
 
 const ledger = {
   LEDGER_SOURCE_TYPES,
+  LEDGER_OWNER_TYPES,
   COMMISSION_HOLD_DAYS,
   record,
   reverse,
