@@ -563,6 +563,50 @@ async function maturedPayableBalancesFor(
   return await payableBalancesFor(ownerId, { ...options, matured_only: true });
 }
 
+export interface StatementBalance {
+  currency: string;
+  // Everything earned and not yet settled, whether or not the hold has passed.
+  total: Prisma.Decimal;
+  // The part that has cleared its hold — what a payout run may actually pay.
+  payable: Prisma.Decimal;
+  // Still inside the window where a refund or chargeback can take it back.
+  held: Prisma.Decimal;
+}
+
+// What an affiliate is owed, per currency, signed the way a person expects.
+//
+// One row per currency, never summed across them: a BRL balance and a USD
+// balance are separate debts paid on separate rails, and adding them would
+// produce a number that is true of nothing.
+//
+// `held` is derived by subtraction rather than queried separately, so the three
+// figures cannot disagree with each other.
+async function statementFor(
+  ownerId: string,
+  options: Omit<BalanceOptions, "matured_only"> = {},
+): Promise<StatementBalance[]> {
+  const [totals, payables] = await Promise.all([
+    payableBalancesFor(ownerId, options),
+    maturedPayableBalancesFor(ownerId, options),
+  ]);
+
+  const payableByCurrency = new Map(
+    payables.map((balance) => [balance.currency, balance.amount]),
+  );
+
+  return totals.map((balance) => {
+    const payable =
+      payableByCurrency.get(balance.currency) ?? new Prisma.Decimal(0);
+
+    return {
+      currency: balance.currency,
+      total: balance.amount,
+      payable,
+      held: balance.amount.minus(payable),
+    };
+  });
+}
+
 async function findByGroup(entryGroupId: string) {
   return await prisma.ledgerEntry.findMany({
     where: { entry_group_id: entryGroupId },
@@ -716,6 +760,7 @@ const ledger = {
   maturedBalancesFor,
   payableBalancesFor,
   maturedPayableBalancesFor,
+  statementFor,
   findByGroup,
   findBySource,
   isSourceReversed,

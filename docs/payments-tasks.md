@@ -19,6 +19,7 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 6. Ledger model                          | ✅ done                                                                        |
 | 6a. Commercial terms                     | ✅ done                                                                        |
 | 6b. Ledger writes on acquisition         | ✅ done                                                                        |
+| 6c. Affiliate statement                  | ✅ done                                                                        |
 | 7–11 (providers, payouts)                | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -252,6 +253,27 @@ Platform revenue is computed as the **residual** (`gross − supplierCost − co
 **Done when:** an acquisition through an outlet writes four entries summing to zero, in the same transaction as the sale. ✅
 
 **Fixed in passing:** `pricing.priceFor()` gated on the currency being registered and enabled, while `displayPricesFor()` deliberately lets the base currency work unregistered so localisation stays additive on a working default. The two disagreed, so an unconfigured install would show a USD price and then refuse to sell it. The base currency now resolves in both.
+
+---
+
+### 6c. Affiliate statement
+
+**TLDR:** The first thing in this milestone a non-admin human can see.
+
+`GET /api/v1/user/statement` returns what an affiliate is owed, per currency, as three figures: `total` (everything earned and unsettled), `payable` (the part that has cleared the 30-day hold), and `held`. `held` is derived by subtraction rather than queried separately, so the three cannot drift into disagreeing — the failure mode where a statement says one thing and a payout does another. `hold_days` ships in the response so a UI can explain the hold without hardcoding it.
+
+**Scoped to the session user, not to an outlet — a deliberate change from what task 11 describes.** `LedgerEntry.owner_id` is a `User` id: a commission is owed to a person and a payout pays a person, and there is no `store_id` on an entry. An outlet-scoped statement would therefore show an affiliate who runs two outlets the same combined figure on both, which is worse than showing nothing because it looks like per-outlet data and is not. True per-outlet balances would need a join from every entry back through its source `Sale`, or a new column on the ledger; neither is justified for a number that is inherently per-person. Per-outlet attribution of individual sales already lives at `GET /api/v1/stores/[slug]/sales`, so sales are per outlet and money is per affiliate.
+
+Two details worth keeping:
+
+- **There is no identifier in the request.** No slug, no query parameter. The handler reads the session user and nothing else, so one affiliate cannot ask for another's numbers even in principle — a stronger property than the resource-check pattern used elsewhere, available here because the resource *is* the caller.
+- **Amounts serialise at 4 decimal places, not 2.** This is the figure someone reconciles against a bank payment, so the sub-cent fractions the ledger actually holds are not rounded away in the one place they are being checked.
+
+Never buyer identity, never codes, never per-sale detail — affiliates see aggregate data only (`docs/legal/phase-0-checklist.md`). Payout history waits for the `Payout` table in task 10.
+
+`read:statement` is an activated-user feature, so it lands in the eight literal copies of `ACTIVATED_USER_FEATURES` across four test files. Two other fixtures contain `"manage:store_members"` inside a store `MEMBER_PERMISSIONS` list and must **not** gain it.
+
+**Done when:** an affiliate can see their own numbers and provably cannot see another's. ✅
 
 ---
 

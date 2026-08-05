@@ -84,6 +84,10 @@ const AVAILABLE_FEATURES = [
   "read:store_tag_filter",
   "read:store_game_override",
   "read:store_sale",
+  // An affiliate reading their own earnings. Scoped to the session user rather
+  // than to an outlet, because a commission is owed to a person — see the
+  // comment on the statement endpoint.
+  "read:statement",
 
   // Studios
   "create:studio",
@@ -141,6 +145,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:public_store",
   "update:store",
   "manage:store_members",
+  "read:statement",
   "create:studio",
   "read:public_studio",
   "update:studio",
@@ -593,6 +598,25 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       visibility: overrideOutput.visibility,
       created_at: overrideOutput.created_at,
       updated_at: overrideOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:statement") {
+    const balanceOutput = resource as {
+      currency: string;
+      total: { toFixed: (places: number) => string };
+      payable: { toFixed: (places: number) => string };
+      held: { toFixed: (places: number) => string };
+    };
+
+    return {
+      currency: balanceOutput.currency,
+      // Serialised at the storage scale rather than the currency's display
+      // scale: this is a figure an affiliate reconciles against a payment, so
+      // the fractions of a cent the ledger actually holds must not be hidden.
+      total: balanceOutput.total.toFixed(4),
+      payable: balanceOutput.payable.toFixed(4),
+      held: balanceOutput.held.toFixed(4),
     };
   }
 
