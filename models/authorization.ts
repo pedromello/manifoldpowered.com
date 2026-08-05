@@ -13,6 +13,7 @@ import {
   StudioMember,
   Currency,
   ExchangeRate,
+  SupplierTerms,
 } from "generated/prisma/client";
 import { InternalServerError } from "infra/errors";
 
@@ -109,6 +110,13 @@ const AVAILABLE_FEATURES = [
   "update:currency:any",
   "read:exchange_rate:any",
   "create:exchange_rate:any",
+
+  // Commercial terms (admin). Admin-only by design: an outlet influencing its
+  // own commission is the same category of problem as one setting its own
+  // prices (docs/legal/phase-0-checklist.md).
+  "update:store_commission:any",
+  "read:supplier_terms:any",
+  "update:supplier_terms:any",
 ];
 
 // The feature set granted to every user once they activate their account
@@ -158,6 +166,9 @@ const ADMIN_ONLY_FEATURES = [
   "update:currency:any",
   "read:exchange_rate:any",
   "create:exchange_rate:any",
+  "update:store_commission:any",
+  "read:supplier_terms:any",
+  "update:supplier_terms:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -481,8 +492,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   if (
     feature === "create:store" ||
     feature === "read:public_store" ||
-    feature === "update:store" ||
-    feature === "read:store:any"
+    feature === "update:store"
   ) {
     const storeOutput = resource as Store;
     return {
@@ -494,6 +504,46 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       owner_id: storeOutput.owner_id,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
+    };
+  }
+
+  // The admin view of a store, kept separate from the branch above because that
+  // one also serves read:public_store — commission_rate must not be visible to
+  // anyone browsing, and the owner-facing paths deliberately do not show it
+  // either while the rate is admin-set.
+  if (
+    feature === "read:store:any" ||
+    feature === "update:store_commission:any"
+  ) {
+    const storeOutput = resource as Store;
+    return {
+      id: storeOutput.id,
+      slug: storeOutput.slug,
+      name: storeOutput.name,
+      description: storeOutput.description,
+      logo_url: storeOutput.logo_url,
+      owner_id: storeOutput.owner_id,
+      // Null means no bespoke rate, so the platform default applies. Serialised
+      // at full scale for the same reason exchange rates are: the wire format
+      // should not depend on how the driver stringifies a Decimal.
+      commission_rate: storeOutput.commission_rate?.toFixed(8) ?? null,
+      created_at: storeOutput.created_at,
+      updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "read:supplier_terms:any" ||
+    feature === "update:supplier_terms:any"
+  ) {
+    const termsOutput = resource as SupplierTerms;
+    return {
+      id: termsOutput.id,
+      supplier_type: termsOutput.supplier_type,
+      supplier_id: termsOutput.supplier_id,
+      cost_rate: termsOutput.cost_rate.toFixed(8),
+      created_at: termsOutput.created_at,
+      updated_at: termsOutput.updated_at,
     };
   }
 

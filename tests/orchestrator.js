@@ -17,6 +17,7 @@ import currency from "models/currency";
 import exchangeRate from "models/exchange_rate";
 import pricing from "models/pricing";
 import ledger from "models/ledger";
+import commercialTerms from "models/commercial_terms";
 import { Prisma } from "generated/prisma/client";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
@@ -265,6 +266,24 @@ const createExchangeRate = async (rateData = {}) => {
   });
 };
 
+// Commercial terms
+const setStoreCommissionRate = async (storeId, rate) => {
+  return commercialTerms.setCommissionRate(
+    storeId,
+    rate === null ? null : new Prisma.Decimal(String(rate)),
+  );
+};
+
+const setSupplierTerms = async (termsData = {}) => {
+  return commercialTerms.setSupplierTerms({
+    supplier_type: termsData.supplier_type || "STUDIO",
+    supplier_id: termsData.supplier_id,
+    cost_rate: new Prisma.Decimal(
+      String(termsData.cost_rate === undefined ? 0.7 : termsData.cost_rate),
+    ),
+  });
+};
+
 // Ledger
 const recordLedgerEntries = async (entries, sourceData = {}) => {
   return ledger.record({
@@ -371,6 +390,8 @@ const orchestrator = {
   setGamePriceOverride,
   recordLedgerEntries,
   recordLedgerSale,
+  setStoreCommissionRate,
+  setSupplierTerms,
 };
 
 export default orchestrator;
