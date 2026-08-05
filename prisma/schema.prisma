@@ -396,6 +396,97 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
+// The chart of accounts. New accounts — tax withholding, a supplier prepaid
+// wallet, a processor reserve — are added here as enum values without
+// reshaping the table, which is why this is an enum while source_type below,
+// whose values must be extensible without a migration at all, is not.
+enum LedgerAccountType {
+  CONSUMER_PAYMENT // gross collected from a buyer; funds a sale
+  SUPPLIER_COST // what the delivered code cost us
+  AFFILIATE_COMMISSION // owed to a storefront owner, held until matures_at
+  PLATFORM_REVENUE // what is left for the platform
+  PAYOUT // a commission balance actually sent to an affiliate
+}
+
+// Append-only double-entry ledger. Every money movement is written as a set of
+// entries sharing an entry_group_id which sums to zero within each currency,
+// so a bug that loses money fails at write time instead of surfacing in a
+// payout three weeks later. Nothing here is ever updated: a correction is a
+// new, negated entry (see models/ledger.reverse).
+//
+// Sign convention: positive is money the platform received or holds, negative
+// is money it owes or has spent. One sale of 100.00 with a 70.00 supplier cost
+// and a 10.00 affiliate commission is therefore:
+//
+//   CONSUMER_PAYMENT      +100.0000
+//   SUPPLIER_COST          -70.0000
+//   AFFILIATE_COMMISSION   -10.0000
+//   PLATFORM_REVENUE       -20.0000
+//                          ---------
+//                            0.0000
+//
+// A commission balance is consequently negative while we owe it. models/ledger
+// exposes that flip in one place (payableBalancesFor) so no read path has to
+// remember to negate.
+model LedgerEntry {
+  id String @id @default(uuid())
+
+  // The balanced set this entry was written as part of. Summing to zero is a
+  // property of a set rather than of a row, so the set needs its own identity.
+  entry_group_id String
+
+  account_type LedgerAccountType
+
+  // Logical reference to User.id — the affiliate a commission or payout
+  // belongs to. Null for platform accounts, which belong to no user.
+  owner_id String?
+
+  amount   Decimal @db.Decimal(19, 4)
+  currency String  @db.VarChar(3) // Logical reference to Currency.code
+
+  // Set only when this amount was produced by converting from another
+  // currency, and then always as a pair: a rate cannot be reconciled later
+  // without knowing which pair it applied to.
+  exchange_rate               Decimal? @db.Decimal(19, 8)
+  exchange_rate_from_currency String?  @db.VarChar(3) // Logical reference to Currency.code
+
+  // Polymorphic reference to whatever produced this entry, the same shape as
+  // AdminActionLog.target_type/target_id. Deliberately not an enum: it has to
+  // reach a Sale today and an Order later without a migration.
+  source_type String @db.VarChar(50)
+  source_id   String
+
+  // When a held amount becomes payable; null means no hold. A reversing entry
+  // copies the original's value so a clawback cancels it at the same instant.
+  // Nulling it would leave the original matured with nothing offsetting it.
+  matures_at DateTime?
+
+  // Logical reference to LedgerEntry.id, set on rows written by reverse().
+  //
+  // Unique, so an entry can be cancelled exactly once. reverse() checks first
+  // and reports a clear error, but two chargeback handlers racing would both
+  // pass that check and claw the same commission back twice — and with no
+  // UPDATE available, a ledger wrong in that direction cannot be repaired.
+  // Refunds in this business are all-or-nothing (see
+  // docs/legal/business-description.md), so nothing legitimate needs to reverse
+  // an entry in parts.
+  reverses_entry_id String? @unique
+
+  description String? @db.VarChar(255)
+
+  // No updated_at: ledger entries are append-only and never modified.
+  created_at DateTime @default(now())
+
+  @@index([entry_group_id])
+  // Leads on the balance query's grouping and carries matures_at as the last
+  // column, so the matured filter is served by the same index rather than a
+  // separate one on matures_at alone — which nothing would ever choose, since
+  // no query filters on maturity without an owner.
+  @@index([owner_id, account_type, currency, matures_at])
+  @@index([source_type, source_id])
+  @@map("ledger_entries")
+}
+
 // A price set explicitly by a developer/admin for one currency. Its presence
 // means "this is the price, do not convert" — it always wins over conversion
 // from the game's USD base price. This is also where commercially-shaped
