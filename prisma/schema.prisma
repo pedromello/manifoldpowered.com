@@ -225,13 +225,21 @@ model LibraryItem {
 // store_id is nullable: null means the acquisition happened through the
 // global storefront (no store attribution), not through a specific store.
 model Sale {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   user_id       String // Logical reference to User.id (who acquired)
   game_id       String // Logical reference to Game.id (what was acquired)
   store_id      String? // Logical reference to Store.id; null = platform/global acquisition
-  price_at_sale Decimal  @db.Decimal(19, 4) // Snapshot of Game.price at acquisition time
+  price_at_sale Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
+
+  // The currency the buyer was charged in, and the rate that produced the
+  // amount when it came from converting the USD base price. Without these a
+  // sale records a number with no unit — and the ledger entries written from
+  // it could not be reconciled against the rate that was in effect.
+  currency      String   @db.VarChar(3) // Logical reference to Currency.code
+  exchange_rate Decimal? @db.Decimal(19, 8) // Null when the price was already in this currency
+
   // No updated_at: sale records are append-only and never modified.
-  created_at    DateTime @default(now())
+  created_at DateTime @default(now())
 
   @@index([store_id, created_at])
   @@index([user_id])

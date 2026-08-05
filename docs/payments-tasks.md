@@ -18,7 +18,7 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 5. Ledger schema                         | ✅ done                                                                        |
 | 6. Ledger model                          | ✅ done                                                                        |
 | 6a. Commercial terms                     | ✅ done                                                                        |
-| 6b. Ledger writes on acquisition         | not started                                                                    |
+| 6b. Ledger writes on acquisition         | ✅ done                                                                        |
 | 7–11 (providers, payouts)                | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
@@ -245,12 +245,13 @@ Three decisions worth keeping:
 
 Platform revenue is computed as the **residual** (`gross − supplierCost − commission`), never independently. `record()` refuses over-scale amounts rather than rounding them, so `gross × (1 − s − c)` would leave a sub-cent remainder and fail the zero-sum check; the residual absorbs all rounding.
 
-Two defects to fix while here, both found during 6a:
+`acquireGame` **discarded the `Sale` it created**, so there was no id to key entries on. Fixed here.
 
-- `acquireGame` **discards the `Sale` it creates**, so there is no id to key entries on.
-- Re-acquiring writes a **second `Sale`** — the `LibraryItem` upsert is idempotent, `tx.sale.create` is not. Harmless today; double commission once money attaches.
+**Correction: the second `Sale` on re-acquisition is not a defect.** It was recorded as one in an earlier draft of this plan, wrongly. The model comment on `Sale` says plainly that a sale is an acquisition _event_, written every time, "letting the same user acquire the same game through multiple stores over time without losing any of those events" — and a test asserts it. Attribution per referral is the point of the table.
 
-**Done when:** an acquisition through an outlet writes four entries summing to zero, and a second acquisition writes none.
+**Done when:** an acquisition through an outlet writes four entries summing to zero, in the same transaction as the sale. ✅
+
+**Fixed in passing:** `pricing.priceFor()` gated on the currency being registered and enabled, while `displayPricesFor()` deliberately lets the base currency work unregistered so localisation stays additive on a working default. The two disagreed, so an unconfigured install would show a USD price and then refuse to sell it. The base currency now resolves in both.
 
 ---
 
@@ -373,6 +374,7 @@ Responses gain `display_price` (`amount`, `base_amount`, `currency`, `symbol`) a
 ## Open questions
 
 0. **Write idempotency** — nothing prevents the same sale being recorded to the ledger twice, so a duplicated payment webhook would owe an affiliate double. `(source_type, source_id)` cannot be unique because reversals share it. Raised during task 5 and deliberately not guessed at: it is a schema decision, so it wants settling before checkout writes the first real entry.
+   0b. **Should a repeat acquisition through the _same_ outlet earn commission again?** It currently does, because a `Sale` is an acquisition event by design and each one now mints a commission. Through a _different_ outlet that is plainly correct — the referral earned it. Through the same one it is the cheapest way for an outlet owner to farm their own commission, and today only the 30-day hold and the payout threshold discourage it (`docs/legal/business-description.md`). Deduplicating per outlet would close it while keeping the multi-outlet attribution the table exists for.
 1. **Platform-side reporting** — balances are read per owner, and platform accounts have no owner, so there is no read path for platform revenue or supplier cost. Task 11 is affiliate-facing only, so no task currently covers it.
 2. **FX cost bearer** — when a sale is collected in BRL and commission is paid in USD, who absorbs the conversion spread? Currently assigned to the affiliate in the agreement draft.
 3. **Rate staleness** — how old is too old? A rate table with no freshness policy will eventually sell something at a two-month-old rate.

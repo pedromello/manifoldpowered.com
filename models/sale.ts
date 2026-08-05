@@ -1,24 +1,11 @@
 import { prisma } from "infra/database";
-import { Prisma } from "generated/prisma/client";
 
-interface RecordSaleDto {
-  user_id: string;
-  game_id: string;
-  store_id: string | null;
-  price_at_sale: Prisma.Decimal;
-}
-
-async function record(saleDto: RecordSaleDto) {
-  return await prisma.sale.create({
-    data: {
-      user_id: saleDto.user_id,
-      game_id: saleDto.game_id,
-      store_id: saleDto.store_id,
-      price_at_sale: saleDto.price_at_sale,
-    },
-  });
-}
-
+// There is deliberately no record() here. A sale is only ever created by
+// library.acquireGame, inside the transaction that also writes the balanced
+// ledger entries describing it — a standalone writer would let a sale exist
+// with no entries, which is the one state the books cannot represent. The
+// previous unused record() was removed rather than taught about currency,
+// since its only possible effect was to reintroduce that gap.
 async function listByStore(
   storeId: string,
   {
@@ -71,7 +58,6 @@ async function listByStore(
 }
 
 const sale = {
-  record,
   listByStore,
 };
 
