@@ -124,7 +124,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             />
 
             {isFocused && searchQuery && (
-              <div className="flex flex-col gap-2 absolute top-full mt-3 right-0 w-[calc(100vw-2rem)] md:w-full max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex flex-col gap-2 fixed left-4 right-4 mx-auto top-[calc(env(safe-area-inset-top)+4rem)] md:absolute md:top-full md:mt-3 md:left-auto md:right-0 md:mx-0 md:w-full max-w-md bg-[#130b25] backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-4 duration-200 z-50">
                 {isLoading ? (
                   <div className="px-6 py-8 flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/20"></div>
