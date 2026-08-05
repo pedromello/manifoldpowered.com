@@ -44,7 +44,7 @@ export function GameAutocomplete({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setTimeout(() => setIsFocused(false), 200)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
+        className="w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 py-2.5 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
       />
 
       {isFocused && query && (
