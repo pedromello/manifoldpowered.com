@@ -7,7 +7,7 @@ import { Store, Library, Search } from "lucide-react";
 import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/GameListItem";
-import { formatPrice } from "lib/price";
+import { formatBasePrice, formatPrice } from "lib/price";
 
 export type StoreNavContext = {
   slug: string;
@@ -163,9 +163,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                               >
                                 {isDemo ? "Free" : formatPrice(game)}
                               </p>
-                              {!isDemo && game.base_price && (
+                              {!isDemo && formatBasePrice(game) && (
                                 <p className="text-xs font-semibold line-through text-white/40">
-                                  ${game.base_price}
+                                  {formatBasePrice(game)}
                                 </p>
                               )}
                             </div>

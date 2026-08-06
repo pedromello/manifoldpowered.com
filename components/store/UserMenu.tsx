@@ -38,7 +38,7 @@ export function UserMenu() {
 
   const handleSignOut = async () => {
     await fetch("/api/v1/sessions", { method: "DELETE" });
-    mutate(null, false);
+    await mutate();
     router.push("/store");
     setIsOpen(false);
   };
