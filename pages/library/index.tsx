@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import useSWR from "swr";
-import { BookMarked, Layers, PackageX } from "lucide-react";
+import { BookMarked, Layers, PackageX, Receipt } from "lucide-react";
 
 import { StoreLayout } from "components/store/StoreLayout";
 import { SectionDivider } from "components/store/SectionDivider";
@@ -56,6 +56,16 @@ export default function LibraryPage() {
               Access your secured digital assets. Download, manage, and play
               your collection.
             </p>
+            {/* The library shows what you own at today's list price; the
+                history shows what you actually paid. Different questions, so
+                they get different pages. */}
+            <Link
+              href="/library/purchases"
+              className="inline-flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm font-black uppercase tracking-wider text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <Receipt size={16} />
+              Purchase History
+            </Link>
           </header>
 
           <SectionDivider />

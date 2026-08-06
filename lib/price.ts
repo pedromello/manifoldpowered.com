@@ -55,3 +55,59 @@ export function formatBasePrice(item: PricedItem): string | null {
 export function hasDiscount(item: PricedItem): boolean {
   return !isFree(item) && formatBasePrice(item) !== null;
 }
+
+// Money that is not a product price: a sale's `price_at_sale`, a statement
+// balance, a revenue total.
+//
+// Every helper above takes a `PricedItem` — an object carrying `price` and
+// optionally `display_price` — so none of them can be handed an
+// `{ amount, currency }` pair. These surfaces have no product to pass.
+//
+// The digits are used exactly as the server sent them. That is the whole point:
+// sales serialise at 2 decimal places and statement balances at 4, because the
+// ledger holds fractions of a cent that an affiliate reconciles against a real
+// payment. Re-rounding here is precisely how that precision would be lost, so
+// this function only ever puts a symbol in front of a string it does not touch.
+export function formatMoney(amount: string | number, currency: string): string {
+  return `${currencySymbol(currency)}${amount}`;
+}
+
+// Symbol lookup memoised per currency code. Intl knows the symbol for every
+// registered code, which saves shipping a table that would drift from the
+// Currency rows in the database.
+const symbolCache = new Map<string, string>();
+
+export function currencySymbol(currency: string): string {
+  const code = (currency || "").toUpperCase();
+
+  if (!code) {
+    return BASE_SYMBOL;
+  }
+
+  const cached = symbolCache.get(code);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  // Intl throws RangeError on a code it does not recognise rather than
+  // returning anything, and the ledger will happily record a currency Intl has
+  // never heard of. Falling back to the code itself keeps the amount labelled
+  // instead of unlabelled, which matters more here than looking tidy.
+  let symbol = `${code} `;
+  try {
+    const parts = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: code,
+    }).formatToParts(0);
+
+    const currencyPart = parts.find((part) => part.type === "currency");
+    if (currencyPart) {
+      symbol = currencyPart.value;
+    }
+  } catch {
+    // Keep the code-as-symbol fallback.
+  }
+
+  symbolCache.set(code, symbol);
+  return symbol;
+}

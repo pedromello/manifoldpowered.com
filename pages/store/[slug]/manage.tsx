@@ -6,6 +6,8 @@ import useSWR, { useSWRConfig } from "swr";
 import { Loader2, ExternalLink, X, ChevronDown } from "lucide-react";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import { type GameApi } from "components/store/GameListItem";
+import { Pagination, type PaginationApi } from "components/Pagination";
+import { formatMoney } from "lib/price";
 
 interface StoreApi {
   id: string;
@@ -30,11 +32,29 @@ interface GameOverrideApi {
 
 interface SaleApi {
   id: string;
+  // A per-outlet pseudonym, never the buyer's id. Stable within this outlet so
+  // repeat customers are countable, different at every other outlet so two
+  // operators cannot work out that they share one. See models/authorization.
+  buyer_ref: string;
   game_id: string;
   game_title: string;
+  game_slug: string | null;
   store_id: string | null;
   price_at_sale: string;
+  currency: string;
   created_at: string;
+}
+
+interface StatementBalanceApi {
+  currency: string;
+  total: string;
+  payable: string;
+  held: string;
+}
+
+interface StatementApi {
+  balances: StatementBalanceApi[];
+  hold_days: number;
 }
 
 const fetcher = (url: string) =>
@@ -46,7 +66,7 @@ const fetcher = (url: string) =>
     return res.json();
   });
 
-type Tab = "curation" | "settings" | "sales";
+type Tab = "curation" | "settings" | "sales" | "earnings";
 
 export default function StoreManagePage() {
   const router = useRouter();
@@ -119,18 +139,23 @@ export default function StoreManagePage() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-white/10">
+        {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
+            Four tabs do not fit a 390px viewport: without this the row pushes
+            the page into horizontal scroll and the last tab sits off-screen
+            where it cannot be tapped at all. */}
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             [
               ["curation", "Curation"],
               ["settings", "Settings"],
               ["sales", "Sales"],
+              ["earnings", "Earnings"],
             ] as [Tab, string][]
           ).map(([value, label]) => (
             <button
               key={value}
               onClick={() => setTab(value)}
-              className={`px-4 py-3 text-sm font-black uppercase tracking-wider transition-colors border-b-2 ${
+              className={`shrink-0 px-4 py-3 text-sm font-black uppercase tracking-wider transition-colors border-b-2 ${
                 tab === value
                   ? "text-white border-white"
                   : "text-white/40 border-transparent hover:text-white/70"
@@ -150,6 +175,7 @@ export default function StoreManagePage() {
         )}
         {tab === "settings" && <SettingsTab store={storeData} />}
         {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
+        {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
       </div>
     </div>
   );
@@ -576,10 +602,12 @@ function SettingsTab({ store }: { store: StoreApi }) {
 }
 
 function SalesTab({ storeSlug }: { storeSlug: string }) {
+  const [page, setPage] = useState(1);
+
   const { data, isLoading, error } = useSWR<{
     sales: SaleApi[];
-    pagination: { total: number };
-  }>(`/api/v1/stores/${storeSlug}/sales`, fetcher);
+    pagination: PaginationApi;
+  }>(`/api/v1/stores/${storeSlug}/sales?page=${page}`, fetcher);
 
   if (isLoading) {
     return <Loader2 className="animate-spin text-white/30" size={24} />;
@@ -592,35 +620,154 @@ function SalesTab({ storeSlug }: { storeSlug: string }) {
   }
 
   const sales = data?.sales ?? [];
+  const pagination = data?.pagination;
+  const total = pagination?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-white/50 text-sm font-bold">
-        {data?.pagination.total ?? 0} sale
-        {data?.pagination.total === 1 ? "" : "s"} attributed to this outlet.
-      </p>
+      <div>
+        <p className="text-white/50 text-sm font-bold">
+          {total} sale{total === 1 ? "" : "s"} attributed to this outlet.
+        </p>
+        <p className="text-white/30 text-xs font-bold mt-1">
+          Buyers are shown as an anonymous reference. The same reference is the
+          same person returning to your outlet.
+        </p>
+      </div>
 
       {sales.length === 0 ? (
         <p className="text-white/30 text-sm font-bold italic">
           No sales yet. Share your storefront link to start tracking sales.
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {sales.map((sale) => (
+        <>
+          <div className="flex flex-col gap-2">
+            {sales.map((sale) => (
+              <div
+                key={sale.id}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5"
+              >
+                <div className="min-w-0 flex-1">
+                  {sale.game_slug ? (
+                    <Link
+                      href={`/item/${sale.game_slug}`}
+                      className="font-bold text-sm text-white truncate hover:underline"
+                    >
+                      {sale.game_title}
+                    </Link>
+                  ) : (
+                    <span className="font-bold text-sm text-white truncate">
+                      {sale.game_title}
+                    </span>
+                  )}
+                  <div className="text-white/30 text-xs font-bold font-mono mt-0.5">
+                    {sale.buyer_ref}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className="font-black text-sm text-emerald-300">
+                    {formatMoney(sale.price_at_sale, sale.currency)}
+                  </span>
+                  <span className="text-white/40 text-xs font-bold">
+                    {new Date(sale.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Pagination pagination={pagination} onPageChange={setPage} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// What this outlet has earned, straight from the ledger.
+//
+// One row per currency and never a single total: an outlet can hold a BRL
+// balance and a USD balance at once and they are not addable. Amounts arrive
+// already sign-flipped and at the ledger's own 4-decimal scale, so they
+// reconcile against a real payment rather than against a rounded display value.
+function EarningsTab({ storeSlug }: { storeSlug: string }) {
+  const { data, isLoading, error } = useSWR<StatementApi>(
+    `/api/v1/stores/${storeSlug}/statement`,
+    fetcher,
+  );
+
+  if (isLoading) {
+    return <Loader2 className="animate-spin text-white/30" size={24} />;
+  }
+
+  if (error) {
+    return (
+      <p className="text-rose-300 font-bold text-sm">
+        Failed to load earnings.
+      </p>
+    );
+  }
+
+  const balances = data?.balances ?? [];
+  const holdDays = data?.hold_days ?? 30;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-black">Earnings</h2>
+        <p className="text-white/50 text-sm font-bold mt-1">
+          Commission is held for {holdDays} days after each sale so refunds and
+          chargebacks can resolve. Held amounts become payable automatically.
+        </p>
+      </div>
+
+      {balances.length === 0 ? (
+        <p className="text-white/30 text-sm font-bold italic">
+          Nothing earned yet. Commission appears here once a sale is attributed
+          to your outlet.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {balances.map((balance) => (
             <div
-              key={sale.id}
-              className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-white/10 bg-white/5"
+              key={balance.currency}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-4"
             >
-              <span className="font-bold text-sm text-white truncate">
-                {sale.game_title}
-              </span>
-              <span className="text-white/40 text-xs font-bold shrink-0">
-                {new Date(sale.created_at).toLocaleDateString()}
-              </span>
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-xs font-black uppercase tracking-wider text-white/40">
+                  {balance.currency} total
+                </span>
+                <span className="text-2xl font-black text-white">
+                  {formatMoney(balance.total, balance.currency)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+                  <div className="text-xs font-black uppercase tracking-wider text-emerald-300/70">
+                    Payable now
+                  </div>
+                  <div className="text-lg font-black text-emerald-300 mt-1 break-all">
+                    {formatMoney(balance.payable, balance.currency)}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div className="text-xs font-black uppercase tracking-wider text-white/40">
+                    Held
+                  </div>
+                  <div className="text-lg font-black text-white/70 mt-1 break-all">
+                    {formatMoney(balance.held, balance.currency)}
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      <p className="text-white/30 text-xs font-bold">
+        Payments go to the account registered against this outlet, not to
+        whoever owns it. Transferring the outlet does not move the balance.
+      </p>
     </div>
   );
 }

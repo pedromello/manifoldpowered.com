@@ -11,10 +11,12 @@ import {
   LogOut,
   ArrowLeft,
   ShieldCheck,
+  Banknote,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
   { href: "/backoffice/users", label: "Users", icon: Users },
   { href: "/backoffice/studios", label: "Studios", icon: Building2 },
