@@ -14,7 +14,15 @@ export type StoreCreateDto = z.infer<typeof storeSchema> & {
   owner_id: string;
 };
 
-export const MEMBER_PERMISSIONS = ["update:store", "manage:store_members"];
+// What an outlet owner can delegate. read:store_statement is here because the
+// outlet holds the money now: someone can be given the books without being
+// given the outlet, which matters more once ownership no longer follows the
+// balance.
+export const MEMBER_PERMISSIONS = [
+  "update:store",
+  "manage:store_members",
+  "read:store_statement",
+];
 
 export const memberPermissionsSchema = z.object({
   permissions: z.array(z.enum(MEMBER_PERMISSIONS)).min(1),

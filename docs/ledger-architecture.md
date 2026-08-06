@@ -40,7 +40,7 @@ commission:
 | ---------------------- | ---------- | ----------: |
 | `CONSUMER_PAYMENT`     | —          | `+100.0000` |
 | `SUPPLIER_COST`        | —          |  `-70.0000` |
-| `AFFILIATE_COMMISSION` | affiliate  |  `-10.0000` |
+| `AFFILIATE_COMMISSION` | outlet     |  `-10.0000` |
 | `PLATFORM_REVENUE`     | —          |  `-20.0000` |
 |                        |            |  `0.0000` ✓ |
 
@@ -55,8 +55,8 @@ place: `ledger.payableBalancesFor()`. Nothing else should negate a balance by
 hand — one call site forgetting to would pay an affiliate backwards.
 
 ```ts
-await ledger.balancesFor(affiliateId); //  -10.0000  what the ledger holds
-await ledger.payableBalancesFor(affiliateId); //  +10.0000  what we owe them
+await ledger.balancesFor("STORE", outletId); //  -10.0000  what the ledger holds
+await ledger.payableBalancesFor("STORE", outletId); //  +10.0000  what we owe them
 ```
 
 A payout run wants both the sign flip _and_ the hold, so it calls
@@ -67,7 +67,7 @@ transferring a negative amount is the worst bug this model could ship.
 
 ## Balances are per currency
 
-An affiliate can hold a BRL balance and a USD balance at the same time. They are
+An outlet can hold a BRL balance and a USD balance at the same time. They are
 never added together, and `balancesFor` returns one row per currency rather than
 a single number, so there is no shape in which they could be.
 
@@ -126,13 +126,13 @@ integrity can be enforced without foreign keys. Adding one is a one-line
 
 ## The chart of accounts
 
-| Account                | Meaning                                             |
-| ---------------------- | --------------------------------------------------- |
-| `CONSUMER_PAYMENT`     | Gross collected from a buyer; funds a sale          |
-| `SUPPLIER_COST`        | What the delivered code cost us                     |
-| `AFFILIATE_COMMISSION` | Owed to a storefront owner, held until `matures_at` |
-| `PLATFORM_REVENUE`     | What is left for the platform                       |
-| `PAYOUT`               | A commission balance actually sent to an affiliate  |
+| Account                | Meaning                                         |
+| ---------------------- | ----------------------------------------------- |
+| `CONSUMER_PAYMENT`     | Gross collected from a buyer; funds a sale      |
+| `SUPPLIER_COST`        | What the delivered code cost us                 |
+| `AFFILIATE_COMMISSION` | Owed to an outlet, held until `matures_at`      |
+| `PLATFORM_REVENUE`     | What is left for the platform                   |
+| `PAYOUT`               | A commission balance actually sent to an outlet |
 
 Deliberately absent, and why:
 
@@ -169,7 +169,8 @@ await ledger.record({
     { account_type: "SUPPLIER_COST", amount: cost.negated(), currency: "BRL" },
     {
       account_type: "AFFILIATE_COMMISSION",
-      owner_id: store.owner_id,
+      owner_type: "STORE",
+      owner_id: store.id,
       amount: commission.negated(),
       currency: "BRL",
       matures_at: maturityFor(sale),
@@ -190,10 +191,16 @@ and there is no `UPDATE` available to repair it.
 `sumByCurrency()` is exported and pure, so a caller assembling a set can check
 it balances before attempting the write.
 
-## Which accounts may name a user
+## Which accounts may name a payee
 
-`AFFILIATE_COMMISSION` and `PAYOUT` must carry an `owner_id`. Every other
-account is the platform's own and must not.
+`AFFILIATE_COMMISSION` and `PAYOUT` must carry an `owner_type` and `owner_id`.
+Every other account is the platform's own and must carry neither.
+
+**The payee is an outlet, not a person.** A `Store` holds the balance and the
+payout account, so a commission survives the outlet changing hands and a payment
+goes to the account registered against the outlet rather than to whoever owns it
+today. `owner_type` is polymorphic — the same shape as `source_type` — so paying
+a studio later costs no migration.
 
 Both directions are enforced in `record()`, and both matter. An unowned account
 naming a storefront owner would be a database row asserting that an affiliate
@@ -214,9 +221,9 @@ becomes a commission that never appears in any statement or payout.
   because reversals share it. This needs deciding before checkout writes to the
   ledger — see the open questions in `payments-tasks.md`.
 - **Platform-side reads.** `balancesFor` requires an owner, and all three
-  platform accounts have `owner_id NULL`, so "what was our revenue this month"
-  has no read path yet. Task 11 is affiliate-facing only, so no task currently
-  covers this.
+  platform accounts have a null owner, so "what was our revenue this month" has
+  no read path yet. Task 11 is outlet-facing only, so no task currently covers
+  this.
 
 ## Currencies the ledger will accept
 

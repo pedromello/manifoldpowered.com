@@ -84,6 +84,10 @@ const AVAILABLE_FEATURES = [
   "read:store_tag_filter",
   "read:store_game_override",
   "read:store_sale",
+  // An outlet's own earnings. Scoped to the outlet rather than to its owner,
+  // because the outlet is the payee — see the comment on the statement endpoint.
+  "read:store_statement",
+  "read:store_statement:any",
 
   // Studios
   "create:studio",
@@ -141,6 +145,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:public_store",
   "update:store",
   "manage:store_members",
+  "read:store_statement",
   "create:studio",
   "read:public_studio",
   "update:studio",
@@ -169,6 +174,7 @@ const ADMIN_ONLY_FEATURES = [
   "update:store_commission:any",
   "read:supplier_terms:any",
   "update:supplier_terms:any",
+  "read:store_statement:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -264,15 +270,20 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   }
 
   if (
-    (feature === "update:store" || feature === "manage:store_members") &&
+    (feature === "update:store" ||
+      feature === "manage:store_members" ||
+      feature === "read:store_statement") &&
     resource
   ) {
     authorized = false;
     const storeResource = resource as StoreWithMembers;
-    const anyFeature =
-      feature === "update:store"
-        ? "update:store:any"
-        : "manage:store_members:any";
+    // A map rather than a ternary: with three features a nested conditional
+    // stops being readable, and a fourth would be added to the wrong branch.
+    const anyFeature = {
+      "update:store": "update:store:any",
+      "manage:store_members": "manage:store_members:any",
+      "read:store_statement": "read:store_statement:any",
+    }[feature] as string;
 
     const isOwner = user.id === storeResource.owner_id;
     const isPermittedMember = storeResource.members?.some(
@@ -593,6 +604,25 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       visibility: overrideOutput.visibility,
       created_at: overrideOutput.created_at,
       updated_at: overrideOutput.updated_at,
+    };
+  }
+
+  if (feature === "read:store_statement") {
+    const balanceOutput = resource as {
+      currency: string;
+      total: { toFixed: (places: number) => string };
+      payable: { toFixed: (places: number) => string };
+      held: { toFixed: (places: number) => string };
+    };
+
+    return {
+      currency: balanceOutput.currency,
+      // Serialised at the storage scale rather than the currency's display
+      // scale: this is a figure an affiliate reconciles against a payment, so
+      // the fractions of a cent the ledger actually holds must not be hidden.
+      total: balanceOutput.total.toFixed(4),
+      payable: balanceOutput.payable.toFixed(4),
+      held: balanceOutput.held.toFixed(4),
     };
   }
 

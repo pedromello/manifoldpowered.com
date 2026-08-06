@@ -457,9 +457,16 @@ model LedgerEntry {
 
   account_type LedgerAccountType
 
-  // Logical reference to User.id — the affiliate a commission or payout
-  // belongs to. Null for platform accounts, which belong to no user.
-  owner_id String?
+  // Who is owed this, referenced polymorphically the same way source_type and
+  // source_id reference what produced it. STORE today: an outlet holds its own
+  // balance and its own payout account, so a commission survives the outlet
+  // changing hands. STUDIO or USER can be added later without a migration.
+  //
+  // Both null together for platform accounts, which are owed to nobody. The
+  // allowed types live in models/ledger, which is where referential integrity
+  // lives in a schema with no foreign keys.
+  owner_type String? @db.VarChar(50)
+  owner_id   String? // Logical reference to Store.id for STORE
 
   amount   Decimal @db.Decimal(19, 4)
   currency String  @db.VarChar(3) // Logical reference to Currency.code
@@ -502,7 +509,7 @@ model LedgerEntry {
   // column, so the matured filter is served by the same index rather than a
   // separate one on matures_at alone — which nothing would ever choose, since
   // no query filters on maturity without an owner.
-  @@index([owner_id, account_type, currency, matures_at])
+  @@index([owner_type, owner_id, account_type, currency, matures_at])
   @@index([source_type, source_id])
   @@map("ledger_entries")
 }

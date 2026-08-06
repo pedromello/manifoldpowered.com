@@ -74,6 +74,7 @@ describe("GET /api/v1/user", () => {
           "read:public_store",
           "update:store",
           "manage:store_members",
+          "read:store_statement",
           "create:studio",
           "read:public_studio",
           "update:studio",

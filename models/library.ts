@@ -13,7 +13,6 @@ const MONEY_SCALE = 4;
 
 interface Affiliate {
   store_id: string;
-  owner_id: string;
 }
 
 async function acquireGame(
@@ -162,7 +161,9 @@ async function recordSaleEntries(
     entries.push({
       ...sharedFields,
       account_type: "AFFILIATE_COMMISSION",
-      owner_id: saleDto.affiliate.owner_id,
+      // The outlet is owed this, not whoever owns the outlet today.
+      owner_type: "STORE",
+      owner_id: saleDto.affiliate.store_id,
       amount: commission.negated(),
       // The hold is the platform's chargeback defence; the length lives in
       // models/ledger so no caller picks its own.
@@ -189,10 +190,9 @@ async function recordSaleEntries(
 // Resolve store_slug leniently: an absent or unknown store must never block
 // acquisition — it just means the sale isn't attributed to a store.
 //
-// The owner is resolved here too, because a commission entry must name a user
-// the ledger can find. An outlet whose owner no longer exists would otherwise
-// fail the whole acquisition, and a buyer's purchase is not contingent on the
-// affiliate being payable.
+// The outlet is the payee, so there is nothing else to resolve. Who owns it does
+// not enter into it: an outlet keeps earning across a change of ownership, and
+// the commission is owed to the outlet whether or not anyone currently holds it.
 async function resolveAffiliateLeniently(
   storeSlug?: string,
 ): Promise<Affiliate | null> {
@@ -201,14 +201,7 @@ async function resolveAffiliateLeniently(
   try {
     const foundStore = await store.findOneBySlug(storeSlug);
 
-    const owner = await prisma.user.findUnique({
-      where: { id: foundStore.owner_id },
-      select: { id: true },
-    });
-
-    if (!owner) return null;
-
-    return { store_id: foundStore.id, owner_id: owner.id };
+    return { store_id: foundStore.id };
   } catch {
     return null;
   }

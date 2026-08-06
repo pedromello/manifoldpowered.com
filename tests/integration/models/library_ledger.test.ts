@@ -61,11 +61,11 @@ describe("library.acquireGame() ledger entries", () => {
   test("attributes the commission to the outlet owner", async () => {
     const game = await seedGame();
     const buyer = await orchestrator.createUser();
-    const { owner, store } = await seedOutlet();
+    const { store } = await seedOutlet();
 
     await library.acquireGame(buyer.id, game.slug, store.slug);
 
-    const payable = await ledger.maturedPayableBalancesFor(owner.id, {
+    const payable = await ledger.maturedPayableBalancesFor("STORE", store.id, {
       matured_as_of: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
     });
 
@@ -78,11 +78,13 @@ describe("library.acquireGame() ledger entries", () => {
   test("holds the commission rather than making it immediately payable", async () => {
     const game = await seedGame();
     const buyer = await orchestrator.createUser();
-    const { owner, store } = await seedOutlet();
+    const { store } = await seedOutlet();
 
     await library.acquireGame(buyer.id, game.slug, store.slug);
 
-    expect(await ledger.maturedPayableBalancesFor(owner.id)).toEqual([]);
+    expect(await ledger.maturedPayableBalancesFor("STORE", store.id)).toEqual(
+      [],
+    );
   });
 
   test("uses the outlet's own commission rate when one is set", async () => {
@@ -156,9 +158,10 @@ describe("library.acquireGame() ledger entries", () => {
     expect(await ledger.findBySource("SALE", sale.id)).toHaveLength(3);
   });
 
-  // A buyer's purchase is not contingent on the affiliate being payable, and
-  // the ledger rejects a commission naming a user it cannot find.
-  test("still completes when the outlet's owner no longer exists", async () => {
+  // The outlet is the payee, so who owns it is irrelevant to the money. This
+  // used to drop the attribution entirely, because a commission had to name a
+  // user the ledger could find.
+  test("still earns when the outlet's owner no longer exists", async () => {
     const game = await seedGame();
     const buyer = await orchestrator.createUser();
     const { owner, store } = await seedOutlet();
@@ -169,8 +172,32 @@ describe("library.acquireGame() ledger entries", () => {
 
     const sale = await prisma.sale.findFirstOrThrow();
 
-    expect(sale.store_id).toBeNull();
-    expect(await ledger.findBySource("SALE", sale.id)).toHaveLength(3);
+    expect(sale.store_id).toBe(store.id);
+    expect(await ledger.findBySource("SALE", sale.id)).toHaveLength(4);
+    expect((await ledger.balanceFor("STORE", store.id, "USD")).toFixed(4)).toBe(
+      "-10.0000",
+    );
+  });
+
+  // The point of the whole re-scoping: the balance belongs to the outlet, so a
+  // change of hands moves nothing. A payout still goes to the account
+  // registered against the outlet.
+  test("keeps the balance with the outlet when it changes owner", async () => {
+    const game = await seedGame();
+    const buyer = await orchestrator.createUser();
+    const { store } = await seedOutlet();
+
+    await library.acquireGame(buyer.id, game.slug, store.slug);
+
+    const newOwner = await orchestrator.createUser();
+    await prisma.store.update({
+      where: { id: store.id },
+      data: { owner_id: newOwner.id },
+    });
+
+    expect((await ledger.balanceFor("STORE", store.id, "USD")).toFixed(4)).toBe(
+      "-10.0000",
+    );
   });
 
   // A Sale records an acquisition *event*, deliberately — see the comment on
@@ -185,16 +212,16 @@ describe("library.acquireGame() ledger entries", () => {
     test("records another sale and another commission each time", async () => {
       const game = await seedGame();
       const buyer = await orchestrator.createUser();
-      const { owner, store } = await seedOutlet();
+      const { store } = await seedOutlet();
 
       await library.acquireGame(buyer.id, game.slug, store.slug);
       await library.acquireGame(buyer.id, game.slug, store.slug);
 
       expect(await prisma.sale.count()).toBe(2);
       expect(await prisma.ledgerEntry.count()).toBe(8);
-      expect((await ledger.balanceFor(owner.id, "USD")).toFixed(4)).toBe(
-        "-20.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", store.id, "USD")).toFixed(4),
+      ).toBe("-20.0000");
     });
 
     test("keeps the entitlement a single row", async () => {
@@ -219,12 +246,12 @@ describe("library.acquireGame() ledger entries", () => {
       await library.acquireGame(buyer.id, game.slug, first.store.slug);
       await library.acquireGame(buyer.id, game.slug, second.store.slug);
 
-      expect((await ledger.balanceFor(first.owner.id, "USD")).toFixed(4)).toBe(
-        "-10.0000",
-      );
-      expect((await ledger.balanceFor(second.owner.id, "USD")).toFixed(4)).toBe(
-        "-10.0000",
-      );
+      expect(
+        (await ledger.balanceFor("STORE", first.store.id, "USD")).toFixed(4),
+      ).toBe("-10.0000");
+      expect(
+        (await ledger.balanceFor("STORE", second.store.id, "USD")).toFixed(4),
+      ).toBe("-10.0000");
     });
 
     test("keeps every set balanced across repeated acquisitions", async () => {
@@ -357,7 +384,7 @@ describe("library.acquireGame() ledger entries", () => {
   test("writes no ledger entries when the sale itself fails", async () => {
     const game = await seedGame();
     const buyer = await orchestrator.createUser();
-    const { owner, store } = await seedOutlet();
+    const { store } = await seedOutlet();
 
     // An integration supplier with no terms throws while the entries are being
     // assembled, after the library item and sale rows have been created.
@@ -372,7 +399,9 @@ describe("library.acquireGame() ledger entries", () => {
     expect(await prisma.sale.count()).toBe(0);
     expect(await prisma.ledgerEntry.count()).toBe(0);
     expect(await prisma.libraryItem.count()).toBe(0);
-    expect((await ledger.balanceFor(owner.id, "USD")).isZero()).toBe(true);
+    expect((await ledger.balanceFor("STORE", store.id, "USD")).isZero()).toBe(
+      true,
+    );
 
     jest.restoreAllMocks();
   });
