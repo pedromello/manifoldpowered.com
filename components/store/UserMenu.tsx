@@ -1,6 +1,14 @@
 import Link from "next/link";
 import useSWR from "swr";
-import { User, LogOut, Library, Building2, Store, Loader2 } from "lucide-react";
+import {
+  User,
+  LogOut,
+  Library,
+  Building2,
+  Store,
+  Loader2,
+  Shield,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 
@@ -112,6 +120,17 @@ export function UserMenu() {
               <Store size={16} className="text-indigo-400" />
               My Outlets
             </Link>
+
+            {user?.username === "pedromello" && (
+              <Link
+                href="/backoffice"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <Shield size={16} className="text-indigo-400" />
+                Backoffice
+              </Link>
+            )}
 
             <button
               onClick={handleSignOut}
