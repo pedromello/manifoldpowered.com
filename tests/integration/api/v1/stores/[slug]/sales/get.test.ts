@@ -94,6 +94,129 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
     });
   });
 
+  // docs/legal/business-description.md, the text handed to payment processors,
+  // states that affiliates receive no consumer personal data. Nothing enforced
+  // that until these three tests: the endpoint used to return the buyer's
+  // user_id, which read:review resolves to a username for anyone who asks.
+  describe("Buyer privacy", () => {
+    // Seeds one purchase through `store` and returns the sale row the outlet
+    // owner sees.
+    async function saleAsSeenBy(store, ownerSession, buyerSession, gameSlug) {
+      const purchase = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${buyerSession.token}`,
+        },
+        body: JSON.stringify({ slug: gameSlug, store_slug: store.slug }),
+      });
+      expect(purchase.status).toBe(201);
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/stores/${store.slug}/sales`,
+        { headers: { Cookie: `session_id=${ownerSession.token}` } },
+      );
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+      return { responseBody, sale: responseBody.sales[0] };
+    }
+
+    async function createOutlet() {
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const session = await orchestrator.createSession(owner.id);
+      const store = await orchestrator.createStore(owner.id);
+      return { store, session };
+    }
+
+    async function createBuyer() {
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const session = await orchestrator.createSession(buyer.id);
+      return { buyer, session };
+    }
+
+    test("Should return a pseudonym instead of the buyer's id", async () => {
+      const outlet = await createOutlet();
+      const { buyer, session: buyerSession } = await createBuyer();
+
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id);
+
+      const { responseBody, sale } = await saleAsSeenBy(
+        outlet.store,
+        outlet.session,
+        buyerSession,
+        game.slug,
+      );
+
+      expect(sale).not.toHaveProperty("user_id");
+      expect(sale.buyer_ref).toMatch(/^[0-9a-f]{16}$/);
+      expect(JSON.stringify(responseBody)).not.toContain(buyer.id);
+      expect(JSON.stringify(responseBody)).not.toContain(buyer.username);
+    });
+
+    // Repeat-customer analysis inside one outlet is the legitimate use the raw
+    // id was serving, so the pseudonym has to stay put across purchases.
+    test("Should give one buyer a stable pseudonym within an outlet", async () => {
+      const outlet = await createOutlet();
+      const { session: buyerSession } = await createBuyer();
+
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const firstGame = await orchestrator.createGame(creator.id);
+      const secondGame = await orchestrator.createGame(creator.id);
+
+      await saleAsSeenBy(
+        outlet.store,
+        outlet.session,
+        buyerSession,
+        firstGame.slug,
+      );
+      const { responseBody } = await saleAsSeenBy(
+        outlet.store,
+        outlet.session,
+        buyerSession,
+        secondGame.slug,
+      );
+
+      expect(responseBody.sales).toHaveLength(2);
+      expect(responseBody.sales[0].buyer_ref).toBe(
+        responseBody.sales[1].buyer_ref,
+      );
+    });
+
+    // Salted by the outlet, so two operators comparing notes cannot work out
+    // that they share a customer.
+    test("Should give one buyer different pseudonyms at different outlets", async () => {
+      const firstOutlet = await createOutlet();
+      const secondOutlet = await createOutlet();
+      const { session: buyerSession } = await createBuyer();
+
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const firstGame = await orchestrator.createGame(creator.id);
+      const secondGame = await orchestrator.createGame(creator.id);
+
+      const first = await saleAsSeenBy(
+        firstOutlet.store,
+        firstOutlet.session,
+        buyerSession,
+        firstGame.slug,
+      );
+      const second = await saleAsSeenBy(
+        secondOutlet.store,
+        secondOutlet.session,
+        buyerSession,
+        secondGame.slug,
+      );
+
+      expect(first.sale.buyer_ref).not.toBe(second.sale.buyer_ref);
+    });
+  });
+
   describe("Unrelated activated user", () => {
     test("Should return 403 Forbidden", async () => {
       const owner = await orchestrator.createUser();
