@@ -16,7 +16,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && next dev",
-    "test": "npm run services:up && npm run prisma:generate && npm run migrate:dev && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
+    "test": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
     "posttest": "npm run services:down",
     "test:watch": "jest --watchAll --runInBand --verbose",
     "test:no-docker": "npm run prisma:generate && npx prisma migrate deploy && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
