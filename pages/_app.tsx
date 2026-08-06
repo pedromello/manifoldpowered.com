@@ -5,6 +5,7 @@ import "../app/global.css";
 import { ReactElement, ReactNode } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
+import { PullToRefresh } from "components/PullToRefresh";
 
 export type NextPageWithLayout<P = Record<string, unknown>, IP = P> = NextPage<
   P,
@@ -30,6 +31,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
         />
       </Head>
       {getLayout(<Component {...pageProps} />)}
+      <PullToRefresh />
       <Analytics />
     </>
   );

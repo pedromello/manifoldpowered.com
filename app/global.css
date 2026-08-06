@@ -25,6 +25,11 @@ body {
   color: var(--color-purple-dark);
 }
 
+html.is-standalone-pwa,
+html.is-standalone-pwa body {
+  overscroll-behavior-y: contain;
+}
+
 @keyframes float {
   0% {
     transform: translateY(0);

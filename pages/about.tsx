@@ -237,15 +237,6 @@ export default function Home({
         */}
         <meta name="theme-color" content="#fffbf6" />
 
-        {/* 
-          iOS Safari standalone/PWA configuration
-        */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-
         <meta property="og:type" content="website" />
         <meta property="og:title" content={selectedContent.title} />
         <meta property="og:description" content={selectedContent.description} />
