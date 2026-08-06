@@ -139,3 +139,23 @@ obligations:
 - Letting storefront owners handle consumer support, refunds, or disputes.
 - Custom domains presented as an independent business rather than as "powered by
   Manifold".
+
+### Open for counsel: what "aggregate sales figures only" means
+
+`business-description.md` tells processors that affiliates "receive no consumer
+personal data — they see aggregate sales figures only". The outlet sales
+endpoint used to return the buyer's `user_id` alongside the price and
+timestamp, which was plainly outside that. It now returns `buyer_ref`, a
+per-outlet `sha256(user_id:store_id)` pseudonym: salted by the outlet so two
+operators cannot correlate a shared customer, and derived from a UUID so it is
+not reversible.
+
+That closes the identity leak, but the sentence is still not literally true —
+an outlet sees per-sale rows, just de-identified, not aggregates. Either reword
+the disclosure to describe de-identified per-sale reporting, or record why
+per-sale-but-anonymous counts as aggregate. Not edited here, because that file
+is submitted text and the answer is a legal call rather than an engineering one.
+
+Studios see per-sale rows for their own games with no buyer field at all, not
+even the pseudonym. They are suppliers rather than affiliates, so this
+constraint is not the one that governs them, but the same reasoning applies.

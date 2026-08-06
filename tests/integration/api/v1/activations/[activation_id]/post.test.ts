@@ -143,6 +143,7 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "update:store",
         "manage:store_members",
         "read:store_statement",
+        "read:own_sale",
         "create:studio",
         "read:public_studio",
         "update:studio",

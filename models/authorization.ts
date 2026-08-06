@@ -15,7 +15,25 @@ import {
   ExchangeRate,
   SupplierTerms,
 } from "generated/prisma/client";
+import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
+
+type SaleWithGame = Sale & { game_title?: string; game_slug?: string | null };
+
+// A buyer, as an outlet is allowed to know them: stable within that outlet, and
+// different at every other one.
+//
+// Salting with the store id is the point. Two outlets comparing their exports
+// cannot tell they served the same person, so the identifier supports repeat-
+// customer counting without becoming a cross-outlet consumer profile. It needs
+// no server secret because the input is a UUID — there is no id space small
+// enough to enumerate against the hash.
+function buyerRefFor(userId: string, storeId: string | null): string {
+  return createHash("sha256")
+    .update(`${userId}:${storeId ?? ""}`)
+    .digest("hex")
+    .slice(0, 16);
+}
 
 type StoreWithMembers = Store & { members: StoreMember[] };
 type StudioWithMembers = Studio & { members: StudioMember[] };
@@ -83,7 +101,12 @@ const AVAILABLE_FEATURES = [
   "manage:store_members:any",
   "read:store_tag_filter",
   "read:store_game_override",
+  // A sale as an outlet may see it: no buyer identity, only a per-outlet
+  // pseudonym. See the filterOutput branch and business-description.md.
   "read:store_sale",
+  // A buyer's own purchase history — the only surface that shows someone what
+  // they actually paid.
+  "read:own_sale",
   // An outlet's own earnings. Scoped to the outlet rather than to its owner,
   // because the outlet is the payee — see the comment on the statement endpoint.
   "read:store_statement",
@@ -96,6 +119,10 @@ const AVAILABLE_FEATURES = [
   "update:studio:any",
   "manage:studio_members",
   "manage:studio_members:any",
+  // Sales of a studio's own games. Studios are suppliers rather than
+  // affiliates, but the buyer is withheld from them just the same.
+  "read:studio_sale",
+  "read:studio_sale:any",
 
   // Backoffice (admin)
   "read:user:any",
@@ -107,6 +134,11 @@ const AVAILABLE_FEATURES = [
   "update:game:status:any",
   "read:dashboard:any",
   "read:audit_log:any",
+  // The platform's own income statement, across every payee at once. Admin-only
+  // with no non-:any counterpart, because there is no narrower version of it:
+  // the question it answers is not "what am I owed" but "what did the whole
+  // book do", which nobody outside the platform has a scoped claim to.
+  "read:platform_ledger:any",
 
   // Pricing (admin)
   "read:currency:any",
@@ -146,6 +178,7 @@ const ACTIVATED_USER_FEATURES = [
   "update:store",
   "manage:store_members",
   "read:store_statement",
+  "read:own_sale",
   "create:studio",
   "read:public_studio",
   "update:studio",
@@ -175,6 +208,8 @@ const ADMIN_ONLY_FEATURES = [
   "read:supplier_terms:any",
   "update:supplier_terms:any",
   "read:store_statement:any",
+  "read:studio_sale:any",
+  "read:platform_ledger:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -296,16 +331,39 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     }
   }
 
+  // The one :any pair whose base feature is not universal. Every other escape
+  // hatch guards a feature that sits in ACTIVATED_USER_FEATURES, so an admin
+  // clears canRequest on the base and only needs :any once the resource is in
+  // hand. read:studio_sale is granted on studio creation instead, so an admin
+  // holds no studio features at all and canRequest — which always runs without
+  // a resource — would refuse them before the branch below is ever reached.
+  //
+  // Deliberately not solved by adding read:studio_sale to ADMIN_ONLY_FEATURES:
+  // models/feature_backfill treats "holds any admin-only feature" as "is an
+  // admin", so a non-exclusive entry in that list would promote every studio
+  // owner to full admin on the next reconcile.
+  if (feature === "read:studio_sale" && !resource) {
+    if (can(user, "read:studio_sale:any")) {
+      authorized = true;
+    }
+  }
+
   if (
-    (feature === "update:studio" || feature === "manage:studio_members") &&
+    (feature === "update:studio" ||
+      feature === "manage:studio_members" ||
+      feature === "read:studio_sale") &&
     resource
   ) {
     authorized = false;
     const studioResource = resource as StudioWithMembers;
-    const anyFeature =
-      feature === "update:studio"
-        ? "update:studio:any"
-        : "manage:studio_members:any";
+    // A map rather than a ternary, matching the store branch: with three
+    // features a nested conditional stops being readable, and read:studio_sale
+    // would have silently resolved to the members escape hatch.
+    const anyFeature = {
+      "update:studio": "update:studio:any",
+      "manage:studio_members": "manage:studio_members:any",
+      "read:studio_sale": "read:studio_sale:any",
+    }[feature] as string;
 
     const isOwner = user.id === studioResource.owner_id;
     const isPermittedMember = studioResource.members?.some(
@@ -627,18 +685,87 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   }
 
   if (feature === "read:store_sale") {
-    const saleOutput = resource as Sale & { game_title?: string };
+    const saleOutput = resource as SaleWithGame;
     return {
       id: saleOutput.id,
-      user_id: saleOutput.user_id,
+      // Never the buyer's id. An outlet is a marketing surface, and
+      // docs/legal/business-description.md — the text handed to payment
+      // processors — states that affiliates receive no consumer personal data.
+      // buyerRefFor is salted per outlet so repeat customers are still
+      // countable without anyone learning who they are.
+      buyer_ref: buyerRefFor(saleOutput.user_id, saleOutput.store_id),
       game_id: saleOutput.game_id,
       game_title: saleOutput.game_title,
+      game_slug: saleOutput.game_slug,
       store_id: saleOutput.store_id,
       price_at_sale: saleOutput.price_at_sale.toFixed(2),
       // Without the currency the amount above is a number with no unit, which
       // for an outlet reading its own sales is worse than showing nothing.
       currency: saleOutput.currency,
       created_at: saleOutput.created_at,
+    };
+  }
+
+  // A studio sees sales of its own games. No buyer field at all, not even the
+  // pseudonym: a studio has no legitimate use for distinguishing one buyer from
+  // another, and the cheapest way to keep consumer data out of a second party's
+  // hands is not to send it.
+  if (feature === "read:studio_sale") {
+    const saleOutput = resource as SaleWithGame;
+    return {
+      id: saleOutput.id,
+      game_id: saleOutput.game_id,
+      game_title: saleOutput.game_title,
+      game_slug: saleOutput.game_slug,
+      // Which outlet referred the sale, so a studio can see where its games
+      // move. Null means the global storefront.
+      store_id: saleOutput.store_id,
+      price_at_sale: saleOutput.price_at_sale.toFixed(2),
+      currency: saleOutput.currency,
+      created_at: saleOutput.created_at,
+    };
+  }
+
+  // A buyer's own purchase history — the one audience entitled to the whole
+  // row, because it is about them. This is also the only place price_at_sale
+  // and the currency they were actually charged in are shown back to them;
+  // read:library deliberately shows the game's current list price instead.
+  if (feature === "read:own_sale") {
+    const saleOutput = resource as SaleWithGame;
+    return {
+      id: saleOutput.id,
+      game_id: saleOutput.game_id,
+      game_title: saleOutput.game_title,
+      game_slug: saleOutput.game_slug,
+      store_id: saleOutput.store_id,
+      price_at_sale: saleOutput.price_at_sale.toFixed(2),
+      currency: saleOutput.currency,
+      created_at: saleOutput.created_at,
+    };
+  }
+
+  // One currency's worth of the platform's income statement.
+  if (feature === "read:platform_ledger:any") {
+    const totalsOutput = resource as {
+      currency: string;
+      gross: { toFixed: (places: number) => string };
+      supplier_cost: { toFixed: (places: number) => string };
+      affiliate_commission: { toFixed: (places: number) => string };
+      platform_revenue: { toFixed: (places: number) => string };
+      payouts: { toFixed: (places: number) => string };
+    };
+
+    return {
+      currency: totalsOutput.currency,
+      // Storage scale, not display scale — same reasoning as the statement
+      // branch above. These are figures reconciled against a bank, and the
+      // platform revenue line is a residual, so hiding sub-cent fractions is
+      // exactly what would make the columns stop adding up.
+      gross: totalsOutput.gross.toFixed(4),
+      supplier_cost: totalsOutput.supplier_cost.toFixed(4),
+      affiliate_commission: totalsOutput.affiliate_commission.toFixed(4),
+      platform_revenue: totalsOutput.platform_revenue.toFixed(4),
+      payouts: totalsOutput.payouts.toFixed(4),
     };
   }
 

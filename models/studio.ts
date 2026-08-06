@@ -24,6 +24,9 @@ export const MEMBER_PERMISSIONS = [
   "delete:game_file",
   "read:game_price",
   "update:game_price",
+  // Sales of the studio's games. Delegable like the rest: someone can be given
+  // the numbers without being given the studio.
+  "read:studio_sale",
 ];
 
 export const memberPermissionsSchema = z.object({

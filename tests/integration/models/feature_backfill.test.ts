@@ -3,6 +3,7 @@ import authorization from "models/authorization";
 import user from "models/user";
 import featureBackfill from "models/feature_backfill";
 import { MEMBER_PERMISSIONS as STUDIO_MEMBER_PERMISSIONS } from "models/studio";
+import { MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS } from "models/store";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -61,6 +62,47 @@ describe("models/feature_backfill.ts reconcileAll()", () => {
       authorization.DISABLED_USER_FEATURES,
     );
     expect(report.studio_owners.skipped_ineligible).toBeGreaterThanOrEqual(1);
+  });
+
+  // The admin pass decides who is an admin by asking whether they already hold
+  // any ADMIN_ONLY_FEATURES entry, which is only sound while every entry in
+  // that list is admin-exclusive. Putting a feature there that a studio or
+  // outlet member can also hold — read:studio_sale is the obvious candidate,
+  // since it needs an :any escape hatch — would promote every one of them to
+  // full admin on the next reconcile. This asserts the list stays exclusive.
+  test("ADMIN_ONLY_FEATURES shares nothing with the member permission sets", () => {
+    const memberPermissions = [
+      ...STUDIO_MEMBER_PERMISSIONS,
+      ...STORE_MEMBER_PERMISSIONS,
+    ];
+
+    const overlap = authorization.ADMIN_ONLY_FEATURES.filter((feature) =>
+      memberPermissions.includes(feature),
+    );
+
+    expect(overlap).toEqual([]);
+  });
+
+  test("ADMIN_ONLY_FEATURES shares nothing with the activated user set", () => {
+    const overlap = authorization.ADMIN_ONLY_FEATURES.filter((feature) =>
+      authorization.ACTIVATED_USER_FEATURES.includes(feature),
+    );
+
+    expect(overlap).toEqual([]);
+  });
+
+  test("Does not promote a studio owner to admin", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    await orchestrator.createStudio(owner.id);
+
+    await featureBackfill.reconcileAll();
+    await featureBackfill.reconcileAll();
+
+    const afterBackfill = await orchestrator.getUserById(owner.id);
+    for (const adminFeature of authorization.ADMIN_ONLY_FEATURES) {
+      expect(afterBackfill.features).not.toContain(adminFeature);
+    }
   });
 
   test("Is idempotent across consecutive calls", async () => {

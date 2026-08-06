@@ -76,6 +76,40 @@ is **unbalanced**, not balanced — summing across currencies would hide exactly
 the error the rule exists to catch. Converting between them is itself a pair of
 entries carrying the rate that produced them.
 
+## Who reads what
+
+Every function above answers "what is one payee owed", which is why they all
+take an owner pair and `balancesFor` refuses a missing one. The platform's own
+books are the opposite question, and its three accounts — `CONSUMER_PAYMENT`,
+`SUPPLIER_COST`, `PLATFORM_REVENUE` — are exactly the ones that may not carry an
+owner, so none of them are reachable through an owner-scoped read.
+
+`platformTotals({ from, to })` is that read: one row per currency, grouped by
+account rather than filtered by owner, signed the way a person expects. It
+counts owned rows too. Commission is a platform expense regardless of which
+outlet it belongs to, and an income statement missing its largest cost line
+would not add up against the gross beside it.
+
+Four audiences read sale data, and each sees a different amount of the buyer:
+
+| Audience | Endpoint                          | Buyer                    |
+| -------- | --------------------------------- | ------------------------ |
+| Buyer    | `GET /api/v1/user/purchases`      | themselves               |
+| Outlet   | `GET /api/v1/stores/:slug/sales`  | `buyer_ref` pseudonym    |
+| Studio   | `GET /api/v1/studios/:slug/sales` | no buyer field at all    |
+| Admin    | `GET /api/v1/backoffice/revenue`  | no per-sale rows, totals |
+
+`buyer_ref` is `sha256(user_id:store_id)` truncated. Salted by the outlet, so
+the same buyer produces a different ref at every outlet and two operators
+comparing notes cannot correlate them; derived from a UUID, so there is no id
+space to brute-force and no server secret is needed. Repeat-customer analysis
+still works within one outlet, which is the legitimate use the raw buyer id was
+serving before it was removed.
+
+A studio gets no buyer field at all — not even the pseudonym. A studio has no
+use for telling one buyer from another, and the cheapest way to keep consumer
+data out of a second party's hands is not to send it.
+
 ## Reversal, and why `matures_at` is copied
 
 A commission is held for 30 days so refunds and chargebacks can resolve
@@ -220,10 +254,8 @@ becomes a commission that never appears in any statement or payout.
   would be owed double. `(source_type, source_id)` cannot simply be unique
   because reversals share it. This needs deciding before checkout writes to the
   ledger — see the open questions in `payments-tasks.md`.
-- **Platform-side reads.** `balancesFor` requires an owner, and all three
-  platform accounts have a null owner, so "what was our revenue this month" has
-  no read path yet. Task 11 is outlet-facing only, so no task currently covers
-  this.
+- **Payout runs.** `maturedPayableBalancesFor` says what may be paid, but
+  nothing moves money or writes the `PAYOUT` set that would settle it.
 
 ## Currencies the ledger will accept
 

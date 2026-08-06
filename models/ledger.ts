@@ -645,6 +645,112 @@ async function statementFor(
   });
 }
 
+export interface PlatformRevenue {
+  currency: string;
+  // Collected from buyers.
+  gross: Prisma.Decimal;
+  // Owed to or paid to suppliers for the codes delivered.
+  supplier_cost: Prisma.Decimal;
+  // Earned by outlets, whether or not it has cleared its hold or been sent.
+  affiliate_commission: Prisma.Decimal;
+  // What is left for the platform. The residual, not an independent figure.
+  platform_revenue: Prisma.Decimal;
+  // Commission actually transferred out. Deliberately not netted against
+  // affiliate_commission: a payout settles a debt that was already expensed
+  // when it was earned, so subtracting it here would count it twice.
+  payouts: Prisma.Decimal;
+}
+
+export interface PlatformTotalsOptions {
+  from?: Date;
+  to?: Date;
+}
+
+// The platform's own income statement, one row per currency.
+//
+// Every other read in this module answers "what is one payee owed", which is
+// why they all take an owner pair and balancesFor refuses a missing one. This
+// answers the opposite question, and the three accounts it is mostly made of —
+// CONSUMER_PAYMENT, SUPPLIER_COST, PLATFORM_REVENUE — are exactly the ones
+// assertOwnershipMatchesAccounts forbids from carrying an owner. So it groups
+// by account instead of filtering by owner.
+//
+// Owned rows are counted rather than skipped: commission is a platform expense
+// regardless of which outlet it belongs to, and an income statement missing its
+// largest cost line would not add up against the gross beside it.
+//
+// Signs are flipped to read the way a person expects, the same boundary
+// payableBalancesFor is for individual payees: gross is stored positive already
+// and every other account is a distribution of it, stored negative, presented
+// positive.
+async function platformTotals({
+  from,
+  to,
+}: PlatformTotalsOptions = {}): Promise<PlatformRevenue[]> {
+  const where: Prisma.LedgerEntryWhereInput = {};
+
+  // Assigned only when a bound was given: an undefined key inside created_at
+  // is dropped by Prisma, but `created_at: {}` is not, and Postgres would
+  // reject the empty condition rather than ignore it.
+  if (from || to) {
+    where.created_at = {
+      ...(from ? { gte: from } : {}),
+      ...(to ? { lte: to } : {}),
+    };
+  }
+
+  const grouped = await prisma.ledgerEntry.groupBy({
+    by: ["account_type", "currency"],
+    where,
+    _sum: { amount: true },
+  });
+
+  const byCurrency = new Map<string, PlatformRevenue>();
+
+  for (const row of grouped) {
+    const total =
+      byCurrency.get(row.currency) ?? emptyPlatformRevenue(row.currency);
+    const amount = row._sum.amount ?? new Prisma.Decimal(0);
+
+    switch (row.account_type) {
+      case LedgerAccountType.CONSUMER_PAYMENT:
+        total.gross = total.gross.plus(amount);
+        break;
+      case LedgerAccountType.SUPPLIER_COST:
+        total.supplier_cost = total.supplier_cost.plus(amount.negated());
+        break;
+      case LedgerAccountType.AFFILIATE_COMMISSION:
+        total.affiliate_commission = total.affiliate_commission.plus(
+          amount.negated(),
+        );
+        break;
+      case LedgerAccountType.PLATFORM_REVENUE:
+        total.platform_revenue = total.platform_revenue.plus(amount.negated());
+        break;
+      case LedgerAccountType.PAYOUT:
+        total.payouts = total.payouts.plus(amount.negated());
+        break;
+    }
+
+    byCurrency.set(row.currency, total);
+  }
+
+  return [...byCurrency.values()].sort((first, second) =>
+    first.currency.localeCompare(second.currency),
+  );
+}
+
+function emptyPlatformRevenue(currencyCode: string): PlatformRevenue {
+  return {
+    currency: currencyCode,
+    gross: new Prisma.Decimal(0),
+    supplier_cost: new Prisma.Decimal(0),
+    affiliate_commission: new Prisma.Decimal(0),
+    platform_revenue: new Prisma.Decimal(0),
+    payouts: new Prisma.Decimal(0),
+  };
+}
+
 async function findByGroup(entryGroupId: string) {
   return await prisma.ledgerEntry.findMany({
     where: { entry_group_id: entryGroupId },
@@ -809,6 +915,7 @@ const ledger = {
   payableBalancesFor,
   maturedPayableBalancesFor,
   statementFor,
+  platformTotals,
   findByGroup,
   findBySource,
   isSourceReversed,
