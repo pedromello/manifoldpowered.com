@@ -18,6 +18,7 @@ import exchangeRate from "models/exchange_rate";
 import pricing from "models/pricing";
 import ledger from "models/ledger";
 import commercialTerms from "models/commercial_terms";
+import payoutAccount from "models/payout_account";
 import { Prisma } from "generated/prisma/client";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
@@ -274,6 +275,26 @@ const setStoreCommissionRate = async (storeId, rate) => {
   );
 };
 
+// Payout accounts
+const createPayoutAccount = async (storeId, accountData = {}) => {
+  return payoutAccount.create(storeId, {
+    provider: accountData.provider || "STRIPE",
+    payout_currency: accountData.payout_currency || "USD",
+    label: accountData.label,
+  });
+};
+
+// The verification gate, from the side a provider or an admin writes it. Tests
+// that need a payable outlet seed it here rather than through the backoffice
+// endpoint, and a provider_account_id can be planted to prove it never comes
+// back out of an API response.
+const enablePayouts = async (storeId, providerAccountId) => {
+  return payoutAccount.setProviderState(storeId, {
+    payouts_enabled: true,
+    provider_account_id: providerAccountId || `acct_${randomUUID()}`,
+  });
+};
+
 const setSupplierTerms = async (termsData = {}) => {
   return commercialTerms.setSupplierTerms({
     supplier_type: termsData.supplier_type || "STUDIO",
@@ -394,6 +415,8 @@ const orchestrator = {
   recordLedgerSale,
   setStoreCommissionRate,
   setSupplierTerms,
+  createPayoutAccount,
+  enablePayouts,
 };
 
 export default orchestrator;
