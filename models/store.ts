@@ -17,11 +17,16 @@ export type StoreCreateDto = z.infer<typeof storeSchema> & {
 // What an outlet owner can delegate. read:store_statement is here because the
 // outlet holds the money now: someone can be given the books without being
 // given the outlet, which matters more once ownership no longer follows the
-// balance.
+// balance. manage:payout_account follows the same reasoning — whoever keeps the
+// books is who notices a bank detail has gone stale — and stays safe to
+// delegate because the account holds no bank details itself, only an opaque
+// provider reference, and because changing it resets verification to false.
 export const MEMBER_PERMISSIONS = [
   "update:store",
   "manage:store_members",
   "read:store_statement",
+  "read:payout_account",
+  "manage:payout_account",
 ];
 
 export const memberPermissionsSchema = z.object({

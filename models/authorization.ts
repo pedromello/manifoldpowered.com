@@ -14,6 +14,7 @@ import {
   Currency,
   ExchangeRate,
   SupplierTerms,
+  PayoutAccount,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
@@ -111,6 +112,11 @@ const AVAILABLE_FEATURES = [
   // because the outlet is the payee — see the comment on the statement endpoint.
   "read:store_statement",
   "read:store_statement:any",
+  // Where an outlet's money goes. Read has an admin escape hatch for support;
+  // the write side deliberately does not — see the note above the can() branch.
+  "read:payout_account",
+  "read:payout_account:any",
+  "manage:payout_account",
 
   // Studios
   "create:studio",
@@ -153,6 +159,11 @@ const AVAILABLE_FEATURES = [
   "update:store_commission:any",
   "read:supplier_terms:any",
   "update:supplier_terms:any",
+  // Whether an outlet has cleared verification and may be paid. Admin-only and
+  // audit-logged, on the same footing as update:user:status:any — deciding
+  // someone is payable is the platform's call, in a way that deciding where
+  // their money goes is not.
+  "update:payout_account:status:any",
 ];
 
 // The feature set granted to every user once they activate their account
@@ -178,6 +189,8 @@ const ACTIVATED_USER_FEATURES = [
   "update:store",
   "manage:store_members",
   "read:store_statement",
+  "read:payout_account",
+  "manage:payout_account",
   "read:own_sale",
   "create:studio",
   "read:public_studio",
@@ -210,6 +223,8 @@ const ADMIN_ONLY_FEATURES = [
   "read:store_statement:any",
   "read:studio_sale:any",
   "read:platform_ledger:any",
+  "read:payout_account:any",
+  "update:payout_account:status:any",
 ];
 
 const ADMIN_FEATURES = [...ACTIVATED_USER_FEATURES, ...ADMIN_ONLY_FEATURES];
@@ -327,6 +342,41 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     );
 
     if (isOwner || isPermittedMember || can(user, anyFeature)) {
+      authorized = true;
+    }
+  }
+
+  // Kept out of the store branch above despite resolving ownership identically,
+  // because it is the one place where the :any escape hatch is not symmetric and
+  // folding it into a shared map would hide that.
+  //
+  // read:payout_account:any exists so support can see which rail an outlet is
+  // on. There is deliberately no manage:payout_account:any: an admin
+  // redirecting an outlet's payout destination is the exact failure the
+  // outlet-as-payee design exists to bound, and it is not something support ever
+  // needs to do on someone's behalf. What an admin can do instead is decide the
+  // outlet is verified — update:payout_account:status:any, which is a global
+  // backoffice feature rather than a resource-scoped one, and audit-logged.
+  if (
+    (feature === "read:payout_account" ||
+      feature === "manage:payout_account") &&
+    resource
+  ) {
+    authorized = false;
+    const storeResource = resource as StoreWithMembers;
+    const anyFeature = {
+      "read:payout_account": "read:payout_account:any",
+    }[feature];
+
+    const isOwner = user.id === storeResource.owner_id;
+    const isPermittedMember = storeResource.members?.some(
+      (member) =>
+        member.user_id === user.id && member.permissions.includes(feature),
+    );
+
+    // The anyFeature guard is load-bearing: manage:payout_account has no entry
+    // in the map above, and can(user, undefined) throws from validateFeature.
+    if (isOwner || isPermittedMember || (anyFeature && can(user, anyFeature))) {
       authorized = true;
     }
   }
@@ -681,6 +731,31 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       total: balanceOutput.total.toFixed(4),
       payable: balanceOutput.payable.toFixed(4),
       held: balanceOutput.held.toFixed(4),
+    };
+  }
+
+  // Every payout-account feature shares one branch, admin included. Nothing
+  // about being an admin makes provider_account_id safe to serialise, and a
+  // wider admin variant would be the obvious place for it to leak from.
+  if (
+    feature === "read:payout_account" ||
+    feature === "read:payout_account:any" ||
+    feature === "manage:payout_account" ||
+    feature === "update:payout_account:status:any"
+  ) {
+    const accountOutput = resource as PayoutAccount;
+    return {
+      id: accountOutput.id,
+      store_id: accountOutput.store_id,
+      provider: accountOutput.provider,
+      // Deliberately no provider_account_id. It is the only field in this table
+      // that is not the outlet's own to see, and the whole reason a payout
+      // account cannot simply be returned whole.
+      payout_currency: accountOutput.payout_currency,
+      label: accountOutput.label,
+      payouts_enabled: accountOutput.payouts_enabled,
+      created_at: accountOutput.created_at,
+      updated_at: accountOutput.updated_at,
     };
   }
 

@@ -248,11 +248,11 @@ model Sale {
 }
 
 model Store {
-  id          String   @id @default(uuid())
-  name        String   @db.VarChar(255)
-  slug        String   @unique @db.VarChar(255)
-  description String?  @db.Text
-  logo_url    String?  @db.VarChar(2048)
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(255)
+  slug        String  @unique @db.VarChar(255)
+  description String? @db.Text
+  logo_url    String? @db.VarChar(2048)
   owner_id    String // Logical reference to User.id (creator/owner)
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
@@ -542,6 +542,59 @@ model SupplierTerms {
 
   @@unique([supplier_type, supplier_id])
   @@map("supplier_terms")
+}
+
+// Where an outlet's commission is paid.
+//
+// Hangs off Store rather than User because the outlet is the payee: payment
+// details survive a change of ownership, which is the whole point of the
+// balance belonging to the outlet rather than to whoever runs it today (see
+// docs/ledger-architecture.md).
+//
+// Deliberately holds no bank details. Those live at the provider, and the only
+// thing kept here is an opaque reference to them — which is precisely why this
+// table needs an output filter at all.
+//
+// No tax identifiers or legal addresses yet. docs/legal/phase-0-checklist.md
+// says they must exist here encrypted at rest, but the tax posture that decides
+// their shape is unsettled, so guessing now would mean migrating a table that
+// already holds payout details. payouts_enabled defaulting to false is what
+// makes shipping ahead of that answer safe: nothing is payable meanwhile.
+model PayoutAccount {
+  id       String @id @default(uuid())
+  store_id String @unique // Logical reference to Store.id
+
+  // Which rail pays this outlet. A string rather than an enum because
+  // onboarding a payout provider is a commercial event, not a schema change —
+  // same reasoning as SupplierTerms.supplier_type above. The allowed values
+  // live in models/payout_account.
+  provider String @db.VarChar(50)
+
+  // The provider's own id for this account. Null until a provider adapter
+  // exists to create the account and fill it in.
+  //
+  // NEVER leaves the server. It is excluded from every filterOutput branch,
+  // and it is the single reason a row here cannot simply be returned whole.
+  provider_account_id String? @db.VarChar(255)
+
+  // The currency this outlet wants to be paid in. A payout run converts a
+  // balance into it, recording the rate as a pair of ledger entries.
+  payout_currency String @db.VarChar(3) // Logical reference to Currency.code
+
+  // Free text, for an owner running several outlets to tell their rails apart.
+  label String? @db.VarChar(255)
+
+  // False until identity verification passes. Nothing an outlet can reach sets
+  // this — the same reasoning that keeps Store.commission_rate out of
+  // storeSchema: the party being paid must not be able to declare itself
+  // payable. Only the admin backoffice and, later, a provider status sync
+  // write it.
+  payouts_enabled Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("payout_accounts")
 }
 
 // A price set explicitly by a developer/admin for one currency. Its presence

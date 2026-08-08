@@ -20,7 +20,8 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 6a. Commercial terms                     | ✅ done                                                                        |
 | 6b. Ledger writes on acquisition         | ✅ done                                                                        |
 | 6c. Outlet statement                     | ✅ done                                                                        |
-| 7–11 (providers, payouts)                | not started                                                                    |
+| 8. Payout account model + endpoints      | ✅ done                                                                        |
+| 7, 9–11 (providers, payouts)             | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
@@ -290,6 +291,8 @@ Providers declare which currencies they can pay in, so the payout run can route 
 
 **Done when:** the fake and Stripe adapters satisfy the same interface and the call sites never import a provider directly.
 
+**Landed out of order — task 8 went first.** The `provider` column this registry keys on now exists on `PayoutAccount`, with its allowed values in a `PAYOUT_PROVIDERS` constant that this task replaces with the registry's own keys. `getAccountStatus` also has a seam to call: `payoutAccount.setProviderState`, which the admin backoffice already writes through, so wiring a provider in means replacing who calls it rather than adding the concept.
+
 ---
 
 ### 8. Payout account model + endpoints
@@ -298,7 +301,22 @@ Providers declare which currencies they can pay in, so the payout run can route 
 
 Create and read a `PayoutAccount` **belonging to an outlet**, with `payouts_enabled` defaulting to false and a preferred payout currency. The account hangs off `Store`, not `User`: payment details survive a change of ownership, which is the whole point of the outlet being the payee. The output filter must never expose the provider's external account ID — or, later, tax identifiers.
 
-**Done when:** both endpoints follow the standard router chain, validate with Zod, and pass every response through `filterOutput`.
+**Done when:** both endpoints follow the standard router chain, validate with Zod, and pass every response through `filterOutput`. ✅
+
+**The table splits in two, and so does the authorization.** An outlet says where its money goes; the platform says whether it may go there at all. Neither side can do the other's half, which is what makes `payouts_enabled` a gate rather than a field:
+
+- `GET/POST/PATCH /api/v1/stores/[slug]/payout-account` — the outlet's side. `provider`, `payout_currency` and a free-text `label`. `payouts_enabled` and `provider_account_id` are absent from the Zod schemas entirely, the same way `commission_rate` is absent from `storeSchema`: the party being paid must not be able to declare itself payable.
+- `PATCH /api/v1/backoffice/stores/[slug]/payout-account` — the platform's side, and the only thing that writes `payouts_enabled`. Audit-logged with an optional reason, because "why is this outlet payable" is asked long after the fact.
+
+**Three endpoints on the outlet side, not the two this task specified.** A create-only surface strands an outlet that picked the wrong currency, with no way to fix it until a provider adapter exists. PATCH is that fix.
+
+**Changing the rail resets verification.** A `provider` or `payout_currency` change clears `provider_account_id` and sets `payouts_enabled` back to false; a label edit does not. Verification is done against a destination, not against an outlet, so without this an outlet could be checked for one rail and paid on another. The comparison is by value — resending the same provider is not a change, or the reset would fire on every write and nothing could stay payable long enough to be paid.
+
+**No `manage:payout_account:any`, which breaks the pattern deliberately.** Every other resource feature has an admin escape hatch. Read has one (`read:payout_account:any`) so support can see which rail an outlet is on. The write side does not: an admin redirecting an outlet's payout destination is the exact failure the outlet-as-payee design exists to bound, and it is not something support ever needs to do on someone's behalf. What an admin can do instead is decide the outlet is verified.
+
+Both base features are in `store.MEMBER_PERMISSIONS`. Delegating them stays safe because the account holds no bank details — only an opaque provider reference — and because changing it resets verification anyway.
+
+**Tax fields are still owed.** `docs/legal/phase-0-checklist.md` says tax IDs and legal addresses must exist here from the first migration, encrypted at rest. They do not, for the same reason task 5 deferred the table: the tax posture ([#175](https://github.com/pedromello/manifoldpowered.com/issues/175)) decides their shape, and guessing would mean migrating a table that already holds payout details. What makes shipping ahead of that answer safe is that `payouts_enabled` defaults to false and task 10 has not been built, so no money can move meanwhile. The columns must land before the first real payout, not before the first real account.
 
 ---
 
@@ -321,6 +339,8 @@ This repo has no scheduler, so this follows the existing precedent for batch wor
 Writes the `Payout` row and its balancing ledger entries in one transaction, then calls the provider. Sub-threshold balances roll forward with no row written. Idempotent per period.
 
 If a balance must be converted to the affiliate's payout currency, the conversion is itself a pair of ledger entries with the rate recorded — never an untracked adjustment.
+
+"Unverified" now has something concrete to read: an outlet is payable only if `PayoutAccount.payouts_enabled` is true, and the currency to convert into is that account's `payout_currency`. An outlet with no payout account at all is skipped rather than failed — not having registered yet is not an error condition for a batch run.
 
 **Done when:** the run is safely re-runnable, blocked for unverified accounts, correct across multiple currencies, and audit-logged.
 
