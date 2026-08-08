@@ -4,17 +4,19 @@ import { Prisma } from "generated/prisma/client";
 import { NotFoundError, ValidationError } from "infra/errors";
 import currency, { currencyCodeSchema } from "models/currency";
 import pricing from "models/pricing";
+import payoutProviders from "infra/payout_providers";
 
 // The rails we can pay an outlet through.
 //
-// A plain list rather than an enum column for the same reason
-// SupplierTerms.supplier_type is a string: onboarding a payout provider is a
-// commercial event, not a schema change. This becomes the provider registry's
-// key set once the provider interface lands, and this constant goes away in
-// favour of the registry's own keys.
-export const PAYOUT_PROVIDERS = ["STRIPE"] as const;
+// No longer a list of its own: the registry in infra/payout_providers is the
+// one place a rail is declared, and a second list here could disagree with it —
+// a provider string that validates but resolves to no adapter, or an adapter
+// nothing can select. Kept as an export because it reads as the answer to
+// "which rails exist" at the model layer, where the rest of this schema's
+// referential integrity lives.
+export const PAYOUT_PROVIDERS = payoutProviders.providerKeys();
 
-export type PayoutProvider = (typeof PAYOUT_PROVIDERS)[number];
+export type PayoutProvider = string;
 
 // What an outlet may say about its own payout account.
 //
@@ -22,8 +24,19 @@ export type PayoutProvider = (typeof PAYOUT_PROVIDERS)[number];
 // omission: the party being paid must not be able to declare itself payable,
 // and the external account id is the provider's to issue. Both are written
 // only through setProviderState below.
+//
+// provider is a refined string rather than z.enum because the allowed values
+// come from the registry at runtime, and z.enum needs a literal tuple. The
+// refinement normalizes first, so casing can never produce a row that matches
+// no adapter.
 export const payoutAccountSchema = z.object({
-  provider: z.enum(PAYOUT_PROVIDERS),
+  provider: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine((value) => payoutProviders.isRegistered(value), {
+      message: `provider must be one of: ${payoutProviders.providerKeys().join(", ")}`,
+    }),
   payout_currency: currencyCodeSchema,
   label: z.string().trim().max(255).optional(),
 });
@@ -66,14 +79,37 @@ async function validatePayoutCurrency(code: string) {
   }
 }
 
+// A rail and a currency are only valid as a pair. Registering a BRL account on
+// a USD-only provider is a row that looks complete, passes verification, and
+// fails at the one moment it matters — when a payout run tries to send it. The
+// provider declares what it can pay in, so the mismatch is knowable at write
+// time; refusing here is the difference between a 400 to whoever chose the
+// combination and a failed transfer nobody is watching.
+function validateProviderPaysCurrency(providerKey: string, code: string) {
+  const provider = payoutProviders.getProvider(providerKey);
+  const normalizedCode = currency.normalizeCode(code);
+
+  if (!payoutProviders.supportsCurrency(provider, normalizedCode)) {
+    throw new ValidationError({
+      message: `The payout provider "${provider.key}" cannot pay in "${normalizedCode}".`,
+      action: `Choose a currency the provider supports (${provider.supportedCurrencies.join(", ")}), or a provider that pays in "${normalizedCode}".`,
+    });
+  }
+}
+
 async function create(storeId: string, accountDto: PayoutAccountDto) {
   await validatePayoutCurrency(accountDto.payout_currency);
+  validateProviderPaysCurrency(accountDto.provider, accountDto.payout_currency);
 
   try {
     return await prisma.payoutAccount.create({
       data: {
         store_id: storeId,
-        provider: accountDto.provider,
+        // Normalized on write as well as in the schema, for the same reason
+        // payout_currency is: a model called directly — by a script, a batch
+        // job, a test — bypasses the Zod layer, and a lowercase rail here would
+        // resolve to no adapter while looking perfectly correct in the row.
+        provider: payoutProviders.normalizeKey(accountDto.provider),
         payout_currency: currency.normalizeCode(accountDto.payout_currency),
         label: accountDto.label,
       },
@@ -119,20 +155,37 @@ async function update(storeId: string, updateDto: PayoutAccountUpdateDto) {
     ? currency.normalizeCode(updateDto.payout_currency)
     : undefined;
 
+  // Normalized before it is compared, not just before it is stored: railChanged
+  // below is a value comparison, so an unnormalized "stripe" against a stored
+  // "STRIPE" would read as a rail change and silently reset a verified outlet
+  // to unpayable.
+  const normalizedProvider = updateDto.provider
+    ? payoutProviders.normalizeKey(updateDto.provider)
+    : undefined;
+
+  // Checked against the pair the row will hold after the write, not against
+  // the field that happened to be sent. Changing only the provider on a BRL
+  // account is exactly the case a per-field check misses, and it is the one
+  // that leaves an outlet unpayable on a rail that cannot reach its currency.
+  validateProviderPaysCurrency(
+    normalizedProvider ?? existingAccount.provider,
+    normalizedCurrency ?? existingAccount.payout_currency,
+  );
+
   // Changing the rail invalidates the verification that was done against it.
   // Whoever was verified was verified to receive money at a particular provider
   // in a particular currency; leaving the flag set would let an outlet be
   // checked for one destination and paid at another. A label edit is cosmetic
   // and resets nothing.
   const railChanged =
-    (updateDto.provider && updateDto.provider !== existingAccount.provider) ||
+    (normalizedProvider && normalizedProvider !== existingAccount.provider) ||
     (normalizedCurrency &&
       normalizedCurrency !== existingAccount.payout_currency);
 
   return await prisma.payoutAccount.update({
     where: { store_id: storeId },
     data: {
-      provider: updateDto.provider,
+      provider: normalizedProvider,
       payout_currency: normalizedCurrency,
       label: updateDto.label,
       ...(railChanged

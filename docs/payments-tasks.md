@@ -21,7 +21,8 @@ For the runtime design of the pricing path — how a game gets a price in the vi
 | 6b. Ledger writes on acquisition         | ✅ done                                                                        |
 | 6c. Outlet statement                     | ✅ done                                                                        |
 | 8. Payout account model + endpoints      | ✅ done                                                                        |
-| 7, 9–11 (providers, payouts)             | not started                                                                    |
+| 7. Provider interface + Stripe adapter   | ✅ done                                                                        |
+| 9–11 (payouts)                           | not started                                                                    |
 
 Each task is a separate small PR, landed in order, with `npm run test` passing on its own before merge — the same format as `docs/backoffice-tasks.md`.
 
@@ -289,9 +290,17 @@ Four methods — `createAccount`, `getAccountStatus`, `sendPayout`, `getPayoutSt
 
 Providers declare which currencies they can pay in, so the payout run can route a BRL balance to a rail that reaches Pix and a USD balance to Stripe.
 
-**Done when:** the fake and Stripe adapters satisfy the same interface and the call sites never import a provider directly.
+**Done when:** the fake and Stripe adapters satisfy the same interface and the call sites never import a provider directly. ✅
 
-**Landed out of order — task 8 went first.** The `provider` column this registry keys on now exists on `PayoutAccount`, with its allowed values in a `PAYOUT_PROVIDERS` constant that this task replaces with the registry's own keys. `getAccountStatus` also has a seam to call: `payoutAccount.setProviderState`, which the admin backoffice already writes through, so wiring a provider in means replacing who calls it rather than adding the concept.
+**Landed out of order — task 8 went first.** The `provider` column this registry keys on already existed on `PayoutAccount`, with its allowed values in a `PAYOUT_PROVIDERS` constant. That constant is now `payoutProviders.providerKeys()`: one place declares a rail, so there is no second list to disagree with the registry — no provider string that validates but resolves to no adapter, and no adapter nothing can select.
+
+**Swappability is proven by the fake, not by Stripe.** `infra/payout_providers/stripe.ts` is registered and declares the currencies it would pay in, but its four methods throw `ServiceError` until Connect is configured. That is deliberate: this repo mocks nothing — the suite runs against a real postgres, SMTP catcher and S3, and `jest.mock` appears nowhere in `tests/` — so a real Stripe implementation would ship as code no test ever runs. `infra/payout_providers/fake.ts` is the adapter that actually works, holding accounts and payouts in a `Map`, and it is what makes the payout path in tasks 9–10 exercisable without network. Two adapters satisfying one interface is what the "done when" was asking for; a rail that throws is a smaller lie than a rail that is untested.
+
+**The rail and the currency are validated as a pair.** Because a provider declares `supportedCurrencies`, `payoutAccount` can refuse a combination it could never pay — including a provider change that strands an existing currency, which is the case a per-field check misses. Previously such a row was written, passed verification, and failed at the one moment it mattered.
+
+Two things left as seams rather than wired now: `getAccountStatus` returns exactly the shape `payoutAccount.setProviderState` takes, so a verification sync is a pass-through rather than a translation — a translation is where a rail's "restricted" quietly becomes our "enabled". And `sendPayout` takes an `idempotency_key` that the fake honours by returning the first payout, so task 10's re-runnability is a property that can fail a test here rather than in production.
+
+**Deliberately not registered in production: the fake.** A test seam that can be selected in production is a way to mark an outlet payable without a provider ever seeing it — the same reasoning that makes `storage.clearAllBuckets()` refuse to run there.
 
 ---
 
