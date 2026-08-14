@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg7" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg7" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg7)"/>
+<path d="M -40,56.6 L 0,49.2 L 40,46.1 L 80,47.8 L 120,54.0 L 160,63.5 L 200,74.5 L 240,84.8 L 280,92.4 L 320,95.9 L 360,94.5 L 400,88.6 L 440,79.2 L 480,68.3 L 520,57.9 L 560,50.0 L 600,46.2 L 640,47.2" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,134.0 L 0,137.7 L 40,146.9 L 80,159.8 L 120,173.9 L 160,186.5 L 200,195.1 L 240,198.0 L 280,194.7 L 320,185.9 L 360,173.1 L 400,159.0 L 440,146.3 L 480,137.4 L 520,134.0 L 560,136.9 L 600,145.4 L 640,157.9" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,241.4 L 0,257.8 L 40,274.8 L 80,289.1 L 120,298.0 L 160,299.7 L 200,293.9 L 240,281.7 L 280,265.4 L 320,248.3 L 360,233.7 L 400,224.4 L 440,222.2 L 480,227.5 L 520,239.3 L 560,255.4 L 600,272.5 L 640,287.4" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,366.9 L 0,375.0 L 40,379.5 L 80,379.3 L 120,374.7 L 160,366.4 L 200,356.1 L 240,345.7 L 280,337.4 L 320,332.7 L 360,332.5 L 400,336.9 L 440,345.0 L 480,355.2 L 520,365.6 L 560,374.1 L 600,379.1 L 640,379.6" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,481.8 L 0,480.2 L 40,472.8 L 80,461.2 L 120,447.6 L 160,434.7 L 200,425.0 L 240,420.3 L 280,421.5 L 320,428.5 L 360,439.9 L 400,453.4 L 440,466.5 L 480,476.5 L 520,481.6 L 560,480.7 L 600,474.1 L 640,463.0" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,569.6 L 0,554.5 L 40,537.7 L 80,522.6 L 120,512.0 L 160,508.0 L 200,511.4 L 240,521.5 L 280,536.4 L 320,553.1 L 360,568.5 L 400,579.5 L 440,584.0 L 480,581.1 L 520,571.3 L 560,556.7 L 600,540.0 L 640,524.4" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,633.5 L 0,624.9 L 40,619.4 L 80,618.1 L 120,621.2 L 160,628.2 L 200,637.7 L 240,647.8 L 280,656.6 L 320,662.3 L 360,664.0 L 400,661.1 L 440,654.3 L 480,645.0 L 520,634.9 L 560,625.9 L 600,619.9 L 640,618.0" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg7)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#c9a864" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#c9a864" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#c9a864" stroke-width="1" opacity="0.9"/>
+  
+<circle cx="0" cy="-32" r="14" fill="none" stroke="#c9a864" stroke-width="4"/>
+<path d="M -26,40 L -20,-6 Q 0,-18 20,-6 L 26,40" fill="none" stroke="#c9a864" stroke-width="4" stroke-linejoin="round"/>
+<line x1="-26" y1="14" x2="-46" y2="30" stroke="#c9a864" stroke-width="4" stroke-linecap="round"/>
+<line x1="26" y1="14" x2="46" y2="30" stroke="#c9a864" stroke-width="4" stroke-linecap="round"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#c9a864" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#c9a864" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">XCOM 2</text>
+<text x="300" y="750" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#e6cd93" opacity="0.85">TATICO • RESISTENCIA</text>
+</svg>

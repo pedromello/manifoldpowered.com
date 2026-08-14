@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg4" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg4" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg4)"/>
+<path d="M -40,92.4 L 0,86.9 L 40,78.4 L 80,68.8 L 120,59.7 L 160,53.1 L 200,50.1 L 240,51.4 L 280,56.7 L 320,64.9 L 360,74.6 L 400,83.7 L 440,90.6 L 480,93.8 L 520,92.9 L 560,87.8 L 600,79.7 L 640,70.1" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,172.4 L 0,159.6 L 40,148.3 L 80,140.6 L 120,138.0 L 160,141.1 L 200,149.2 L 240,160.8 L 280,173.6 L 320,185.1 L 360,193.1 L 400,196.0 L 440,193.3 L 480,185.5 L 520,174.1 L 560,161.3 L 600,149.6 L 640,141.3" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,235.8 L 0,227.7 L 40,226.3 L 80,231.8 L 120,243.2 L 160,258.2 L 200,274.0 L 240,287.4 L 280,295.9 L 320,297.8 L 360,292.8 L 400,281.7 L 440,266.9 L 480,251.1 L 520,237.4 L 560,228.5 L 600,226.1 L 640,230.7" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,336.6 L 0,340.8 L 40,348.1 L 80,357.1 L 120,366.1 L 160,373.4 L 200,377.4 L 240,377.5 L 280,373.6 L 320,366.5 L 360,357.5 L 400,348.4 L 440,341.0 L 480,336.7 L 520,336.3 L 560,340.0 L 600,346.9 L 640,355.8" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,443.0 L 0,455.3 L 40,466.9 L 80,475.6 L 120,479.8 L 160,478.5 L 200,472.1 L 240,461.8 L 280,449.6 L 320,437.8 L 360,428.8 L 400,424.3 L 440,425.2 L 480,431.3 L 520,441.4 L 560,453.6 L 600,465.4 L 640,474.7" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,568.8 L 0,578.5 L 40,582.0 L 80,578.7 L 120,569.3 L 160,555.6 L 200,540.1 L 240,526.0 L 280,516.0 L 320,512.0 L 360,514.8 L 400,523.9 L 440,537.4 L 480,552.8 L 520,567.1 L 560,577.5 L 600,581.9 L 640,579.6" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,661.9 L 0,659.1 L 40,653.0 L 80,644.7 L 120,635.9 L 160,628.3 L 200,623.4 L 240,622.1 L 280,624.6 L 320,630.5 L 360,638.7 L 400,647.5 L 440,655.2 L 480,660.4 L 520,662.0 L 560,659.7 L 600,654.0 L 640,645.9" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg4)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#c9a864" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#c9a864" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#c9a864" stroke-width="1" opacity="0.9"/>
+  
+<path d="M 0,-45 L 12,-8 L 50,-8 L 20,12 L 32,50 L 0,26 L -32,50 L -20,12 L -50,-8 L -12,-8 Z" fill="none" stroke="#c9a864" stroke-width="3.5" stroke-linejoin="round"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#c9a864" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#c9a864" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Hearts of</text><text x="300" y="748" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Iron IV</text>
+<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#e6cd93" opacity="0.85">GRAND STRATEGY • GUERRA</text>
+</svg>

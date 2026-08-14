@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg3" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg3)"/>
+<path d="M -40,119.5 L 0,119.5 L 40,115.4 L 80,108.2 L 120,99.2 L 160,90.1 L 200,82.8 L 240,78.6 L 280,78.4 L 320,82.2 L 360,89.2 L 400,98.2 L 440,107.3 L 480,114.8 L 520,119.2 L 560,119.7 L 600,116.2 L 640,109.3" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,213.8 L 0,203.4 L 40,191.1 L 80,179.4 L 120,170.6 L 160,166.3 L 200,167.3 L 240,173.6 L 280,183.8 L 320,196.0 L 360,207.8 L 400,217.0 L 440,221.6 L 480,220.9 L 520,215.0 L 560,205.0 L 600,192.8 L 640,180.9" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,281.6 L 0,267.6 L 40,257.8 L 80,254.0 L 120,257.1 L 160,266.3 L 200,280.0 L 240,295.4 L 280,309.6 L 320,319.7 L 360,323.9 L 400,321.4 L 440,312.5 L 480,299.1 L 520,283.7 L 560,269.3 L 600,258.8 L 640,254.1" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,365.3 L 0,364.1 L 40,366.8 L 80,372.8 L 120,381.0 L 160,389.8 L 200,397.5 L 240,402.5 L 280,404.0 L 320,401.5 L 360,395.7 L 400,387.6 L 440,378.8 L 480,371.0 L 520,365.7 L 560,364.0 L 600,366.2 L 640,371.8" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,457.4 L 0,466.5 L 40,478.0 L 80,489.7 L 120,499.3 L 160,505.0 L 200,505.6 L 240,501.1 L 280,492.3 L 320,480.9 L 360,469.1 L 400,459.3 L 440,453.3 L 480,452.3 L 520,456.4 L 560,465.0 L 600,476.3 L 640,488.1" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,576.5 L 0,590.8 L 40,601.9 L 80,607.5 L 120,606.7 L 160,599.5 L 200,587.3 L 240,572.6 L 280,558.1 L 320,546.7 L 360,540.6 L 400,541.0 L 440,547.8 L 480,559.7 L 520,574.4 L 560,589.0 L 600,600.6 L 640,607.1" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,685.7 L 0,688.0 L 40,686.6 L 80,681.8 L 120,674.5 L 160,666.1 L 200,658.3 L 240,652.6 L 280,650.1 L 320,651.2 L 360,655.8 L 400,663.0 L 440,671.3 L 480,679.2 L 520,685.1 L 560,687.9 L 600,687.0 L 640,682.6" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg3)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#c9a864" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#c9a864" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#c9a864" stroke-width="1" opacity="0.9"/>
+  
+<path d="M -60,20 L -60,-10 L -30,15 L 0,-30 L 30,15 L 60,-10 L 60,20 Z" fill="none" stroke="#c9a864" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="0" cy="-30" r="6" fill="#c9a864"/>
+<circle cx="-60" cy="-10" r="5" fill="#c9a864"/>
+<circle cx="60" cy="-10" r="5" fill="#c9a864"/>
+<line x1="-60" y1="30" x2="60" y2="30" stroke="#c9a864" stroke-width="4"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#c9a864" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#c9a864" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Crusader</text><text x="300" y="748" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Kings III</text>
+<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#e6cd93" opacity="0.85">GRAND STRATEGY • DINASTIAS</text>
+</svg>
