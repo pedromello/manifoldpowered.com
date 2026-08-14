@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Search, SlidersHorizontal, ArrowUpDown, Tag } from "lucide-react";
 
-import { CATEGORIES } from "lib/games";
+import { CATEGORIES } from "lib/categories";
 import { StoreLayout } from "components/store/StoreLayout";
 import { GameListItem } from "components/store/GameListItem";
 import { type GameApi } from "components/store/types";

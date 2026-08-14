@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
-import { CATEGORIES } from "lib/games";
+import { CATEGORIES } from "lib/categories";
 import { itemHref as buildItemHref } from "lib/store-context";
 import type {
   GameApi,
