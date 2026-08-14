@@ -1,11 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import Form from "next/form";
-import { useSearchParams } from "next/navigation";
-import useSWR from "swr";
 import { Search } from "lucide-react";
-
-import { CATEGORIES } from "lib/games";
 
 // --- Components ---
 import { DiscountBadge } from "components/store/DiscountBadge";
@@ -14,14 +10,15 @@ import { discountBadgeColor } from "components/store/constants";
 import { GameListItem } from "components/store/GameListItem";
 import { type GameApi } from "components/store/types";
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { useStorefrontController } from "components/storefront/useStorefrontController";
 import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
 
 function HeroBento({
   featured,
-  storeSlug,
+  itemHref,
 }: {
   featured: GameApi[];
-  storeSlug?: string;
+  itemHref: (slug: string) => string;
 }) {
   if (!featured || featured.length < 3) return null;
   const [main, side1, side2] = featured;
@@ -30,10 +27,6 @@ function HeroBento({
   const isDemo = (item: PricedItem) => isFree(item);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
-  const itemHref = (slug: string) =>
-    storeSlug
-      ? `/item/${slug}?store=${encodeURIComponent(storeSlug)}`
-      : `/item/${slug}`;
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
@@ -172,18 +165,18 @@ function HeroBento({
 
 function CategoryPills({
   active,
-  browsePath,
+  categories,
+  browseHref,
 }: {
   active: string | null;
-  browsePath: string;
+  categories: readonly string[];
+  browseHref: (patch: { category: string | null }) => string;
 }) {
   return (
     <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-4 no-scrollbar px-6 md:px-0">
-      {CATEGORIES.map((cat) => (
+      {categories.map((cat) => (
         <Link
-          href={
-            cat === "For You" ? browsePath : `${browsePath}?category=${cat}`
-          }
+          href={browseHref({ category: cat === "For You" ? null : cat })}
           key={cat}
           className={`shrink-0 px-6 py-3.5 md:py-4 md:px-8 rounded-2xl font-bold transition-all duration-300 min-h-[44px] text-sm md:text-lg inline-flex items-center justify-center ${
             (!active && cat === "For You") || active === cat
@@ -227,25 +220,24 @@ export function Storefront({
   storeSlug,
   showDiscover = false,
 }: StorefrontProps) {
-  const searchParams = useSearchParams();
-  const q = searchParams.get("q");
-  const category = searchParams.get("category");
-
-  const queryUrl = new URLSearchParams();
-  if (q) queryUrl.set("q", q);
-  if (category) queryUrl.set("tags", category);
-
-  const { data: featuredData, isLoading: isFeaturedLoading } = useSWR<{
-    games: GameApi[];
-  }>(featuredEndpoint, (url) => fetch(url).then((res) => res.json()));
-
-  const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    `${listEndpoint}?${queryUrl.toString()}`,
-    (url) => fetch(url).then((res) => res.json()),
-  );
-
-  const displayGames = data?.games || [];
-  const featuredGames = featuredData?.games || [];
+  const {
+    featured: featuredGames,
+    isFeaturedLoading,
+    games: displayGames,
+    isLoading,
+    q,
+    activeCategory: category,
+    categories,
+    itemHref,
+    browseHref,
+    searchAction,
+  } = useStorefrontController({
+    featuredEndpoint,
+    listEndpoint,
+    browsePath,
+    searchPagePath,
+    storeSlug,
+  });
 
   return (
     <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
@@ -288,7 +280,7 @@ export function Storefront({
             ) : (
               <HeroBento
                 featured={featuredGames.slice(0, 3)}
-                storeSlug={storeSlug}
+                itemHref={itemHref}
               />
             )}
           </div>
@@ -312,7 +304,7 @@ export function Storefront({
                 </h1>
 
                 <Form
-                  action={searchPagePath}
+                  action={searchAction}
                   className="relative w-full md:w-80 group"
                 >
                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
@@ -331,7 +323,11 @@ export function Storefront({
                 </Form>
               </div>
 
-              <CategoryPills active={category} browsePath={browsePath} />
+              <CategoryPills
+                active={category}
+                categories={categories}
+                browseHref={browseHref}
+              />
 
               <section className="flex flex-col gap-4 pt-6">
                 {isLoading ? (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
 import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import { itemHref as buildItemHref } from "lib/store-context";
 import type { GameApi } from "components/store/types";
 
 // Re-exported for the importers that still reach for the type through this
@@ -19,9 +20,7 @@ export function GameListItem({
   const isDiscounted = !isDemo && formatBasePrice(game) !== null;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
-  const itemHref = storeSlug
-    ? `/item/${game.slug}?store=${encodeURIComponent(storeSlug)}`
-    : `/item/${game.slug}`;
+  const itemHref = buildItemHref(game.slug, storeSlug);
 
   return (
     <Link
