@@ -44,6 +44,14 @@ export function DefaultStorefront({
       <Head>
         <title>{pageTitle}</title>
         <meta name="description" content={metaDescription} />
+        {/* Now that the outlet is resolved server-side these reach a crawler,
+            which they could not when the page was a client-side spinner. */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={metaDescription} />
+        {store?.logo_url && (
+          <meta property="og:image" content={store.logo_url} />
+        )}
         <meta name="theme-color" content="#1D0F3B" />
         <meta
           name="viewport"
