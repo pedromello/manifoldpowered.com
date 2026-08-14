@@ -1,195 +1,6 @@
-import Head from "next/head";
-import Link from "next/link";
-import Form from "next/form";
-import { Search } from "lucide-react";
-
-// --- Components ---
-import { DiscountBadge } from "components/store/DiscountBadge";
-import { SectionDivider } from "components/store/SectionDivider";
-import { discountBadgeColor } from "components/store/constants";
-import { GameListItem } from "components/store/GameListItem";
-import { type GameApi } from "components/store/types";
-import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 import { useStorefrontController } from "components/storefront/useStorefrontController";
-import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
-
-function HeroBento({
-  featured,
-  itemHref,
-}: {
-  featured: GameApi[];
-  itemHref: (slug: string) => string;
-}) {
-  if (!featured || featured.length < 3) return null;
-  const [main, side1, side2] = featured;
-
-  // Kept as a local alias so the many call sites below read the same as before.
-  const isDemo = (item: PricedItem) => isFree(item);
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
-
-  return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
-      {/* Main Massive Tile */}
-      <Link
-        href={itemHref(main.slug)}
-        className="md:col-span-2 md:row-span-2 rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-2xl"
-      >
-        {/* Background Layer */}
-        <div
-          className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
-          style={{
-            background: main.media?.banner
-              ? `url(${main.media.banner}) center/cover no-repeat`
-              : defaultGradient,
-          }}
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/90 via-[#1D0F3B]/20 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
-
-        {!isDemo(main) &&
-          formatBasePrice(main) !== null &&
-          main.discount_label && (
-            <div className="absolute top-5 right-5 z-10 md:top-8 md:right-8 md:scale-120 origin-top-right">
-              <DiscountBadge label={main.discount_label} />
-            </div>
-          )}
-
-        <div className="absolute inset-x-4 bottom-4 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start min-w-0 max-w-full">
-          <span className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
-            Featured Match
-          </span>
-          <h2 className="w-full text-xl md:text-3xl lg:text-5xl font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl truncate">
-            {main.title}
-          </h2>
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-3">
-              <span
-                className={`text-xl md:text-3xl font-black bg-black/60 backdrop-blur-md px-3 py-1 md:px-4 md:py-1.5 rounded-xl shadow-2xl border uppercase ${!isDemo(main) && formatBasePrice(main) !== null ? "" : "text-white border-white/20"}`}
-                style={
-                  !isDemo(main) &&
-                  main.base_price &&
-                  formatBasePrice(main) !== null
-                    ? {
-                        color: discountBadgeColor,
-                        borderColor: discountBadgeColor,
-                      }
-                    : {}
-                }
-              >
-                {isDemo(main) ? "Free Demo" : formatPrice(main)}
-              </span>
-              {!isDemo(main) &&
-                main.base_price &&
-                formatBasePrice(main) !== null && (
-                  <span className="text-sm md:text-lg text-white/40 line-through font-bold">
-                    {formatBasePrice(main)}
-                  </span>
-                )}
-            </div>
-            <div className="flex gap-2 self-end mb-1">
-              {(main.tags || []).slice(0, 3).map((tag) => (
-                <span
-                  key={tag}
-                  className="hidden md:inline-flex px-3 py-1.5 rounded-xl bg-white/5 backdrop-blur-md text-base font-bold border border-white/10 text-white/80"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Link>
-
-      {/* Secondary Vertical Tiles */}
-      {[side1, side2].map((game) => (
-        <Link
-          key={game.id}
-          href={itemHref(game.slug)}
-          className="rounded-[2rem] border border-white/10 overflow-hidden relative group cursor-pointer shadow-xl"
-        >
-          {/* Background Layer */}
-          <div
-            className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110"
-            style={{
-              background: game.media?.banner
-                ? `url(${game.media.banner}) center/cover no-repeat`
-                : defaultGradient,
-            }}
-          />
-
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B]/80 via-[#1D0F3B]/20 to-transparent opacity-80" />
-
-          {!isDemo(game) &&
-            formatBasePrice(game) !== null &&
-            game.discount_label && (
-              <div className="absolute top-5 right-5 z-10">
-                <DiscountBadge label={game.discount_label} />
-              </div>
-            )}
-
-          <div className="absolute inset-x-4 bottom-4 text-white min-w-0 max-w-full">
-            <h3 className="w-full text-xl md:text-3xl font-black leading-tight mb-2 motion-safe:group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md truncate">
-              {game.title}
-            </h3>
-            <div className="flex items-center gap-3">
-              <span
-                className={`text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase ${!isDemo(game) && formatBasePrice(game) !== null ? "" : "text-white border-white/20"}`}
-                style={
-                  !isDemo(game) &&
-                  game.base_price &&
-                  formatBasePrice(game) !== null
-                    ? {
-                        color: discountBadgeColor,
-                        borderColor: discountBadgeColor,
-                      }
-                    : {}
-                }
-              >
-                {isDemo(game) ? "Free Demo" : formatPrice(game)}
-              </span>
-              {!isDemo(game) &&
-                game.base_price &&
-                formatBasePrice(game) !== null && (
-                  <span className="text-sm md:text-base text-white/40 line-through font-bold">
-                    ${game.base_price}
-                  </span>
-                )}
-            </div>
-          </div>
-        </Link>
-      ))}
-    </section>
-  );
-}
-
-function CategoryPills({
-  active,
-  categories,
-  browseHref,
-}: {
-  active: string | null;
-  categories: readonly string[];
-  browseHref: (patch: { category: string | null }) => string;
-}) {
-  return (
-    <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-4 no-scrollbar px-6 md:px-0">
-      {categories.map((cat) => (
-        <Link
-          href={browseHref({ category: cat === "For You" ? null : cat })}
-          key={cat}
-          className={`shrink-0 px-6 py-3.5 md:py-4 md:px-8 rounded-2xl font-bold transition-all duration-300 min-h-[44px] text-sm md:text-lg inline-flex items-center justify-center ${
-            (!active && cat === "For You") || active === cat
-              ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)] motion-safe:transform motion-safe:scale-105"
-              : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
-          }`}
-        >
-          {cat}
-        </Link>
-      ))}
-    </div>
-  );
-}
+import { DefaultStorefront } from "components/storefront/default/DefaultStorefront";
+import type { StoreContext } from "components/storefront/types";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -203,12 +14,19 @@ export type StorefrontProps = {
   pageTitle: string;
   metaDescription: string;
   heading?: string;
-  /** When set, item links carry `?store=` so acquisitions attribute to this store. */
-  storeSlug?: string;
+  /** The outlet being rendered. Absent on the platform-wide storefront. */
+  store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
   showDiscover?: boolean;
 };
 
+/**
+ * Wires the storefront controller to the default view.
+ *
+ * Kept as a named component rather than folded into the pages because both
+ * `/store` and `/store/[slug]` need the same wiring, and because a bespoke
+ * outlet theme replaces only the view half — the controller call stays.
+ */
 export function Storefront({
   featuredEndpoint,
   listEndpoint,
@@ -216,153 +34,26 @@ export function Storefront({
   searchPagePath,
   pageTitle,
   metaDescription,
-  heading = "Just Arrived at Manifold",
-  storeSlug,
+  heading,
+  store = null,
   showDiscover = false,
 }: StorefrontProps) {
-  const {
-    featured: featuredGames,
-    isFeaturedLoading,
-    games: displayGames,
-    isLoading,
-    q,
-    activeCategory: category,
-    categories,
-    itemHref,
-    browseHref,
-    searchAction,
-  } = useStorefrontController({
+  const controller = useStorefrontController({
     featuredEndpoint,
     listEndpoint,
     browsePath,
     searchPagePath,
-    storeSlug,
+    storeSlug: store?.slug,
   });
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
-      <Head>
-        <title>{pageTitle}</title>
-        <meta name="description" content={metaDescription} />
-        <meta name="theme-color" content="#1D0F3B" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-      </Head>
-
-      <style jsx global>{`
-        html,
-        body {
-          background-color: #1d0f3b !important;
-        }
-      `}</style>
-
-      <main className="w-full flex flex-col items-center">
-        {/* Banner Section with high-contrast background */}
-        <section
-          className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] pb-12 overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(165,180,252,0.05) 0%, rgba(53,34,89,0.2) 60%, transparent 100%)",
-          }}
-        >
-          <div className="px-6 md:px-10 w-full flex justify-center">
-            {isFeaturedLoading ? (
-              <div className="flex h-64 items-center justify-center w-full max-w-7xl">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-              </div>
-            ) : (
-              <HeroBento
-                featured={featuredGames.slice(0, 3)}
-                itemHref={itemHref}
-              />
-            )}
-          </div>
-        </section>
-
-        <SectionDivider />
-
-        {/* Content Section */}
-        <div
-          className="w-full py-12 md:py-24"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(165, 180, 252, 0.16) 0%, rgba(53,34,89,0.2) 30%, #1D0F3B 100%)",
-          }}
-        >
-          <div className="max-w-7xl mx-auto flex flex-col gap-8 px-1 md:px-10">
-            <div className="flex flex-col">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-5 mb-6">
-                <h1 className="text-4xl font-black md:text-6xl text-white drop-shadow-sm max-w-[20ch]">
-                  {heading}
-                </h1>
-
-                <Form
-                  action={searchAction}
-                  className="relative w-full md:w-80 group"
-                >
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
-                    <Search size={20} />
-                  </div>
-                  <input
-                    type="text"
-                    name="q"
-                    defaultValue={q || ""}
-                    placeholder="Search games..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-base md:text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner"
-                  />
-                  {category && (
-                    <input type="hidden" name="category" value={category} />
-                  )}
-                </Form>
-              </div>
-
-              <CategoryPills
-                active={category}
-                categories={categories}
-                browseHref={browseHref}
-              />
-
-              <section className="flex flex-col gap-4 pt-6">
-                {isLoading ? (
-                  <div className="py-20 flex justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white/20"></div>
-                  </div>
-                ) : displayGames.length > 0 ? (
-                  displayGames.map((game) => (
-                    <GameListItem
-                      key={game.id}
-                      game={game}
-                      storeSlug={storeSlug}
-                    />
-                  ))
-                ) : (
-                  <div className="py-20 text-center text-white/20 font-black italic text-4xl uppercase tracking-tighter">
-                    Empty Archives
-                  </div>
-                )}
-              </section>
-            </div>
-          </div>
-        </div>
-        {showDiscover && <DiscoverOutlets />}
-      </main>
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
-    </div>
+    <DefaultStorefront
+      {...controller}
+      store={store}
+      heading={heading}
+      showDiscover={showDiscover}
+      pageTitle={pageTitle}
+      metaDescription={metaDescription}
+    />
   );
 }

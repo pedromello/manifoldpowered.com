@@ -82,7 +82,7 @@ export default function StorePage() {
           `Explore ${store.name}'s curated catalog on Manifold.`
         }
         heading={store.name}
-        storeSlug={store.slug}
+        store={store}
       />
 
       {currentUser?.id === store.owner_id && (
