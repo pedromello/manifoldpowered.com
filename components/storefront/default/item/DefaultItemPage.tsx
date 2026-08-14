@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Head from "next/head";
 
 import { SectionDivider } from "components/store/SectionDivider";
 import { GameHero } from "components/storefront/default/item/GameHero";
@@ -41,20 +40,7 @@ export function DefaultItemPage({
   const isDemo = true;
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
-      <Head>
-        <title>{game.title} | Manifold Outlets</title>
-        <meta name="description" content={game.description} />
-        <meta name="theme-color" content="#1D0F3B" />
-      </Head>
-
-      <style jsx global>{`
-        html,
-        body {
-          background-color: #1d0f3b !important;
-        }
-      `}</style>
-
+    <>
       <main className="w-full pt-[calc(env(safe-area-inset-top)+4.75rem)]">
         <GameHero
           game={game}
@@ -116,6 +102,6 @@ export function DefaultItemPage({
           onDismiss={() => setShowDeleteModal(false)}
         />
       )}
-    </div>
+    </>
   );
 }

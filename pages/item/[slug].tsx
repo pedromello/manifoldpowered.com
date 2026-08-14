@@ -2,8 +2,11 @@ import { GetServerSideProps } from "next";
 
 import webserver from "infra/webserver";
 import { StoreLayout } from "components/store/StoreLayout";
+import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultItemPage } from "components/storefront/default/item/DefaultItemPage";
 import { useItemController } from "components/storefront/useItemController";
+import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
 
@@ -71,6 +74,12 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
     storeSlug: store?.slug,
   });
 
+  // An outlet with a bespoke storefront but no bespoke product page still gets
+  // its palette here, so the click from its catalogue does not jump back to
+  // Manifold's colours mid-journey.
+  const custom = store ? resolveStorefront(store) : null;
+  const ItemView = custom?.ItemPage ?? DefaultItemPage;
+
   return (
     <StoreLayout
       store={
@@ -79,7 +88,14 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
           : undefined
       }
     >
-      <DefaultItemPage {...controller} game={game} store={store} />
+      <StorefrontShell
+        store={store}
+        palette={custom?.palette ?? DEFAULT_PALETTE}
+        title={`${game.title} | Manifold Outlets`}
+        description={game.description}
+      >
+        <ItemView {...controller} game={game} store={store} />
+      </StorefrontShell>
     </StoreLayout>
   );
 }

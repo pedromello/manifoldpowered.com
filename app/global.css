@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/*
+ * Storefront palette tokens.
+ *
+ * Namespaced `sf-` on purpose: the site's default palette is light (the
+ * marketing and auth pages below), while every storefront surface is dark.
+ * Registering these under generic names would let an outlet's palette bleed
+ * into /about and /login.
+ *
+ * `@theme static` rather than plain `@theme` so the custom properties are
+ * always emitted, even for utilities no file references statically. Without it
+ * a runtime override can target a property Tailwind never wrote, and the
+ * override silently does nothing.
+ *
+ * A bespoke outlet redefines these on `:root:root` at render time — see
+ * components/storefront/StorefrontShell.tsx — so anything built from these
+ * utilities recolours with the outlet for free.
+ */
+@theme static {
+  --color-sf-bg: #1d0f3b;
+  --color-sf-surface: rgba(255, 255, 255, 0.05);
+  --color-sf-border: rgba(255, 255, 255, 0.1);
+  --color-sf-fg: #ffffff;
+  --color-sf-muted: rgba(255, 255, 255, 0.6);
+  --color-sf-accent: #ffb400;
+  --color-sf-accent-fg: #000000;
+}
+
 :root {
   --color-black: #000000;
   --color-purple-dark: #352259;

@@ -1,5 +1,8 @@
 import { useStorefrontController } from "components/storefront/useStorefrontController";
+import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultStorefront } from "components/storefront/default/DefaultStorefront";
+import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
 
 export type StorefrontProps = {
@@ -21,11 +24,13 @@ export type StorefrontProps = {
 };
 
 /**
- * Wires the storefront controller to the default view.
+ * Resolves which storefront design an outlet gets, and wires the controller to
+ * it.
  *
- * Kept as a named component rather than folded into the pages because both
- * `/store` and `/store/[slug]` need the same wiring, and because a bespoke
- * outlet theme replaces only the view half — the controller call stays.
+ * The split is the whole point of the design: the controller half is identical
+ * for every outlet — same endpoints, same URL state, same attribution — while
+ * only the view half is swapped. A bespoke outlet therefore cannot lose search,
+ * filtering or sale attribution by forgetting to reimplement them.
  */
 export function Storefront({
   featuredEndpoint,
@@ -46,14 +51,28 @@ export function Storefront({
     storeSlug: store?.slug,
   });
 
+  const custom = store ? resolveStorefront(store) : null;
+
   return (
-    <DefaultStorefront
-      {...controller}
+    <StorefrontShell
       store={store}
-      heading={heading}
-      showDiscover={showDiscover}
-      pageTitle={pageTitle}
-      metaDescription={metaDescription}
-    />
+      palette={custom?.palette ?? DEFAULT_PALETTE}
+      title={pageTitle}
+      description={metaDescription}
+      themeKey={custom && store ? store.slug : "default"}
+      enforceContract={!!store}
+      hasGames={controller.games.length > 0}
+    >
+      {custom && store ? (
+        <custom.Storefront {...controller} store={store} />
+      ) : (
+        <DefaultStorefront
+          {...controller}
+          store={store}
+          heading={heading}
+          showDiscover={showDiscover}
+        />
+      )}
+    </StorefrontShell>
   );
 }

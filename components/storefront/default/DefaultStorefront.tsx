@@ -1,5 +1,3 @@
-import Head from "next/head";
-
 import { SectionDivider } from "components/store/SectionDivider";
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 import { HeroBento } from "components/storefront/default/HeroBento";
@@ -8,10 +6,7 @@ import { StorefrontSearchBox } from "components/storefront/default/StorefrontSea
 import { GameList } from "components/storefront/default/GameList";
 import type { DefaultStorefrontProps } from "components/storefront/types";
 
-export type DefaultStorefrontViewProps = DefaultStorefrontProps & {
-  pageTitle: string;
-  metaDescription: string;
-};
+export type DefaultStorefrontViewProps = DefaultStorefrontProps;
 
 /**
  * Manifold's own storefront design, and the fallback for any outlet without a
@@ -36,41 +31,9 @@ export function DefaultStorefront({
   searchAction,
   heading = "Just Arrived at Manifold",
   showDiscover = false,
-  pageTitle,
-  metaDescription,
 }: DefaultStorefrontViewProps) {
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
-      <Head>
-        <title>{pageTitle}</title>
-        <meta name="description" content={metaDescription} />
-        {/* Now that the outlet is resolved server-side these reach a crawler,
-            which they could not when the page was a client-side spinner. */}
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={metaDescription} />
-        {store?.logo_url && (
-          <meta property="og:image" content={store.logo_url} />
-        )}
-        <meta name="theme-color" content="#1D0F3B" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-      </Head>
-
-      <style jsx global>{`
-        html,
-        body {
-          background-color: #1d0f3b !important;
-        }
-      `}</style>
-
+    <>
       <main className="w-full flex flex-col items-center">
         {/* Banner Section with high-contrast background */}
         <section
@@ -143,6 +106,6 @@ export function DefaultStorefront({
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </>
   );
 }
