@@ -3,6 +3,7 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import activation from "models/activation";
 import authorization from "models/authorization";
+import session from "models/session";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -21,11 +22,22 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const updatedActivation = await activation.markAsUsed(validActivation.id);
 
+  const newSession = await session.create(validatedUser.id);
+  controller.setSessionCookie(res, newSession.token);
+
   const secureOutputValues = authorization.filterOutput(
     validatedUser,
     "read:activation_token",
     updatedActivation,
   );
 
-  return res.status(200).json(secureOutputValues);
+  const secureSessionOutputValues = authorization.filterOutput(
+    validatedUser,
+    "read:session",
+    newSession,
+  );
+
+  return res
+    .status(200)
+    .json({ ...secureOutputValues, session: secureSessionOutputValues });
 }

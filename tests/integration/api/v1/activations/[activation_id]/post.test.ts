@@ -1,8 +1,10 @@
 import orchestrator from "tests/orchestrator";
 import activation from "models/activation";
 import user from "models/user";
+import session from "models/session";
 import { version as uuidVersion } from "uuid";
 import webserver from "infra/webserver";
+import setCookieParser from "set-cookie-parser";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -100,8 +102,37 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         expires_at: activationObj.expires_at,
         created_at: activationObj.created_at,
         updated_at: activationObj.updated_at,
+        session: activationObj.session,
       });
       expect(activationObj.used_at).not.toBeNull();
+
+      // Activating should log the user in automatically: a session is created
+      // and set as a cookie, so they don't have to go request an OTP right after.
+      expect(activationObj.session).toEqual({
+        id: activationObj.session.id,
+        token: activationObj.session.token,
+        user_id: createdUser.id,
+        expires_at: activationObj.session.expires_at,
+        created_at: activationObj.session.created_at,
+        updated_at: activationObj.session.updated_at,
+      });
+
+      const parsedSetCookie = setCookieParser(activateAccountResponse, {
+        map: true,
+      });
+      expect(parsedSetCookie.session_id).toEqual({
+        name: "session_id",
+        value: activationObj.session.token,
+        path: "/",
+        maxAge: session.EXPIRATION_IN_MILLISECONDS / 1000,
+        httpOnly: true,
+        sameSite: "Lax",
+      });
+
+      const foundSession = await session.findOneValidByToken(
+        activationObj.session.token,
+      );
+      expect(foundSession.user_id).toBe(createdUser.id);
 
       expect(uuidVersion(activationObj.id)).toBe(4);
       expect(uuidVersion(activationObj.user_id)).toBe(4);

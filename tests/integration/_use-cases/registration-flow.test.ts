@@ -86,8 +86,10 @@ describe("Use case: Registration Flow (all successful)", () => {
       expires_at: activationObj.expires_at,
       created_at: activationObj.created_at,
       updated_at: activationObj.updated_at,
+      session: activationObj.session,
     });
     expect(activationObj.used_at).not.toBeNull();
+    expect(activationObj.session.user_id).toBe(newUser.id);
 
     const activatedUser = await user.findOneById(newUser.id);
     const newUserWithPassword = await orchestrator.getUserById(newUser.id);
