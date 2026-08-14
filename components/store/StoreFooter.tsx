@@ -6,7 +6,15 @@ import {
   IconCircleCheck,
 } from "@tabler/icons-react";
 
-export function StoreFooter() {
+/**
+ * Manifold's own footer. An outlet with a bespoke theme supplies its own via
+ * the theme's `Shell`, so this stays platform branding rather than growing a
+ * per-outlet configuration surface — the `store` prop only points the logo
+ * back at the outlet the visitor came from.
+ */
+export function StoreFooter({ store }: { store?: { slug: string } }) {
+  const homeHref = store ? `/store/${store.slug}` : "/store";
+
   return (
     <footer className="w-full bg-[#1D0F3B] border-t border-white/5 pt-20 pb-10 overflow-hidden relative">
       {/* Decorative gradient blur */}
@@ -17,7 +25,7 @@ export function StoreFooter() {
           {/* Brand Section */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <Link
-              href="/store"
+              href={homeHref}
               className="flex items-center transition-opacity hover:opacity-80 w-fit"
             >
               <Image

@@ -7,6 +7,7 @@ import { Store, Library, Search } from "lucide-react";
 import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/types";
+import { itemHref } from "lib/store-context";
 import { formatBasePrice, formatPrice } from "lib/price";
 
 export type StoreNavContext = {
@@ -136,7 +137,8 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                       return (
                         <Link
                           key={game.id}
-                          href={`/item/${game.slug}`}
+                          href={itemHref(game.slug, store?.slug)}
+                          data-storefront="game-link"
                           className="flex items-center gap-4 px-4 py-2 transition-colors hover:bg-white/5"
                         >
                           <div
@@ -183,7 +185,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                     })}
                     <div className="px-4 py-2 mt-1 border-t border-white/5">
                       <Link
-                        href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                        href={`${searchResultsHref}?q=${encodeURIComponent(searchQuery)}`}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
                         View all results

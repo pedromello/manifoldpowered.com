@@ -17,7 +17,7 @@ export function StoreLayout({
         We provide the common layout structure here.
       */}
       {children}
-      <StoreFooter />
+      <StoreFooter store={store} />
     </>
   );
 }

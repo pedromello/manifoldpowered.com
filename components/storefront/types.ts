@@ -1,6 +1,12 @@
-import type { GameApi, PaginationApi, StoreApi } from "components/store/types";
+import type {
+  GameApi,
+  GameDetailApi,
+  PaginationApi,
+  StoreApi,
+} from "components/store/types";
+import type { ItemControllerResult } from "components/storefront/useItemController";
 
-export type { GameApi, PaginationApi };
+export type { GameApi, GameDetailApi, PaginationApi };
 
 /**
  * The subset of a store a storefront view is allowed to render. Deliberately
@@ -107,4 +113,17 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
   store: StoreContext | null;
   heading?: string;
   showDiscover?: boolean;
+};
+
+/**
+ * Everything a product-page view receives.
+ *
+ * `store` is nullable here in a way it is not on the storefront contract: a
+ * visitor can reach a game directly, with no outlet attached. A bespoke item
+ * page is only ever rendered when there *is* an outlet, so it can rely on it
+ * being present.
+ */
+export type ItemViewProps = ItemControllerResult & {
+  game: GameDetailApi;
+  store: StoreContext | null;
 };

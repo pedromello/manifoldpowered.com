@@ -36,6 +36,27 @@ export type GameApi = {
 };
 
 /**
+ * A game as the detail endpoint returns it. The list endpoints emit the same
+ * row, but only the product page reads these two JSON columns, so they are
+ * kept off `GameApi` rather than marked optional on every card.
+ */
+export type GameDetailApi = GameApi & {
+  meta_tags: {
+    category?: string;
+    rating?: string;
+    languages?: string[];
+    keywords?: string[];
+    platforms?: string[];
+  };
+  social_links: {
+    website?: string;
+    twitter?: string;
+    discord?: string;
+    steam_page?: string;
+  };
+};
+
+/**
  * The wire shape of a store as it leaves the
  * `create:store | read:public_store | update:store` branch of `filterOutput`.
  *
