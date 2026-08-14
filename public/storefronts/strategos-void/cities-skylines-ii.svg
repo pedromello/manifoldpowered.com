@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg8" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg8" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg8)"/>
+<path d="M -40,59.6 L 0,58.1 L 40,61.6 L 80,69.4 L 120,80.1 L 160,91.5 L 200,101.5 L 240,108.1 L 280,110.0 L 320,106.8 L 360,99.2 L 400,88.7 L 440,77.2 L 480,67.1 L 520,60.2 L 560,58.0 L 600,60.8 L 640,68.2" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,152.6 L 0,163.7 L 40,177.7 L 80,192.0 L 120,203.8 L 160,210.7 L 200,211.5 L 240,206.0 L 280,195.2 L 320,181.3 L 360,166.9 L 400,154.9 L 440,147.5 L 480,146.3 L 520,151.4 L 560,161.9 L 600,175.7 L 640,190.2" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,275.3 L 0,282.9 L 40,288.8 L 80,291.8 L 120,291.3 L 160,287.5 L 200,281.1 L 240,273.2 L 280,265.6 L 320,259.6 L 360,256.3 L 400,256.6 L 440,260.2 L 480,266.4 L 520,274.2 L 560,281.9 L 600,288.1 L 640,291.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,391.0 L 0,394.0 L 40,392.1 L 80,385.8 L 120,376.2 L 160,365.2 L 200,354.9 L 240,347.4 L 280,344.1 L 320,345.6 L 360,351.7 L 400,361.1 L 440,372.1 L 480,382.4 L 520,390.2 L 560,393.8 L 600,392.7 L 640,386.9" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,492.1 L 0,482.7 L 40,469.7 L 80,455.6 L 120,443.2 L 160,434.8 L 200,432.0 L 240,435.5 L 280,444.5 L 320,457.3 L 360,471.4 L 400,484.1 L 440,492.8 L 480,496.0 L 520,492.9 L 560,484.3 L 600,471.6 L 640,457.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,561.7 L 0,544.7 L 40,530.5 L 80,521.8 L 120,520.4 L 160,526.4 L 200,538.8 L 240,555.1 L 280,572.2 L 320,586.7 L 360,595.8 L 400,597.8 L 440,592.2 L 480,580.2 L 520,564.1 L 560,546.9 L 600,532.2 L 640,522.6" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,634.7 L 0,630.5 L 40,630.7 L 80,635.5 L 120,643.9 L 160,654.3 L 200,664.6 L 240,672.8 L 280,677.4 L 320,677.4 L 360,672.9 L 400,664.7 L 440,654.5 L 480,644.1 L 520,635.7 L 560,630.8 L 600,630.4 L 640,634.6" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg8)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
+  
+<rect x="-52" y="-10" width="16" height="55" fill="none" stroke="#e04444" stroke-width="3"/>
+<rect x="-30" y="-30" width="18" height="75" fill="none" stroke="#e04444" stroke-width="3"/>
+<rect x="-6" y="-45" width="20" height="90" fill="none" stroke="#e04444" stroke-width="3"/>
+<rect x="20" y="-22" width="16" height="67" fill="none" stroke="#e04444" stroke-width="3"/>
+<rect x="40" y="-5" width="14" height="50" fill="none" stroke="#e04444" stroke-width="3"/>
+<line x1="-58" y1="45" x2="58" y2="45" stroke="#e04444" stroke-width="3"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Cities:</text><text x="300" y="748" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Skylines II</text>
+<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">CITY BUILDER • URBANISMO</text>
+</svg>

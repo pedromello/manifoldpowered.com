@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg9" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg9" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg9)"/>
+<path d="M -40,70.8 L 0,76.1 L 40,85.5 L 80,97.2 L 120,108.7 L 160,118.1 L 200,123.3 L 240,123.4 L 280,118.4 L 320,109.2 L 360,97.7 L 400,86.0 L 440,76.5 L 480,70.9 L 520,70.4 L 560,75.1 L 600,84.1 L 640,95.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,181.1 L 0,196.0 L 40,210.1 L 80,220.7 L 120,225.8 L 160,224.2 L 200,216.5 L 240,203.9 L 280,189.1 L 320,174.8 L 360,163.9 L 400,158.4 L 440,159.5 L 480,166.8 L 520,179.1 L 560,193.9 L 600,208.3 L 640,219.6" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,298.8 L 0,304.1 L 40,306.0 L 80,304.2 L 120,299.1 L 160,291.6 L 200,283.3 L 240,275.6 L 280,270.2 L 320,268.0 L 360,269.5 L 400,274.4 L 440,281.8 L 480,290.2 L 520,297.9 L 560,303.5 L 600,306.0 L 640,304.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,407.9 L 0,404.2 L 40,396.3 L 80,385.5 L 120,374.1 L 160,364.2 L 200,357.8 L 240,356.1 L 280,359.4 L 320,367.1 L 360,377.7 L 400,389.1 L 440,399.2 L 480,405.9 L 520,408.0 L 560,405.0 L 600,397.6 L 640,387.1" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,491.9 L 0,477.8 L 40,463.6 L 80,451.9 L 120,445.1 L 160,444.5 L 200,450.3 L 240,461.2 L 280,475.2 L 320,489.5 L 360,501.4 L 400,508.6 L 440,509.6 L 480,504.3 L 520,493.7 L 560,479.8 L 600,465.4 L 640,453.3" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,562.9 L 0,557.1 L 40,554.2 L 80,554.8 L 120,558.7 L 160,565.2 L 200,573.0 L 240,580.6 L 280,586.6 L 320,589.7 L 360,589.4 L 400,585.7 L 440,579.3 L 480,571.5 L 520,563.9 L 560,557.7 L 600,554.4 L 640,554.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,642.0 L 0,644.0 L 40,650.5 L 80,660.2 L 120,671.2 L 160,681.4 L 200,688.8 L 240,691.9 L 280,690.3 L 320,684.1 L 360,674.6 L 400,663.6 L 440,653.3 L 480,645.6 L 520,642.1 L 560,643.5 L 600,649.4 L 640,658.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg9)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
+  
+<path d="M -18,50 L -18,-10 L -30,-10 L 0,-58 L 30,-10 L 18,-10 L 18,50 Z" fill="none" stroke="#e04444" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="0" cy="-40" r="5" fill="#e04444"/>
+<line x1="-18" y1="10" x2="18" y2="10" stroke="#e04444" stroke-width="2" opacity="0.7"/>
+<line x1="-18" y1="28" x2="18" y2="28" stroke="#e04444" stroke-width="2" opacity="0.7"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Age of Wonders 4</text>
+<text x="300" y="750" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">4X • FANTASIA</text>
+</svg>

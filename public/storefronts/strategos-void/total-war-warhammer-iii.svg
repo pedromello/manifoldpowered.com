@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg6" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg6" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg6)"/>
+<path d="M -40,97.7 L 0,87.4 L 40,79.2 L 80,74.6 L 120,74.6 L 160,79.1 L 200,87.3 L 240,97.6 L 280,108.0 L 320,116.4 L 360,121.2 L 400,121.6 L 440,117.3 L 480,109.3 L 520,99.1 L 560,88.7 L 600,80.1 L 640,75.0" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,166.7 L 0,162.2 L 40,163.7 L 80,170.9 L 120,182.4 L 160,195.9 L 200,208.9 L 240,218.8 L 280,223.7 L 320,222.6 L 360,215.8 L 400,204.5 L 440,191.0 L 480,177.9 L 520,167.7 L 560,162.5 L 600,163.1 L 640,169.6" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,253.7 L 0,264.0 L 40,279.0 L 80,295.8 L 120,311.0 L 160,321.8 L 200,326.0 L 240,322.8 L 280,312.9 L 320,298.1 L 360,281.4 L 400,265.9 L 440,254.8 L 480,250.1 L 520,252.7 L 560,262.3 L 600,276.8 L 640,293.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,380.1 L 0,390.2 L 40,398.9 L 80,404.5 L 120,405.9 L 160,402.9 L 200,396.0 L 240,386.6 L 280,376.5 L 320,367.6 L 360,361.8 L 400,360.0 L 440,362.7 L 480,369.4 L 520,378.7 L 560,388.8 L 600,397.8 L 640,403.9" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,501.0 L 0,507.0 L 40,507.5 L 80,502.2 L 120,492.2 L 160,479.4 L 200,466.4 L 240,455.6 L 280,449.2 L 320,448.4 L 360,453.3 L 400,463.0 L 440,475.7 L 480,488.8 L 520,499.8 L 560,506.5 L 600,507.7 L 640,503.2" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,608.3 L 0,600.2 L 40,586.7 L 80,570.6 L 120,555.0 L 160,542.8 L 200,536.6 L 240,537.4 L 280,545.1 L 320,558.2 L 360,574.2 L 400,590.0 L 440,602.5 L 480,609.2 L 520,608.9 L 560,601.7 L 600,588.8 L 640,572.9" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,673.9 L 0,664.2 L 40,655.2 L 80,648.8 L 120,646.0 L 160,647.6 L 200,653.1 L 240,661.5 L 280,671.2 L 320,680.2 L 360,686.9 L 400,689.9 L 440,688.7 L 480,683.4 L 520,675.1 L 560,665.5 L 600,656.3 L 640,649.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg6)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
+  
+<rect x="-14" y="-50" width="28" height="34" fill="none" stroke="#e04444" stroke-width="4"/>
+<line x1="0" y1="-16" x2="0" y2="55" stroke="#e04444" stroke-width="6"/>
+<path d="M -14,-50 L -30,-58 L -30,-38 Z" fill="#e04444"/>
+<path d="M 14,-50 L 30,-58 L 30,-38 Z" fill="#e04444"/>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Total War:</text><text x="300" y="748" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Warhammer III</text>
+<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">TATICO • FANTASIA</text>
+</svg>

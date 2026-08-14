@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+<defs>
+  <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1c2632"/>
+    <stop offset="55%" stop-color="#141b26"/>
+    <stop offset="100%" stop-color="#0a0d12"/>
+  </linearGradient>
+  <radialGradient id="vg1" cx="50%" cy="38%" r="65%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+</defs>
+<rect width="600" height="800" fill="url(#bg1)"/>
+<path d="M -40,75.9 L 0,83.7 L 40,89.4 L 80,91.9 L 120,90.8 L 160,86.1 L 200,79.0 L 240,70.6 L 280,62.8 L 320,56.9 L 360,54.1 L 400,55.0 L 440,59.4 L 480,66.5 L 520,74.8 L 560,82.8 L 600,88.8 L 640,91.8" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,191.8 L 0,194.0 L 40,191.1 L 80,183.8 L 120,173.4 L 160,161.9 L 200,151.6 L 240,144.5 L 280,142.0 L 320,144.5 L 360,151.6 L 400,161.9 L 440,173.3 L 480,183.7 L 520,191.1 L 560,194.0 L 600,191.8 L 640,185.0" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,290.5 L 0,280.0 L 40,266.2 L 80,251.8 L 120,239.5 L 160,231.8 L 200,230.2 L 240,234.9 L 280,245.1 L 320,258.8 L 360,273.3 L 400,285.8 L 440,293.8 L 480,295.9 L 520,291.6 L 560,281.7 L 600,268.2 L 640,253.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,357.7 L 0,350.0 L 40,343.9 L 80,340.4 L 120,340.4 L 160,343.8 L 200,350.0 L 240,357.7 L 280,365.5 L 320,371.8 L 360,375.4 L 400,375.7 L 440,372.5 L 480,366.5 L 520,358.8 L 560,351.0 L 600,344.6 L 640,340.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,431.8 L 0,428.2 L 40,429.4 L 80,435.2 L 120,444.4 L 160,455.4 L 200,465.8 L 240,473.8 L 280,477.7 L 320,476.9 L 360,471.4 L 400,462.3 L 440,451.4 L 480,440.8 L 520,432.6 L 560,428.4 L 600,428.9 L 640,434.1" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,519.1 L 0,527.8 L 40,540.4 L 80,554.5 L 120,567.4 L 160,576.4 L 200,580.0 L 240,577.3 L 280,568.9 L 320,556.5 L 360,542.4 L 400,529.4 L 440,520.0 L 480,516.1 L 520,518.3 L 560,526.3 L 600,538.6 L 640,552.6" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,638.0 L 0,655.2 L 40,669.9 L 80,679.4 L 120,681.9 L 160,676.8 L 200,665.1 L 240,649.1 L 280,632.0 L 320,617.0 L 360,607.0 L 400,604.0 L 440,608.7 L 480,619.9 L 520,635.7 L 560,652.9 L 600,668.1 L 640,678.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<rect width="600" height="800" fill="url(#vg1)"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
+<g transform="translate(300,260)">
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
+  
+<circle r="34" fill="none" stroke="#e04444" stroke-width="3.5"/>
+<circle r="8" fill="none" stroke="#e04444" stroke-width="3"/>
+<g stroke="#e04444" stroke-width="4">
+<line x1="0" y1="-34" x2="0" y2="-48"/>
+<line x1="0" y1="34" x2="0" y2="48"/>
+<line x1="-34" y1="0" x2="-48" y2="0"/>
+<line x1="34" y1="0" x2="48" y2="0"/>
+<line x1="24" y1="-24" x2="34" y2="-34"/>
+<line x1="-24" y1="-24" x2="-34" y2="-34"/>
+<line x1="24" y1="24" x2="34" y2="34"/>
+<line x1="-24" y1="24" x2="-34" y2="34"/>
+</g>
+
+</g>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
+<text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Victoria 3</text>
+<text x="300" y="750" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">GRAND STRATEGY • ECONOMIA</text>
+</svg>
