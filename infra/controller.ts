@@ -40,6 +40,9 @@ const onErrorHandler = (
     error instanceof ForbiddenError ||
     error instanceof ServiceError
   ) {
+    if (error instanceof ServiceError) {
+      logServerError(error, req);
+    }
     return res.status(error.statusCode).json(error);
   }
 
@@ -51,8 +54,35 @@ const onErrorHandler = (
   const publicErrorObject = new InternalServerError({
     cause: error,
   });
+  logServerError(publicErrorObject, req);
   res.status(publicErrorObject.statusCode).json(publicErrorObject);
 };
+
+function logServerError(
+  error: Error & {
+    statusCode?: number;
+    action?: string;
+    context?: unknown;
+  },
+  req: NextApiRequest,
+) {
+  const cause = error.cause;
+  console.error(
+    JSON.stringify({
+      method: req.method,
+      path: req.url,
+      name: error.name,
+      status_code: error.statusCode,
+      message: error.message,
+      action: error.action,
+      context: error.context,
+      cause:
+        cause instanceof Error
+          ? { name: cause.name, message: cause.message, stack: cause.stack }
+          : cause,
+    }),
+  );
+}
 
 function setSessionCookie(res: NextApiResponse, token: string) {
   const setCookie = cookie.serialize("session_id", token, {
