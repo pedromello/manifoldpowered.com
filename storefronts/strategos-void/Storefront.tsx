@@ -22,6 +22,10 @@ const SOCIAL_LINKS = {
 const CURATOR_QUOTE =
   "Eu não jogo pra vencer rápido — jogo pra reescrever a história e ver o mapa dobrar ao meu comando.";
 
+// Internal curation plumbing (see storefronts/registry.ts's tag filter), never
+// meant to be shown to a visitor as a filter option.
+const CURATION_TAG = "strategos-void-pick";
+
 function GameCard({
   game,
   href,
@@ -63,13 +67,21 @@ export function StrategosVoidStorefront({
   games,
   isLoading,
   q,
-  activeCategory,
-  categories,
+  tags,
   itemHref,
   browseHref,
   searchAction,
 }: StorefrontViewProps) {
   const heroGame = featured[0] ?? games[0] ?? null;
+
+  // Filter pills are built from the tags actually present on this outlet's
+  // curated games, not a fixed category list — a store of ten grand-strategy
+  // titles has no use for "Horror" or "Racing".
+  const availableTags = Array.from(
+    new Set(games.flatMap((game) => game.tags || [])),
+  )
+    .filter((tag) => tag.toLowerCase() !== CURATION_TAG)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   return (
     <main className="w-full pt-[calc(env(safe-area-inset-top)+6rem)]">
@@ -143,33 +155,50 @@ export function StrategosVoidStorefront({
               placeholder="Buscar na seleção..."
               className="w-full border border-sf-border bg-sf-surface px-5 py-3 text-sf-fg placeholder:text-sf-muted outline-none focus:border-sf-accent"
             />
-            {activeCategory && (
-              <input type="hidden" name="category" value={activeCategory} />
-            )}
+            {tags.map((tag) => (
+              <input key={tag} type="hidden" name="tags" value={tag} />
+            ))}
           </Form>
         </div>
 
         <nav data-storefront="filters" className="mb-10 flex flex-wrap gap-3">
-          {categories.map((category) => {
-            const isActive =
-              activeCategory === category ||
-              (!activeCategory && category === "For You");
-            return (
+          {availableTags.length > 0 ? (
+            <>
               <Link
-                key={category}
-                href={browseHref({
-                  category: category === "For You" ? null : category,
-                })}
+                href={browseHref({ tags: [], page: 1 })}
                 className={`border px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
-                  isActive
+                  tags.length === 0
                     ? "border-sf-accent bg-sf-accent text-sf-accent-fg"
                     : "border-sf-border text-sf-muted hover:border-sf-accent hover:text-sf-accent"
                 }`}
               >
-                {category}
+                Todos
               </Link>
-            );
-          })}
+              {availableTags.map((tag) => {
+                const isActive = tags.includes(tag);
+                const nextTags = isActive
+                  ? tags.filter((t) => t !== tag)
+                  : [...tags, tag];
+                return (
+                  <Link
+                    key={tag}
+                    href={browseHref({ tags: nextTags, page: 1 })}
+                    className={`border px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
+                      isActive
+                        ? "border-sf-accent bg-sf-accent text-sf-accent-fg"
+                        : "border-sf-border text-sf-muted hover:border-sf-accent hover:text-sf-accent"
+                    }`}
+                  >
+                    {tag}
+                  </Link>
+                );
+              })}
+            </>
+          ) : (
+            <span className="text-xs uppercase tracking-widest text-sf-muted">
+              Sem tags para filtrar ainda.
+            </span>
+          )}
         </nav>
 
         {heroGame && (
