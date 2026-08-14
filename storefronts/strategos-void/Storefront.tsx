@@ -79,9 +79,9 @@ export function StrategosVoidStorefront({
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <img
-                src="/storefronts/strategos-void/mark.svg"
+                src="/storefronts/strategos-void/logo.jpg"
                 alt=""
-                className="h-16 w-16 shrink-0 md:h-20 md:w-20"
+                className="h-16 w-16 shrink-0 rounded-full border-2 border-sf-accent object-cover md:h-20 md:w-20"
               />
               <div>
                 <h1 className="text-3xl font-black uppercase tracking-[0.15em] text-sf-fg md:text-5xl">
@@ -229,9 +229,9 @@ export function StrategosVoidStorefront({
       <section className="border-t border-sf-border">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-16 text-center md:px-10 md:py-24">
           <img
-            src="/storefronts/strategos-void/mark.svg"
-            alt=""
-            className="h-24 w-24 md:h-28 md:w-28"
+            src="/storefronts/strategos-void/logo.jpg"
+            alt="Strategos Void"
+            className="h-24 w-24 rounded-full border-2 border-sf-accent object-cover md:h-28 md:w-28"
           />
           <span className="text-xs uppercase tracking-[0.4em] text-sf-accent">
             Sobre o curador

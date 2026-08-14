@@ -11,30 +11,30 @@
   </radialGradient>
 </defs>
 <rect width="600" height="800" fill="url(#bg2)"/>
-<path d="M -40,99.7 L 0,104.6 L 40,105.9 L 80,103.4 L 120,97.4 L 160,89.3 L 200,80.5 L 240,72.7 L 280,67.6 L 320,66.0 L 360,68.3 L 400,74.1 L 440,82.1 L 480,91.0 L 520,98.8 L 560,104.2 L 600,106.0 L 640,103.9" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,207.5 L 0,202.8 L 40,193.9 L 80,182.4 L 120,170.7 L 160,161.0 L 200,155.1 L 240,154.3 L 280,158.7 L 320,167.4 L 360,178.8 L 400,190.5 L 440,200.5 L 480,206.6 L 520,207.8 L 560,203.8 L 600,195.3 L 640,184.1" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,288.8 L 0,274.0 L 40,259.6 L 80,248.4 L 120,242.5 L 160,243.2 L 200,250.2 L 240,262.2 L 280,276.9 L 320,291.5 L 360,303.0 L 400,309.3 L 440,309.1 L 480,302.5 L 520,290.7 L 560,276.1 L 600,261.5 L 640,249.7" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,360.1 L 0,354.4 L 40,352.0 L 80,353.3 L 120,358.1 L 160,365.3 L 200,373.6 L 240,381.5 L 280,387.3 L 320,389.9 L 360,388.9 L 400,384.4 L 440,377.3 L 480,368.9 L 520,361.0 L 560,355.0 L 600,352.2 L 640,352.9" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,440.0 L 0,443.0 L 40,450.5 L 80,461.0 L 120,472.4 L 160,482.6 L 200,489.6 L 240,492.0 L 280,489.3 L 320,482.1 L 360,471.8 L 400,460.3 L 440,450.0 L 480,442.7 L 520,440.0 L 560,442.3 L 600,449.3 L 640,459.4" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,544.4 L 0,558.3 L 40,572.7 L 80,584.8 L 120,592.3 L 160,593.7 L 200,588.8 L 240,578.5 L 280,564.7 L 320,550.3 L 360,537.9 L 400,530.0 L 440,528.1 L 480,532.7 L 520,542.7 L 560,556.3 L 600,570.8 L 640,583.4" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,664.2 L 0,670.3 L 40,673.6 L 80,673.5 L 120,670.0 L 160,663.8 L 200,656.0 L 240,648.3 L 280,642.1 L 320,638.5 L 360,638.4 L 400,641.7 L 440,647.7 L 480,655.4 L 520,663.2 L 560,669.6 L 600,673.3 L 640,673.7" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,99.7 L 0,104.6 L 40,105.9 L 80,103.4 L 120,97.4 L 160,89.3 L 200,80.5 L 240,72.7 L 280,67.6 L 320,66.0 L 360,68.3 L 400,74.1 L 440,82.1 L 480,91.0 L 520,98.8 L 560,104.2 L 600,106.0 L 640,103.9" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,207.5 L 0,202.8 L 40,193.9 L 80,182.4 L 120,170.7 L 160,161.0 L 200,155.1 L 240,154.3 L 280,158.7 L 320,167.4 L 360,178.8 L 400,190.5 L 440,200.5 L 480,206.6 L 520,207.8 L 560,203.8 L 600,195.3 L 640,184.1" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,288.8 L 0,274.0 L 40,259.6 L 80,248.4 L 120,242.5 L 160,243.2 L 200,250.2 L 240,262.2 L 280,276.9 L 320,291.5 L 360,303.0 L 400,309.3 L 440,309.1 L 480,302.5 L 520,290.7 L 560,276.1 L 600,261.5 L 640,249.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,360.1 L 0,354.4 L 40,352.0 L 80,353.3 L 120,358.1 L 160,365.3 L 200,373.6 L 240,381.5 L 280,387.3 L 320,389.9 L 360,388.9 L 400,384.4 L 440,377.3 L 480,368.9 L 520,361.0 L 560,355.0 L 600,352.2 L 640,352.9" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,440.0 L 0,443.0 L 40,450.5 L 80,461.0 L 120,472.4 L 160,482.6 L 200,489.6 L 240,492.0 L 280,489.3 L 320,482.1 L 360,471.8 L 400,460.3 L 440,450.0 L 480,442.7 L 520,440.0 L 560,442.3 L 600,449.3 L 640,459.4" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,544.4 L 0,558.3 L 40,572.7 L 80,584.8 L 120,592.3 L 160,593.7 L 200,588.8 L 240,578.5 L 280,564.7 L 320,550.3 L 360,537.9 L 400,530.0 L 440,528.1 L 480,532.7 L 520,542.7 L 560,556.3 L 600,570.8 L 640,583.4" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,664.2 L 0,670.3 L 40,673.6 L 80,673.5 L 120,670.0 L 160,663.8 L 200,656.0 L 240,648.3 L 280,642.1 L 320,638.5 L 360,638.4 L 400,641.7 L 440,647.7 L 480,655.4 L 520,663.2 L 560,669.6 L 600,673.3 L 640,673.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
 <rect width="600" height="800" fill="url(#vg2)"/>
-<rect x="18" y="18" width="564" height="764" fill="none" stroke="#c9a864" stroke-width="2" opacity="0.55"/>
-<rect x="26" y="26" width="548" height="748" fill="none" stroke="#c9a864" stroke-width="1" opacity="0.3"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
 <g transform="translate(300,260)">
-  <circle r="120" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.5"/>
-  <circle r="104" fill="#0a0d12" stroke="#c9a864" stroke-width="1" opacity="0.9"/>
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
   
-<circle r="46" fill="none" stroke="#c9a864" stroke-width="3"/>
-<ellipse cx="0" cy="0" rx="46" ry="18" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.7"/>
-<ellipse cx="0" cy="0" rx="18" ry="46" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.7"/>
-<line x1="-46" y1="0" x2="46" y2="0" stroke="#c9a864" stroke-width="1.5" opacity="0.7"/>
-<path d="M 55,-60 L 15,-20" stroke="#c9a864" stroke-width="4" stroke-linecap="round"/>
-<path d="M 55,-60 L 66,-49 L 26,-9 L 15,-20 Z" fill="#c9a864"/>
+<circle r="46" fill="none" stroke="#e04444" stroke-width="3"/>
+<ellipse cx="0" cy="0" rx="46" ry="18" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.7"/>
+<ellipse cx="0" cy="0" rx="18" ry="46" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.7"/>
+<line x1="-46" y1="0" x2="46" y2="0" stroke="#e04444" stroke-width="1.5" opacity="0.7"/>
+<path d="M 55,-60 L 15,-20" stroke="#e04444" stroke-width="4" stroke-linecap="round"/>
+<path d="M 55,-60 L 66,-49 L 26,-9 L 15,-20 Z" fill="#e04444"/>
 
 </g>
-<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#c9a864" opacity="0.85">STRATEGOS VOID PICK</text>
-<line x1="220" y1="490" x2="380" y2="490" stroke="#c9a864" stroke-width="1" opacity="0.5"/>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
 <text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Europa</text><text x="300" y="748" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Universalis IV</text>
-<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#e6cd93" opacity="0.85">GRAND STRATEGY • IMPERIOS</text>
+<text x="300" y="780" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">GRAND STRATEGY • IMPERIOS</text>
 </svg>

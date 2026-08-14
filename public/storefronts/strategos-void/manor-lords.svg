@@ -11,26 +11,26 @@
   </radialGradient>
 </defs>
 <rect width="600" height="800" fill="url(#bg10)"/>
-<path d="M -40,51.4 L 0,62.2 L 40,74.5 L 80,85.9 L 120,94.3 L 160,97.9 L 200,96.1 L 240,89.3 L 280,78.6 L 320,66.3 L 360,54.8 L 400,46.1 L 440,42.2 L 480,43.6 L 520,50.1 L 560,60.6 L 600,72.8 L 640,84.5" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,174.4 L 0,188.0 L 40,197.1 L 80,200.0 L 120,196.1 L 160,186.1 L 200,172.0 L 240,156.6 L 280,142.8 L 320,133.3 L 360,130.0 L 400,133.5 L 440,143.1 L 480,156.9 L 520,172.3 L 560,186.3 L 600,196.2 L 640,200.0" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,279.1 L 0,279.8 L 40,276.6 L 80,270.2 L 120,261.8 L 160,253.1 L 200,245.7 L 240,241.1 L 280,240.1 L 320,243.1 L 360,249.3 L 400,257.6 L 440,266.3 L 480,273.9 L 520,278.7 L 560,279.9 L 600,277.3 L 640,271.2" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,375.6 L 0,366.1 L 40,354.5 L 80,342.9 L 120,333.7 L 160,328.6 L 200,328.7 L 240,333.9 L 280,343.1 L 320,354.7 L 360,366.3 L 400,375.8 L 440,381.2 L 480,381.5 L 520,376.6 L 560,367.6 L 600,356.1 L 640,344.4" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,445.6 L 0,431.5 L 40,421.0 L 80,416.2 L 120,417.9 L 160,425.9 L 200,438.5 L 240,453.4 L 280,467.6 L 320,478.4 L 360,483.7 L 400,482.4 L 440,474.8 L 480,462.4 L 520,447.6 L 560,433.3 L 600,422.2 L 640,416.5" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,527.8 L 0,526.0 L 40,527.9 L 80,533.1 L 120,540.6 L 160,549.0 L 200,556.6 L 240,561.9 L 280,564.0 L 320,562.4 L 360,557.4 L 400,549.9 L 440,541.6 L 480,533.9 L 520,528.3 L 560,526.0 L 600,527.4 L 640,532.2" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
-<path d="M -40,618.0 L 0,626.0 L 40,636.8 L 80,648.2 L 120,658.0 L 160,664.3 L 200,665.9 L 240,662.4 L 280,654.6 L 320,643.9 L 360,632.5 L 400,622.5 L 440,616.0 L 480,614.0 L 520,617.2 L 560,624.7 L 600,635.3 L 640,646.7" stroke="#c9a864" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,51.4 L 0,62.2 L 40,74.5 L 80,85.9 L 120,94.3 L 160,97.9 L 200,96.1 L 240,89.3 L 280,78.6 L 320,66.3 L 360,54.8 L 400,46.1 L 440,42.2 L 480,43.6 L 520,50.1 L 560,60.6 L 600,72.8 L 640,84.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,174.4 L 0,188.0 L 40,197.1 L 80,200.0 L 120,196.1 L 160,186.1 L 200,172.0 L 240,156.6 L 280,142.8 L 320,133.3 L 360,130.0 L 400,133.5 L 440,143.1 L 480,156.9 L 520,172.3 L 560,186.3 L 600,196.2 L 640,200.0" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,279.1 L 0,279.8 L 40,276.6 L 80,270.2 L 120,261.8 L 160,253.1 L 200,245.7 L 240,241.1 L 280,240.1 L 320,243.1 L 360,249.3 L 400,257.6 L 440,266.3 L 480,273.9 L 520,278.7 L 560,279.9 L 600,277.3 L 640,271.2" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,375.6 L 0,366.1 L 40,354.5 L 80,342.9 L 120,333.7 L 160,328.6 L 200,328.7 L 240,333.9 L 280,343.1 L 320,354.7 L 360,366.3 L 400,375.8 L 440,381.2 L 480,381.5 L 520,376.6 L 560,367.6 L 600,356.1 L 640,344.4" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,445.6 L 0,431.5 L 40,421.0 L 80,416.2 L 120,417.9 L 160,425.9 L 200,438.5 L 240,453.4 L 280,467.6 L 320,478.4 L 360,483.7 L 400,482.4 L 440,474.8 L 480,462.4 L 520,447.6 L 560,433.3 L 600,422.2 L 640,416.5" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,527.8 L 0,526.0 L 40,527.9 L 80,533.1 L 120,540.6 L 160,549.0 L 200,556.6 L 240,561.9 L 280,564.0 L 320,562.4 L 360,557.4 L 400,549.9 L 440,541.6 L 480,533.9 L 520,528.3 L 560,526.0 L 600,527.4 L 640,532.2" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
+<path d="M -40,618.0 L 0,626.0 L 40,636.8 L 80,648.2 L 120,658.0 L 160,664.3 L 200,665.9 L 240,662.4 L 280,654.6 L 320,643.9 L 360,632.5 L 400,622.5 L 440,616.0 L 480,614.0 L 520,617.2 L 560,624.7 L 600,635.3 L 640,646.7" stroke="#e04444" stroke-width="1" fill="none" opacity="0.06"/>
 <rect width="600" height="800" fill="url(#vg10)"/>
-<rect x="18" y="18" width="564" height="764" fill="none" stroke="#c9a864" stroke-width="2" opacity="0.55"/>
-<rect x="26" y="26" width="548" height="748" fill="none" stroke="#c9a864" stroke-width="1" opacity="0.3"/>
+<rect x="18" y="18" width="564" height="764" fill="none" stroke="#e04444" stroke-width="2" opacity="0.55"/>
+<rect x="26" y="26" width="548" height="748" fill="none" stroke="#e04444" stroke-width="1" opacity="0.3"/>
 <g transform="translate(300,260)">
-  <circle r="120" fill="none" stroke="#c9a864" stroke-width="1.5" opacity="0.5"/>
-  <circle r="104" fill="#0a0d12" stroke="#c9a864" stroke-width="1" opacity="0.9"/>
+  <circle r="120" fill="none" stroke="#e04444" stroke-width="1.5" opacity="0.5"/>
+  <circle r="104" fill="#0a0d12" stroke="#e04444" stroke-width="1" opacity="0.9"/>
   
-<path d="M -50,42 L -50,4 L -66,4 L -32,-26 L 2,4 L -14,4 L -14,42 Z" fill="none" stroke="#c9a864" stroke-width="3" opacity="0.9"/>
-<path d="M 4,42 L 4,10 L -8,10 L 22,-16 L 52,10 L 40,10 L 40,42 Z" fill="none" stroke="#c9a864" stroke-width="3.5"/>
+<path d="M -50,42 L -50,4 L -66,4 L -32,-26 L 2,4 L -14,4 L -14,42 Z" fill="none" stroke="#e04444" stroke-width="3" opacity="0.9"/>
+<path d="M 4,42 L 4,10 L -8,10 L 22,-16 L 52,10 L 40,10 L 40,42 Z" fill="none" stroke="#e04444" stroke-width="3.5"/>
 
 </g>
-<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#c9a864" opacity="0.85">STRATEGOS VOID PICK</text>
-<line x1="220" y1="490" x2="380" y2="490" stroke="#c9a864" stroke-width="1" opacity="0.5"/>
+<text x="300" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="13" letter-spacing="6" fill="#e04444" opacity="0.85">STRATEGOS VOID PICK</text>
+<line x1="220" y1="490" x2="380" y2="490" stroke="#e04444" stroke-width="1" opacity="0.5"/>
 <text x="300" y="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#f2ead8" letter-spacing="1">Manor Lords</text>
-<text x="300" y="750" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#e6cd93" opacity="0.85">CITY BUILDER • MEDIEVAL</text>
+<text x="300" y="750" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="3" fill="#f0a3a3" opacity="0.85">CITY BUILDER • MEDIEVAL</text>
 </svg>
