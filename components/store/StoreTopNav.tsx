@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { Store, Library, Search } from "lucide-react";
 import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 import { formatBasePrice, formatPrice } from "lib/price";
 
 export type StoreNavContext = {

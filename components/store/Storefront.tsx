@@ -11,7 +11,8 @@ import { CATEGORIES } from "lib/games";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { SectionDivider } from "components/store/SectionDivider";
 import { discountBadgeColor } from "components/store/constants";
-import { GameListItem, type GameApi } from "components/store/GameListItem";
+import { GameListItem } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ChevronDown, Calendar, Download } from "lucide-react";
 import { DownloadSection, type GameFile } from "./DownloadSection";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 
 export function LibraryGameCard({
   gameItem,

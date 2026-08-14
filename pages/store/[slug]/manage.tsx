@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 import { Loader2, ExternalLink, X, ChevronDown } from "lucide-react";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney } from "lib/price";
 

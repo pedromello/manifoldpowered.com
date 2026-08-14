@@ -1,33 +1,12 @@
 import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
-import { DisplayPrice, formatBasePrice, formatPrice, isFree } from "lib/price";
+import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import type { GameApi } from "components/store/types";
 
-export type GameApi = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  detailed_description: string;
-  launch_date: string;
-  price: string;
-  base_price?: string;
-  display_price?: DisplayPrice | null;
-  discount_label?: string;
-  developer_name: string;
-  publisher_name?: string;
-  tags: string[];
-  media: {
-    banner?: string;
-    screenshots: string[];
-    icon?: string;
-    videos: string[];
-  };
-  status?: "ACTIVE" | "INACTIVE" | "PRIVATE";
-  positive_reviews?: number;
-  negative_reviews?: number;
-  review_score?: string | null;
-};
+// Re-exported for the importers that still reach for the type through this
+// module. New code should import it from `components/store/types`.
+export type { GameApi };
 
 export function GameListItem({
   game,

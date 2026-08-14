@@ -1,7 +1,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { Search, Loader2 } from "lucide-react";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
