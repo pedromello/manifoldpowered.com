@@ -1,29 +1,16 @@
-import { useRouter } from "next/router";
 import Link from "next/link";
 import useSWR from "swr";
-import { Loader2, Settings } from "lucide-react";
+import { GetServerSideProps } from "next";
+import { Settings } from "lucide-react";
 
+import webserver from "infra/webserver";
 import { StoreLayout } from "components/store/StoreLayout";
 import { Storefront } from "components/store/Storefront";
-
-interface StoreApi {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  logo_url: string | null;
-  owner_id: string;
-}
+import type { StoreApi } from "components/store/types";
 
 interface CurrentUser {
   id: string;
 }
-
-const fetcher = (url: string) =>
-  fetch(url).then((res) => {
-    if (!res.ok) throw new Error("Not found");
-    return res.json();
-  });
 
 const userFetcher = (url: string) =>
   fetch(url).then(async (res) => {
@@ -31,37 +18,53 @@ const userFetcher = (url: string) =>
     return res.json();
   });
 
-export default function StorePage() {
-  const router = useRouter();
-  const slug = router.query.slug as string | undefined;
+/**
+ * Resolved on the server rather than through SWR in the browser.
+ *
+ * Client-fetching the outlet meant a full-screen spinner on every first paint,
+ * a "not found" rendered as a 200, and no title or OG tags for a crawler — an
+ * outlet was effectively invisible to search. It also makes per-outlet theming
+ * possible without a flash, since the theme is known before the first byte.
+ *
+ * The visitor's country header is forwarded because the storefront's prices are
+ * regional (models/region.ts); dropping it here would make a server-rendered
+ * price disagree with the client-fetched list on the same page.
+ */
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { slug } = context.query;
 
-  const {
-    data: store,
-    isLoading,
-    error,
-  } = useSWR<StoreApi>(slug ? `/api/v1/stores/${slug}` : null, fetcher);
+  const headers: HeadersInit = {};
+  if (context.req.headers.cookie) {
+    headers.cookie = context.req.headers.cookie;
+  }
+  const country = context.req.headers["x-vercel-ip-country"];
+  if (typeof country === "string") {
+    headers["x-vercel-ip-country"] = country;
+  }
 
+  try {
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${slug}`,
+      { headers },
+    );
+
+    if (!response.ok) {
+      return { notFound: true };
+    }
+
+    return { props: { store: await response.json() } };
+  } catch (error) {
+    console.error("Error fetching outlet via API:", error);
+    return { notFound: true };
+  }
+};
+
+export default function StorePage({ store }: { store: StoreApi }) {
   const { data: currentUser } = useSWR<CurrentUser>(
     "/api/v1/user",
     userFetcher,
     { shouldRetryOnError: false },
   );
-
-  if (isLoading || !slug) {
-    return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
-        <Loader2 className="animate-spin text-white/30" size={32} />
-      </div>
-    );
-  }
-
-  if (error || !store) {
-    return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
-        <p className="text-rose-300 font-bold">Outlet not found.</p>
-      </div>
-    );
-  }
 
   return (
     <StoreLayout
@@ -82,7 +85,7 @@ export default function StorePage() {
           `Explore ${store.name}'s curated catalog on Manifold.`
         }
         heading={store.name}
-        storeSlug={store.slug}
+        store={store}
       />
 
       {currentUser?.id === store.owner_id && (

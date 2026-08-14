@@ -6,7 +6,7 @@ import { BookMarked, Layers, PackageX, Receipt } from "lucide-react";
 import { StoreLayout } from "components/store/StoreLayout";
 import { SectionDivider } from "components/store/SectionDivider";
 import { LibraryGameCard } from "components/library/LibraryGameCard";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 
 export default function LibraryPage() {
   const {

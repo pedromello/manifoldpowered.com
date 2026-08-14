@@ -1,33 +1,13 @@
 import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
-import { DisplayPrice, formatBasePrice, formatPrice, isFree } from "lib/price";
+import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import { itemHref as buildItemHref } from "lib/store-context";
+import type { GameApi } from "components/store/types";
 
-export type GameApi = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  detailed_description: string;
-  launch_date: string;
-  price: string;
-  base_price?: string;
-  display_price?: DisplayPrice | null;
-  discount_label?: string;
-  developer_name: string;
-  publisher_name?: string;
-  tags: string[];
-  media: {
-    banner?: string;
-    screenshots: string[];
-    icon?: string;
-    videos: string[];
-  };
-  status?: "ACTIVE" | "INACTIVE" | "PRIVATE";
-  positive_reviews?: number;
-  negative_reviews?: number;
-  review_score?: string | null;
-};
+// Re-exported for the importers that still reach for the type through this
+// module. New code should import it from `components/store/types`.
+export type { GameApi };
 
 export function GameListItem({
   game,
@@ -40,13 +20,12 @@ export function GameListItem({
   const isDiscounted = !isDemo && formatBasePrice(game) !== null;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
-  const itemHref = storeSlug
-    ? `/item/${game.slug}?store=${encodeURIComponent(storeSlug)}`
-    : `/item/${game.slug}`;
+  const itemHref = buildItemHref(game.slug, storeSlug);
 
   return (
     <Link
       href={itemHref}
+      data-storefront="game-link"
       className="group block rounded-3xl border border-white/10 bg-white/5 p-0 md:p-4 shadow-sm backdrop-blur transition-all duration-300 hover:shadow-[0_0_30px_rgba(165,180,252,0.1)] hover:border-white/20 motion-safe:hover:-translate-y-1 relative overflow-hidden"
     >
       <div className="flex items-stretch gap-2 md:gap-6">

@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/*
+ * Storefront palette tokens.
+ *
+ * Namespaced `sf-` on purpose: the site's default palette is light (the
+ * marketing and auth pages below), while every storefront surface is dark.
+ * Registering these under generic names would let an outlet's palette bleed
+ * into /about and /login.
+ *
+ * Plain `@theme`, not `@theme static`: Tailwind 4.2.2 silently drops a block
+ * marked `static` — no error, no tokens, no utilities. Verify any change here
+ * by grepping the compiled stylesheet for `--color-sf-bg`, because a dropped
+ * block looks exactly like a working one in the source.
+ *
+ * A bespoke outlet redefines these on `:root:root` at render time — see
+ * components/storefront/StorefrontShell.tsx — so anything built from these
+ * utilities recolours with the outlet for free.
+ */
+@theme {
+  --color-sf-bg: #1d0f3b;
+  --color-sf-surface: rgba(255, 255, 255, 0.05);
+  --color-sf-border: rgba(255, 255, 255, 0.1);
+  --color-sf-fg: #ffffff;
+  --color-sf-muted: rgba(255, 255, 255, 0.6);
+  --color-sf-accent: #ffb400;
+  --color-sf-accent-fg: #000000;
+}
+
 :root {
   --color-black: #000000;
   --color-purple-dark: #352259;
@@ -28,6 +55,66 @@ body {
 html.is-standalone-pwa,
 html.is-standalone-pwa body {
   overscroll-behavior-y: contain;
+}
+
+/*
+ * Studio-authored long-form copy on the product page. Rendered from markdown
+ * with rehypeRaw, so it can contain arbitrary HTML — these rules are what keep
+ * it inside the page's design. Lived in a per-render `<style jsx global>` block
+ * on the item page, which re-emitted the whole sheet on every navigation.
+ */
+.markdown-content img {
+  border-radius: 1.5rem;
+  margin: 2rem 0;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdown-content h3 {
+  font-size: 1.875rem;
+  font-weight: 900;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  color: white;
+}
+
+.markdown-content h4 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.markdown-content p {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1.5rem;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.markdown-content li {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #ffb400;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0 1.5rem 1.5rem 0;
+  font-style: italic;
+  margin: 2.5rem 0;
+}
+
+.markdown-content blockquote p {
+  margin-bottom: 0;
 }
 
 @keyframes float {

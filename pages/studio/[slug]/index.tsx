@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useState } from "react";
 import { Loader2, Building2, Copy, Check, Gamepad2 } from "lucide-react";
 import { ReviewSummary } from "components/store/ReviewSummary";
-import { type GameApi } from "components/store/GameListItem";
+import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney, formatPrice, isFree } from "lib/price";
 
