@@ -18,7 +18,7 @@ Phase 1 is behaviour-preserving refactor; the theming machinery starts at 9. Eve
 
 - [x] **9–11. Palette, shell, guard, registry, authoring kit** — `@theme static` tokens in `app/global.css`; `components/storefront/{palette,StorefrontShell,StorefrontContractGuard}.tsx`; `storefronts/registry.ts` with `resolveStorefront`; `storefronts/_template/`; this doc pair. The three `!important` body-background blocks are retired. _Depends on 4, 6._
 - [x] **12. Item theming seam** — `ItemPage` on the registry entry, wired into `pages/item/[slug].tsx`, so an outlet's palette survives the click even when it has no bespoke product page. _Depends on 7, 9._
-- [ ] **13. First real custom outlet** — the pilot. The PR must be exactly one directory plus one registry line; if it is not, the seam needs another pass before outlet #2.
+- [x] **13. First real custom outlet** — Neon Alley. Landed as one directory plus one registry line, as required. Building it surfaced two defects in the shared layer, both fixed in the same change: `StoreTopNav`/`StoreFooter` hardcoded `#1D0F3B` so the chrome did not follow the outlet, and `@theme static` is silently dropped by Tailwind 4.2.2 so no `sf-` utility was ever generated.
 
 ## Explicitly deferred — do not build yet
 
