@@ -8,16 +8,16 @@
  * Registering these under generic names would let an outlet's palette bleed
  * into /about and /login.
  *
- * `@theme static` rather than plain `@theme` so the custom properties are
- * always emitted, even for utilities no file references statically. Without it
- * a runtime override can target a property Tailwind never wrote, and the
- * override silently does nothing.
+ * Plain `@theme`, not `@theme static`: Tailwind 4.2.2 silently drops a block
+ * marked `static` — no error, no tokens, no utilities. Verify any change here
+ * by grepping the compiled stylesheet for `--color-sf-bg`, because a dropped
+ * block looks exactly like a working one in the source.
  *
  * A bespoke outlet redefines these on `:root:root` at render time — see
  * components/storefront/StorefrontShell.tsx — so anything built from these
  * utilities recolours with the outlet for free.
  */
-@theme static {
+@theme {
   --color-sf-bg: #1d0f3b;
   --color-sf-surface: rgba(255, 255, 255, 0.05);
   --color-sf-border: rgba(255, 255, 255, 0.1);

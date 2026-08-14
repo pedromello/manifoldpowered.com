@@ -1,6 +1,8 @@
+import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
 import type { StorefrontPalette } from "components/storefront/palette";
+import { neonAlleyPalette } from "storefronts/neon-alley/palette";
 import type {
   ItemViewProps,
   StorefrontViewProps,
@@ -31,11 +33,22 @@ export type CustomStorefront = {
  * bundler can split them. Building this map at runtime would defeat that and
  * ship all fifty outlets to every visitor.
  *
- * Deliberately empty until an outlet is actually built — the seam below works
- * the same either way, and an empty registry means every outlet falls through
- * to the default.
+ * An outlet that is not listed here falls through to Manifold's own design.
  */
-const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {};
+const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
+  "neon-alley": {
+    Storefront: dynamic(
+      () =>
+        import("storefronts/neon-alley/Storefront").then(
+          (m) => m.NeonAlleyStorefront,
+        ),
+      // Never false: SSR is what keeps the palette in the first byte and the
+      // outlet in search results.
+      { ssr: true },
+    ),
+    palette: neonAlleyPalette,
+  },
+};
 
 /**
  * The single place a store becomes a theme.

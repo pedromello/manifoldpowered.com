@@ -61,12 +61,12 @@ Rules that are not machine-checked but matter just as much:
 
 ## Palette
 
-`app/global.css` registers `--color-sf-*` tokens in an `@theme static` block, giving Tailwind utilities like `bg-sf-bg`, `text-sf-accent`, `border-sf-border`. `StorefrontShell` overrides those tokens per outlet, so any shared component built from them recolours for free.
+`app/global.css` registers `--color-sf-*` tokens in an `@theme` block, giving Tailwind utilities like `bg-sf-bg`, `text-sf-accent`, `border-sf-border`. `StorefrontShell` overrides those tokens per outlet, so any shared component built from them recolours for free — which is how `StoreTopNav` and `StoreFooter` follow an outlet without either of them knowing outlets exist.
 
 Three details are load-bearing and should not be "simplified":
 
 - **The `sf-` namespace.** The site's default palette is light — `/about` and the auth pages depend on it — while every storefront is dark. Generic token names would leak an outlet's colours onto those pages.
-- **`@theme static`, not `@theme`.** Plain `@theme` only emits properties for utilities referenced statically somewhere in the source. A runtime override of a property Tailwind never wrote silently does nothing.
+- **Plain `@theme`, never `@theme static`.** Tailwind 4.2.2 silently drops a block marked `static`: no error, no tokens, no utilities, and `bg-sf-bg` compiles to nothing at all — which reads on screen as a transparent header rather than as a build failure. After any change here, grep the compiled stylesheet for `--color-sf-bg` rather than trusting the source.
 - **`:root:root`, not `:root`.** Specificity 0,2,0 beats global.css's 0,1,0 whichever order the two stylesheets land in `<head>`, and that order is not guaranteed. A plain `:root` works in development and fails intermittently in production. This is what replaced the `background-color: #1d0f3b !important` blocks rather than multiplying them by fifty.
 
 The palette is emitted through `next/head`, not styled-jsx — styled-jsx treats a fully-interpolated block as a _dynamic_ style and does not inline it during SSR, which is exactly the flash this design exists to avoid. Both `/store/[slug]` and `/item/[slug]` resolve their outlet in `getServerSideProps`, so the correct colours are in the first byte.

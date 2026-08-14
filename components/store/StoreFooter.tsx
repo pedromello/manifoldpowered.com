@@ -16,7 +16,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
   const homeHref = store ? `/store/${store.slug}` : "/store";
 
   return (
-    <footer className="w-full bg-[#1D0F3B] border-t border-white/5 pt-20 pb-10 overflow-hidden relative">
+    <footer className="w-full bg-sf-bg border-t border-white/5 pt-20 pb-10 overflow-hidden relative">
       {/* Decorative gradient blur */}
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full translate-x-1/2 translate-y-1/2 pointer-events-none" />
 
