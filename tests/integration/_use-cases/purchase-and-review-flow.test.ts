@@ -3,6 +3,10 @@ import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import gameModel from "models/game";
 
+const testClientAddress = orchestrator.createTestClientAddress(
+  "purchase-and-review-flow",
+);
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -55,7 +59,10 @@ describe("Use case: Purchase and Review Flow", () => {
         `${webserver.getOrigin()}/api/v1/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({
             email: sellerData.email,
             password: sellerData.password,
@@ -140,7 +147,10 @@ describe("Use case: Purchase and Review Flow", () => {
         `${webserver.getOrigin()}/api/v1/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({
             email: buyerData.email,
             password: buyerData.password,

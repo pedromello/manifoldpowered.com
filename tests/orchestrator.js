@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import retry from "async-retry";
 import * as database from "infra/database";
 import storage from "infra/storage";
@@ -39,6 +39,15 @@ const DO_NOT_FAKE_TIMERS_FOR_PRISMA = [
   "setTimeout",
   "clearTimeout",
 ];
+
+const createTestClientAddress = (suiteId) => {
+  const digest = createHash("sha256").update(suiteId).digest("hex");
+  const groups = [0, 4, 8, 12].map((offset) =>
+    digest.slice(offset, offset + 4),
+  );
+
+  return `2001:db8:${groups.join(":")}`;
+};
 
 const waitForAllServices = async () => {
   await waitForWebServer();
@@ -382,6 +391,7 @@ const recordLedgerSale = async (saleData = {}) => {
 };
 
 const orchestrator = {
+  createTestClientAddress,
   waitForAllServices,
   clearDatabase,
   clearDatabaseRows,

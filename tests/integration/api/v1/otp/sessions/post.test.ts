@@ -4,6 +4,10 @@ import session from "models/session";
 import setCookieParser from "set-cookie-parser";
 import webserver from "infra/webserver";
 
+const testClientAddress = orchestrator.createTestClientAddress(
+  "api-v1-otp-sessions-post",
+);
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -21,7 +25,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code }),
         },
       );
@@ -59,7 +66,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.username, code }),
         },
       );
@@ -79,7 +89,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code: "000000" }),
         },
       );
@@ -100,7 +113,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({
             login: "non-existent@pedro.tec.br",
             code: "123456",
@@ -136,7 +152,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code }),
         },
       );
@@ -161,7 +180,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code }),
         },
       );
@@ -171,7 +193,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code }),
         },
       );
@@ -195,7 +220,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: user.email, code }),
         },
       );
@@ -216,7 +244,10 @@ describe("POST /api/v1/otp/sessions", () => {
         `${webserver.getOrigin()}/api/v1/otp/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({ login: "someone", code: "1" }),
         },
       );
