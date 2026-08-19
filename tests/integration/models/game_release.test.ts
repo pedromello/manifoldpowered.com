@@ -36,7 +36,7 @@ describe("immutable game release distribution model", () => {
   });
 
   test("rejects a logical reference to a missing game", async () => {
-    const missingGameId = "11111111-1111-1111-1111-111111111111";
+    const missingGameId = "11111111-1111-4111-8111-111111111111";
 
     await expect(
       gameRelease.createDraft({
