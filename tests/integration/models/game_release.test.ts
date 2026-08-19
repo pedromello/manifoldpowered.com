@@ -8,6 +8,7 @@ import {
   GamePlatform,
 } from "generated/prisma/client";
 import storage from "infra/storage";
+import { prisma } from "infra/database";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -137,6 +138,76 @@ describe("immutable game release distribution model", () => {
     expect(corrected.id).not.toBe(incorrect.id);
 
     deleteFile.mockRestore();
+  });
+
+  test("initiates an idempotent direct upload with declared integrity metadata", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    const getUploadAuthorization = jest
+      .spyOn(storage, "getArtifactUploadAuthorization")
+      .mockResolvedValue({
+        url: "https://storage.test/signed-upload",
+        expires_at: "2026-08-19T23:00:00.000Z",
+        required_headers: { "content-type": "application/zip" },
+      });
+    const declaration = {
+      platform: GamePlatform.WINDOWS,
+      architecture: GameArchitecture.X86_64,
+      archive_format: GameArchiveFormat.ZIP,
+      compressed_size_bytes: "1024",
+      installed_size_bytes: "2048",
+      sha256: "a".repeat(64),
+      manifest: {
+        schema_version: "1" as const,
+        entrypoint: "game.exe",
+        launch_arguments: [],
+        executables: ["game.exe"],
+        environment: {},
+      },
+    };
+
+    const first = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      declaration,
+    );
+    const retry = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      declaration,
+    );
+
+    expect(first.created).toBe(true);
+    expect(retry.created).toBe(false);
+    expect(retry.artifact.id).toBe(first.artifact.id);
+    expect(first.artifact.status).toBe("PENDING");
+    expect(first.artifact.sha256).toBe(declaration.sha256);
+    expect(first.artifact.storage_object_key).toBe(
+      `games/${game.id}/releases/${release.id}/artifacts/${first.artifact.id}.zip`,
+    );
+    expect(getUploadAuthorization).toHaveBeenCalledTimes(2);
+
+    const persisted = await prisma.gameArtifact.findUniqueOrThrow({
+      where: { id: first.artifact.id },
+    });
+    expect(persisted.created_by_user_id).toBe(owner.id);
+    expect(persisted.compressed_size_bytes).toBe(BigInt(1024));
+
+    await expect(
+      gameArtifact.initiateUpload(release.id, owner.id, {
+        ...declaration,
+        sha256: "b".repeat(64),
+      }),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      action: expect.stringContaining("Remove the unpublished artifact"),
+    });
+
+    getUploadAuthorization.mockRestore();
   });
 
   test("published release and artifact data cannot be changed", async () => {

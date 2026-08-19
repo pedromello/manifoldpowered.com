@@ -89,6 +89,9 @@ const AVAILABLE_FEATURES = [
   "read:game_file",
   "delete:game_file",
 
+  // Immutable release artifacts
+  "create:game_artifact",
+
   // Library
   "read:library",
   "create:library",
@@ -284,6 +287,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     (feature === "update:game" ||
       feature === "create:game_file" ||
       feature === "delete:game_file" ||
+      feature === "create:game_artifact" ||
       feature === "read:game_price" ||
       feature === "update:game_price") &&
     resource
@@ -605,6 +609,38 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       version: fileOutput.version,
       created_at: fileOutput.created_at,
       updated_at: fileOutput.updated_at,
+    };
+  }
+
+  if (feature === "create:game_artifact") {
+    interface GameArtifactUploadOutput {
+      id: string;
+      release_id: string;
+      platform: string;
+      architecture: string;
+      archive_format: string;
+      compressed_size_bytes: string | bigint | null;
+      installed_size_bytes: string | bigint | null;
+      sha256: string | null;
+      manifest: unknown;
+      status: string;
+      created_at: Date;
+      updated_at: Date;
+    }
+    const artifact = resource as GameArtifactUploadOutput;
+    return {
+      id: artifact.id,
+      release_id: artifact.release_id,
+      platform: artifact.platform,
+      architecture: artifact.architecture,
+      archive_format: artifact.archive_format,
+      compressed_size_bytes: artifact.compressed_size_bytes?.toString() ?? null,
+      installed_size_bytes: artifact.installed_size_bytes?.toString() ?? null,
+      sha256: artifact.sha256,
+      manifest: artifact.manifest,
+      status: artifact.status,
+      created_at: artifact.created_at,
+      updated_at: artifact.updated_at,
     };
   }
 

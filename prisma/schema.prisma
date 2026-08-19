@@ -256,6 +256,7 @@ model GameArtifact {
   architecture            GameArchitecture
   archive_format          GameArchiveFormat
   storage_object_key      String             @unique @db.VarChar(1024)
+  created_by_user_id      String? // Logical reference to the publisher User who initiated the upload
   compressed_size_bytes   BigInt?
   installed_size_bytes    BigInt?
   sha256                  String?            @db.Char(64)

@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { InternalServerError } from "./errors";
+import { GameArchiveFormat } from "generated/prisma/client";
 
 const s3Client = new S3Client({
   region: process.env.NODE_ENV === "production" ? "auto" : "us-east-1",
@@ -45,6 +46,68 @@ export async function getUploadUrl(
   return await getSignedUrl(s3Client, command, {
     expiresIn: UPLOAD_EXPIRES_IN_SECONDS,
   });
+}
+
+const ARTIFACT_CONTENT_TYPES: Record<GameArchiveFormat, string> = {
+  ZIP: "application/zip",
+  TAR_GZ: "application/gzip",
+};
+
+export interface ArtifactUploadAuthorization {
+  url: string;
+  expires_at: string;
+  required_headers: Record<string, string>;
+}
+
+export async function getArtifactUploadAuthorization({
+  key,
+  artifactId,
+  archiveFormat,
+  compressedSizeBytes,
+  sha256,
+}: {
+  key: string;
+  artifactId: string;
+  archiveFormat: GameArchiveFormat;
+  compressedSizeBytes: string;
+  sha256: string;
+}): Promise<ArtifactUploadAuthorization> {
+  const contentType = ARTIFACT_CONTENT_TYPES[archiveFormat];
+  const checksum = Buffer.from(sha256, "hex").toString("base64");
+  const requiredHeaders = {
+    "content-type": contentType,
+    "x-amz-checksum-sha256": checksum,
+    "x-amz-meta-artifact-id": artifactId,
+    "x-amz-meta-declared-size-bytes": compressedSizeBytes,
+    "x-amz-meta-sha256": sha256,
+  };
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+    ChecksumSHA256: checksum,
+    Metadata: {
+      "artifact-id": artifactId,
+      "declared-size-bytes": compressedSizeBytes,
+      sha256,
+    },
+  });
+
+  const url = await getSignedUrl(s3Client, command, {
+    expiresIn: UPLOAD_EXPIRES_IN_SECONDS,
+    // Keep integrity metadata in the signed headers instead of hoisting it to
+    // the query string. The uploader must send exactly these values.
+    unhoistableHeaders: new Set(Object.keys(requiredHeaders).slice(1)),
+    signableHeaders: new Set(["content-type"]),
+  });
+
+  return {
+    url,
+    expires_at: new Date(
+      Date.now() + UPLOAD_EXPIRES_IN_SECONDS * 1000,
+    ).toISOString(),
+    required_headers: requiredHeaders,
+  };
 }
 
 export async function getDownloadUrl(key: string): Promise<string> {
@@ -124,6 +187,7 @@ export async function createBucket(
 
 const storage = {
   getUploadUrl,
+  getArtifactUploadAuthorization,
   getDownloadUrl,
   deleteFile,
   clearAllBuckets,

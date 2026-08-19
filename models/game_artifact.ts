@@ -15,6 +15,8 @@ import {
 import gameRelease from "models/game_release";
 import storage from "infra/storage";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 export const gameArtifactCreateSchema = z.object({
   release_id: z.uuid(),
@@ -36,8 +38,185 @@ export const gameArtifactReadySchema = z.object({
   manifest: manifestInputSchema,
 });
 
+const positiveByteSizeSchema = byteSizeSchema.refine(
+  (value) => BigInt(value) > BigInt(0),
+  "Size must be greater than zero",
+);
+
+export const gameArtifactUploadSchema = z.object({
+  platform: z.nativeEnum(GamePlatform),
+  architecture: z.nativeEnum(GameArchitecture),
+  archive_format: z.nativeEnum(GameArchiveFormat),
+  compressed_size_bytes: positiveByteSizeSchema,
+  installed_size_bytes: positiveByteSizeSchema,
+  sha256: sha256Schema,
+  manifest: manifestInputSchema,
+});
+
 export type GameArtifactCreateDto = z.infer<typeof gameArtifactCreateSchema>;
 export type GameArtifactReadyDto = z.infer<typeof gameArtifactReadySchema>;
+export type GameArtifactUploadDto = z.infer<typeof gameArtifactUploadSchema>;
+
+const archiveExtensions: Record<GameArchiveFormat, string> = {
+  ZIP: "zip",
+  TAR_GZ: "tar.gz",
+};
+
+async function initiateUpload(
+  releaseId: string,
+  actorUserId: string,
+  input: GameArtifactUploadDto,
+) {
+  const parsedReleaseId = z.uuid().parse(releaseId);
+  const parsedActorUserId = z.uuid().parse(actorUserId);
+  const data = gameArtifactUploadSchema.parse(input);
+  let result: Awaited<ReturnType<typeof createUploadArtifact>> | undefined;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      result = await createUploadArtifact(
+        parsedReleaseId,
+        parsedActorUserId,
+        data,
+      );
+      break;
+    } catch (error) {
+      if (attempt < 3 && isRetryableTransactionError(error)) continue;
+      throw error;
+    }
+  }
+
+  if (!result) throw new Error("Unreachable artifact upload state");
+
+  const artifact = serialize(result.artifact);
+  const upload = await storage.getArtifactUploadAuthorization({
+    key: artifact.storage_object_key,
+    artifactId: artifact.id,
+    archiveFormat: artifact.archive_format,
+    compressedSizeBytes: artifact.compressed_size_bytes!,
+    sha256: artifact.sha256!,
+  });
+
+  return { artifact, upload, created: result.created };
+}
+
+async function createUploadArtifact(
+  releaseId: string,
+  actorUserId: string,
+  data: GameArtifactUploadDto,
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const release = await tx.gameRelease.findUnique({
+        where: { id: releaseId },
+      });
+      if (!release) {
+        throw new NotFoundError({
+          message: `Release "${releaseId}" was not found.`,
+          action: "Check the release id and try again.",
+        });
+      }
+      gameRelease.assertReleaseMutable(release);
+
+      const existing = await tx.gameArtifact.findUnique({
+        where: {
+          release_id_platform_architecture: {
+            release_id: releaseId,
+            platform: data.platform,
+            architecture: data.architecture,
+          },
+        },
+      });
+
+      if (existing) {
+        if (isSameUploadDeclaration(existing, data)) {
+          return { artifact: existing, created: false };
+        }
+
+        throw new ValidationError({
+          message: `Release "${releaseId}" already has an artifact for ${data.platform}/${data.architecture}.`,
+          action:
+            "Remove the unpublished artifact before uploading a replacement with different metadata.",
+        });
+      }
+
+      const artifactId = randomUUID();
+      const manifest = installManifestSchema.parse({
+        ...data.manifest,
+        release_id: releaseId,
+        artifact_id: artifactId,
+      });
+      const storageObjectKey = [
+        "games",
+        release.game_id,
+        "releases",
+        releaseId,
+        "artifacts",
+        `${artifactId}.${archiveExtensions[data.archive_format]}`,
+      ].join("/");
+
+      const artifact = await tx.gameArtifact.create({
+        data: {
+          id: artifactId,
+          release_id: releaseId,
+          platform: data.platform,
+          architecture: data.architecture,
+          archive_format: data.archive_format,
+          storage_object_key: storageObjectKey,
+          created_by_user_id: actorUserId,
+          compressed_size_bytes: BigInt(data.compressed_size_bytes),
+          installed_size_bytes: BigInt(data.installed_size_bytes),
+          sha256: data.sha256,
+          manifest_schema_version: manifest.schema_version,
+          manifest: manifest as Prisma.InputJsonValue,
+        },
+      });
+
+      return { artifact, created: true };
+    },
+    { isolationLevel: "Serializable" },
+  );
+}
+
+function isSameUploadDeclaration(
+  artifact: {
+    platform: GamePlatform;
+    architecture: GameArchitecture;
+    archive_format: GameArchiveFormat;
+    compressed_size_bytes: bigint | null;
+    installed_size_bytes: bigint | null;
+    sha256: string | null;
+    manifest: Prisma.JsonValue | null;
+    status: GameArtifactStatus;
+  },
+  data: GameArtifactUploadDto,
+) {
+  if (!artifact.manifest || typeof artifact.manifest !== "object") return false;
+  if (Array.isArray(artifact.manifest)) return false;
+  const manifestInput = { ...artifact.manifest };
+  delete manifestInput.release_id;
+  delete manifestInput.artifact_id;
+
+  return (
+    artifact.status === GameArtifactStatus.PENDING &&
+    artifact.platform === data.platform &&
+    artifact.architecture === data.architecture &&
+    artifact.archive_format === data.archive_format &&
+    artifact.compressed_size_bytes?.toString() === data.compressed_size_bytes &&
+    artifact.installed_size_bytes?.toString() === data.installed_size_bytes &&
+    artifact.sha256 === data.sha256 &&
+    isDeepStrictEqual(manifestInput, data.manifest)
+  );
+}
+
+function isRetryableTransactionError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error.code === "P2002" || error.code === "P2034")
+  );
+}
 
 async function createPending(input: GameArtifactCreateDto) {
   const data = gameArtifactCreateSchema.parse(input);
@@ -225,6 +404,7 @@ function invalidTransition(
 }
 
 const gameArtifact = {
+  initiateUpload,
   createPending,
   findById,
   markVerifying,
