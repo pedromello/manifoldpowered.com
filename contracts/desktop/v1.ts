@@ -60,29 +60,35 @@ export const targetSchema = z.object({
   architecture: desktopArchitectureSchema,
 });
 
-export const sessionSchema = z.object({
-  token: z.string().min(1),
-  expires_at: timestampSchema,
-  user: z.object({
+export const sessionSchema = z
+  .object({
     id: identifierSchema,
-    username: z.string().min(1),
-  }),
-});
+    token: z.string().min(1),
+    user_id: identifierSchema,
+    expires_at: timestampSchema,
+    created_at: timestampSchema,
+    updated_at: timestampSchema,
+  })
+  .strict();
 
-export const createSessionRequestSchema = z.discriminatedUnion("method", [
-  z.object({
-    method: z.literal("PASSWORD"),
-    email: z.email(),
-    password: z.string().min(1),
-    api_version: desktopApiVersionSchema,
-  }),
-  z.object({
-    method: z.literal("OTP"),
-    email: z.email(),
-    otp: z.string().min(1),
-    api_version: desktopApiVersionSchema,
-  }),
-]);
+export const requestOtpSchema = z
+  .object({
+    login: z.string().trim().min(1),
+  })
+  .strict();
+
+export const otpRequestedSchema = z
+  .object({
+    message: z.string().min(1),
+  })
+  .strict();
+
+export const createSessionRequestSchema = z
+  .object({
+    login: z.string().trim().min(1),
+    code: z.string().regex(/^\d{6}$/, "Code must contain exactly six digits"),
+  })
+  .strict();
 
 export const catalogGameSchema = z.object({
   id: identifierSchema,
@@ -163,6 +169,8 @@ export const releasePatchSchema = z.object({
 export type DesktopPlatform = z.infer<typeof desktopPlatformSchema>;
 export type DesktopArchitecture = z.infer<typeof desktopArchitectureSchema>;
 export type DesktopError = z.infer<typeof desktopErrorSchema>;
+export type RequestOtpRequest = z.infer<typeof requestOtpSchema>;
+export type OtpRequested = z.infer<typeof otpRequestedSchema>;
 export type DesktopSession = z.infer<typeof sessionSchema>;
 export type CatalogGame = z.infer<typeof catalogGameSchema>;
 export type LibraryItem = z.infer<typeof libraryItemSchema>;
