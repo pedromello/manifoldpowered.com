@@ -4,6 +4,10 @@ import session from "models/session";
 import setCookieParser from "set-cookie-parser";
 import webserver from "infra/webserver";
 
+const testClientAddress = orchestrator.createTestClientAddress(
+  "api-v1-sessions-post",
+);
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -21,6 +25,7 @@ describe("POST /api/v1/sessions", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "wrong@pedro.tec.br",
@@ -48,6 +53,7 @@ describe("POST /api/v1/sessions", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "test2@pedro.tec.br",
@@ -72,6 +78,7 @@ describe("POST /api/v1/sessions", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "wrong2@pedro.tec.br",
@@ -100,6 +107,7 @@ describe("POST /api/v1/sessions", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "passwordless@pedro.tec.br",
@@ -129,6 +137,7 @@ describe("POST /api/v1/sessions", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "correct@pedro.tec.br",

@@ -2,6 +2,10 @@ import { User } from "generated/prisma/client";
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 
+const testClientAddress = orchestrator.createTestClientAddress(
+  "passwordless-login-flow",
+);
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -44,7 +48,10 @@ describe("Use case: Passwordless login flow via OTP (all successful)", () => {
       `${webserver.getOrigin()}/api/v1/otp/sessions`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
+        },
         body: JSON.stringify({ login: newUser.email, code }),
       },
     );
@@ -79,7 +86,10 @@ describe("Use case: Passwordless login flow via OTP (all successful)", () => {
       `${webserver.getOrigin()}/api/v1/otp/sessions`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
+        },
         body: JSON.stringify({ login: newUser.email, code }),
       },
     );
