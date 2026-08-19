@@ -187,6 +187,31 @@ enum GamePlatform {
   LINUX
 }
 
+enum GameArchitecture {
+  X86_64
+  AARCH64
+}
+
+enum GameArchiveFormat {
+  ZIP
+  TAR_GZ
+}
+
+enum GameReleaseStatus {
+  DRAFT
+  PROCESSING
+  PUBLISHED
+  FAILED
+  RETIRED
+}
+
+enum GameArtifactStatus {
+  PENDING
+  VERIFYING
+  READY
+  FAILED
+}
+
 model GameFile {
   id           String       @id @default(uuid())
   game_id      String // Logical reference to Game.id
@@ -200,6 +225,49 @@ model GameFile {
 
   @@index([game_id])
   @@map("game_files")
+}
+
+// Immutable distribution snapshot. release_number is the machine-facing,
+// monotonic identity; version is the human-facing label chosen by the studio.
+// References remain logical, consistent with the rest of this schema.
+model GameRelease {
+  id             String            @id @default(uuid())
+  game_id        String // Logical reference to Game.id
+  version        String            @db.VarChar(50)
+  release_number Int
+  status         GameReleaseStatus @default(DRAFT)
+  release_notes  String?           @db.Text
+  published_at   DateTime?
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+
+  @@unique([game_id, release_number])
+  @@index([game_id, status, release_number])
+  @@map("game_releases")
+}
+
+// A release can have one archive for each supported platform/architecture.
+// Integrity metadata and the manifest are filled by verification and become
+// immutable as soon as the owning release is published.
+model GameArtifact {
+  id                      String             @id @default(uuid())
+  release_id              String // Logical reference to GameRelease.id
+  platform                GamePlatform
+  architecture            GameArchitecture
+  archive_format          GameArchiveFormat
+  storage_object_key      String             @unique @db.VarChar(1024)
+  compressed_size_bytes   BigInt?
+  installed_size_bytes    BigInt?
+  sha256                  String?            @db.Char(64)
+  manifest_schema_version String?            @db.VarChar(10)
+  manifest                Json?
+  status                  GameArtifactStatus @default(PENDING)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+
+  @@unique([release_id, platform, architecture])
+  @@index([release_id, status])
+  @@map("game_artifacts")
 }
 
 enum ItemType {
