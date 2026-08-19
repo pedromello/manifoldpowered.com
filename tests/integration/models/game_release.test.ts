@@ -7,6 +7,7 @@ import {
   GameArchiveFormat,
   GamePlatform,
 } from "generated/prisma/client";
+import storage from "infra/storage";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -100,6 +101,44 @@ describe("immutable game release distribution model", () => {
     });
   });
 
+  test("removes a pre-publication artifact so its target can be replaced", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    const incorrectKey = `${release.id}/incorrect.zip`;
+    const incorrect = await gameArtifact.createPending({
+      release_id: release.id,
+      platform: GamePlatform.WINDOWS,
+      architecture: GameArchitecture.X86_64,
+      archive_format: GameArchiveFormat.ZIP,
+      storage_object_key: incorrectKey,
+    });
+    const deleteFile = jest
+      .spyOn(storage, "deleteFile")
+      .mockResolvedValue(undefined);
+
+    await gameArtifact.remove(incorrect.id);
+
+    expect(deleteFile).toHaveBeenCalledWith(incorrectKey);
+    await expect(gameArtifact.findById(incorrect.id)).rejects.toMatchObject({
+      name: "NotFoundError",
+    });
+
+    const corrected = await gameArtifact.createPending({
+      release_id: release.id,
+      platform: GamePlatform.WINDOWS,
+      architecture: GameArchitecture.X86_64,
+      archive_format: GameArchiveFormat.TAR_GZ,
+      storage_object_key: `${release.id}/corrected.tar.gz`,
+    });
+    expect(corrected.id).not.toBe(incorrect.id);
+
+    deleteFile.mockRestore();
+  });
+
   test("published release and artifact data cannot be changed", async () => {
     const owner = await orchestrator.createUser();
     const game = await orchestrator.createGame(owner.id);
@@ -126,6 +165,10 @@ describe("immutable game release distribution model", () => {
         message: expect.stringContaining("immutable"),
       },
     );
+    await expect(gameArtifact.remove(artifact.id)).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("immutable"),
+    });
   });
 
   test("resolves the newest published release that exactly matches the target", async () => {

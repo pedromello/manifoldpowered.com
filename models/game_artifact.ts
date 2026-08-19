@@ -13,6 +13,7 @@ import {
   sha256Schema,
 } from "contracts/desktop/v1";
 import gameRelease from "models/game_release";
+import storage from "infra/storage";
 import { z } from "zod";
 
 export const gameArtifactCreateSchema = z.object({
@@ -127,6 +128,34 @@ async function markReady(id: string, input: GameArtifactReadyDto) {
   return serialize(artifact);
 }
 
+async function remove(id: string) {
+  const artifact = await prisma.$transaction(
+    async (tx) => {
+      const existing = await tx.gameArtifact.findUnique({ where: { id } });
+      if (!existing) throw artifactNotFound(id);
+
+      const release = await tx.gameRelease.findUnique({
+        where: { id: existing.release_id },
+      });
+      if (!release) {
+        throw new NotFoundError({
+          message: `Release "${existing.release_id}" was not found.`,
+          action: "Check the artifact's release reference.",
+        });
+      }
+      gameRelease.assertReleaseMutable(release);
+
+      return tx.gameArtifact.delete({ where: { id } });
+    },
+    { isolationLevel: "Serializable" },
+  );
+
+  // Storage cleanup is intentionally after the database commit: a failed or
+  // abandoned upload must not keep the unique target slot occupied. The
+  // storage adapter logs deletion failures, and Phase 4 adds orphan cleanup.
+  await storage.deleteFile(artifact.storage_object_key);
+}
+
 async function transition(
   id: string,
   from: GameArtifactStatus[],
@@ -201,6 +230,7 @@ const gameArtifact = {
   markVerifying,
   markFailed,
   markReady,
+  remove,
 };
 
 export default gameArtifact;
