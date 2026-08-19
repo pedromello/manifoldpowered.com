@@ -41,7 +41,16 @@ export function sendDesktopError(res: NextApiResponse, error: DesktopApiError) {
 }
 
 export const desktopErrorHandlers = {
-  onNoMatch: controller.errorHandlers.onNoMatch,
+  onNoMatch(req: NextApiRequest, res: NextApiResponse) {
+    return sendDesktopError(
+      res,
+      new DesktopApiError(
+        "INVALID_REQUEST",
+        `Method ${req.method ?? "UNKNOWN"} is not allowed for this endpoint`,
+        405,
+      ),
+    );
+  },
   onError(error: Error, req: NextApiRequest, res: NextApiResponse) {
     if (error instanceof DesktopApiError) return sendDesktopError(res, error);
     if (error instanceof UnauthorizedError) {
@@ -58,6 +67,15 @@ export const desktopErrorHandlers = {
         ),
       );
     }
-    return controller.errorHandlers.onError(error, req, res);
+    controller.logServerError(error, req);
+    return sendDesktopError(
+      res,
+      new DesktopApiError(
+        "SERVICE_UNAVAILABLE",
+        "The desktop service is temporarily unavailable",
+        503,
+        true,
+      ),
+    );
   },
 };

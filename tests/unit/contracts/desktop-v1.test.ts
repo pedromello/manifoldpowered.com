@@ -72,6 +72,21 @@ describe("desktop API v1 contract", () => {
     },
   );
 
+  test.each([
+    "C:\\Windows\\System32\\cmd.exe",
+    "C:/Windows/System32/cmd.exe",
+    "C:drive-relative.exe",
+  ])("rejects drive-qualified manifest path %s", (entrypoint) => {
+    const result = installManifestSchema.safeParse({
+      schema_version: "1",
+      release_id: releaseId,
+      artifact_id: artifactId,
+      entrypoint,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   test("represents byte sizes as unsigned decimal strings", () => {
     expect(byteSizeSchema.safeParse("9007199254740993").success).toBe(true);
     expect(byteSizeSchema.safeParse(9007199254740992).success).toBe(false);

@@ -26,7 +26,7 @@ describe("authentication rate limiting", () => {
     const req = request("192.0.2.11");
     const login = `reset-${Date.now()}@example.com`;
     authRateLimit.consume(req, login, 1);
-    authRateLimit.reset(req, login);
+    authRateLimit.reset(login);
 
     expect(authRateLimit.consume(req, login, 1).allowed).toBe(true);
   });
@@ -42,5 +42,17 @@ describe("authentication rate limiting", () => {
     expect(authRateLimit.consume(req, "new@example.com", 1).allowed).toBe(
       false,
     );
+  });
+
+  test("successful authentication preserves the address bucket", () => {
+    const req = request("192.0.2.13");
+    for (let attempt = 0; attempt < authRateLimit.MAX_ATTEMPTS; attempt += 1) {
+      authRateLimit.consume(req, `victim-${attempt}@example.com`, 1);
+    }
+
+    authRateLimit.reset("attacker@example.com");
+    expect(
+      authRateLimit.consume(req, "next-victim@example.com", 1).allowed,
+    ).toBe(false);
   });
 });

@@ -410,21 +410,26 @@ components:
         artifact_id:
           $ref: "#/components/schemas/Identifier"
         entrypoint:
-          type: string
+          $ref: "#/components/schemas/RelativePath"
         launch_arguments:
           type: array
           items:
             type: string
         working_directory:
-          type: string
+          $ref: "#/components/schemas/RelativePath"
         executables:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/RelativePath"
         environment:
           type: object
           additionalProperties:
             type: string
+    RelativePath:
+      type: string
+      minLength: 1
+      pattern: "^(?![A-Za-z]:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+      description: A normalized path relative to the installation root; drive-qualified, rooted, and parent-traversing paths are rejected.
     DownloadAuthorization:
       type: object
       required: [artifact_id, url, expires_at, total_size_bytes, sha256]

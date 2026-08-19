@@ -115,9 +115,13 @@ export const libraryItemSchema = z.object({
 const relativePathSchema = z
   .string()
   .min(1)
-  .refine((path) => !path.startsWith("/") && !path.startsWith("\\"), {
-    message: "Path must be relative",
-  })
+  .refine(
+    (path) =>
+      !path.startsWith("/") &&
+      !path.startsWith("\\") &&
+      !/^[A-Za-z]:/.test(path),
+    { message: "Path must be relative" },
+  )
   .refine(
     (path) =>
       !path

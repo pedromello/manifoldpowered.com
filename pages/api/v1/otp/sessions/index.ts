@@ -4,7 +4,7 @@ import controller from "infra/controller";
 import otp from "models/otp";
 import session from "models/session";
 import authorization from "models/authorization";
-import { ForbiddenError, ValidationError } from "infra/errors";
+import { ForbiddenError, RateLimitError, ValidationError } from "infra/errors";
 import { z } from "zod";
 import authRateLimit from "infra/auth_rate_limit";
 
@@ -32,11 +32,8 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   const limit = authRateLimit.consume(req, result.data.login);
   if (!limit.allowed) {
     res.setHeader("Retry-After", String(limit.retryAfterSeconds));
-    return res.status(429).json({
+    throw new RateLimitError({
       message: "Too many authentication attempts",
-      name: "RateLimitError",
-      action: "Try again later",
-      status_code: 429,
     });
   }
 
@@ -53,7 +50,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const newSession = await session.create(authUser.id);
-  authRateLimit.reset(req, result.data.login);
+  authRateLimit.reset(result.data.login);
 
   controller.setSessionCookie(res, newSession.token);
 

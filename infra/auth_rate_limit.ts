@@ -25,6 +25,12 @@ function keysFor(req: NextApiRequest, login: string) {
   ];
 }
 
+function loginKeyFor(login: string) {
+  return createHash("sha256")
+    .update(`login\0${login.trim().toLowerCase()}`)
+    .digest("hex");
+}
+
 function consume(req: NextApiRequest, login: string, now = Date.now()) {
   const updated = keysFor(req, login).map((key) => {
     const existing = buckets.get(key);
@@ -51,8 +57,11 @@ function consume(req: NextApiRequest, login: string, now = Date.now()) {
   };
 }
 
-function reset(req: NextApiRequest, login: string) {
-  for (const key of keysFor(req, login)) buckets.delete(key);
+function reset(login: string) {
+  // A successful login proves only that account is legitimate. Retaining the
+  // address bucket prevents an attacker from using their own account to reset
+  // the password-spraying limit for every other login.
+  buckets.delete(loginKeyFor(login));
 }
 
 const authRateLimit = { consume, reset, MAX_ATTEMPTS, WINDOW_MS };

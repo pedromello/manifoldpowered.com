@@ -70,7 +70,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const newSession = await session.create(authUser.id);
-  authRateLimit.reset(req, login);
+  authRateLimit.reset(login);
 
   return res.status(201).json({
     token: newSession.token,

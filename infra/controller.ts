@@ -4,6 +4,7 @@ import {
   InternalServerError,
   MethodNotAllowedError,
   NotFoundError,
+  RateLimitError,
   ServiceError,
   UnauthorizedError,
   ValidationError,
@@ -44,6 +45,7 @@ const onErrorHandler = (
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
     error instanceof ForbiddenError ||
+    error instanceof RateLimitError ||
     error instanceof ServiceError
   ) {
     if (error instanceof ServiceError) {
@@ -194,6 +196,7 @@ const controller = {
   clearSessionCookie,
   injectAnonymousOrUser,
   readBearerToken,
+  logServerError,
   canRequest,
 };
 
