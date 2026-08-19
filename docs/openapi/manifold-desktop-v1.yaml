@@ -1,19 +1,40 @@
 openapi: 3.1.0
 info:
-  title: Manifold Desktop API
+  title: Manifold Distribution API
   version: 1.0.0
-  description: Contract for the Manifold Desktop login-to-download workflow.
+  description: Client-neutral contract for Manifold authentication and release distribution.
   license:
     name: MIT
     identifier: MIT
 servers:
-  - url: /api/v1/desktop
+  - url: /api/v1
 security: []
 paths:
-  /sessions:
+  /otp:
     post:
-      summary: Create a desktop session
-      operationId: createDesktopSession
+      summary: Request a passwordless login code
+      operationId: requestOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpRequest"
+      responses:
+        "201":
+          description: The one-time code was accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OtpRequested"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /otp/sessions:
+    post:
+      summary: Verify a one-time code and create a cookie session
+      operationId: createOtpSession
       requestBody:
         required: true
         content:
@@ -22,7 +43,12 @@ paths:
               $ref: "#/components/schemas/CreateSessionRequest"
       responses:
         "201":
-          description: Authenticated desktop session.
+          description: Authenticated session.
+          headers:
+            Set-Cookie:
+              description: Secure, HTTP-only `session_id` cookie.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -31,23 +57,28 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
-  /sessions/current:
+  /sessions:
     delete:
-      summary: Revoke the current desktop session
-      operationId: revokeDesktopSession
+      summary: Revoke the current session
+      operationId: revokeSession
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       responses:
         "204":
           description: Session revoked.
+          headers:
+            Set-Cookie:
+              description: Clears the `session_id` cookie.
+              schema:
+                type: string
         "400":
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
-  /catalog:
+  /games:
     get:
-      summary: List the desktop catalog
-      operationId: listDesktopCatalog
+      summary: List games
+      operationId: listGames
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Limit"
@@ -72,10 +103,10 @@ paths:
           $ref: "#/components/responses/Error"
   /library:
     get:
-      summary: List the current user's desktop library
-      operationId: listDesktopLibrary
+      summary: List the current user's library with compatible releases
+      operationId: listLibrary
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/Platform"
         - $ref: "#/components/parameters/Architecture"
@@ -105,7 +136,7 @@ paths:
       summary: Resolve the latest compatible game release
       operationId: getLatestCompatibleRelease
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - name: slug
           in: path
@@ -130,7 +161,7 @@ paths:
       summary: Get a release install manifest
       operationId: getInstallManifest
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/ReleaseId"
         - name: schema_version
@@ -154,7 +185,7 @@ paths:
       summary: Authorize an artifact download
       operationId: authorizeArtifactDownload
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - name: artifact_id
           in: path
@@ -177,7 +208,7 @@ paths:
       summary: List compatible patches for a release
       operationId: listReleasePatches
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/ReleaseId"
         - $ref: "#/components/parameters/Platform"
@@ -201,10 +232,10 @@ paths:
           $ref: "#/components/responses/Error"
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: opaque-session-token
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session_id
   parameters:
     Page:
       name: page
@@ -241,7 +272,7 @@ components:
         $ref: "#/components/schemas/Identifier"
   responses:
     Error:
-      description: Desktop API error.
+      description: API error.
       content:
         application/json:
           schema:
@@ -275,52 +306,50 @@ components:
           $ref: "#/components/schemas/Platform"
         architecture:
           $ref: "#/components/schemas/Architecture"
+    RequestOtpRequest:
+      type: object
+      additionalProperties: false
+      required: [login]
+      properties:
+        login:
+          type: string
+          minLength: 1
+    OtpRequested:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
     CreateSessionRequest:
-      oneOf:
-        - type: object
-          additionalProperties: false
-          required: [method, email, password, api_version]
-          properties:
-            method:
-              const: PASSWORD
-            email:
-              type: string
-              format: email
-            password:
-              type: string
-              minLength: 1
-            api_version:
-              const: "1"
-        - type: object
-          additionalProperties: false
-          required: [method, email, otp, api_version]
-          properties:
-            method:
-              const: OTP
-            email:
-              type: string
-              format: email
-            otp:
-              type: string
-              minLength: 1
-            api_version:
-              const: "1"
+      type: object
+      additionalProperties: false
+      required: [login, code]
+      properties:
+        login:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
     Session:
       type: object
-      required: [token, expires_at, user]
+      additionalProperties: false
+      required: [id, token, user_id, expires_at, created_at, updated_at]
       properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
         token:
           type: string
+          description: Legacy response field. Cookie-based clients must not expose it to untrusted UI code.
+        user_id:
+          $ref: "#/components/schemas/Identifier"
         expires_at:
           $ref: "#/components/schemas/Timestamp"
-        user:
-          type: object
-          required: [id, username]
-          properties:
-            id:
-              $ref: "#/components/schemas/Identifier"
-            username:
-              type: string
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
     CatalogGame:
       type: object
       required: [id, slug, title, description, cover_url, platforms]
