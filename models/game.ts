@@ -417,6 +417,24 @@ async function findOneBySlug(slug: string) {
   });
 }
 
+async function findOneById(id: string) {
+  return await prisma.game.findUnique({ where: { id } });
+}
+
+async function findOneByIdWithStudio(id: string) {
+  const gameResource = await findOneById(id);
+
+  if (!gameResource) {
+    return null;
+  }
+
+  const studioWithMembers = await studioModel.findOneByIdWithMembers(
+    gameResource.studio_id,
+  );
+
+  return { ...gameResource, studio: studioWithMembers };
+}
+
 async function findOneBySlugWithStudio(slug: string) {
   const gameResource = await findOneBySlug(slug);
 
@@ -736,6 +754,8 @@ async function makePublic(id: string) {
 const game = {
   create,
   update,
+  findOneById,
+  findOneByIdWithStudio,
   findOneBySlug,
   findOneBySlugWithStudio,
   findOneBySteamAppId,

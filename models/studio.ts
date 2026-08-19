@@ -22,6 +22,7 @@ export const MEMBER_PERMISSIONS = [
   "update:game",
   "create:game_file",
   "delete:game_file",
+  "create:game_artifact",
   "read:game_price",
   "update:game_price",
   // Sales of the studio's games. Delegable like the rest: someone can be given

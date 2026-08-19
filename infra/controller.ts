@@ -155,6 +155,21 @@ function canRequest(feature: string) {
   };
 }
 
+function requireAuthentication(
+  req: NextApiRequest,
+  _res: NextApiResponse,
+  next: NextHandler,
+) {
+  if (!req.context?.user?.id) {
+    throw new UnauthorizedError({
+      message: "Authentication required",
+      action: "Sign in and send the session_id cookie",
+    });
+  }
+
+  return next();
+}
+
 const controller = {
   errorHandlers: {
     onNoMatch: onNoMatchHandler,
@@ -163,6 +178,7 @@ const controller = {
   setSessionCookie,
   clearSessionCookie,
   injectAnonymousOrUser,
+  requireAuthentication,
   logServerError,
   canRequest,
 };
