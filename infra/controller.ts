@@ -21,12 +21,6 @@ declare module "next" {
   export interface NextApiRequest {
     context?: {
       user: Partial<User>;
-      session?: {
-        id: string;
-        token: string;
-        expires_at: Date;
-      };
-      authentication?: "bearer" | "cookie";
     };
   }
 }
@@ -122,14 +116,8 @@ async function injectAnonymousOrUser(
   res: NextApiResponse,
   next: NextHandler,
 ) {
-  const bearerToken = readBearerToken(req.headers.authorization);
-  if (bearerToken) {
-    await injectAuthenticatedUser(req, bearerToken, "bearer");
-    return next();
-  }
-
   if (req.cookies?.session_id) {
-    await injectAuthenticatedUser(req, req.cookies.session_id, "cookie");
+    await injectAuthenticatedUser(req, req.cookies.session_id);
     return next();
   }
 
@@ -137,33 +125,13 @@ async function injectAnonymousOrUser(
   return next();
 }
 
-function readBearerToken(authorizationHeader: string | undefined) {
-  if (authorizationHeader === undefined) return undefined;
-
-  const match = /^Bearer ([A-Za-z0-9_-]+)$/.exec(authorizationHeader);
-  if (!match) {
-    throw new UnauthorizedError({
-      message: "Malformed bearer authorization header",
-      action: "Use Authorization: Bearer <session-token>",
-    });
-  }
-
-  return match[1];
-}
-
 async function injectAuthenticatedUser(
   req: NextApiRequest,
   sessionToken: string,
-  authentication: "bearer" | "cookie",
 ) {
   const validSession = await session.findOneValidByToken(sessionToken);
   const authenticatedUser = await user.findOneById(validSession.user_id);
-  req.context = {
-    ...req.context,
-    user: authenticatedUser,
-    session: validSession,
-    authentication,
-  };
+  req.context = { ...req.context, user: authenticatedUser };
 }
 
 function injectAnonymousUser(req: NextApiRequest) {
@@ -195,7 +163,6 @@ const controller = {
   setSessionCookie,
   clearSessionCookie,
   injectAnonymousOrUser,
-  readBearerToken,
   logServerError,
   canRequest,
 };

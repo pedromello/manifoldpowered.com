@@ -103,6 +103,20 @@ Tauri HTTP client and cookie jar.
 
 ## Phase 3 — Model immutable releases, artifacts, and manifests
 
+### Implementation status (started 2026-08-19)
+
+- Added the additive `GameRelease` and `GameArtifact` schema and migration;
+  legacy `GameFile` remains unchanged.
+- Embedded the versioned install manifest in its one-to-one artifact rather
+  than adding a third table that would only duplicate the artifact lifecycle.
+- Added model-layer logical-reference validation, publication guards,
+  immutable published data, retirement, and exact platform/architecture
+  resolution.
+- Added stable fixtures for all six supported platform/architecture targets
+  and focused integration coverage.
+- API authorization and output filtering remain part of Phase 5, when these
+  models are exposed as resources.
+
 ### Proposed concepts
 
 `GameRelease`:
