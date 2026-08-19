@@ -1,0 +1,534 @@
+openapi: 3.1.0
+info:
+  title: Manifold Desktop API
+  version: 1.0.0
+  description: Contract for the Manifold Desktop login-to-download workflow.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /api/v1/desktop
+security: []
+paths:
+  /sessions:
+    post:
+      summary: Create a desktop session
+      operationId: createDesktopSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Authenticated desktop session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /sessions/current:
+    delete:
+      summary: Revoke the current desktop session
+      operationId: revokeDesktopSession
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session revoked.
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /catalog:
+    get:
+      summary: List the desktop catalog
+      operationId: listDesktopCatalog
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated public catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [games, pagination]
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CatalogGame"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /library:
+    get:
+      summary: List the current user's desktop library
+      operationId: listDesktopLibrary
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Architecture"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Entitled games and their latest compatible releases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pagination]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LibraryItem"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /games/{slug}/releases/latest:
+    get:
+      summary: Resolve the latest compatible game release
+      operationId: getLatestCompatibleRelease
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Architecture"
+      responses:
+        "200":
+          description: Latest published release compatible with the target.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseSummary"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /releases/{release_id}/manifest:
+    get:
+      summary: Get a release install manifest
+      operationId: getInstallManifest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReleaseId"
+        - name: schema_version
+          in: query
+          required: true
+          schema:
+            const: "1"
+      responses:
+        "200":
+          description: Versioned install manifest.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstallManifest"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /artifacts/{artifact_id}/download:
+    post:
+      summary: Authorize an artifact download
+      operationId: authorizeArtifactDownload
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      responses:
+        "200":
+          description: Refreshable authorization for an immutable artifact.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadAuthorization"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /releases/{release_id}/patches:
+    get:
+      summary: List compatible patches for a release
+      operationId: listReleasePatches
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReleaseId"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Architecture"
+      responses:
+        "200":
+          description: Published patches targeting the release.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [patches]
+                properties:
+                  patches:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReleasePatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-session-token
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Platform:
+      name: platform
+      in: query
+      required: true
+      schema:
+        $ref: "#/components/schemas/Platform"
+    Architecture:
+      name: arch
+      in: query
+      required: true
+      schema:
+        $ref: "#/components/schemas/Architecture"
+    ReleaseId:
+      name: release_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+  responses:
+    Error:
+      description: Desktop API error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    Identifier:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+    ByteSize:
+      type: string
+      pattern: "^(0|[1-9][0-9]*)$"
+      description: Unsigned byte count encoded as a base-10 string.
+    Sha256:
+      type: string
+      pattern: "^[a-f0-9]{64}$"
+    Platform:
+      type: string
+      enum: [WINDOWS, MAC, LINUX]
+    Architecture:
+      type: string
+      enum: [X86_64, AARCH64]
+    Target:
+      type: object
+      additionalProperties: false
+      required: [platform, architecture]
+      properties:
+        platform:
+          $ref: "#/components/schemas/Platform"
+        architecture:
+          $ref: "#/components/schemas/Architecture"
+    CreateSessionRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [method, email, password, api_version]
+          properties:
+            method:
+              const: PASSWORD
+            email:
+              type: string
+              format: email
+            password:
+              type: string
+              minLength: 1
+            api_version:
+              const: "1"
+        - type: object
+          additionalProperties: false
+          required: [method, email, otp, api_version]
+          properties:
+            method:
+              const: OTP
+            email:
+              type: string
+              format: email
+            otp:
+              type: string
+              minLength: 1
+            api_version:
+              const: "1"
+    Session:
+      type: object
+      required: [token, expires_at, user]
+      properties:
+        token:
+          type: string
+        expires_at:
+          $ref: "#/components/schemas/Timestamp"
+        user:
+          type: object
+          required: [id, username]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            username:
+              type: string
+    CatalogGame:
+      type: object
+      required: [id, slug, title, description, cover_url, platforms]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        cover_url:
+          type: [string, "null"]
+          format: uri
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+    ReleaseSummary:
+      type: object
+      required:
+        [
+          id,
+          version,
+          release_number,
+          published_at,
+          artifact_id,
+          target,
+          compressed_size_bytes,
+          installed_size_bytes,
+          sha256,
+          manifest_schema_version,
+        ]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        release_number:
+          type: integer
+          minimum: 1
+        published_at:
+          $ref: "#/components/schemas/Timestamp"
+        artifact_id:
+          $ref: "#/components/schemas/Identifier"
+        target:
+          $ref: "#/components/schemas/Target"
+        compressed_size_bytes:
+          $ref: "#/components/schemas/ByteSize"
+        installed_size_bytes:
+          $ref: "#/components/schemas/ByteSize"
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+        manifest_schema_version:
+          const: "1"
+    LibraryItem:
+      type: object
+      required: [game, acquired_at, latest_compatible_release]
+      properties:
+        game:
+          $ref: "#/components/schemas/CatalogGame"
+        acquired_at:
+          $ref: "#/components/schemas/Timestamp"
+        latest_compatible_release:
+          oneOf:
+            - $ref: "#/components/schemas/ReleaseSummary"
+            - type: "null"
+    InstallManifest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          schema_version,
+          release_id,
+          artifact_id,
+          entrypoint,
+          launch_arguments,
+          executables,
+          environment,
+        ]
+      properties:
+        schema_version:
+          const: "1"
+        release_id:
+          $ref: "#/components/schemas/Identifier"
+        artifact_id:
+          $ref: "#/components/schemas/Identifier"
+        entrypoint:
+          type: string
+        launch_arguments:
+          type: array
+          items:
+            type: string
+        working_directory:
+          type: string
+        executables:
+          type: array
+          items:
+            type: string
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+    DownloadAuthorization:
+      type: object
+      required: [artifact_id, url, expires_at, total_size_bytes, sha256]
+      properties:
+        artifact_id:
+          $ref: "#/components/schemas/Identifier"
+        url:
+          type: string
+          format: uri
+        expires_at:
+          $ref: "#/components/schemas/Timestamp"
+        total_size_bytes:
+          $ref: "#/components/schemas/ByteSize"
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+        etag:
+          type: string
+    ReleasePatch:
+      type: object
+      required:
+        [
+          id,
+          source_release_id,
+          target_release_id,
+          target,
+          algorithm,
+          format_version,
+          size_bytes,
+          sha256,
+          expected_installation_sha256,
+          published_at,
+        ]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        source_release_id:
+          $ref: "#/components/schemas/Identifier"
+        target_release_id:
+          $ref: "#/components/schemas/Identifier"
+        target:
+          $ref: "#/components/schemas/Target"
+        algorithm:
+          type: string
+        format_version:
+          type: string
+        size_bytes:
+          $ref: "#/components/schemas/ByteSize"
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+        expected_installation_sha256:
+          $ref: "#/components/schemas/Sha256"
+        published_at:
+          $ref: "#/components/schemas/Timestamp"
+    Pagination:
+      type: object
+      required: [page, limit, total, pages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        pages:
+          type: integer
+          minimum: 0
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  INVALID_REQUEST,
+                  UNSUPPORTED_API_VERSION,
+                  UNSUPPORTED_MANIFEST_VERSION,
+                  AUTHENTICATION_REQUIRED,
+                  INVALID_CREDENTIALS,
+                  SESSION_EXPIRED,
+                  SESSION_REVOKED,
+                  ACCOUNT_DISABLED,
+                  ENTITLEMENT_REQUIRED,
+                  NO_COMPATIBLE_RELEASE,
+                  RELEASE_RETIRED,
+                  INTEGRITY_FAILURE,
+                  RATE_LIMITED,
+                  SERVICE_UNAVAILABLE,
+                ]
+            message:
+              type: string
+            retryable:
+              type: boolean
+            request_id:
+              type: string
+            details:
+              type: object
+              additionalProperties: true

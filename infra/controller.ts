@@ -20,6 +20,12 @@ declare module "next" {
   export interface NextApiRequest {
     context?: {
       user: Partial<User>;
+      session?: {
+        id: string;
+        token: string;
+        expires_at: Date;
+      };
+      authentication?: "bearer" | "cookie";
     };
   }
 }
@@ -70,7 +76,9 @@ function logServerError(
   console.error(
     JSON.stringify({
       method: req.method,
-      path: req.url,
+      // Query strings may contain signed URLs or other credentials. Logging
+      // only the pathname keeps those secrets out of operational logs.
+      path: req.url?.split("?", 1)[0],
       name: error.name,
       status_code: error.statusCode,
       message: error.message,
@@ -112,8 +120,14 @@ async function injectAnonymousOrUser(
   res: NextApiResponse,
   next: NextHandler,
 ) {
+  const bearerToken = readBearerToken(req.headers.authorization);
+  if (bearerToken) {
+    await injectAuthenticatedUser(req, bearerToken, "bearer");
+    return next();
+  }
+
   if (req.cookies?.session_id) {
-    await injectAuthenticatedUser(req);
+    await injectAuthenticatedUser(req, req.cookies.session_id, "cookie");
     return next();
   }
 
@@ -121,11 +135,33 @@ async function injectAnonymousOrUser(
   return next();
 }
 
-async function injectAuthenticatedUser(req: NextApiRequest) {
-  const sessionToken = req.cookies?.session_id;
+function readBearerToken(authorizationHeader: string | undefined) {
+  if (authorizationHeader === undefined) return undefined;
+
+  const match = /^Bearer ([A-Za-z0-9_-]+)$/.exec(authorizationHeader);
+  if (!match) {
+    throw new UnauthorizedError({
+      message: "Malformed bearer authorization header",
+      action: "Use Authorization: Bearer <session-token>",
+    });
+  }
+
+  return match[1];
+}
+
+async function injectAuthenticatedUser(
+  req: NextApiRequest,
+  sessionToken: string,
+  authentication: "bearer" | "cookie",
+) {
   const validSession = await session.findOneValidByToken(sessionToken);
   const authenticatedUser = await user.findOneById(validSession.user_id);
-  req.context = { ...req.context, user: authenticatedUser };
+  req.context = {
+    ...req.context,
+    user: authenticatedUser,
+    session: validSession,
+    authentication,
+  };
 }
 
 function injectAnonymousUser(req: NextApiRequest) {
@@ -157,6 +193,7 @@ const controller = {
   setSessionCookie,
   clearSessionCookie,
   injectAnonymousOrUser,
+  readBearerToken,
   canRequest,
 };
 

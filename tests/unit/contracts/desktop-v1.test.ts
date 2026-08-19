@@ -1,0 +1,81 @@
+import {
+  byteSizeSchema,
+  createSessionRequestSchema,
+  desktopArchitectureSchema,
+  desktopPlatformSchema,
+  installManifestSchema,
+  manifestSchemaVersionSchema,
+} from "contracts/desktop/v1";
+
+const releaseId = "11111111-1111-4111-8111-111111111111";
+const artifactId = "22222222-2222-4222-8222-222222222222";
+
+describe("desktop API v1 contract", () => {
+  test("defines the supported target vocabulary", () => {
+    expect(desktopPlatformSchema.options).toEqual(["WINDOWS", "MAC", "LINUX"]);
+    expect(desktopArchitectureSchema.options).toEqual(["X86_64", "AARCH64"]);
+  });
+
+  test("rejects an unknown API version", () => {
+    const result = createSessionRequestSchema.safeParse({
+      method: "PASSWORD",
+      email: "player@example.com",
+      password: "secret",
+      api_version: "2",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects an unknown manifest schema version", () => {
+    expect(manifestSchemaVersionSchema.safeParse("2").success).toBe(false);
+    expect(
+      installManifestSchema.safeParse({
+        schema_version: "2",
+        release_id: releaseId,
+        artifact_id: artifactId,
+        entrypoint: "game/start.exe",
+      }).success,
+    ).toBe(false);
+  });
+
+  test("accepts a complete version 1 manifest", () => {
+    const manifest = installManifestSchema.parse({
+      schema_version: "1",
+      release_id: releaseId,
+      artifact_id: artifactId,
+      entrypoint: "game/start.exe",
+    });
+
+    expect(manifest).toEqual({
+      schema_version: "1",
+      release_id: releaseId,
+      artifact_id: artifactId,
+      entrypoint: "game/start.exe",
+      launch_arguments: [],
+      executables: [],
+      environment: {},
+    });
+  });
+
+  test.each(["/game/start", "../game/start", "game/../../start"])(
+    "rejects unsafe manifest path %s",
+    (entrypoint) => {
+      const result = installManifestSchema.safeParse({
+        schema_version: "1",
+        release_id: releaseId,
+        artifact_id: artifactId,
+        entrypoint,
+      });
+
+      expect(result.success).toBe(false);
+    },
+  );
+
+  test("represents byte sizes as unsigned decimal strings", () => {
+    expect(byteSizeSchema.safeParse("9007199254740993").success).toBe(true);
+    expect(byteSizeSchema.safeParse(9007199254740992).success).toBe(false);
+    expect(byteSizeSchema.safeParse("-1").success).toBe(false);
+    expect(byteSizeSchema.safeParse("01").success).toBe(false);
+  });
+});
