@@ -5,6 +5,7 @@ import {
   GameArchiveFormat,
   GameArtifactStatus,
   GamePlatform,
+  GameReleaseStatus,
   Prisma,
 } from "generated/prisma/client";
 import {
@@ -13,7 +14,7 @@ import {
   sha256Schema,
 } from "contracts/desktop/v1";
 import gameRelease from "models/game_release";
-import storage from "infra/storage";
+import storage, { type ArtifactObjectMetadata } from "infra/storage";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -60,6 +61,11 @@ export type GameArtifactUploadDto = z.infer<typeof gameArtifactUploadSchema>;
 const archiveExtensions: Record<GameArchiveFormat, string> = {
   ZIP: "zip",
   TAR_GZ: "tar.gz",
+};
+
+const archiveContentTypes: Record<GameArchiveFormat, string> = {
+  ZIP: "application/zip",
+  TAR_GZ: "application/gzip",
 };
 
 async function initiateUpload(
@@ -176,6 +182,328 @@ async function createUploadArtifact(
     },
     { isolationLevel: "Serializable" },
   );
+}
+
+async function confirmUpload(id: string) {
+  const artifactId = z.uuid().parse(id);
+  const claimed = await claimVerification(artifactId);
+
+  if (claimed.already_published) {
+    return {
+      artifact: serialize(claimed.artifact),
+      release: claimed.release,
+      published: true,
+    };
+  }
+
+  if (claimed.needs_verification) {
+    try {
+      const object = await storage.getArtifactObjectMetadata(
+        claimed.artifact.storage_object_key,
+      );
+      validateStoredArtifact(claimed.artifact, object);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await failVerification(artifactId);
+      }
+      throw error;
+    }
+  }
+
+  return finalizeVerificationAndPublication(artifactId);
+}
+
+async function claimVerification(id: string) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const artifact = await tx.gameArtifact.findUnique({ where: { id } });
+          if (!artifact) throw artifactNotFound(id);
+          const release = await tx.gameRelease.findUnique({
+            where: { id: artifact.release_id },
+          });
+          if (!release) {
+            throw new NotFoundError({
+              message: `Release "${artifact.release_id}" was not found.`,
+              action: "Check the artifact's release reference.",
+            });
+          }
+
+          if (
+            artifact.status === GameArtifactStatus.READY &&
+            release.status === GameReleaseStatus.PUBLISHED
+          ) {
+            return {
+              artifact,
+              release,
+              needs_verification: false,
+              already_published: true,
+            };
+          }
+
+          gameRelease.assertReleaseMutable(release);
+
+          const needsVerification =
+            artifact.status !== GameArtifactStatus.READY;
+          if (
+            artifact.status !== GameArtifactStatus.PENDING &&
+            artifact.status !== GameArtifactStatus.FAILED &&
+            artifact.status !== GameArtifactStatus.VERIFYING &&
+            artifact.status !== GameArtifactStatus.READY
+          ) {
+            throw invalidTransition(
+              artifact.id,
+              artifact.status,
+              GameArtifactStatus.READY,
+            );
+          }
+
+          const claimedArtifact =
+            artifact.status === GameArtifactStatus.PENDING ||
+            artifact.status === GameArtifactStatus.FAILED
+              ? await tx.gameArtifact.update({
+                  where: { id },
+                  data: { status: GameArtifactStatus.VERIFYING },
+                })
+              : artifact;
+
+          const processingRelease =
+            release.status === GameReleaseStatus.DRAFT ||
+            release.status === GameReleaseStatus.FAILED
+              ? await tx.gameRelease.update({
+                  where: { id: release.id },
+                  data: { status: GameReleaseStatus.PROCESSING },
+                })
+              : release;
+
+          return {
+            artifact: claimedArtifact,
+            release: processingRelease,
+            needs_verification: needsVerification,
+            already_published: false,
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
+    } catch (error) {
+      if (attempt < 3 && isRetryableTransactionError(error)) continue;
+      throw error;
+    }
+  }
+
+  throw new Error("Unreachable artifact verification claim state");
+}
+
+function validateStoredArtifact(
+  artifact: {
+    id: string;
+    release_id: string;
+    archive_format: GameArchiveFormat;
+    compressed_size_bytes: bigint | null;
+    installed_size_bytes: bigint | null;
+    sha256: string | null;
+    manifest_schema_version: string | null;
+    manifest: Prisma.JsonValue | null;
+  },
+  object: ArtifactObjectMetadata | null,
+) {
+  if (!object) {
+    throw verificationError(
+      artifact.id,
+      "The uploaded artifact was not found in storage.",
+    );
+  }
+  if (
+    !artifact.compressed_size_bytes ||
+    !artifact.installed_size_bytes ||
+    !artifact.sha256 ||
+    !artifact.manifest_schema_version
+  ) {
+    throw verificationError(
+      artifact.id,
+      "The artifact is missing required declared integrity metadata.",
+    );
+  }
+
+  const declaredSize = artifact.compressed_size_bytes.toString();
+  const expectedChecksum = Buffer.from(artifact.sha256, "hex").toString(
+    "base64",
+  );
+  const mismatches: string[] = [];
+
+  if (object.size_bytes !== declaredSize) mismatches.push("compressed size");
+  if (object.checksum_sha256 !== expectedChecksum) mismatches.push("SHA-256");
+  if (object.content_type !== archiveContentTypes[artifact.archive_format]) {
+    mismatches.push("archive content type");
+  }
+  if (object.metadata["artifact-id"] !== artifact.id) {
+    mismatches.push("artifact identity metadata");
+  }
+  if (object.metadata["declared-size-bytes"] !== declaredSize) {
+    mismatches.push("declared size metadata");
+  }
+  if (object.metadata.sha256 !== artifact.sha256) {
+    mismatches.push("SHA-256 metadata");
+  }
+
+  if (mismatches.length > 0) {
+    throw verificationError(
+      artifact.id,
+      `Storage verification failed for: ${mismatches.join(", ")}.`,
+    );
+  }
+
+  const manifest = installManifestSchema.safeParse(artifact.manifest);
+  if (
+    !manifest.success ||
+    manifest.data.release_id !== artifact.release_id ||
+    manifest.data.artifact_id !== artifact.id ||
+    manifest.data.schema_version !== artifact.manifest_schema_version
+  ) {
+    throw verificationError(
+      artifact.id,
+      "The persisted install manifest is invalid or belongs to another artifact.",
+      manifest.success ? undefined : manifest.error,
+    );
+  }
+}
+
+async function failVerification(id: string) {
+  await prisma.$transaction(
+    async (tx) => {
+      const artifact = await tx.gameArtifact.findUnique({ where: { id } });
+      if (!artifact || artifact.status !== GameArtifactStatus.VERIFYING) return;
+
+      await tx.gameArtifact.update({
+        where: { id },
+        data: { status: GameArtifactStatus.FAILED },
+      });
+      await tx.gameRelease.updateMany({
+        where: {
+          id: artifact.release_id,
+          status: GameReleaseStatus.PROCESSING,
+        },
+        data: { status: GameReleaseStatus.FAILED },
+      });
+    },
+    { isolationLevel: "Serializable" },
+  );
+}
+
+async function finalizeVerificationAndPublication(id: string) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const artifact = await tx.gameArtifact.findUnique({
+            where: { id },
+          });
+          if (!artifact) throw artifactNotFound(id);
+          const release = await tx.gameRelease.findUnique({
+            where: { id: artifact.release_id },
+          });
+          if (!release) {
+            throw new NotFoundError({
+              message: `Release "${artifact.release_id}" was not found.`,
+              action: "Check the artifact's release reference.",
+            });
+          }
+
+          if (
+            artifact.status === GameArtifactStatus.READY &&
+            release.status === GameReleaseStatus.PUBLISHED
+          ) {
+            return { artifact, release, published: true };
+          }
+          gameRelease.assertReleaseMutable(release);
+          if (
+            artifact.status !== GameArtifactStatus.VERIFYING &&
+            artifact.status !== GameArtifactStatus.READY
+          ) {
+            throw invalidTransition(
+              artifact.id,
+              artifact.status,
+              GameArtifactStatus.READY,
+            );
+          }
+
+          const manifest = installManifestSchema.safeParse(artifact.manifest);
+          if (
+            !manifest.success ||
+            manifest.data.release_id !== artifact.release_id ||
+            manifest.data.artifact_id !== artifact.id ||
+            manifest.data.schema_version !== artifact.manifest_schema_version
+          ) {
+            throw verificationError(
+              artifact.id,
+              "The persisted install manifest is invalid or belongs to another artifact.",
+              manifest.success ? undefined : manifest.error,
+            );
+          }
+
+          const readyArtifact =
+            artifact.status === GameArtifactStatus.READY
+              ? artifact
+              : await tx.gameArtifact.update({
+                  where: { id },
+                  data: { status: GameArtifactStatus.READY },
+                });
+          const incompleteArtifacts = await tx.gameArtifact.count({
+            where: {
+              release_id: release.id,
+              id: { not: id },
+              status: { not: GameArtifactStatus.READY },
+            },
+          });
+
+          if (incompleteArtifacts > 0) {
+            const processingRelease =
+              release.status === GameReleaseStatus.PROCESSING
+                ? release
+                : await tx.gameRelease.update({
+                    where: { id: release.id },
+                    data: { status: GameReleaseStatus.PROCESSING },
+                  });
+            return {
+              artifact: readyArtifact,
+              release: processingRelease,
+              published: false,
+            };
+          }
+
+          const publishedRelease = await tx.gameRelease.update({
+            where: { id: release.id },
+            data: {
+              status: GameReleaseStatus.PUBLISHED,
+              published_at: release.published_at ?? new Date(),
+            },
+          });
+          return {
+            artifact: readyArtifact,
+            release: publishedRelease,
+            published: true,
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
+
+      return { ...result, artifact: serialize(result.artifact) };
+    } catch (error) {
+      if (attempt < 3 && isRetryableTransactionError(error)) continue;
+      throw error;
+    }
+  }
+
+  throw new Error("Unreachable artifact confirmation state");
+}
+
+function verificationError(id: string, message: string, cause?: unknown) {
+  return new ValidationError({
+    message,
+    cause,
+    action: `Correct or replace artifact "${id}", then retry confirmation.`,
+  });
 }
 
 function isSameUploadDeclaration(
@@ -405,6 +733,7 @@ function invalidTransition(
 
 const gameArtifact = {
   initiateUpload,
+  confirmUpload,
   createPending,
   findById,
   markVerifying,

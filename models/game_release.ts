@@ -121,6 +121,9 @@ async function publish(id: string) {
     async (tx) => {
       const release = await tx.gameRelease.findUnique({ where: { id } });
       if (!release) throw releaseNotFound(id);
+      if (release.status === GameReleaseStatus.PUBLISHED) {
+        return release;
+      }
       if (release.status !== GameReleaseStatus.PROCESSING) {
         throw invalidTransition(
           id,
