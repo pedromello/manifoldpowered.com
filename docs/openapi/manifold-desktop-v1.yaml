@@ -169,6 +169,12 @@ paths:
           required: true
           schema:
             const: "1"
+        - name: artifact_id
+          in: query
+          required: false
+          description: Selects the manifest for a specific release artifact. Required when the release has more than one ready artifact.
+          schema:
+            $ref: "#/components/schemas/Identifier"
       responses:
         "200":
           description: Versioned install manifest.

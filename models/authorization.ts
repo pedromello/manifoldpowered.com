@@ -20,7 +20,10 @@ import {
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
-import { releaseSummarySchema } from "contracts/desktop/v1";
+import {
+  installManifestSchema,
+  releaseSummarySchema,
+} from "contracts/desktop/v1";
 
 type SaleWithGame = Sale & { game_title?: string; game_slug?: string | null };
 
@@ -680,6 +683,17 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       sha256: result.artifact.sha256,
       manifest_schema_version: result.artifact.manifest_schema_version,
     });
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "schema_version" in resource &&
+    "release_id" in resource &&
+    "artifact_id" in resource
+  ) {
+    return installManifestSchema.parse(resource);
   }
 
   if (

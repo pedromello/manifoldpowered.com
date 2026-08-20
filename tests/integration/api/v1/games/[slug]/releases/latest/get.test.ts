@@ -368,7 +368,7 @@ function requestRelease(
   const requestHeaders = { ...headers };
   if (sessionToken) requestHeaders.Cookie = `session_id=${sessionToken}`;
 
-  const query = new URLSearchParams({ platform, architecture });
+  const query = new URLSearchParams({ platform, arch: architecture });
   return fetch(
     `${webserver.getOrigin()}/api/v1/games/${slug}/releases/latest?${query}`,
     { headers: requestHeaders },
