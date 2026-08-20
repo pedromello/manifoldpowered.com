@@ -113,6 +113,7 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
   store: StoreContext | null;
   heading?: string;
   showDiscover?: boolean;
+  showPlatformWelcome?: boolean;
 };
 
 /**
