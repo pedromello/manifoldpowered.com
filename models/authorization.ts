@@ -15,9 +15,12 @@ import {
   ExchangeRate,
   SupplierTerms,
   PayoutAccount,
+  GameArtifact,
+  GameRelease,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
+import { releaseSummarySchema } from "contracts/desktop/v1";
 
 type SaleWithGame = Sale & { game_title?: string; game_slug?: string | null };
 
@@ -642,6 +645,41 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       created_at: artifact.created_at,
       updated_at: artifact.updated_at,
     };
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "release" in resource &&
+    "artifact" in resource
+  ) {
+    const result = resource as {
+      release: GameRelease;
+      artifact: Omit<
+        GameArtifact,
+        "compressed_size_bytes" | "installed_size_bytes"
+      > & {
+        compressed_size_bytes: string | bigint;
+        installed_size_bytes: string | bigint;
+      };
+    };
+
+    return releaseSummarySchema.parse({
+      id: result.release.id,
+      version: result.release.version,
+      release_number: result.release.release_number,
+      published_at: result.release.published_at?.toISOString(),
+      artifact_id: result.artifact.id,
+      target: {
+        platform: result.artifact.platform,
+        architecture: result.artifact.architecture,
+      },
+      compressed_size_bytes: result.artifact.compressed_size_bytes.toString(),
+      installed_size_bytes: result.artifact.installed_size_bytes.toString(),
+      sha256: result.artifact.sha256,
+      manifest_schema_version: result.artifact.manifest_schema_version,
+    });
   }
 
   if (

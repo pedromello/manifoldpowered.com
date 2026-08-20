@@ -188,40 +188,59 @@ async function findLatestCompatible(
   platform: GamePlatform,
   architecture: GameArchitecture,
 ) {
-  const releases = await prisma.gameRelease.findMany({
-    where: { game_id: gameId, status: GameReleaseStatus.PUBLISHED },
-    orderBy: { release_number: "desc" },
-  });
+  const batchSize = 50;
+  let beforeReleaseNumber: number | undefined;
 
-  if (releases.length === 0) return null;
+  while (true) {
+    const releases = await prisma.gameRelease.findMany({
+      where: {
+        game_id: gameId,
+        status: GameReleaseStatus.PUBLISHED,
+        published_at: { not: null },
+        release_number:
+          beforeReleaseNumber === undefined
+            ? undefined
+            : { lt: beforeReleaseNumber },
+      },
+      orderBy: { release_number: "desc" },
+      take: batchSize,
+    });
 
-  const artifacts = await prisma.gameArtifact.findMany({
-    where: {
-      release_id: { in: releases.map((release) => release.id) },
-      platform,
-      architecture,
-      status: "READY",
-    },
-  });
-  const artifactsByRelease = new Map(
-    artifacts.map((artifact) => [artifact.release_id, artifact]),
-  );
+    if (releases.length === 0) return null;
 
-  for (const release of releases) {
-    const artifact = artifactsByRelease.get(release.id);
-    if (artifact) {
-      return {
-        release,
-        artifact: {
-          ...artifact,
-          compressed_size_bytes: artifact.compressed_size_bytes!.toString(),
-          installed_size_bytes: artifact.installed_size_bytes!.toString(),
-        },
-      };
+    const artifacts = await prisma.gameArtifact.findMany({
+      where: {
+        release_id: { in: releases.map((release) => release.id) },
+        platform,
+        architecture,
+        status: "READY",
+        compressed_size_bytes: { not: null },
+        installed_size_bytes: { not: null },
+        sha256: { not: null },
+        manifest_schema_version: { not: null },
+      },
+    });
+    const artifactsByRelease = new Map(
+      artifacts.map((artifact) => [artifact.release_id, artifact]),
+    );
+
+    for (const release of releases) {
+      const artifact = artifactsByRelease.get(release.id);
+      if (artifact) {
+        return {
+          release,
+          artifact: {
+            ...artifact,
+            compressed_size_bytes: artifact.compressed_size_bytes!.toString(),
+            installed_size_bytes: artifact.installed_size_bytes!.toString(),
+          },
+        };
+      }
     }
-  }
 
-  return null;
+    if (releases.length < batchSize) return null;
+    beforeReleaseNumber = releases.at(-1)!.release_number;
+  }
 }
 
 function assertReleaseMutable(release: {
