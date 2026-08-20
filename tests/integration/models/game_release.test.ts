@@ -210,6 +210,203 @@ describe("immutable game release distribution model", () => {
     getUploadAuthorization.mockRestore();
   });
 
+  test("verifies storage metadata and publishes atomically and idempotently", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    jest.spyOn(storage, "getArtifactUploadAuthorization").mockResolvedValue({
+      url: "https://storage.test/signed-upload",
+      expires_at: "2026-08-19T23:00:00.000Z",
+      required_headers: {},
+    });
+    const declaration = artifactUploadDeclaration();
+    const initiated = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      declaration,
+    );
+    const getMetadata = jest
+      .spyOn(storage, "getArtifactObjectMetadata")
+      .mockResolvedValue(artifactObjectMetadata(initiated.artifact.id));
+
+    const confirmed = await gameArtifact.confirmUpload(initiated.artifact.id);
+    const retry = await gameArtifact.confirmUpload(initiated.artifact.id);
+
+    expect(confirmed.artifact.status).toBe("READY");
+    expect(confirmed.release.status).toBe("PUBLISHED");
+    expect(confirmed.published).toBe(true);
+    expect(retry.artifact.id).toBe(confirmed.artifact.id);
+    expect(retry.release.published_at).toEqual(confirmed.release.published_at);
+    expect(getMetadata).toHaveBeenCalledTimes(1);
+
+    const directPublishRetry = await gameRelease.publish(release.id);
+    expect(directPublishRetry.published_at).toEqual(
+      confirmed.release.published_at,
+    );
+
+    jest.restoreAllMocks();
+  });
+
+  test("waits for every artifact before publishing the release", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    jest.spyOn(storage, "getArtifactUploadAuthorization").mockResolvedValue({
+      url: "https://storage.test/signed-upload",
+      expires_at: "2026-08-19T23:00:00.000Z",
+      required_headers: {},
+    });
+    const x64 = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      artifactUploadDeclaration(),
+    );
+    const arm64 = await gameArtifact.initiateUpload(release.id, owner.id, {
+      ...artifactUploadDeclaration(),
+      architecture: GameArchitecture.AARCH64,
+    });
+    jest
+      .spyOn(storage, "getArtifactObjectMetadata")
+      .mockImplementation(async (key) => {
+        const artifactId = key.includes(x64.artifact.id)
+          ? x64.artifact.id
+          : arm64.artifact.id;
+        return artifactObjectMetadata(artifactId);
+      });
+
+    const first = await gameArtifact.confirmUpload(x64.artifact.id);
+    expect(first.artifact.status).toBe("READY");
+    expect(first.release.status).toBe("PROCESSING");
+    expect(first.published).toBe(false);
+
+    const second = await gameArtifact.confirmUpload(arm64.artifact.id);
+    expect(second.artifact.status).toBe("READY");
+    expect(second.release.status).toBe("PUBLISHED");
+    expect(second.published).toBe(true);
+
+    jest.restoreAllMocks();
+  });
+
+  test("marks verification failures and permits a corrected retry", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    jest.spyOn(storage, "getArtifactUploadAuthorization").mockResolvedValue({
+      url: "https://storage.test/signed-upload",
+      expires_at: "2026-08-19T23:00:00.000Z",
+      required_headers: {},
+    });
+    const initiated = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      artifactUploadDeclaration(),
+    );
+    const getMetadata = jest
+      .spyOn(storage, "getArtifactObjectMetadata")
+      .mockResolvedValue({
+        ...artifactObjectMetadata(initiated.artifact.id),
+        size_bytes: "1023",
+      });
+
+    await expect(
+      gameArtifact.confirmUpload(initiated.artifact.id),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("compressed size"),
+    });
+    await expect(
+      gameArtifact.findById(initiated.artifact.id),
+    ).resolves.toMatchObject({ status: "FAILED" });
+    await expect(gameRelease.findById(release.id)).resolves.toMatchObject({
+      status: "FAILED",
+    });
+
+    getMetadata.mockResolvedValue({
+      ...artifactObjectMetadata(initiated.artifact.id),
+      checksum_sha256: Buffer.from("b".repeat(64), "hex").toString("base64"),
+    });
+    await expect(
+      gameArtifact.confirmUpload(initiated.artifact.id),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("SHA-256"),
+    });
+
+    getMetadata.mockResolvedValue(
+      artifactObjectMetadata(initiated.artifact.id),
+    );
+    const retried = await gameArtifact.confirmUpload(initiated.artifact.id);
+    expect(retried.artifact.status).toBe("READY");
+    expect(retried.release.status).toBe("PUBLISHED");
+
+    jest.restoreAllMocks();
+  });
+
+  test("rejects a missing object and an invalid persisted entrypoint", async () => {
+    const owner = await orchestrator.createUser();
+    const game = await orchestrator.createGame(owner.id);
+    const release = await gameRelease.createDraft({
+      game_id: game.id,
+      version: "1.0.0",
+    });
+    jest.spyOn(storage, "getArtifactUploadAuthorization").mockResolvedValue({
+      url: "https://storage.test/signed-upload",
+      expires_at: "2026-08-19T23:00:00.000Z",
+      required_headers: {},
+    });
+    const initiated = await gameArtifact.initiateUpload(
+      release.id,
+      owner.id,
+      artifactUploadDeclaration(),
+    );
+    const getMetadata = jest
+      .spyOn(storage, "getArtifactObjectMetadata")
+      .mockResolvedValue(null);
+
+    await expect(
+      gameArtifact.confirmUpload(initiated.artifact.id),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("not found"),
+    });
+
+    await prisma.gameArtifact.update({
+      where: { id: initiated.artifact.id },
+      data: {
+        manifest: {
+          schema_version: "1",
+          release_id: release.id,
+          artifact_id: initiated.artifact.id,
+          entrypoint: "../game.exe",
+          launch_arguments: [],
+          executables: [],
+          environment: {},
+        },
+      },
+    });
+    getMetadata.mockResolvedValue(
+      artifactObjectMetadata(initiated.artifact.id),
+    );
+
+    await expect(
+      gameArtifact.confirmUpload(initiated.artifact.id),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("manifest"),
+    });
+
+    jest.restoreAllMocks();
+  });
+
   test("published release and artifact data cannot be changed", async () => {
     const owner = await orchestrator.createUser();
     const game = await orchestrator.createGame(owner.id);
@@ -350,4 +547,37 @@ async function makeArtifactReady(
       environment: {},
     },
   });
+}
+
+function artifactUploadDeclaration() {
+  return {
+    platform: GamePlatform.WINDOWS,
+    architecture: GameArchitecture.X86_64,
+    archive_format: GameArchiveFormat.ZIP,
+    compressed_size_bytes: "1024",
+    installed_size_bytes: "2048",
+    sha256: "a".repeat(64),
+    manifest: {
+      schema_version: "1" as const,
+      entrypoint: "game.exe",
+      launch_arguments: [],
+      executables: ["game.exe"],
+      environment: {},
+    },
+  };
+}
+
+function artifactObjectMetadata(artifactId: string) {
+  const sha256 = "a".repeat(64);
+  return {
+    size_bytes: "1024",
+    checksum_sha256: Buffer.from(sha256, "hex").toString("base64"),
+    content_type: "application/zip",
+    etag: '"etag"',
+    metadata: {
+      "artifact-id": artifactId,
+      "declared-size-bytes": "1024",
+      sha256,
+    },
+  };
 }

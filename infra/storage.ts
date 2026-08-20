@@ -1,6 +1,7 @@
 import {
   S3Client,
   PutObjectCommand,
+  HeadObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
   CreateBucketCommand,
@@ -9,7 +10,7 @@ import {
   ListObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { InternalServerError } from "./errors";
+import { InternalServerError, ServiceError } from "./errors";
 import { GameArchiveFormat } from "generated/prisma/client";
 
 const s3Client = new S3Client({
@@ -57,6 +58,14 @@ export interface ArtifactUploadAuthorization {
   url: string;
   expires_at: string;
   required_headers: Record<string, string>;
+}
+
+export interface ArtifactObjectMetadata {
+  size_bytes: string;
+  checksum_sha256: string | null;
+  content_type: string | null;
+  etag: string | null;
+  metadata: Record<string, string>;
 }
 
 export async function getArtifactUploadAuthorization({
@@ -108,6 +117,59 @@ export async function getArtifactUploadAuthorization({
     ).toISOString(),
     required_headers: requiredHeaders,
   };
+}
+
+export async function getArtifactObjectMetadata(
+  key: string,
+): Promise<ArtifactObjectMetadata | null> {
+  try {
+    const object = await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        ChecksumMode: "ENABLED",
+      }),
+    );
+
+    if (object.ContentLength === undefined) {
+      throw new ServiceError({
+        message: "Storage returned artifact metadata without a content length",
+        action: "Retry upload confirmation",
+      });
+    }
+
+    return {
+      size_bytes: object.ContentLength.toString(),
+      checksum_sha256: object.ChecksumSHA256 ?? null,
+      content_type: object.ContentType ?? null,
+      etag: object.ETag ?? null,
+      metadata: object.Metadata ?? {},
+    };
+  } catch (error) {
+    if (isMissingObjectError(error)) return null;
+    if (error instanceof ServiceError) throw error;
+
+    throw new ServiceError({
+      message: "Artifact metadata could not be read from storage",
+      cause: error,
+      action: "Retry upload confirmation",
+    });
+  }
+}
+
+function isMissingObjectError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const status =
+    "$metadata" in error &&
+    error.$metadata &&
+    typeof error.$metadata === "object" &&
+    "httpStatusCode" in error.$metadata
+      ? error.$metadata.httpStatusCode
+      : undefined;
+  const name = "name" in error ? error.name : undefined;
+
+  return status === 404 || name === "NotFound" || name === "NoSuchKey";
 }
 
 export async function getDownloadUrl(key: string): Promise<string> {
@@ -188,6 +250,7 @@ export async function createBucket(
 const storage = {
   getUploadUrl,
   getArtifactUploadAuthorization,
+  getArtifactObjectMetadata,
   getDownloadUrl,
   deleteFile,
   clearAllBuckets,
