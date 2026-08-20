@@ -1,11 +1,13 @@
 import { prisma } from "infra/database";
-import { NotFoundError, ValidationError } from "infra/errors";
+import { NotFoundError, ServiceError, ValidationError } from "infra/errors";
 import {
   GameArchitecture,
   GamePlatform,
   GameReleaseStatus,
+  Prisma,
 } from "generated/prisma/client";
 import { z } from "zod";
+import { installManifestSchema } from "contracts/desktop/v1";
 
 export const gameReleaseCreateSchema = z.object({
   game_id: z.uuid(),
@@ -243,6 +245,64 @@ async function findLatestCompatible(
   }
 }
 
+async function findPublishedManifest(
+  id: string,
+  schemaVersion: string,
+  artifactId?: string,
+) {
+  const release = await prisma.gameRelease.findUnique({
+    where: { id },
+    select: { id: true, status: true, published_at: true },
+  });
+  if (release?.status === GameReleaseStatus.RETIRED) {
+    return { state: "RETIRED" } as const;
+  }
+  if (
+    !release ||
+    release.status !== GameReleaseStatus.PUBLISHED ||
+    !release.published_at
+  ) {
+    return { state: "UNAVAILABLE" } as const;
+  }
+
+  const artifacts = await prisma.gameArtifact.findMany({
+    where: {
+      ...(artifactId ? { id: artifactId } : {}),
+      release_id: id,
+      status: "READY",
+      manifest_schema_version: schemaVersion,
+      manifest: { not: Prisma.DbNull },
+    },
+    orderBy: { created_at: "asc" },
+    take: 2,
+  });
+  const [artifact] = artifacts;
+  if (!artifact) return { state: "UNAVAILABLE" } as const;
+  if (artifacts.length > 1) {
+    throw new ValidationError({
+      message:
+        "Artifact id is required when a release has multiple ready artifacts",
+      action: "Provide the artifact id selected by the latest release response",
+    });
+  }
+
+  const manifest = installManifestSchema.safeParse(artifact.manifest);
+  if (
+    !manifest.success ||
+    manifest.data.release_id !== release.id ||
+    manifest.data.artifact_id !== artifact.id ||
+    manifest.data.schema_version !== artifact.manifest_schema_version
+  ) {
+    throw new ServiceError({
+      message: "The published install manifest failed integrity validation",
+      action: "Contact the publisher before retrying the installation",
+      cause: manifest.success ? undefined : manifest.error,
+    });
+  }
+
+  return { state: "FOUND", manifest: manifest.data } as const;
+}
+
 function assertReleaseMutable(release: {
   id: string;
   status: GameReleaseStatus;
@@ -286,6 +346,7 @@ const gameRelease = {
   publish,
   retire,
   findLatestCompatible,
+  findPublishedManifest,
   assertReleaseMutable,
 };
 

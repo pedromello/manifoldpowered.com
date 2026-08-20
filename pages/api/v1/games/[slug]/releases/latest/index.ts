@@ -16,7 +16,7 @@ import { z } from "zod";
 const querySchema = z.object({
   slug: z.string().min(1).max(255),
   platform: desktopPlatformSchema,
-  architecture: desktopArchitectureSchema,
+  arch: desktopArchitectureSchema,
 });
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -39,7 +39,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const { slug, platform, architecture } = queryParse.data;
+  const { slug, platform, arch } = queryParse.data;
   const gameResource = await game.findOneBySlugWithStudio(slug);
 
   if (!gameResource) {
@@ -69,7 +69,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const result = await gameRelease.findLatestCompatible(
     gameResource.id,
     platform,
-    architecture,
+    arch,
   );
 
   if (!result) {

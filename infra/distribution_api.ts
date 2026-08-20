@@ -19,13 +19,19 @@ type DistributionErrorCode = z.infer<typeof desktopErrorCodeSchema>;
 type DistributionError = Error & {
   statusCode?: number;
   distributionErrorCode?: DistributionErrorCode;
+  distributionRetryable?: boolean;
 };
 
 function withErrorCode<T extends Error>(
   error: T,
   code: DistributionErrorCode,
+  options: { retryable?: boolean; statusCode?: number } = {},
 ): T {
-  return Object.assign(error, { distributionErrorCode: code });
+  return Object.assign(error, {
+    distributionErrorCode: code,
+    distributionRetryable: options.retryable,
+    statusCode: options.statusCode ?? (error as DistributionError).statusCode,
+  });
 }
 
 function onNoMatch(_req: NextApiRequest, res: NextApiResponse) {
@@ -61,9 +67,10 @@ function onError(
   const code = error.distributionErrorCode ?? inferErrorCode(error);
   const message = isKnownError ? error.message : "Service unavailable";
   const retryable =
-    error instanceof RateLimitError ||
-    error instanceof ServiceError ||
-    !isKnownError;
+    error.distributionRetryable ??
+    (error instanceof RateLimitError ||
+      error instanceof ServiceError ||
+      !isKnownError);
   const details =
     error instanceof ValidationError && error.context !== undefined
       ? { issues: error.context }
