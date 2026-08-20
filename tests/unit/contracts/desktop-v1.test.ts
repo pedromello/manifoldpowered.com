@@ -1,4 +1,5 @@
 import {
+  archiveFormatSchema,
   byteSizeSchema,
   createSessionRequestSchema,
   desktopApiVersionSchema,
@@ -16,6 +17,11 @@ describe("distribution API v1 contract", () => {
   test("defines the supported target vocabulary", () => {
     expect(desktopPlatformSchema.options).toEqual(["WINDOWS", "MAC", "LINUX"]);
     expect(desktopArchitectureSchema.options).toEqual(["X86_64", "AARCH64"]);
+  });
+
+  test("limits the Desktop MVP archive contract to ZIP", () => {
+    expect(archiveFormatSchema.safeParse("ZIP").success).toBe(true);
+    expect(archiveFormatSchema.safeParse("TAR_GZ").success).toBe(false);
   });
 
   test("rejects an unknown API version", () => {
