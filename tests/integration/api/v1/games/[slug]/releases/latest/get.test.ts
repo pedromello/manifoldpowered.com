@@ -176,6 +176,27 @@ describe("GET /api/v1/games/[slug]/releases/latest", () => {
       expect(await response.json()).toEqual(expectedReleaseSummary(previous));
     });
 
+    test("falls back when the newest target uses an unsupported archive format", async () => {
+      const { game } = await createGameOwner();
+      const buyer = await createActivatedUser();
+      await orchestrator.addToLibrary(buyer.id, game.id);
+      const session = await orchestrator.createSession(buyer.id);
+
+      const previous = await createPublishedRelease(game, "1.0.0");
+      await createPublishedRelease(
+        game,
+        "2.0.0-tar",
+        GamePlatform.WINDOWS,
+        GameArchitecture.X86_64,
+        GameArchiveFormat.TAR_GZ,
+      );
+
+      const response = await requestRelease(game.slug, session.token);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(expectedReleaseSummary(previous));
+    });
+
     test("returns 404 when the release is unpublished or its artifact is incomplete", async () => {
       const { game } = await createGameOwner();
       const buyer = await createActivatedUser();
@@ -270,26 +291,28 @@ async function createPublishedRelease(
   version: string,
   platform: GamePlatform = GamePlatform.WINDOWS,
   architecture: GameArchitecture = GameArchitecture.X86_64,
+  archiveFormat: GameArchiveFormat = GameArchiveFormat.ZIP,
 ) {
   const release = await gameRelease.createDraft({
     game_id: game.id,
     version,
   });
 
-  return publishDraft(release, platform, architecture);
+  return publishDraft(release, platform, architecture, archiveFormat);
 }
 
 async function publishDraft(
   release: GameRelease,
   platform: GamePlatform = GamePlatform.WINDOWS,
   architecture: GameArchitecture = GameArchitecture.X86_64,
+  archiveFormat: GameArchiveFormat = GameArchiveFormat.ZIP,
 ) {
   const artifact = await gameArtifact.createPending({
     release_id: release.id,
     platform,
     architecture,
-    archive_format: GameArchiveFormat.ZIP,
-    storage_object_key: `tests/${release.id}/${platform}-${architecture}.zip`,
+    archive_format: archiveFormat,
+    storage_object_key: `tests/${release.id}/${platform}-${architecture}-${archiveFormat}`,
   });
   await gameArtifact.markVerifying(artifact.id);
   const readyArtifact = await gameArtifact.markReady(artifact.id, {

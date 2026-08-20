@@ -47,10 +47,14 @@ API v1 supports these target values:
 | ------------ | ------------------------- |
 | Platform     | `WINDOWS`, `MAC`, `LINUX` |
 | Architecture | `X86_64`, `AARCH64`       |
-| Archive      | `ZIP`, `TAR_GZ`           |
+| Archive      | `ZIP`                     |
 
 Additional targets require a contract revision. A recognized target for which
 a game has no published artifact returns `NO_COMPATIBLE_RELEASE`.
+
+The Desktop MVP publishes and resolves ZIP artifacts only. The database keeps
+the legacy `TAR_GZ` value for migration compatibility, but publisher upload
+requests reject it until the installer implements that extraction format.
 
 ## Deprecation
 

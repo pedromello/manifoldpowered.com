@@ -1,5 +1,5 @@
 import { prisma } from "infra/database";
-import { NotFoundError, ValidationError } from "infra/errors";
+import { NotFoundError, ServiceError, ValidationError } from "infra/errors";
 import {
   GameArchitecture,
   GameArchiveFormat,
@@ -9,7 +9,9 @@ import {
   Prisma,
 } from "generated/prisma/client";
 import {
+  archiveFormatSchema,
   byteSizeSchema,
+  downloadAuthorizationSchema,
   installManifestSchema,
   sha256Schema,
 } from "contracts/desktop/v1";
@@ -18,6 +20,20 @@ import storage, { type ArtifactObjectMetadata } from "infra/storage";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import authorizationModel from "models/authorization";
+import game from "models/game";
+import library from "models/library";
+
+export class ArtifactIntegrityError extends ServiceError {
+  constructor(message: string, cause?: unknown) {
+    super({
+      message,
+      cause,
+      action: "Contact the publisher before retrying the download",
+    });
+    this.name = "ArtifactIntegrityError";
+  }
+}
 
 export const gameArtifactCreateSchema = z.object({
   release_id: z.uuid(),
@@ -47,7 +63,7 @@ const positiveByteSizeSchema = byteSizeSchema.refine(
 export const gameArtifactUploadSchema = z.object({
   platform: z.nativeEnum(GamePlatform),
   architecture: z.nativeEnum(GameArchitecture),
-  archive_format: z.nativeEnum(GameArchiveFormat),
+  archive_format: archiveFormatSchema,
   compressed_size_bytes: positiveByteSizeSchema,
   installed_size_bytes: positiveByteSizeSchema,
   sha256: sha256Schema,
@@ -573,6 +589,126 @@ async function findById(id: string) {
   return serialize(artifact);
 }
 
+async function authorizeDownload(
+  id: string,
+  user: Parameters<typeof authorizationModel.can>[0],
+) {
+  const artifactId = z.uuid().parse(id);
+  const artifact = await prisma.gameArtifact.findUnique({
+    where: { id: artifactId },
+  });
+  if (!artifact) return { state: "MISSING" } as const;
+
+  const release = await prisma.gameRelease.findUnique({
+    where: { id: artifact.release_id },
+  });
+  if (!release) return { state: "MISSING" } as const;
+  if (release.status === GameReleaseStatus.RETIRED) {
+    return { state: "RETIRED", release } as const;
+  }
+  if (
+    release.status !== GameReleaseStatus.PUBLISHED ||
+    !release.published_at ||
+    artifact.status !== GameArtifactStatus.READY ||
+    artifact.archive_format !== GameArchiveFormat.ZIP
+  ) {
+    return { state: "UNAVAILABLE" } as const;
+  }
+
+  const size = artifact.compressed_size_bytes?.toString();
+  const sha256 = sha256Schema.safeParse(artifact.sha256);
+  if (!size || !sha256.success) {
+    throw new ArtifactIntegrityError(
+      "The published artifact is missing required integrity metadata",
+      sha256.success ? undefined : sha256.error,
+    );
+  }
+
+  const object = await storage.getArtifactObjectMetadata(
+    artifact.storage_object_key,
+  );
+  if (!object) {
+    throw new ArtifactIntegrityError(
+      "The published artifact was not found in storage",
+    );
+  }
+
+  const expectedChecksum = Buffer.from(sha256.data, "hex").toString("base64");
+  if (
+    object.size_bytes !== size ||
+    object.checksum_sha256 !== expectedChecksum ||
+    object.content_type !== "application/zip" ||
+    object.metadata["artifact-id"] !== artifact.id ||
+    object.metadata["declared-size-bytes"] !== size ||
+    object.metadata.sha256 !== sha256.data
+  ) {
+    throw new ArtifactIntegrityError(
+      "The stored artifact failed download integrity validation",
+    );
+  }
+
+  const gameResource = await game.findOneByIdWithStudio(release.game_id);
+  if (!gameResource) {
+    throw new ArtifactIntegrityError(
+      "The published artifact references a missing game",
+    );
+  }
+  const hasGameOwnership = authorizationModel.can(
+    user,
+    "update:game",
+    gameResource,
+  );
+  const hasEntitlement = user.id
+    ? await library.hasItem(user.id, gameResource.id)
+    : false;
+  if (!hasGameOwnership && !hasEntitlement) {
+    return { state: "FORBIDDEN" } as const;
+  }
+
+  const finalArtifact = await prisma.gameArtifact.findUnique({
+    where: { id: artifact.id },
+  });
+  if (!finalArtifact) return { state: "MISSING" } as const;
+  const finalRelease = await prisma.gameRelease.findUnique({
+    where: { id: finalArtifact.release_id },
+  });
+  if (!finalRelease) return { state: "MISSING" } as const;
+  if (finalRelease.status === GameReleaseStatus.RETIRED) {
+    return { state: "RETIRED", release: finalRelease } as const;
+  }
+  if (
+    finalRelease.status !== GameReleaseStatus.PUBLISHED ||
+    !finalRelease.published_at ||
+    finalArtifact.status !== GameArtifactStatus.READY ||
+    finalArtifact.archive_format !== GameArchiveFormat.ZIP
+  ) {
+    return { state: "UNAVAILABLE" } as const;
+  }
+  if (
+    finalArtifact.storage_object_key !== artifact.storage_object_key ||
+    finalArtifact.compressed_size_bytes?.toString() !== size ||
+    finalArtifact.sha256 !== sha256.data
+  ) {
+    throw new ArtifactIntegrityError(
+      "The artifact metadata changed during download authorization",
+    );
+  }
+
+  const signed = await storage.getArtifactDownloadAuthorization(
+    finalArtifact.storage_object_key,
+  );
+  const authorization = downloadAuthorizationSchema.parse({
+    artifact_id: artifact.id,
+    url: signed.url,
+    expires_at: signed.expires_at,
+    total_size_bytes: size,
+    sha256: sha256.data,
+    ...(object.etag ? { etag: object.etag } : {}),
+  });
+
+  return { state: "AUTHORIZED", authorization } as const;
+}
+
 async function markVerifying(id: string) {
   return transition(
     id,
@@ -736,6 +872,7 @@ const gameArtifact = {
   confirmUpload,
   createPending,
   findById,
+  authorizeDownload,
   markVerifying,
   markFailed,
   markReady,

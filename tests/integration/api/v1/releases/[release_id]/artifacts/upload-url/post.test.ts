@@ -126,6 +126,27 @@ describe("POST /api/v1/releases/[release_id]/artifacts/upload-url", () => {
       });
     }
   });
+
+  test("rejects archive formats unsupported by the Desktop MVP", async () => {
+    const { owner, release } = await createRelease();
+    const session = await orchestrator.createSession(owner.id);
+    const declaration = {
+      ...artifactDeclaration(Buffer.from("legacy-tar")),
+      archive_format: "TAR_GZ",
+    };
+
+    const response = await requestUpload(
+      release.id,
+      session.token,
+      declaration,
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      name: "ValidationError",
+      message: "Invalid artifact upload declaration",
+    });
+  });
 });
 
 async function createRelease() {

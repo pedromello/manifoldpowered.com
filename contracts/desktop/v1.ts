@@ -5,7 +5,7 @@ export const INSTALL_MANIFEST_SCHEMA_VERSION = "1" as const;
 
 export const desktopPlatformSchema = z.enum(["WINDOWS", "MAC", "LINUX"]);
 export const desktopArchitectureSchema = z.enum(["X86_64", "AARCH64"]);
-export const archiveFormatSchema = z.enum(["ZIP", "TAR_GZ"]);
+export const archiveFormatSchema = z.literal("ZIP");
 
 export const identifierSchema = z.uuid();
 export const timestampSchema = z.iso.datetime({ offset: true });

@@ -215,6 +215,7 @@ async function findLatestCompatible(
         release_id: { in: releases.map((release) => release.id) },
         platform,
         architecture,
+        archive_format: "ZIP",
         status: "READY",
         compressed_size_bytes: { not: null },
         installed_size_bytes: { not: null },

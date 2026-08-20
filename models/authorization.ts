@@ -21,6 +21,7 @@ import {
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
 import {
+  downloadAuthorizationSchema,
   installManifestSchema,
   releaseSummarySchema,
 } from "contracts/desktop/v1";
@@ -694,6 +695,18 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     "artifact_id" in resource
   ) {
     return installManifestSchema.parse(resource);
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "artifact_id" in resource &&
+    "url" in resource &&
+    "expires_at" in resource &&
+    "total_size_bytes" in resource
+  ) {
+    return downloadAuthorizationSchema.parse(resource);
   }
 
   if (

@@ -68,6 +68,11 @@ export interface ArtifactObjectMetadata {
   metadata: Record<string, string>;
 }
 
+export interface ArtifactDownloadAuthorization {
+  url: string;
+  expires_at: string;
+}
+
 export async function getArtifactUploadAuthorization({
   key,
   artifactId,
@@ -183,6 +188,19 @@ export async function getDownloadUrl(key: string): Promise<string> {
   });
 }
 
+export async function getArtifactDownloadAuthorization(
+  key: string,
+): Promise<ArtifactDownloadAuthorization> {
+  const issuedAt = Date.now();
+  const url = await getDownloadUrl(key);
+  return {
+    url,
+    expires_at: new Date(
+      issuedAt + DOWNLOAD_EXPIRES_IN_SECONDS * 1000,
+    ).toISOString(),
+  };
+}
+
 export async function deleteFile(key: string): Promise<void> {
   const command = new DeleteObjectCommand({
     Bucket: bucketName,
@@ -251,6 +269,7 @@ const storage = {
   getUploadUrl,
   getArtifactUploadAuthorization,
   getArtifactObjectMetadata,
+  getArtifactDownloadAuthorization,
   getDownloadUrl,
   deleteFile,
   clearAllBuckets,
