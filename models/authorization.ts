@@ -97,6 +97,7 @@ const AVAILABLE_FEATURES = [
   "delete:game_file",
 
   // Immutable release artifacts
+  "create:game_release",
   "create:game_artifact",
 
   // Library
@@ -294,6 +295,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     (feature === "update:game" ||
       feature === "create:game_file" ||
       feature === "delete:game_file" ||
+      feature === "create:game_release" ||
       feature === "create:game_artifact" ||
       feature === "read:game_price" ||
       feature === "update:game_price") &&
@@ -616,6 +618,21 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       version: fileOutput.version,
       created_at: fileOutput.created_at,
       updated_at: fileOutput.updated_at,
+    };
+  }
+
+  if (feature === "create:game_release") {
+    const release = resource as GameRelease;
+    return {
+      id: release.id,
+      game_id: release.game_id,
+      version: release.version,
+      release_number: release.release_number,
+      status: release.status,
+      release_notes: release.release_notes,
+      published_at: release.published_at,
+      created_at: release.created_at,
+      updated_at: release.updated_at,
     };
   }
 

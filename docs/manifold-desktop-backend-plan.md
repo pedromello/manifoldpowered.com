@@ -174,6 +174,20 @@ Tauri HTTP client and cookie jar.
 
 ## Phase 4 — Implement a transactional publication workflow
 
+### Publisher API surface
+
+- `POST /api/v1/games/:slug/releases` creates the next immutable draft release
+  for a game controlled by the authenticated studio owner or permitted member.
+- `POST /api/v1/releases/:release_id/artifacts/upload-url` declares an artifact
+  and returns its signed direct-upload authorization.
+- `POST /api/v1/artifacts/:artifact_id/confirm` verifies storage metadata and
+  publishes the ready release idempotently.
+
+Deployment must run the idempotent feature reconciliation after introducing
+`create:game_release`. This grants the new coarse route feature to eligible
+existing studio owners and only to members whose stored permissions explicitly
+include release creation.
+
 ### Workflow
 
 1. Create a draft release.
