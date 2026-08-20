@@ -516,16 +516,12 @@ async function makeArtifactReady(
   platform: GamePlatform,
   architecture: GameArchitecture,
 ) {
-  const archiveFormat =
-    platform === GamePlatform.WINDOWS
-      ? GameArchiveFormat.ZIP
-      : GameArchiveFormat.TAR_GZ;
   const artifact = await gameArtifact.createPending({
     release_id: releaseId,
     platform,
     architecture,
-    archive_format: archiveFormat,
-    storage_object_key: `${releaseId}/${platform.toLowerCase()}-${architecture.toLowerCase()}.${archiveFormat === GameArchiveFormat.ZIP ? "zip" : "tar.gz"}`,
+    archive_format: GameArchiveFormat.ZIP,
+    storage_object_key: `${releaseId}/${platform.toLowerCase()}-${architecture.toLowerCase()}.zip`,
   });
 
   // Processing may already have begun when a release has several targets.

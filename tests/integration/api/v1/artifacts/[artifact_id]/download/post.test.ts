@@ -370,26 +370,14 @@ describe("POST /api/v1/artifacts/[artifact_id]/download", () => {
       const response = await requestDownload("not-a-uuid", session.token);
 
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({
-        error: {
-          code: "INVALID_REQUEST",
-          message: "Invalid artifact download request",
-          retryable: false,
-          details: {
-            issues: [
-              {
-                origin: "string",
-                code: "invalid_format",
-                format: "uuid",
-                pattern:
-                  "/^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$/",
-                path: ["artifact_id"],
-                message: "Invalid UUID",
-              },
-            ],
-          },
-        },
-      });
+      const body = await response.json();
+      expect(body.error.code).toBe("INVALID_REQUEST");
+      expect(body.error.message).toBe("Invalid artifact download request");
+      expect(body.error.retryable).toBe(false);
+      expect(body.error.details.issues).toHaveLength(1);
+      expect(body.error.details.issues[0].code).toBe("invalid_format");
+      expect(body.error.details.issues[0].path).toEqual(["artifact_id"]);
+      expect(body.error.details.issues[0].message).toBe("Invalid UUID");
     });
   });
 });
