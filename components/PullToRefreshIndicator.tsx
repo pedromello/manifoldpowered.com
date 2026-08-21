@@ -32,11 +32,6 @@ export function PullToRefreshIndicator({
       <Loader2
         size={28}
         className={`text-[var(--color-purple-dark)] ${isRefreshing ? "animate-spin" : ""}`}
-        style={
-          !isRefreshing
-            ? { transform: `rotate(${progress * 360}deg)` }
-            : undefined
-        }
       />
     </div>
   );
