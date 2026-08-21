@@ -88,7 +88,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
 
           <nav className="hidden lg:flex items-center gap-2">
             <Link
-              href={storeHref}
+              href="/store"
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-bold text-sm tracking-wide"
             >
               <Store size={18} />
@@ -115,7 +115,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             </div>
             <input
               type="text"
-              placeholder="Search outlets..."
+              placeholder="Search games..."
               className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

@@ -21,6 +21,8 @@ export type StorefrontProps = {
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
   showDiscover?: boolean;
+  /** Explains the shared platform before the main catalogue. Main storefront only. */
+  showPlatformWelcome?: boolean;
 };
 
 /**
@@ -42,6 +44,7 @@ export function Storefront({
   heading,
   store = null,
   showDiscover = false,
+  showPlatformWelcome = false,
 }: StorefrontProps) {
   const controller = useStorefrontController({
     featuredEndpoint,
@@ -71,6 +74,7 @@ export function Storefront({
           store={store}
           heading={heading}
           showDiscover={showDiscover}
+          showPlatformWelcome={showPlatformWelcome}
         />
       )}
     </StorefrontShell>

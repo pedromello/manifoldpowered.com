@@ -6,7 +6,7 @@ export const getServerSideProps: GetServerSideProps = async ({ query }) => {
   ).toString();
   return {
     redirect: {
-      destination: `/about${queryString ? `?${queryString}` : ""}`,
+      destination: `/store${queryString ? `?${queryString}` : ""}`,
       permanent: false,
     },
   };
