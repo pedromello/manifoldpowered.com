@@ -18,7 +18,7 @@ const bodySchema = z.object({
 
 const postBodySchema = z.object({
   slug: z.string().min(1),
-  message: z.string().min(1).max(3000),
+  message: z.string().trim().min(1).max(3000),
   recommended: z.boolean(),
 });
 
@@ -26,6 +26,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
   .get(controller.canRequest("read:review"), getHandler)
   .post(controller.canRequest("create:review"), postHandler)
+  .patch(controller.canRequest("create:review"), patchHandler)
   .delete(controller.canRequest("delete:review"), deleteHandler)
   .handler(controller.errorHandlers);
 
@@ -64,6 +65,8 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({
     reviews: filteredReviews,
     user_review: filteredUserReview,
+    can_review: result.can_review,
+    summary: result.summary,
     pagination: result.pagination,
   });
 }
@@ -120,4 +123,31 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
   await review.remove(userTryingToReview.id, slug);
 
   return res.status(200).json({ message: "Review deleted successfully" });
+}
+
+async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
+  const userTryingToReview = req.context?.user;
+
+  if (!userTryingToReview?.id) {
+    throw new ValidationError({
+      message: "User ID is missing.",
+      action: "You must be logged in to update a review.",
+    });
+  }
+
+  const parsedBody = postBodySchema.safeParse(req.body);
+
+  if (!parsedBody.success) {
+    throw new ValidationError({
+      message: "Request body validation failed.",
+      action: "Provide slug, message, and recommended boolean.",
+      cause: parsedBody.error,
+    });
+  }
+
+  const { slug, message, recommended } = parsedBody.data;
+
+  await review.update(userTryingToReview.id, slug, message, recommended);
+
+  return res.status(200).json({ message: "Review updated successfully" });
 }

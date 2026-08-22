@@ -30,7 +30,7 @@ export function DefaultItemPage({
   reviews,
   backHref,
 }: ItemViewProps) {
-  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // TODO: hardcoded rather than derived from the game's price. Preserved from
@@ -42,7 +42,16 @@ export function DefaultItemPage({
     <>
       <main className="w-full bg-[#0b0812] pb-8 text-white">
         <GameHero
-          game={game}
+          game={
+            reviews.summary
+              ? {
+                  ...game,
+                  positive_reviews: reviews.summary.positiveReviews,
+                  negative_reviews: reviews.summary.negativeReviews,
+                  review_score: reviews.summary.reviewScore,
+                }
+              : game
+          }
           backHref={backHref}
           backLabel={store ? `Back to ${store.name}` : "Back to Outlets"}
         />
@@ -65,9 +74,18 @@ export function DefaultItemPage({
         <div className="border-t border-white/[0.08]">
           <ReviewsSection
             reviews={reviews}
-            isInLibrary={isInLibrary}
-            onWriteReview={() => setShowReviewModal(true)}
-            onDeleteReview={() => setShowDeleteModal(true)}
+            onWriteReview={() => {
+              reviews.clearError();
+              setReviewMode("create");
+            }}
+            onEditReview={() => {
+              reviews.clearError();
+              setReviewMode("edit");
+            }}
+            onDeleteReview={() => {
+              reviews.clearError();
+              setShowDeleteModal(true);
+            }}
           />
         </div>
       </main>
@@ -76,26 +94,46 @@ export function DefaultItemPage({
         <RedeemSuccessModal gameTitle={game.title} onDismiss={dismissSuccess} />
       )}
 
-      {showReviewModal && (
+      {reviewMode && (
         <ReviewComposerModal
           gameTitle={game.title}
+          mode={reviewMode}
+          initialReview={
+            reviewMode === "edit" && reviews.userReview
+              ? {
+                  message: reviews.userReview.message,
+                  recommended: reviews.userReview.recommended,
+                }
+              : undefined
+          }
           isSubmitting={reviews.isSubmitting}
+          error={reviews.error}
           onSubmit={async (input) => {
-            const posted = await reviews.post(input);
-            if (posted) setShowReviewModal(false);
+            const saved =
+              reviewMode === "edit"
+                ? await reviews.update(input)
+                : await reviews.post(input);
+            if (saved) setReviewMode(null);
           }}
-          onDismiss={() => setShowReviewModal(false)}
+          onDismiss={() => {
+            reviews.clearError();
+            setReviewMode(null);
+          }}
         />
       )}
 
       {showDeleteModal && (
         <ConfirmDeleteReviewModal
           isDeleting={reviews.isDeleting}
+          error={reviews.error}
           onConfirm={async () => {
             const removed = await reviews.remove();
             if (removed) setShowDeleteModal(false);
           }}
-          onDismiss={() => setShowDeleteModal(false)}
+          onDismiss={() => {
+            reviews.clearError();
+            setShowDeleteModal(false);
+          }}
         />
       )}
     </>

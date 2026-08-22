@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Trash2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Pencil, Trash2, ThumbsUp, ThumbsDown } from "lucide-react";
 
 export type Review = {
   id: string;
-  user_id: string;
-  game_id: string;
   message: string;
   recommended: boolean;
   created_at?: string;
   createdAt?: string;
   updated_at?: string;
   user?: {
-    id: string;
+    id?: string;
     username: string;
   };
   username?: string;
@@ -20,6 +18,12 @@ export type Review = {
 export type ReviewsApiResponse = {
   reviews: Review[];
   user_review: Review | null;
+  can_review: boolean;
+  summary: {
+    positive_reviews: number;
+    negative_reviews: number;
+    review_score: string | null;
+  };
   pagination: {
     total_items: number;
     total_pages: number;
@@ -31,10 +35,12 @@ export type ReviewsApiResponse = {
 export function ReviewCard({
   review,
   isOwn,
+  onEdit,
   onDelete,
 }: {
   review: Review;
   isOwn?: boolean;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const username = review.user?.username || review.username || "Anonymous";
@@ -70,11 +76,22 @@ export function ReviewCard({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isOwn && onEdit && (
+            <button
+              onClick={onEdit}
+              className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-white/40 transition-colors hover:border-violet-500/25 hover:bg-violet-500/10 hover:text-violet-200"
+              title="Edit Review"
+              aria-label="Edit review"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
           {isOwn && onDelete && (
             <button
               onClick={onDelete}
               className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-white/40 transition-colors hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
               title="Delete Review"
+              aria-label="Delete review"
             >
               <Trash2 size={16} />
             </button>
