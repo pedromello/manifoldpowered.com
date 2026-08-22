@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import Image from "next/image";
 import Hls from "hls.js";
 import {
   IconPlayerPlayFilled,
@@ -211,13 +210,14 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
             />
           )
         ) : (
-          <Image
+          // Gallery media is supplied by game developers and may be hosted on
+          // domains outside Next's image allowlist. Loading it directly also
+          // avoids making the local preview server proxy third-party assets.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={activeMedia.url}
             alt={`${gameTitle} Screenshot ${activeIndex + 1}`}
-            fill
-            className="object-cover animate-in fade-in duration-500"
-            sizes="(max-width: 1280px) 100vw, 1280px"
-            priority
+            className="absolute inset-0 h-full w-full animate-in object-cover fade-in duration-500"
           />
         )}
 
@@ -281,12 +281,13 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                       : "border-white/10 opacity-55 hover:border-white/25 hover:opacity-100"
                   }`}
                 >
-                  <Image
+                  {/* See the main stage above: these URLs are dynamic game
+                      media and should not depend on the Next image proxy. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={thumbUrl}
                     alt={`${gameTitle} thumbnail ${idx + 1}`}
-                    fill
-                    className="pointer-events-none object-cover"
-                    sizes="192px"
+                    className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                   />
 
                   {item.type === "video" && (
