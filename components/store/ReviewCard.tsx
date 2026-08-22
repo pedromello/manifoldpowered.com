@@ -50,18 +50,18 @@ export function ReviewCard({
 
   return (
     <div
-      className={`p-6 rounded-3xl border flex flex-col gap-4 animate-in fade-in duration-500 ${isOwn ? "bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]" : "bg-white/5 border-white/5"}`}
+      className={`flex flex-col gap-4 rounded-xl border p-5 ${isOwn ? "border-violet-400/25 bg-violet-500/[0.08]" : "border-white/[0.08] bg-white/[0.025]"}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 text-indigo-400 font-black uppercase">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-400/20 bg-violet-500/15 text-sm font-black uppercase text-violet-300">
             {username[0]}
           </div>
           <div className="flex flex-col">
             <span className="font-black text-sm">
               {username}{" "}
               {isOwn && (
-                <span className="text-indigo-400 text-xs ml-2">(You)</span>
+                <span className="ml-2 text-xs text-violet-300">(You)</span>
               )}
             </span>
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
@@ -73,14 +73,14 @@ export function ReviewCard({
           {isOwn && onDelete && (
             <button
               onClick={onDelete}
-              className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-400 transition-all border border-white/5 hover:border-rose-500/20 shadow-sm"
+              className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-white/40 transition-colors hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
               title="Delete Review"
             >
               <Trash2 size={16} />
             </button>
           )}
           <div
-            className={`px-3 py-2 rounded-xl flex items-center gap-2 border text-xs font-black uppercase tracking-wider ${
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.08em] ${
               review.recommended
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                 : "bg-rose-500/10 border-rose-500/20 text-rose-400"
@@ -105,7 +105,7 @@ export function ReviewCard({
       {shouldTruncate && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase self-start mt-1"
+          className="mt-1 self-start text-xs font-bold uppercase text-violet-300 transition-colors hover:text-violet-200"
         >
           {isExpanded ? "Show Less" : "Read More"}
         </button>

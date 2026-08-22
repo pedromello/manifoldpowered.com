@@ -27,13 +27,16 @@ export function DiscoverOutlets() {
   const outlets = data?.stores ?? [];
 
   return (
-    <section className="w-full py-12 md:py-20 border-t border-white/5">
-      <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col gap-8">
+    <section className="w-full border-t border-white/[0.08] py-12 md:py-16">
+      <div className="mx-auto flex max-w-[1500px] flex-col gap-8 px-4 sm:px-6 lg:px-10">
         <div className="flex flex-col gap-3 max-w-2xl">
-          <h2 className="text-3xl md:text-4xl font-black">
-            Discover other Outlets
+          <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
+            Independent storefronts
+          </p>
+          <h2 className="text-2xl font-black tracking-[-0.02em] md:text-3xl">
+            Discover Outlets
           </h2>
-          <p className="text-white/50 font-bold">
+          <p className="text-sm leading-6 text-white/45">
             Browse storefronts curated by creators across Manifold — each with
             its own taste, its own picks, and the same catalog behind it.
           </p>
@@ -44,7 +47,7 @@ export function DiscoverOutlets() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/30" />
           </div>
         ) : outlets.length === 0 ? (
-          <p className="text-white/30 font-bold italic">
+          <p className="text-sm font-semibold text-white/30">
             No other outlets to show yet.
           </p>
         ) : (
@@ -53,9 +56,9 @@ export function DiscoverOutlets() {
               <Link
                 key={outlet.id}
                 href={`/store/${outlet.slug}`}
-                className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-colors min-w-0"
+                className="flex min-w-0 items-center gap-4 rounded-xl border border-white/[0.09] bg-[#14101c] p-4 transition-colors hover:border-white/20 hover:bg-[#181320]"
               >
-                <div className="shrink-0 w-12 h-12 rounded-xl bg-white/10 overflow-hidden flex items-center justify-center">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.07]">
                   {outlet.logo_url ? (
                     // Outlet logos are arbitrary user-supplied URLs, so next/image
                     // (host-allowlisted) can't be used here.
@@ -72,11 +75,9 @@ export function DiscoverOutlets() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-black text-white truncate">
-                    {outlet.name}
-                  </p>
+                  <p className="truncate font-bold text-white">{outlet.name}</p>
                   {outlet.description && (
-                    <p className="text-sm font-bold text-white/50 line-clamp-2">
+                    <p className="line-clamp-2 text-sm text-white/45">
                       {outlet.description}
                     </p>
                   )}

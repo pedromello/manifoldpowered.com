@@ -1,12 +1,11 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import useSWR from "swr";
-import { Receipt, Layers, PackageX, Store as StoreIcon } from "lucide-react";
+import { ArrowLeft, Loader2, PackageX, Receipt, Store } from "lucide-react";
 
-import { StoreLayout } from "components/store/StoreLayout";
-import { SectionDivider } from "components/store/SectionDivider";
 import { Pagination, type PaginationApi } from "components/Pagination";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { formatMoney } from "lib/price";
 
 interface PurchaseApi {
@@ -20,128 +19,103 @@ interface PurchaseApi {
   created_at: string;
 }
 
-// A buyer's own purchase history.
-//
-// Deliberately separate from /library, which answers "what do I own" and shows
-// each game's *current* list price. This answers "what did I pay", which is
-// only reconstructible from Sale: the amount charged, in the currency it was
-// charged in, on the day it was charged.
 export default function PurchasesPage() {
   const [page, setPage] = useState(1);
-
   const { data, error, isLoading } = useSWR<{
     purchases: PurchaseApi[];
     pagination: PaginationApi;
   }>(
     `/api/v1/user/purchases?page=${page}`,
     (url: string) =>
-      fetch(url).then(async (res) => {
-        if (!res.ok) throw new Error("Not logged in");
-        return res.json();
+      fetch(url).then(async (response) => {
+        if (!response.ok) throw new Error("Not logged in");
+        return response.json();
       }),
     { shouldRetryOnError: false },
   );
 
-  const isLoggedOut = !!error;
   const purchases = data?.purchases ?? [];
   const total = data?.pagination.total ?? 0;
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
+    <>
       <Head>
-        <title>Purchase History | Manifold Outlets</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <title>Purchase History | Manifold</title>
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
-      <style jsx global>{`
-        html,
-        body {
-          background-color: #1d0f3b !important;
-        }
-      `}</style>
+      <main className="min-h-[70vh] bg-[#0b0812] px-4 py-10 text-white sm:px-6 lg:px-10 lg:py-14">
+        <div className="mx-auto max-w-5xl">
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white/45 transition-colors hover:text-white"
+          >
+            <ArrowLeft size={16} />
+            Back to library
+          </Link>
 
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] flex flex-col items-center">
-        <div className="w-full max-w-4xl mx-auto px-6 md:px-10 flex flex-col gap-12">
-          <header className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 w-fit text-white/80 backdrop-blur-sm">
+          <header className="mt-7 border-b border-white/[0.08] pb-8">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-violet-300">
               <Receipt size={16} />
-              <span className="text-xs font-black tracking-widest uppercase">
-                Transaction Record
-              </span>
+              Your account
             </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
-              Purchase History
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Purchase history
             </h1>
-            <p className="text-xl text-white/50 font-bold max-w-2xl">
-              What you paid, in the currency you were charged, and where you
-              bought it.
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">
+              The amount, currency, date, and referring Outlet recorded for each
+              purchase.
             </p>
-            <Link
-              href="/library"
-              className="w-fit text-sm font-black uppercase tracking-wider text-white/50 hover:text-white transition-colors"
-            >
-              ← Back to my library
-            </Link>
           </header>
 
-          <SectionDivider />
-
-          {isLoggedOut ? (
-            <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md">
-              <Layers size={64} className="text-white/20 mb-6" />
-              <h2 className="text-3xl font-black mb-4">
-                Authentication Required
+          {error ? (
+            <section className="mt-8 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-14 text-center">
+              <h2 className="text-xl font-bold">
+                Log in to see your purchases
               </h2>
-              <p className="text-white/50 font-bold max-w-md mb-8">
-                You must be logged in to view your purchase history.
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/45">
+                Purchase history is private and attached to your Manifold
+                account.
               </p>
               <Link
                 href="/login?callbackUrl=/library/purchases"
-                className="px-8 py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:scale-105 transition-transform"
+                className="mt-6 inline-flex rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-bold text-white"
               >
-                Log In to Manifold
+                Log in
               </Link>
-            </div>
+            </section>
           ) : isLoading ? (
-            <div className="flex flex-col items-center justify-center py-32">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white/20 mb-6"></div>
-              <p className="text-xl font-bold text-white/40 tracking-widest uppercase">
-                Retrieving Records...
-              </p>
+            <div className="flex items-center justify-center gap-3 py-24 text-sm font-semibold text-white/45">
+              <Loader2 size={20} className="animate-spin" />
+              Loading purchase history
             </div>
           ) : purchases.length > 0 ? (
-            <div className="flex flex-col gap-6 animate-in fade-in duration-1000">
-              <span className="text-sm font-black text-white/40 uppercase tracking-widest">
-                {total} {total === 1 ? "Purchase" : "Purchases"}
-              </span>
+            <section className="mt-8">
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-white/35">
+                {total} {total === 1 ? "purchase" : "purchases"}
+              </p>
 
-              <div className="rounded-2xl border border-white/10 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
-                    {/* "Bought through" is dropped below sm. Four columns do
-                        not fit a phone, and the container scrolls from the
-                        right — so keeping it would push "Paid", the column
-                        someone opens this page for, off the visible edge. */}
+              <div className="overflow-x-auto rounded-xl border border-white/[0.09] bg-[#100c17]">
+                <table className="w-full min-w-[620px] text-sm">
+                  <thead className="border-b border-white/[0.08] bg-white/[0.025] text-left text-[10px] uppercase tracking-[0.13em] text-white/35">
                     <tr>
-                      <th className="px-4 py-3 text-left">Game</th>
-                      <th className="hidden sm:table-cell px-4 py-3 text-left">
-                        Bought through
-                      </th>
-                      <th className="px-4 py-3 text-left">Date</th>
-                      <th className="px-4 py-3 text-right">Paid</th>
+                      <th className="px-5 py-4">Game</th>
+                      <th className="px-5 py-4">Bought through</th>
+                      <th className="px-5 py-4">Date</th>
+                      <th className="px-5 py-4 text-right">Paid</th>
                     </tr>
                   </thead>
                   <tbody>
                     {purchases.map((purchase) => (
                       <tr
                         key={purchase.id}
-                        className="border-t border-white/5 align-middle"
+                        className="border-b border-white/[0.06] last:border-b-0"
                       >
-                        <td className="px-4 py-3 font-bold text-white">
+                        <td className="px-5 py-4 font-semibold text-white/85">
                           {purchase.game_slug ? (
                             <Link
                               href={`/item/${purchase.game_slug}`}
-                              className="hover:underline"
+                              className="hover:text-violet-200"
                             >
                               {purchase.game_title}
                             </Link>
@@ -149,20 +123,20 @@ export default function PurchasesPage() {
                             purchase.game_title
                           )}
                         </td>
-                        <td className="hidden sm:table-cell px-4 py-3 text-white/40 whitespace-nowrap">
+                        <td className="px-5 py-4 text-white/45">
                           {purchase.store_id ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              <StoreIcon size={14} />
-                              An outlet
+                            <span className="inline-flex items-center gap-2">
+                              <Store size={14} />
+                              An Outlet
                             </span>
                           ) : (
                             "Manifold"
                           )}
                         </td>
-                        <td className="px-4 py-3 text-white/40 whitespace-nowrap">
+                        <td className="whitespace-nowrap px-5 py-4 text-white/45">
                           {new Date(purchase.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-3 text-right font-black text-emerald-300 whitespace-nowrap">
+                        <td className="whitespace-nowrap px-5 py-4 text-right font-bold text-white/85">
                           {formatMoney(
                             purchase.price_at_sale,
                             purchase.currency,
@@ -174,40 +148,40 @@ export default function PurchasesPage() {
                 </table>
               </div>
 
-              <Pagination
-                pagination={data?.pagination}
-                onPageChange={setPage}
-              />
+              <div className="mt-6">
+                <Pagination
+                  pagination={data?.pagination}
+                  onPageChange={setPage}
+                />
+              </div>
 
-              <p className="text-white/30 text-xs font-bold">
-                Manifold is the seller for every purchase above. Outlets are
-                storefronts that referred you; your contract of sale is with
+              <p className="mt-6 text-xs leading-5 text-white/28">
+                Manifold is the seller for these purchases. An Outlet records
+                who referred the purchase; your contract of sale is with
                 Manifold.
               </p>
-            </div>
+            </section>
           ) : (
-            <div className="flex flex-col items-center justify-center py-24 px-4 text-center border border-white/5 rounded-[2rem] bg-black/20">
-              <PackageX size={64} className="text-white/10 mb-6" />
-              <h2 className="text-3xl font-black mb-4 text-white/80">
-                No Purchases Yet
-              </h2>
-              <p className="text-white/40 font-bold max-w-md mb-8">
-                Anything you buy will show up here with the price you paid.
+            <section className="mt-8 flex flex-col items-center rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-14 text-center">
+              <PackageX size={34} className="text-white/25" />
+              <h2 className="mt-5 text-xl font-bold">No purchases yet</h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-white/45">
+                When you buy a game, the exact transaction will appear here.
               </p>
               <Link
                 href="/store"
-                className="px-8 py-4 rounded-xl border border-white/20 text-white font-black uppercase tracking-wider hover:bg-white hover:text-black transition-all"
+                className="mt-6 rounded-lg border border-white/15 px-5 py-3 text-sm font-bold text-white/75 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
-                Browse Outlets
+                Browse games
               </Link>
-            </div>
+            </section>
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }
 
-PurchasesPage.getLayout = function getLayout(page: React.ReactElement) {
-  return <StoreLayout>{page}</StoreLayout>;
+PurchasesPage.getLayout = function getLayout(page: ReactElement) {
+  return <StoreHomeLayout>{page}</StoreHomeLayout>;
 };

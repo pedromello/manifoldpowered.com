@@ -1,144 +1,133 @@
 import Head from "next/head";
 import Link from "next/link";
 import useSWR from "swr";
-import { BookMarked, Layers, PackageX, Receipt } from "lucide-react";
+import { BookMarked, PackageX, Receipt } from "lucide-react";
 
-import { StoreLayout } from "components/store/StoreLayout";
-import { SectionDivider } from "components/store/SectionDivider";
 import { LibraryGameCard } from "components/library/LibraryGameCard";
-import { type GameApi } from "components/store/types";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import type { GameApi } from "components/store/types";
+
+type LibraryItem = {
+  id: string;
+  acquired_at: string;
+  game: GameApi;
+};
 
 export default function LibraryPage() {
   const {
     data: libraryData,
     error,
     isLoading,
-  } = useSWR(
+  } = useSWR<{ games: LibraryItem[] }>(
     "/api/v1/library",
     (url) =>
-      fetch(url).then(async (res) => {
-        if (!res.ok) throw new Error("Not logged in");
-        return res.json();
+      fetch(url).then(async (response) => {
+        if (!response.ok) throw new Error("Not logged in");
+        return response.json();
       }),
     { shouldRetryOnError: false },
   );
 
   const isLoggedOut = !!error;
-  const games = libraryData?.games || [];
+  const games = libraryData?.games ?? [];
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
+    <div className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
       <Head>
-        <title>My Library | Manifold Outlets</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <title>My Library | Manifold</title>
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
-      <style jsx global>{`
-        html,
-        body {
-          background-color: #1d0f3b !important;
-        }
-      `}</style>
-
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+9rem)] flex flex-col items-center">
-        <div className="w-full max-w-7xl mx-auto px-6 md:px-10 flex flex-col gap-12">
-          <header className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 w-fit text-white/80 backdrop-blur-sm">
-              <BookMarked size={16} />
-              <span className="text-xs font-black tracking-widest uppercase">
-                Personal Archives
-              </span>
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
+      <main className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+        <header className="flex flex-col gap-6 border-b border-white/[0.08] pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.17em] text-violet-300">
+              <BookMarked size={15} />
+              Your collection
+            </p>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.035em] sm:text-5xl">
               My Library
             </h1>
-            <p className="text-xl text-white/50 font-bold max-w-2xl">
-              Access your secured digital assets. Download, manage, and play
-              your collection.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/45">
+              Every game you acquire through Manifold, ready to download from
+              one place.
             </p>
-            {/* The library shows what you own at today's list price; the
-                history shows what you actually paid. Different questions, so
-                they get different pages. */}
+          </div>
+
+          {!isLoggedOut && (
             <Link
               href="/library/purchases"
-              className="inline-flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm font-black uppercase tracking-wider text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+              className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
             >
               <Receipt size={16} />
-              Purchase History
+              Purchase history
             </Link>
-          </header>
-
-          <SectionDivider />
-
-          {isLoggedOut ? (
-            <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md">
-              <Layers size={64} className="text-white/20 mb-6" />
-              <h2 className="text-3xl font-black mb-4">
-                Authentication Required
-              </h2>
-              <p className="text-white/50 font-bold max-w-md mb-8">
-                You must be logged in to access your personal library and
-                download games.
-              </p>
-              <Link
-                href="/login?callbackUrl=/library"
-                className="px-8 py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:scale-105 transition-transform"
-              >
-                Log In to Manifold
-              </Link>
-            </div>
-          ) : isLoading ? (
-            <div className="flex flex-col items-center justify-center py-32">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white/20 mb-6"></div>
-              <p className="text-xl font-bold text-white/40 tracking-widest uppercase">
-                Decrypting Archives...
-              </p>
-            </div>
-          ) : games.length > 0 ? (
-            <div className="flex flex-col gap-6 animate-in fade-in duration-1000">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-white/40 uppercase tracking-widest">
-                  {games.length} {games.length === 1 ? "Title" : "Titles"}{" "}
-                  Available
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6">
-                {games.map(
-                  (item: {
-                    id: string;
-                    acquired_at: string;
-                    game: GameApi;
-                  }) => (
-                    <LibraryGameCard key={item.id} gameItem={item} />
-                  ),
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-24 px-4 text-center border border-white/5 rounded-[2rem] bg-black/20">
-              <PackageX size={64} className="text-white/10 mb-6" />
-              <h2 className="text-3xl font-black mb-4 text-white/80">
-                Empty Sector
-              </h2>
-              <p className="text-white/40 font-bold max-w-md mb-8">
-                You haven&apos;t added any games to your library yet. Discover
-                your next adventure in the outlets.
-              </p>
-              <Link
-                href="/store"
-                className="px-8 py-4 rounded-xl border border-white/20 text-white font-black uppercase tracking-wider hover:bg-white hover:text-black transition-all"
-              >
-                Browse Outlets
-              </Link>
-            </div>
           )}
-        </div>
+        </header>
+
+        {isLoggedOut ? (
+          <section className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-xl border border-white/[0.09] bg-[#14101c] px-6 text-center">
+            <BookMarked size={38} className="text-white/20" />
+            <h2 className="mt-5 text-2xl font-black">
+              Log in to see your games
+            </h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/45">
+              Your library is tied to your Manifold account, no matter which
+              Outlet introduced you to a game.
+            </p>
+            <Link
+              href="/login?callbackUrl=/library"
+              className="mt-6 inline-flex h-11 items-center rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-bold hover:from-fuchsia-500 hover:to-violet-500"
+            >
+              Log in to Manifold
+            </Link>
+          </section>
+        ) : isLoading ? (
+          <div
+            className="grid gap-4 pt-8 lg:grid-cols-2"
+            aria-label="Loading library"
+          >
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-48 animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.035]"
+              />
+            ))}
+          </div>
+        ) : games.length > 0 ? (
+          <section className="pt-8">
+            <div className="mb-5 flex items-center justify-between">
+              <p className="text-sm font-semibold text-white/40">
+                {games.length} {games.length === 1 ? "game" : "games"}
+              </p>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              {games.map((item) => (
+                <LibraryGameCard key={item.id} gameItem={item} />
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 px-6 text-center">
+            <PackageX size={38} className="text-white/15" />
+            <h2 className="mt-5 text-2xl font-black">Your library is empty</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/40">
+              Find a game through Manifold or an independent Outlet. It will
+              appear here after acquisition.
+            </p>
+            <Link
+              href="/store"
+              className="mt-6 inline-flex h-10 items-center rounded-lg border border-white/15 px-4 text-sm font-semibold text-white/65 hover:border-white/30 hover:text-white"
+            >
+              Browse games
+            </Link>
+          </section>
+        )}
       </main>
     </div>
   );
 }
 
 LibraryPage.getLayout = function getLayout(page: React.ReactElement) {
-  return <StoreLayout>{page}</StoreLayout>;
+  return <StoreHomeLayout>{page}</StoreHomeLayout>;
 };

@@ -14,14 +14,14 @@ import type { GameDetailApi } from "components/store/types";
  */
 export function ItemDescription({ game }: { game: GameDetailApi }) {
   return (
-    <div className="lg:col-span-8 flex flex-col gap-12">
+    <div className="flex flex-col gap-10 lg:col-span-8">
       <MediaGallery
         videos={game.media.videos}
         images={game.media.screenshots}
         gameTitle={game.title}
       />
 
-      <section className="markdown-content">
+      <section className="markdown-content rounded-xl border border-white/[0.08] bg-[#100c17] p-5 sm:p-8">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {game.detailed_description}
         </ReactMarkdown>

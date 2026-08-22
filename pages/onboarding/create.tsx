@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import useSWR from "swr";
 import { Loader2 } from "lucide-react";
+import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { StudioValueProp } from "components/onboarding/StudioValueProp";
 
 interface CurrentUser {
@@ -74,14 +75,21 @@ export default function OnboardingCreatePage() {
         <title>Create Your Studio | Manifold</title>
       </Head>
 
-      <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-4xl grid lg:grid-cols-2 gap-10 lg:gap-14 items-start">
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0b0812] px-4 py-10 text-white sm:px-6 lg:px-10 lg:py-14">
+        <div className="mx-auto grid w-full max-w-5xl items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
           <div className="lg:pt-4">
             <StudioValueProp />
           </div>
 
-          <div className="w-full flex flex-col gap-6">
-            <h1 className="text-2xl font-black">Create Your Studio</h1>
+          <div className="flex w-full flex-col gap-6 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl shadow-black/20 sm:p-8">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
+                Developer profile
+              </p>
+              <h1 className="mt-2 text-2xl font-black tracking-tight">
+                Create your Studio
+              </h1>
+            </div>
 
             {isUserLoading ? (
               <Loader2 className="animate-spin text-white/30" />
@@ -150,7 +158,7 @@ export default function OnboardingCreatePage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isSubmitting ? "Creating..." : "Create Studio"}
                 </button>
@@ -162,3 +170,7 @@ export default function OnboardingCreatePage() {
     </>
   );
 }
+
+OnboardingCreatePage.getLayout = function getLayout(page: React.ReactElement) {
+  return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
+};

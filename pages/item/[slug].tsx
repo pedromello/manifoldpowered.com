@@ -2,6 +2,7 @@ import { GetServerSideProps } from "next";
 
 import webserver from "infra/webserver";
 import { StoreLayout } from "components/store/StoreLayout";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultItemPage } from "components/storefront/default/item/DefaultItemPage";
 import { useItemController } from "components/storefront/useItemController";
@@ -15,6 +16,16 @@ type ItemPageProps = {
   /** The outlet this visit came through, or null for a direct visit. */
   store: StoreApi | null;
 };
+
+const PLATFORM_PALETTE = {
+  bg: "#0b0812",
+  surface: "#14101c",
+  border: "rgba(255, 255, 255, 0.10)",
+  fg: "#ffffff",
+  muted: "rgba(255, 255, 255, 0.55)",
+  accent: "#a78bfa",
+  accentFg: "#0b0812",
+} as const;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
@@ -80,22 +91,26 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
   const custom = store ? resolveStorefront(store) : null;
   const ItemView = custom?.ItemPage ?? DefaultItemPage;
 
+  const page = (
+    <StorefrontShell
+      store={store}
+      palette={custom?.palette ?? (store ? DEFAULT_PALETTE : PLATFORM_PALETTE)}
+      title={`${game.title} | Manifold Outlets`}
+      description={game.description}
+    >
+      <ItemView {...controller} game={game} store={store} />
+    </StorefrontShell>
+  );
+
+  if (!store) {
+    return <StoreHomeLayout>{page}</StoreHomeLayout>;
+  }
+
   return (
     <StoreLayout
-      store={
-        store
-          ? { slug: store.slug, name: store.name, logo_url: store.logo_url }
-          : undefined
-      }
+      store={{ slug: store.slug, name: store.name, logo_url: store.logo_url }}
     >
-      <StorefrontShell
-        store={store}
-        palette={custom?.palette ?? DEFAULT_PALETTE}
-        title={`${game.title} | Manifold Outlets`}
-        description={game.description}
-      >
-        <ItemView {...controller} game={game} store={store} />
-      </StorefrontShell>
+      {page}
     </StoreLayout>
   );
 }
