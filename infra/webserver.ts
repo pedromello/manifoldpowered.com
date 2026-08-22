@@ -1,4 +1,8 @@
 function getOrigin() {
+  if (process.env.MANIFOLD_PREVIEW_ORIGIN) {
+    return process.env.MANIFOLD_PREVIEW_ORIGIN;
+  }
+
   if (["test", "development"].includes(process.env.NODE_ENV)) {
     return "http://localhost:3000";
   }
