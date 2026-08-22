@@ -4,13 +4,19 @@ import library from "models/library";
 import { ForbiddenError, NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 
+async function findReviewableGame(slug: string) {
+  const game = await gameModel.findOneBySlug(slug);
+
+  return game?.status === "ACTIVE" ? game : null;
+}
+
 async function add(
   userId: string,
   slug: string,
   message: string,
   recommended: boolean,
 ) {
-  const game = await gameModel.findOnePublicBySlug(slug);
+  const game = await findReviewableGame(slug);
 
   if (!game) {
     throw new NotFoundError({
@@ -80,7 +86,7 @@ async function update(
   message: string,
   recommended: boolean,
 ) {
-  const game = await gameModel.findOnePublicBySlug(slug);
+  const game = await findReviewableGame(slug);
 
   if (!game) {
     throw new NotFoundError({
@@ -146,7 +152,7 @@ async function update(
 }
 
 async function remove(userId: string, slug: string) {
-  const game = await gameModel.findOnePublicBySlug(slug);
+  const game = await findReviewableGame(slug);
 
   if (!game) {
     throw new NotFoundError({
@@ -209,7 +215,7 @@ async function getPaginatedReviewsBySlug(
   limit: number,
   userId?: string,
 ) {
-  const game = await gameModel.findOnePublicBySlug(slug);
+  const game = await findReviewableGame(slug);
 
   if (!game) {
     throw new NotFoundError({
