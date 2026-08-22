@@ -1,7 +1,10 @@
-import { FormEvent, useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import AuthLayout from "../../components/AuthLayout";
+import { ArrowRight, Loader2, Mail } from "lucide-react";
+
+import AuthLayout from "components/AuthLayout";
 
 type Step = "login" | "code";
 
@@ -23,9 +26,9 @@ export default function LoginPage() {
 
         if (response.ok) {
           const callbackUrl = router.query.callbackUrl;
-          const redirectUrl =
-            typeof callbackUrl === "string" ? callbackUrl : "/store";
-          router.replace(redirectUrl);
+          router.replace(
+            typeof callbackUrl === "string" ? callbackUrl : "/store",
+          );
           return;
         }
 
@@ -44,18 +47,13 @@ export default function LoginPage() {
   async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
-
     setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/v1/otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          login: login.trim(),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: login.trim() }),
       });
 
       if (!response.ok) {
@@ -65,7 +63,6 @@ export default function LoginPage() {
         );
       }
 
-      // Success
       setStep("code");
     } catch (error) {
       setErrorMessage(
@@ -81,19 +78,13 @@ export default function LoginPage() {
   async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
-
     setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/v1/otp/sessions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          login: login.trim(),
-          code: code.trim(),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: login.trim(), code: code.trim() }),
       });
 
       if (!response.ok) {
@@ -103,11 +94,8 @@ export default function LoginPage() {
         );
       }
 
-      // Success
       const callbackUrl = router.query.callbackUrl;
-      const redirectUrl =
-        typeof callbackUrl === "string" ? callbackUrl : "/store";
-      router.push(redirectUrl);
+      router.push(typeof callbackUrl === "string" ? callbackUrl : "/store");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -127,47 +115,59 @@ export default function LoginPage() {
 
   if (isCheckingSession) {
     return (
-      <AuthLayout
-        title="Login | Manifold"
-        description="Login to your Manifold account."
-      >
-        <p role="status">Loading...</p>
+      <AuthLayout title="Login | Manifold" description="Log in to Manifold.">
+        <div
+          className="flex min-h-64 items-center justify-center"
+          role="status"
+        >
+          <Loader2 className="animate-spin text-white/40" />
+        </div>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout
-      title="Login | Manifold"
-      description="Login to your Manifold account."
-    >
+    <AuthLayout title="Login | Manifold" description="Log in to Manifold.">
       <form
-        className="auth-form"
+        className="flex flex-col gap-5"
         onSubmit={step === "login" ? handleRequestCode : handleVerifyCode}
       >
-        <div className="modal-heading">
-          <h2 id="login-title">Log In</h2>
-          <p>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
+            {step === "login" ? "Welcome back" : "Check your inbox"}
+          </p>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.025em]">
+            {step === "login" ? "Log in to Manifold" : "Enter your code"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-white/45">
             {step === "login"
-              ? "Welcome back to Manifold."
-              : "Enter the 6-digit code we sent to your email."}
+              ? "No password needed. We will email you a one-time code."
+              : `We sent a six-digit code for ${login}.`}
           </p>
         </div>
 
         {step === "login" ? (
-          <label className="field">
-            <span>Username or email</span>
-            <input
-              autoComplete="username"
-              required
-              type="text"
-              value={login}
-              onChange={(event) => setLogin(event.target.value)}
-            />
+          <label className="flex flex-col gap-2 text-sm font-semibold text-white/70">
+            Username or email
+            <div className="relative">
+              <Mail
+                size={17}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"
+              />
+              <input
+                autoComplete="username"
+                required
+                type="text"
+                value={login}
+                onChange={(event) => setLogin(event.target.value)}
+                className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.035] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                placeholder="you@example.com"
+              />
+            </div>
           </label>
         ) : (
-          <label className="field">
-            <span>Code</span>
+          <label className="flex flex-col gap-2 text-sm font-semibold text-white/70">
+            Six-digit code
             <input
               autoComplete="one-time-code"
               inputMode="numeric"
@@ -178,159 +178,58 @@ export default function LoginPage() {
               type="text"
               value={code}
               onChange={(event) => setCode(event.target.value)}
+              className="h-12 w-full rounded-lg border border-white/10 bg-white/[0.035] px-4 text-center text-xl font-bold tracking-[0.35em] text-white outline-none focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+              placeholder="000000"
             />
           </label>
         )}
 
-        {errorMessage ? (
-          <p className="form-message error" role="alert">
+        {errorMessage && (
+          <p
+            className="rounded-lg border border-rose-400/20 bg-rose-400/[0.07] px-4 py-3 text-sm text-rose-200"
+            role="alert"
+          >
             {errorMessage}
           </p>
-        ) : null}
+        )}
 
-        <button className="submit-button" disabled={isSubmitting} type="submit">
+        <button
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-bold transition-colors hover:from-fuchsia-500 hover:to-violet-500 disabled:cursor-progress disabled:opacity-60"
+          disabled={isSubmitting}
+          type="submit"
+        >
+          {isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {isSubmitting
             ? step === "login"
-              ? "Sending..."
+              ? "Sending code..."
               : "Verifying..."
             : step === "login"
-              ? "Send Code"
-              : "Log In"}
+              ? "Send login code"
+              : "Log in"}
+          {!isSubmitting && <ArrowRight size={16} />}
         </button>
 
-        {step === "code" ? (
+        {step === "code" && (
           <button
-            className="submit-button"
             type="button"
             disabled={isSubmitting}
             onClick={handleUseDifferentAccount}
+            className="h-10 rounded-lg border border-white/10 text-sm font-semibold text-white/55 hover:border-white/20 hover:text-white"
           >
             Use a different account
           </button>
-        ) : null}
+        )}
 
-        <p className="signup-prompt">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup">Request Early Access</Link>
+        <p className="border-t border-white/[0.08] pt-5 text-center text-sm text-white/40">
+          New to Manifold?{" "}
+          <Link
+            href="/signup"
+            className="font-bold text-violet-300 hover:text-violet-200"
+          >
+            Create an account
+          </Link>
         </p>
       </form>
-
-      <style jsx>{`
-        .auth-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-          padding: 1rem;
-        }
-
-        .modal-heading {
-          text-align: left;
-        }
-
-        .modal-heading h2 {
-          margin: 0;
-          color: var(--color-purple-dark);
-          padding-right: 2.5rem;
-          font-size: 2.4rem;
-          font-weight: 900;
-          line-height: 1.1;
-        }
-
-        .modal-heading p {
-          margin: 0.75rem 0 0;
-          color: rgba(53, 34, 89, 0.8);
-          font-size: 1.1rem;
-          line-height: 1.5;
-        }
-
-        .field {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          text-align: left;
-          font-weight: 700;
-        }
-
-        .field input {
-          width: 100%;
-          min-height: 3rem;
-          border: 1px solid rgba(53, 34, 89, 0.24);
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.78);
-          color: var(--color-purple-dark);
-          padding: 0.75rem 1rem;
-          font: inherit;
-          letter-spacing: 0;
-        }
-
-        .field input:focus {
-          border-color: var(--color-purple-dark);
-          outline: 3px solid rgba(214, 205, 255, 0.9);
-        }
-
-        .form-message {
-          margin: 0;
-          border-radius: 8px;
-          padding: 0.85rem 1rem;
-          text-align: left;
-          font-weight: 700;
-          line-height: 1.4;
-        }
-
-        .form-message.error {
-          border: 1px solid rgba(150, 20, 20, 0.3);
-          background: rgba(255, 230, 230, 0.9);
-          color: #781818;
-        }
-
-        .submit-button {
-          min-height: 3rem;
-          border: 0;
-          border-radius: 8px;
-          cursor: pointer;
-          background: var(--color-purple-dark);
-          color: var(--bg-primary);
-          padding: 0.85rem 1.25rem;
-          font: inherit;
-          font-weight: 800;
-          letter-spacing: 0;
-          margin-top: 0.5rem;
-        }
-
-        .submit-button:disabled {
-          cursor: progress;
-          opacity: 0.65;
-        }
-
-        .submit-button:focus-visible {
-          outline: 3px solid rgba(53, 34, 89, 0.45);
-          outline-offset: 3px;
-        }
-
-        .signup-prompt {
-          margin: 1rem 0 0;
-          font-size: 0.95rem;
-          color: rgba(53, 34, 89, 0.8);
-          font-weight: 500;
-        }
-
-        .signup-prompt :global(a) {
-          color: var(--color-purple-dark);
-          font-weight: 800;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
-        @media (max-width: 520px) {
-          .auth-form {
-            padding: 0;
-          }
-
-          .modal-heading h2 {
-            font-size: 1.8rem;
-          }
-        }
-      `}</style>
     </AuthLayout>
   );
 }

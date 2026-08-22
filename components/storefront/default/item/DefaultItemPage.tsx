@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { SectionDivider } from "components/store/SectionDivider";
 import { GameHero } from "components/storefront/default/item/GameHero";
 import { ItemDescription } from "components/storefront/default/item/ItemDescription";
 import { PurchaseCard } from "components/storefront/default/item/PurchaseCard";
@@ -41,20 +40,17 @@ export function DefaultItemPage({
 
   return (
     <>
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+4.75rem)]">
+      <main className="w-full bg-[#0b0812] pb-8 text-white">
         <GameHero
           game={game}
           backHref={backHref}
           backLabel={store ? `Back to ${store.name}` : "Back to Outlets"}
         />
 
-        <SectionDivider />
-
-        {/* Content Grid */}
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-10 border-t border-white/[0.08] px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-10 lg:py-14">
           <ItemDescription game={game} />
 
-          <aside className="lg:col-span-4 flex flex-col gap-8">
+          <aside className="flex flex-col gap-8 lg:col-span-4">
             <PurchaseCard
               game={game}
               isDemo={isDemo}
@@ -66,14 +62,14 @@ export function DefaultItemPage({
           </aside>
         </div>
 
-        <SectionDivider />
-
-        <ReviewsSection
-          reviews={reviews}
-          isInLibrary={isInLibrary}
-          onWriteReview={() => setShowReviewModal(true)}
-          onDeleteReview={() => setShowDeleteModal(true)}
-        />
+        <div className="border-t border-white/[0.08]">
+          <ReviewsSection
+            reviews={reviews}
+            isInLibrary={isInLibrary}
+            onWriteReview={() => setShowReviewModal(true)}
+            onDeleteReview={() => setShowDeleteModal(true)}
+          />
+        </div>
       </main>
 
       {showSuccessModal && (
