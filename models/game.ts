@@ -406,7 +406,12 @@ function deepMerge(target: any, source: any) {
 }
 
 async function findOnePublicBySlug(slug: string) {
-  return await findOneBySlug(slug);
+  return await prisma.game.findFirst({
+    where: {
+      slug,
+      status: "ACTIVE",
+    },
+  });
 }
 
 async function findOneBySlug(slug: string) {

@@ -1,6 +1,7 @@
 import { prisma } from "infra/database";
 import gameModel from "models/game";
-import { NotFoundError, ValidationError } from "infra/errors";
+import library from "models/library";
+import { ForbiddenError, NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 
 async function add(
@@ -15,6 +16,13 @@ async function add(
     throw new NotFoundError({
       message: `The game with slug "${slug}" was not found.`,
       action: "Check if the slug is correct.",
+    });
+  }
+
+  if (!(await library.hasItem(userId, game.id))) {
+    throw new ForbiddenError({
+      message: "Only players who own this game can review it.",
+      action: "Add the game to your library before posting a review.",
     });
   }
 
@@ -64,6 +72,77 @@ async function add(
     }
     throw error;
   }
+}
+
+async function update(
+  userId: string,
+  slug: string,
+  message: string,
+  recommended: boolean,
+) {
+  const game = await gameModel.findOnePublicBySlug(slug);
+
+  if (!game) {
+    throw new NotFoundError({
+      message: `The game with slug "${slug}" was not found.`,
+      action: "Check if the slug is correct.",
+    });
+  }
+
+  if (!(await library.hasItem(userId, game.id))) {
+    throw new ForbiddenError({
+      message: "Only players who own this game can review it.",
+      action: "Add the game to your library before updating a review.",
+    });
+  }
+
+  const existingReview = await prisma.review.findUnique({
+    where: {
+      user_id_game_id: {
+        user_id: userId,
+        game_id: game.id,
+      },
+    },
+  });
+
+  if (!existingReview) {
+    throw new NotFoundError({
+      message: "Review not found.",
+      action: "Post a review before trying to update it.",
+    });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.review.update({
+      where: { id: existingReview.id },
+      data: { message, recommended },
+    });
+
+    if (existingReview.recommended === recommended) return;
+
+    const updatedGame = await tx.game.update({
+      where: { id: game.id },
+      data: recommended
+        ? {
+            positive_reviews: { increment: 1 },
+            negative_reviews: { decrement: 1 },
+          }
+        : {
+            positive_reviews: { decrement: 1 },
+            negative_reviews: { increment: 1 },
+          },
+    });
+
+    await tx.game.update({
+      where: { id: game.id },
+      data: {
+        review_score: gameModel.calculateReviewScore(
+          updatedGame.positive_reviews,
+          updatedGame.negative_reviews,
+        ),
+      },
+    });
+  });
 }
 
 async function remove(userId: string, slug: string) {
@@ -173,20 +252,43 @@ async function getPaginatedReviewsBySlug(
   }));
 
   let userReview = null;
+  let canReview = false;
   if (userId) {
-    userReview = await prisma.review.findUnique({
-      where: {
-        user_id_game_id: {
-          user_id: userId,
-          game_id: game.id,
+    const [ownReview, ownUser, ownsGame] = await Promise.all([
+      prisma.review.findUnique({
+        where: {
+          user_id_game_id: {
+            user_id: userId,
+            game_id: game.id,
+          },
         },
-      },
-    });
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true },
+      }),
+      library.hasItem(userId, game.id),
+    ]);
+
+    canReview = ownsGame;
+
+    userReview = ownReview
+      ? {
+          ...ownReview,
+          user: ownUser || { id: userId, username: "Unknown" },
+        }
+      : null;
   }
 
   return {
     reviews: reviewsWithUser,
     user_review: userReview,
+    can_review: canReview,
+    summary: {
+      positive_reviews: game.positive_reviews,
+      negative_reviews: game.negative_reviews,
+      review_score: game.review_score,
+    },
     pagination: {
       total_items: totalCount,
       total_pages: Math.ceil(totalCount / limit),
@@ -198,6 +300,7 @@ async function getPaginatedReviewsBySlug(
 
 const review = {
   add,
+  update,
   remove,
   getPaginatedReviewsBySlug,
 };

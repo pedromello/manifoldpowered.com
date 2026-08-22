@@ -17,8 +17,8 @@ export function RedeemSuccessModal({
   onDismiss: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="relative w-full max-w-md bg-[#1D0F3B] border border-white/20 rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="relative flex w-full max-w-md flex-col items-center rounded-xl border border-white/10 bg-[#14101c] p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300">
         <button
           onClick={onDismiss}
           className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
@@ -60,22 +60,30 @@ export function RedeemSuccessModal({
 
 export function ReviewComposerModal({
   gameTitle,
+  mode,
+  initialReview,
   isSubmitting,
+  error,
   onSubmit,
   onDismiss,
 }: {
   gameTitle: string;
+  mode: "create" | "edit";
+  initialReview?: { message: string; recommended: boolean };
   isSubmitting: boolean;
+  error: string | null;
   onSubmit: (input: { message: string; recommended: boolean }) => void;
   onDismiss: () => void;
 }) {
   // Draft state belongs to the composer, not the page: it exists only while
   // the modal is open and is thrown away when it closes.
-  const [form, setForm] = useState({ message: "", recommended: true });
+  const [form, setForm] = useState(
+    initialReview || { message: "", recommended: true },
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-3xl animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-xl border border-white/10 bg-[#14101c] shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="p-8">
           <button
             onClick={onDismiss}
@@ -84,8 +92,8 @@ export function ReviewComposerModal({
             <X size={24} />
           </button>
 
-          <h2 className="text-3xl font-black tracking-tighter mb-2">
-            Write a Review
+          <h2 className="mb-2 text-3xl font-black tracking-tight">
+            {mode === "edit" ? "Edit Your Review" : "Write a Review"}
           </h2>
           <p className="text-white/50 mb-8 font-medium">
             Share your intel on{" "}
@@ -142,14 +150,27 @@ export function ReviewComposerModal({
               <textarea
                 id="review-message"
                 required
+                maxLength={3000}
                 value={form.message}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, message: event.target.value }))
                 }
                 placeholder="What did you think of the game?"
-                className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 resize-none h-40 transition-all font-medium"
+                className="h-40 w-full resize-none rounded-xl border border-white/10 bg-black/20 p-4 font-medium text-white placeholder:text-white/20 transition-all focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
               />
+              <span className="self-end text-xs font-semibold text-white/30">
+                {form.message.length.toLocaleString()} / 3,000
+              </span>
             </div>
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200"
+              >
+                {error}
+              </p>
+            )}
 
             <button
               type="submit"
@@ -164,7 +185,7 @@ export function ReviewComposerModal({
               ) : (
                 <>
                   <Send size={20} />
-                  Post Review
+                  {mode === "edit" ? "Save Review" : "Post Review"}
                 </>
               )}
             </button>
@@ -177,21 +198,31 @@ export function ReviewComposerModal({
 
 export function ConfirmDeleteReviewModal({
   isDeleting,
+  error,
   onConfirm,
   onDismiss,
 }: {
   isDeleting: boolean;
+  error: string | null;
   onConfirm: () => void;
   onDismiss: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="relative w-full max-w-md bg-[#1D0F3B] border border-white/20 rounded-3xl shadow-2xl p-8 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="relative flex w-full max-w-md flex-col items-center rounded-xl border border-white/10 bg-[#14101c] p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300">
         <h2 className="text-2xl font-black text-white mb-4">Delete Review?</h2>
         <p className="text-white/60 mb-8">
           Are you sure you want to delete your review? This action cannot be
           undone.
         </p>
+        {error && (
+          <p
+            role="alert"
+            className="mb-4 w-full rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200"
+          >
+            {error}
+          </p>
+        )}
         <div className="flex flex-col w-full gap-3">
           <button
             onClick={onConfirm}

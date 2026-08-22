@@ -585,8 +585,6 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     const reviewOutput = resource as Review & { user: { username: string } };
     return {
       id: reviewOutput.id,
-      game_id: reviewOutput.game_id,
-      user_id: reviewOutput.user_id,
       message: reviewOutput.message,
       recommended: reviewOutput.recommended,
       created_at: reviewOutput.created_at,

@@ -22,13 +22,29 @@ export type ItemReviews = {
   /** Everyone else's reviews. The viewer's own is separated out below. */
   list: Review[];
   userReview: Review | null;
+  canReview: boolean;
+  summary: {
+    positiveReviews: number;
+    negativeReviews: number;
+    reviewScore: string | null;
+  } | null;
   total: number;
+  page: number;
+  totalPages: number;
   /** True only on the first load, so the list does not flash on revalidation. */
   isLoading: boolean;
   isSubmitting: boolean;
   isDeleting: boolean;
+  error: string | null;
   post: (input: { message: string; recommended: boolean }) => Promise<boolean>;
+  update: (input: {
+    message: string;
+    recommended: boolean;
+  }) => Promise<boolean>;
   remove: () => Promise<boolean>;
+  setPage: (page: number) => void;
+  retry: () => void;
+  clearError: () => void;
 };
 
 export type ItemControllerResult = {
@@ -44,9 +60,12 @@ export type ItemControllerResult = {
   backHref: string;
 };
 
-const okJson = (res: Response) => {
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  return res.json();
+const okJson = async (res: Response) => {
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(body?.message || `Request failed: ${res.status}`);
+  }
+  return body;
 };
 
 /**
@@ -63,6 +82,7 @@ export function useItemController({
   storeSlug,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
+  const [reviewPage, setReviewPage] = useState(1);
 
   const {
     data: libraryData,
@@ -72,11 +92,12 @@ export function useItemController({
 
   const {
     data: reviewsData,
+    error: reviewsError,
     mutate: mutateReviews,
     isValidating: isReviewsLoading,
   } = useSWR<ReviewsApiResponse>(
-    `/api/v1/reviews?slug=${gameSlug}&page=1&limit=10`,
-    (url) => fetch(url).then((res) => res.json()),
+    `/api/v1/reviews?slug=${gameSlug}&page=${reviewPage}&limit=10`,
+    (url) => fetch(url).then(okJson),
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
@@ -96,6 +117,9 @@ export function useItemController({
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const [reviewActionError, setReviewActionError] = useState<string | null>(
+    null,
+  );
   const [isToggling, setIsToggling] = useState(false);
 
   const redeem = async () => {
@@ -135,6 +159,7 @@ export function useItemController({
   }) => {
     if (!input.message.trim()) return false;
 
+    setReviewActionError(null);
     setIsSubmittingReview(true);
     try {
       const res = await fetch("/api/v1/reviews", {
@@ -143,13 +168,52 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, ...input }),
       });
 
-      if (!res.ok) throw new Error("Failed to post review");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to post review");
+      }
+
+      setReviewPage(1);
+      await mutateReviews();
+      return true;
+    } catch (error) {
+      console.error(error);
+      setReviewActionError(
+        error instanceof Error ? error.message : "Failed to submit review.",
+      );
+      return false;
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const updateReview = async (input: {
+    message: string;
+    recommended: boolean;
+  }) => {
+    if (!input.message.trim()) return false;
+
+    setReviewActionError(null);
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch("/api/v1/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: gameSlug, ...input }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to update review");
+      }
 
       await mutateReviews();
       return true;
     } catch (error) {
       console.error(error);
-      alert("Failed to submit review.");
+      setReviewActionError(
+        error instanceof Error ? error.message : "Failed to update review.",
+      );
       return false;
     } finally {
       setIsSubmittingReview(false);
@@ -157,6 +221,7 @@ export function useItemController({
   };
 
   const removeReview = async () => {
+    setReviewActionError(null);
     setIsDeletingReview(true);
     try {
       const res = await fetch("/api/v1/reviews", {
@@ -165,13 +230,19 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug }),
       });
 
-      if (!res.ok) throw new Error("Failed to delete review");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to delete review");
+      }
 
+      setReviewPage(1);
       await mutateReviews();
       return true;
     } catch (error) {
       console.error(error);
-      alert("Failed to delete review.");
+      setReviewActionError(
+        error instanceof Error ? error.message : "Failed to delete review.",
+      );
       return false;
     } finally {
       setIsDeletingReview(false);
@@ -236,12 +307,29 @@ export function useItemController({
         (review) => review.id !== reviewsData?.user_review?.id,
       ),
       userReview: reviewsData?.user_review ?? null,
+      canReview: reviewsData?.can_review ?? false,
+      summary: reviewsData?.summary
+        ? {
+            positiveReviews: reviewsData.summary.positive_reviews,
+            negativeReviews: reviewsData.summary.negative_reviews,
+            reviewScore: reviewsData.summary.review_score,
+          }
+        : null,
       total: reviewsData?.pagination?.total_items ?? 0,
+      page: reviewsData?.pagination?.current_page ?? reviewPage,
+      totalPages: reviewsData?.pagination?.total_pages ?? 0,
       isLoading: !reviewsData && isReviewsLoading,
       isSubmitting: isSubmittingReview,
       isDeleting: isDeletingReview,
+      error:
+        reviewActionError ||
+        (reviewsError instanceof Error ? reviewsError.message : null),
       post: postReview,
+      update: updateReview,
       remove: removeReview,
+      setPage: (page) => setReviewPage(Math.max(1, page)),
+      retry: () => void mutateReviews(),
+      clearError: () => setReviewActionError(null),
     },
 
     backHref: storeSlug ? `/store/${storeSlug}` : "/store",
