@@ -50,8 +50,10 @@ export type ItemReviews = {
 export type ItemControllerResult = {
   isLoggedOut: boolean;
   isInLibrary: boolean;
+  isCheckingLibrary: boolean;
   isRedeeming: boolean;
   redeem: () => void;
+  acquisitionError: string | null;
   showSuccessModal: boolean;
   dismissSuccess: () => void;
   wishlist: ItemWishlist;
@@ -60,13 +62,28 @@ export type ItemControllerResult = {
   backHref: string;
 };
 
+class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
 const okJson = async (res: Response) => {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(body?.message || `Request failed: ${res.status}`);
+    throw new ApiRequestError(
+      body?.message || `Request failed: ${res.status}`,
+      res.status,
+    );
   }
   return body;
 };
+
+const fetchJson = (url: string) => fetch(url).then(okJson);
 
 /**
  * Everything the product page does beyond rendering: ownership, wishlist and
@@ -88,7 +105,13 @@ export function useItemController({
     data: libraryData,
     error: libraryError,
     mutate: mutateLibrary,
-  } = useSWR("/api/v1/library", okJson, { shouldRetryOnError: false });
+  } = useSWR(
+    `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
+    fetchJson,
+    {
+      shouldRetryOnError: false,
+    },
+  );
 
   const {
     data: reviewsData,
@@ -97,7 +120,7 @@ export function useItemController({
     isValidating: isReviewsLoading,
   } = useSWR<ReviewsApiResponse>(
     `/api/v1/reviews?slug=${gameSlug}&page=${reviewPage}&limit=10`,
-    (url) => fetch(url).then(okJson),
+    fetchJson,
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
@@ -105,15 +128,23 @@ export function useItemController({
     (url) => fetch(url).then((res) => res.json()),
   );
 
-  // A failing /api/v1/library is how the page learns there is no session; the
-  // endpoint 401s for an anonymous visitor.
-  const isLoggedOut = !!libraryError;
+  // Anonymous access is forbidden, while a server-side failure is a real
+  // library error and must not be disguised as a login redirect.
+  const isLoggedOut =
+    libraryError instanceof ApiRequestError &&
+    (libraryError.status === 401 || libraryError.status === 403);
+  const isCheckingLibrary = !libraryData && !libraryError;
+  const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
+    hasJustAcquired ||
+    libraryData?.is_owned ||
     libraryData?.games?.some(
       (item: { game: { slug: string } }) => item.game.slug === gameSlug,
-    ) || false;
+    ) ||
+    false;
 
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [acquisitionError, setAcquisitionError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
@@ -123,6 +154,8 @@ export function useItemController({
   const [isToggling, setIsToggling] = useState(false);
 
   const redeem = async () => {
+    setAcquisitionError(null);
+
     if (isLoggedOut) {
       router.push(
         `/login?callbackUrl=${encodeURIComponent(
@@ -132,7 +165,7 @@ export function useItemController({
       return;
     }
 
-    if (isInLibrary || isRedeeming) return;
+    if (isCheckingLibrary || isInLibrary || isRedeeming) return;
 
     setIsRedeeming(true);
     try {
@@ -142,12 +175,23 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, store_slug: storeSlug }),
       });
 
-      if (!res.ok) throw new Error("Failed to redeem");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.message || "We could not add this game to your library.",
+        );
+      }
 
-      mutateLibrary();
+      setHasJustAcquired(true);
+      void mutateLibrary();
       setShowSuccessModal(true);
     } catch (error) {
       console.error(error);
+      setAcquisitionError(
+        error instanceof Error
+          ? error.message
+          : "We could not add this game to your library.",
+      );
     } finally {
       setIsRedeeming(false);
     }
@@ -288,8 +332,14 @@ export function useItemController({
   return {
     isLoggedOut,
     isInLibrary,
+    isCheckingLibrary,
     isRedeeming,
     redeem,
+    acquisitionError:
+      acquisitionError ||
+      (!isLoggedOut && libraryError instanceof Error
+        ? libraryError.message
+        : null),
     showSuccessModal,
     dismissSuccess: () => setShowSuccessModal(false),
 

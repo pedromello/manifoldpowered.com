@@ -30,7 +30,9 @@ export function RedeemSuccessModal({
           <CheckCircle2 size={48} className="text-emerald-400" />
         </div>
 
-        <h2 className="text-2xl font-black text-white mb-4">Game Redeemed!</h2>
+        <h2 className="text-2xl font-black text-white mb-4">
+          Added to your library
+        </h2>
 
         <p className="text-white/60 mb-8">
           Successfully added{" "}

@@ -123,6 +123,48 @@ describe("POST /api/v1/library", () => {
       expect(Date.parse(responseBody.acquired_at)).not.toBeNaN();
     });
 
+    test("With a free game should add it to a new user's library without ledger entries", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
+
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const buyerSession = await orchestrator.createSession(buyer.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          Cookie: `session_id=${buyerSession.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const libraryItem = await prisma.libraryItem.findUnique({
+        where: {
+          user_id_item_id_item_type: {
+            user_id: buyer.id,
+            item_id: game.id,
+            item_type: "GAME",
+          },
+        },
+      });
+      expect(libraryItem).not.toBeNull();
+
+      const sale = await prisma.sale.findFirstOrThrow({
+        where: { user_id: buyer.id, game_id: game.id },
+      });
+      expect(sale.price_at_sale.isZero()).toBe(true);
+      expect(
+        await prisma.ledgerEntry.count({
+          where: { source_type: "SALE", source_id: sale.id },
+        }),
+      ).toBe(0);
+    });
+
     test("Without store_slug should record a Sale with a null store_id", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);

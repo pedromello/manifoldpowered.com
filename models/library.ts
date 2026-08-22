@@ -39,8 +39,13 @@ async function acquireGame(
   );
 
   const affiliate = await resolveAffiliateLeniently(storeSlug);
-  const supplierCostRate =
-    await commercialTerms.supplierCostRateFor(existingGame);
+  // A free acquisition still gets a Sale row so attribution and acquisition
+  // history stay intact, but it moves no money. Looking up commercial terms or
+  // writing a zero-value ledger set would be both unnecessary and invalid: the
+  // ledger deliberately rejects entries whose amount is zero.
+  const supplierCostRate = resolvedPrice.amount.isZero()
+    ? null
+    : await commercialTerms.supplierCostRateFor(existingGame);
 
   return await prisma.$transaction(async (tx) => {
     // The entitlement is idempotent; the Sale deliberately is not. A Sale
@@ -78,14 +83,16 @@ async function acquireGame(
       },
     });
 
-    await recordSaleEntries(tx, {
-      sale_id: sale.id,
-      gross: resolvedPrice.amount,
-      currency: resolvedPrice.currency,
-      exchange_rate: resolvedPrice.exchange_rate,
-      supplier_cost_rate: supplierCostRate,
-      affiliate,
-    });
+    if (!resolvedPrice.amount.isZero() && supplierCostRate) {
+      await recordSaleEntries(tx, {
+        sale_id: sale.id,
+        gross: resolvedPrice.amount,
+        currency: resolvedPrice.currency,
+        exchange_rate: resolvedPrice.exchange_rate,
+        supplier_cost_rate: supplierCostRate,
+        affiliate,
+      });
+    }
 
     return libraryItem;
   });
@@ -304,9 +311,16 @@ async function hasItem(
   return !!item;
 }
 
+async function hasGameBySlug(userId: string, gameSlug: string) {
+  const existingGame = await game.findOneBySlug(gameSlug);
+
+  return existingGame ? hasItem(userId, existingGame.id, "GAME") : false;
+}
+
 const library = {
   add,
   hasItem,
+  hasGameBySlug,
   findAllPaginatedGamesByUserId,
   acquireGame,
 };

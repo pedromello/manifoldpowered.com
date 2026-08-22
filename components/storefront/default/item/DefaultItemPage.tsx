@@ -10,6 +10,7 @@ import {
   ConfirmDeleteReviewModal,
 } from "components/storefront/default/item/ItemModals";
 import type { ItemViewProps } from "components/storefront/types";
+import { isFree } from "lib/price";
 
 /**
  * Manifold's own product page, and the fallback for any outlet without a
@@ -22,8 +23,10 @@ export function DefaultItemPage({
   game,
   store,
   isInLibrary,
+  isCheckingLibrary,
   isRedeeming,
   redeem,
+  acquisitionError,
   showSuccessModal,
   dismissSuccess,
   wishlist,
@@ -33,10 +36,7 @@ export function DefaultItemPage({
   const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // TODO: hardcoded rather than derived from the game's price. Preserved from
-  // the previous implementation because changing it changes what every
-  // customer is charged, which needs its own decision.
-  const isDemo = true;
+  const isFreeGame = isFree(game);
 
   return (
     <>
@@ -62,9 +62,11 @@ export function DefaultItemPage({
           <aside className="flex flex-col gap-8 lg:col-span-4">
             <PurchaseCard
               game={game}
-              isDemo={isDemo}
+              isFreeGame={isFreeGame}
               isInLibrary={isInLibrary}
+              isCheckingLibrary={isCheckingLibrary}
               isRedeeming={isRedeeming}
+              acquisitionError={acquisitionError}
               onRedeem={redeem}
               wishlist={wishlist}
             />
