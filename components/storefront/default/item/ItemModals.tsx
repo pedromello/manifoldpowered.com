@@ -109,9 +109,15 @@ export function ReviewComposerModal({
             className="flex flex-col gap-6"
           >
             {/* Recommendation Toggle */}
-            <div className="flex gap-4 p-1 bg-white/5 rounded-2xl border border-white/10">
+            <div
+              className="flex gap-2 p-1 bg-white/5 rounded-2xl border border-white/10 sm:gap-4"
+              role="group"
+              aria-label="Would you recommend this game?"
+            >
               <button
                 type="button"
+                aria-label="Recommend this game"
+                aria-pressed={form.recommended}
                 onClick={() =>
                   setForm((prev) => ({ ...prev, recommended: true }))
                 }
@@ -121,11 +127,13 @@ export function ReviewComposerModal({
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
                 }`}
               >
-                <ThumbsUp size={18} />
-                Recommended
+                <ThumbsUp size={22} aria-hidden="true" />
+                <span className="hidden sm:inline">Recommended</span>
               </button>
               <button
                 type="button"
+                aria-label="Do not recommend this game"
+                aria-pressed={!form.recommended}
                 onClick={() =>
                   setForm((prev) => ({ ...prev, recommended: false }))
                 }
@@ -135,8 +143,8 @@ export function ReviewComposerModal({
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
                 }`}
               >
-                <ThumbsDown size={18} />
-                Not Recommended
+                <ThumbsDown size={22} aria-hidden="true" />
+                <span className="hidden sm:inline">Not Recommended</span>
               </button>
             </div>
 
