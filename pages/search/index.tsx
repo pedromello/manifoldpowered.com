@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { Search, SlidersHorizontal, ArrowUpDown, Tag } from "lucide-react";
 
 import { CATEGORIES } from "lib/categories";
-import { StoreLayout } from "components/store/StoreLayout";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { GameListItem } from "components/store/GameListItem";
 import { type GameApi } from "components/store/types";
 
@@ -51,20 +51,20 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
+    <div className="min-h-screen overflow-x-hidden bg-[#0b0812] pb-24 text-white selection:bg-white selection:text-black">
       <Head>
         <title>Search Results | Manifold Outlets</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
       <style jsx global>{`
         html,
         body {
-          background-color: #1d0f3b !important;
+          background-color: #0b0812 !important;
         }
       `}</style>
 
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+8rem)] flex flex-col items-center">
+      <main className="flex w-full flex-col items-center py-10 lg:py-14">
         <div className="max-w-7xl mx-auto w-full px-4 md:px-10 flex flex-col lg:flex-row gap-8">
           {/* Main Column - Search Results */}
           <div className="flex-1 flex flex-col gap-6">
@@ -227,5 +227,5 @@ export default function SearchPage() {
 }
 
 SearchPage.getLayout = function getLayout(page: React.ReactElement) {
-  return <StoreLayout>{page}</StoreLayout>;
+  return <StoreHomeLayout>{page}</StoreHomeLayout>;
 };

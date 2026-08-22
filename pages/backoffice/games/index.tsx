@@ -141,7 +141,7 @@ export default function BackofficeGamesPage() {
           {selected.size > 0 && (
             <button
               onClick={bulkApprove}
-              className="px-4 py-2 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+              className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
             >
               Approve Selected ({selected.size})
             </button>
@@ -193,7 +193,7 @@ export default function BackofficeGamesPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
@@ -322,7 +322,7 @@ export default function BackofficeGamesPage() {
 
       {rejectTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
               Reject &quot;{rejectTarget.title}&quot;
             </h2>

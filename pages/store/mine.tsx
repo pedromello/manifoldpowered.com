@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 
 interface Store {
   id: string;
@@ -52,7 +53,7 @@ export default function MyStoresPage() {
     if (stores.length === 0) {
       router.replace("/store/new");
     } else if (stores.length === 1) {
-      router.replace(`/store/${stores[0].slug}`);
+      router.replace(`/store/${stores[0].slug}/manage`);
     }
   }, [isLoading, error, data, router]);
 
@@ -64,11 +65,11 @@ export default function MyStoresPage() {
         <title>My Outlets | Manifold</title>
       </Head>
 
-      <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 py-10 text-white sm:px-6">
         {isLoading || (!error && stores.length <= 1) ? (
           <Loader2 className="animate-spin text-white/30" />
         ) : (
-          <div className="w-full max-w-md flex flex-col gap-4">
+          <div className="flex w-full max-w-2xl flex-col gap-5 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 sm:p-8">
             <div>
               <h1 className="text-2xl font-black">Choose an Outlet</h1>
               <p className="text-white/50 text-sm font-bold mt-1">
@@ -78,8 +79,8 @@ export default function MyStoresPage() {
             {stores.map((storeItem) => (
               <Link
                 key={storeItem.id}
-                href={`/store/${storeItem.slug}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 font-bold text-white hover:bg-white/10 transition-colors"
+                href={`/store/${storeItem.slug}/manage`}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 font-bold text-white transition-colors hover:border-violet-400/30 hover:bg-white/[0.07]"
               >
                 <span className="truncate">{storeItem.name}</span>
                 {currentUser && (
@@ -95,3 +96,7 @@ export default function MyStoresPage() {
     </>
   );
 }
+
+MyStoresPage.getLayout = function getLayout(page: React.ReactElement) {
+  return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
+};

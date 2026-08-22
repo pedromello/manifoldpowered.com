@@ -4,6 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 import { Loader2, ExternalLink, X, ChevronDown } from "lucide-react";
+import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
@@ -90,7 +91,7 @@ export default function StoreManagePage() {
 
   if (isStoreLoading || !slug) {
     return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
         <Loader2 className="animate-spin text-white/30" size={32} />
       </div>
     );
@@ -98,7 +99,7 @@ export default function StoreManagePage() {
 
   if (storeError || !storeData) {
     return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
         <p className="text-rose-300 font-bold">Outlet not found.</p>
       </div>
     );
@@ -106,7 +107,7 @@ export default function StoreManagePage() {
 
   if (tagFiltersError) {
     return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center px-4 text-center">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 text-center">
         <p className="text-rose-300 font-bold">
           You do not have permission to manage this outlet.
         </p>
@@ -115,12 +116,12 @@ export default function StoreManagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#0b0812] pb-24 text-white">
       <Head>
         <title>Manage {storeData.name} | Manifold</title>
       </Head>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-16 flex flex-col gap-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pt-10 sm:px-6 lg:px-10 lg:pt-14">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black break-words">
@@ -180,6 +181,10 @@ export default function StoreManagePage() {
     </div>
   );
 }
+
+StoreManagePage.getLayout = function getLayout(page: React.ReactElement) {
+  return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
+};
 
 function CurationTab({
   storeSlug,
@@ -271,7 +276,7 @@ function CurationTab({
           <button
             type="submit"
             disabled={isSubmitting || !tag.trim()}
-            className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Add
           </button>
@@ -428,7 +433,7 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
         <button
           type="submit"
           disabled={isSubmitting || !selectedGame}
-          className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Add
         </button>
@@ -593,7 +598,7 @@ function SettingsTab({ store }: { store: StoreApi }) {
       <button
         type="submit"
         disabled={isSubmitting || !name.trim()}
-        className="px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed w-fit"
+        className="w-fit rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isSubmitting ? "Saving..." : "Save Changes"}
       </button>
@@ -730,7 +735,7 @@ function EarningsTab({ storeSlug }: { storeSlug: string }) {
           {balances.map((balance) => (
             <div
               key={balance.currency}
-              className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-4"
+              className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-[#14101c] p-5"
             >
               <div className="flex items-baseline justify-between gap-4">
                 <span className="text-xs font-black uppercase tracking-wider text-white/40">

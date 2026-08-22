@@ -83,7 +83,7 @@ export default function BackofficeExchangeRatesPage() {
           </div>
           <button
             onClick={() => setIsRecording(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500 text-black font-black text-sm uppercase tracking-wider hover:bg-indigo-400 transition-colors"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
           >
             <Plus size={16} />
             Record Rate
@@ -111,7 +111,7 @@ export default function BackofficeExchangeRatesPage() {
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
@@ -245,7 +245,7 @@ function CurrencySelect({
       >
         <option value="">Any</option>
         {codes.map((code) => (
-          <option key={code} value={code} className="bg-[#1D0F3B]">
+          <option key={code} value={code} className="bg-[#14101c]">
             {code}
           </option>
         ))}
@@ -303,7 +303,7 @@ function RecordRateModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
         <h2 className="text-xl font-black mb-1">Record Exchange Rate</h2>
         <p className="text-sm font-bold text-white/40 mb-4">
           This adds a new rate rather than editing any existing one.
@@ -327,7 +327,7 @@ function RecordRateModal({
                 className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
               >
                 {codes.map((code) => (
-                  <option key={code} value={code} className="bg-[#1D0F3B]">
+                  <option key={code} value={code} className="bg-[#14101c]">
                     {code}
                   </option>
                 ))}
@@ -343,11 +343,11 @@ function RecordRateModal({
                 onChange={(e) => setQuoteCurrency(e.target.value)}
                 className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
               >
-                <option value="" className="bg-[#1D0F3B]">
+                <option value="" className="bg-[#14101c]">
                   Select...
                 </option>
                 {codes.map((code) => (
-                  <option key={code} value={code} className="bg-[#1D0F3B]">
+                  <option key={code} value={code} className="bg-[#14101c]">
                     {code}
                   </option>
                 ))}
@@ -384,13 +384,13 @@ function RecordRateModal({
               }
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
             >
-              <option value="MANUAL" className="bg-[#1D0F3B]">
+              <option value="MANUAL" className="bg-[#14101c]">
                 Manual
               </option>
-              <option value="BULK" className="bg-[#1D0F3B]">
+              <option value="BULK" className="bg-[#14101c]">
                 Bulk
               </option>
-              <option value="AUTOMATIC" className="bg-[#1D0F3B]">
+              <option value="AUTOMATIC" className="bg-[#14101c]">
                 Automatic
               </option>
             </select>
@@ -423,7 +423,7 @@ function RecordRateModal({
           <button
             onClick={submit}
             disabled={isSaving || !quoteCurrency || !rate}
-            className="px-4 py-2 rounded-xl bg-indigo-500 text-black font-black text-sm uppercase tracking-wider hover:bg-indigo-400 transition-colors disabled:opacity-40"
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:opacity-40"
           >
             {isSaving ? "Recording..." : "Record Rate"}
           </button>
