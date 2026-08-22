@@ -11,16 +11,24 @@ import {
 
 export function RedeemSuccessModal({
   gameTitle,
+  continueHref,
   onDismiss,
 }: {
   gameTitle: string;
+  continueHref: string;
   onDismiss: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="acquisition-success-title"
+    >
       <div className="relative flex w-full max-w-md flex-col items-center rounded-xl border border-white/10 bg-[#14101c] p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300">
         <button
           onClick={onDismiss}
+          aria-label="Close success message"
           className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
         >
           <X size={24} />
@@ -30,7 +38,10 @@ export function RedeemSuccessModal({
           <CheckCircle2 size={48} className="text-emerald-400" />
         </div>
 
-        <h2 className="text-2xl font-black text-white mb-4">
+        <h2
+          id="acquisition-success-title"
+          className="text-2xl font-black text-white mb-4"
+        >
           Added to your library
         </h2>
 
@@ -46,14 +57,14 @@ export function RedeemSuccessModal({
             href="/library"
             className="w-full py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:scale-[1.02] transition-transform"
           >
-            Go to Library
+            View in Library
           </Link>
-          <button
-            onClick={onDismiss}
+          <Link
+            href={continueHref}
             className="w-full py-4 rounded-xl border border-white/10 text-white font-bold uppercase hover:bg-white/5 transition-colors"
           >
-            Continue Browsing
-          </button>
+            Continue Shopping
+          </Link>
         </div>
       </div>
     </div>

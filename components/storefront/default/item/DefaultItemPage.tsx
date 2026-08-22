@@ -93,7 +93,11 @@ export function DefaultItemPage({
       </main>
 
       {showSuccessModal && (
-        <RedeemSuccessModal gameTitle={game.title} onDismiss={dismissSuccess} />
+        <RedeemSuccessModal
+          gameTitle={game.title}
+          continueHref={backHref}
+          onDismiss={dismissSuccess}
+        />
       )}
 
       {reviewMode && (
