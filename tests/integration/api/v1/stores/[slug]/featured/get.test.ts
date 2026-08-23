@@ -46,6 +46,7 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
+      expect(body.mode).toBe("AUTOMATIC");
       const titles = body.games.map((g: { title: string }) => g.title);
       expect(titles).toContain("Featured Allowed");
       expect(titles).not.toContain("Featured Banned");

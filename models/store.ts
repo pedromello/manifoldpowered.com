@@ -23,6 +23,7 @@ export type StoreCreateDto = z.infer<typeof storeSchema> & {
 // provider reference, and because changing it resets verification to false.
 export const MEMBER_PERMISSIONS = [
   "update:store",
+  "manage:store_featured_games",
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",

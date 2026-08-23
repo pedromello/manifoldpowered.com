@@ -423,6 +423,21 @@ model StoreGameOverride {
   @@map("store_game_overrides")
 }
 
+model StoreFeaturedGame {
+  id         String   @id @default(uuid())
+  store_id   String // Logical reference to Store.id
+  game_id    String // Logical reference to Game.id
+  position   Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([store_id, game_id])
+  @@unique([store_id, position])
+  @@index([store_id])
+  @@index([game_id])
+  @@map("store_featured_games")
+}
+
 model AdminActionLog {
   id            String   @id @default(uuid())
   admin_user_id String // Logical reference to User.id (who performed the action)

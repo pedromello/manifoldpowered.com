@@ -64,6 +64,27 @@ describe("models/feature_backfill.ts reconcileAll()", () => {
     expect(report.studio_owners.skipped_ineligible).toBeGreaterThanOrEqual(1);
   });
 
+  test("Tops up an existing store owner with editorial curation without granting it to unrelated users", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    await orchestrator.createStore(owner.id);
+    await user.setFeatures(owner.id, authorization.ACTIVATED_USER_FEATURES);
+
+    const unrelated = await orchestrator.createUser();
+    await orchestrator.activateUser(unrelated.id);
+
+    const report = await featureBackfill.reconcileAll();
+    expect(report.store_owners.updated).toBeGreaterThanOrEqual(1);
+
+    const updatedOwner = await orchestrator.getUserById(owner.id);
+    expect(updatedOwner.features).toContain("manage:store_featured_games");
+
+    const unchangedUnrelated = await orchestrator.getUserById(unrelated.id);
+    expect(unchangedUnrelated.features).not.toContain(
+      "manage:store_featured_games",
+    );
+  });
+
   // The admin pass decides who is an admin by asking whether they already hold
   // any ADMIN_ONLY_FEATURES entry, which is only sound while every entry in
   // that list is admin-exclusive. Putting a feature there that a studio or

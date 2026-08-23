@@ -109,6 +109,7 @@ const AVAILABLE_FEATURES = [
   "read:public_store",
   "update:store",
   "update:store:any",
+  "manage:store_featured_games",
   "manage:store_members",
   "manage:store_members:any",
   "read:store_tag_filter",
@@ -334,6 +335,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 
   if (
     (feature === "update:store" ||
+      feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
       feature === "read:store_statement") &&
     resource
@@ -346,7 +348,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       "update:store": "update:store:any",
       "manage:store_members": "manage:store_members:any",
       "read:store_statement": "read:store_statement:any",
-    }[feature] as string;
+    }[feature] as string | undefined;
 
     const isOwner = user.id === storeResource.owner_id;
     const isPermittedMember = storeResource.members?.some(
@@ -354,7 +356,11 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
         member.user_id === user.id && member.permissions.includes(feature),
     );
 
-    if (isOwner || isPermittedMember || can(user, anyFeature)) {
+    if (
+      isOwner ||
+      isPermittedMember ||
+      (anyFeature !== undefined && can(user, anyFeature))
+    ) {
       authorized = true;
     }
   }
