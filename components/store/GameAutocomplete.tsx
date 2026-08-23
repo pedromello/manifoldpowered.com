@@ -8,17 +8,17 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export function GameAutocomplete({
   onSelect,
   placeholder = "Search games...",
+  endpoint = "/api/v1/games",
 }: {
   onSelect: (game: GameApi) => void;
   placeholder?: string;
+  endpoint?: string;
 }) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    query.trim()
-      ? `/api/v1/games?q=${encodeURIComponent(query)}&limit=5`
-      : null,
+    query.trim() ? `${endpoint}?q=${encodeURIComponent(query)}&limit=5` : null,
     fetcher,
   );
 

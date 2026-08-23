@@ -28,6 +28,24 @@ async function putSelection(
   });
 }
 
+async function putRecommendations(
+  storeSlug: string,
+  sessionToken: string,
+  recommendations: {
+    game_slug: string;
+    recommendation_reason?: string | null;
+  }[],
+) {
+  return fetch(`${webserver.getOrigin()}/api/v1/stores/${storeSlug}/featured`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `session_id=${sessionToken}`,
+    },
+    body: JSON.stringify({ recommendations }),
+  });
+}
+
 describe("PUT /api/v1/stores/[slug]/featured", () => {
   test("An owner can replace the selection and public GET preserves its order", async () => {
     const owner = await orchestrator.createUser();
@@ -46,6 +64,10 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     await expect(response.json()).resolves.toEqual({
       mode: "EDITORIAL",
       game_slugs: [second.slug, first.slug],
+      recommendations: [
+        { game_slug: second.slug, recommendation_reason: null },
+        { game_slug: first.slug, recommendation_reason: null },
+      ],
     });
 
     const publicResponse = await fetch(
@@ -55,6 +77,100 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     expect(publicBody.mode).toBe("EDITORIAL");
     expect(publicBody.games.map((game: { slug: string }) => game.slug)).toEqual(
       [second.slug, first.slug],
+    );
+  });
+
+  test("Stores short editorial reasons and exposes them on public Featured games", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const store = await orchestrator.createStore(owner.id);
+    const first = await createPublicGame(owner.id, "Reasoned First");
+    const second = await createPublicGame(owner.id, "Reasoned Second");
+
+    const response = await putRecommendations(store.slug, session.token, [
+      {
+        game_slug: first.slug,
+        recommendation_reason:
+          "  A thoughtful campaign that respects your time.  ",
+      },
+      { game_slug: second.slug, recommendation_reason: "   " },
+    ]);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      mode: "EDITORIAL",
+      game_slugs: [first.slug, second.slug],
+      recommendations: [
+        {
+          game_slug: first.slug,
+          recommendation_reason:
+            "A thoughtful campaign that respects your time.",
+        },
+        { game_slug: second.slug, recommendation_reason: null },
+      ],
+    });
+
+    const publicResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
+    );
+    const publicBody = await publicResponse.json();
+    expect(publicBody.games).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          slug: first.slug,
+          recommendation_reason:
+            "A thoughtful campaign that respects your time.",
+        }),
+        expect.objectContaining({
+          slug: second.slug,
+          recommendation_reason: null,
+        }),
+      ]),
+    );
+  });
+
+  test("Rejects an overlong reason without replacing the current selection", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const store = await orchestrator.createStore(owner.id);
+    const original = await createPublicGame(owner.id, "Original Reason");
+    const replacement = await createPublicGame(owner.id, "Long Reason");
+
+    expect(
+      (
+        await putRecommendations(store.slug, session.token, [
+          {
+            game_slug: original.slug,
+            recommendation_reason: "The original recommendation.",
+          },
+        ])
+      ).status,
+    ).toBe(200);
+
+    const invalidResponse = await putRecommendations(
+      store.slug,
+      session.token,
+      [
+        {
+          game_slug: replacement.slug,
+          recommendation_reason: "x".repeat(241),
+        },
+      ],
+    );
+    expect(invalidResponse.status).toBe(400);
+
+    const publicResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
+    );
+    const publicBody = await publicResponse.json();
+    expect(publicBody.games).toHaveLength(1);
+    expect(publicBody.games[0]).toEqual(
+      expect.objectContaining({
+        slug: original.slug,
+        recommendation_reason: "The original recommendation.",
+      }),
     );
   });
 

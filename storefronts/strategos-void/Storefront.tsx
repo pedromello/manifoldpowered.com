@@ -222,9 +222,9 @@ export function StrategosVoidStorefront({
               <h3 className="text-2xl font-black uppercase tracking-tight text-sf-fg md:text-4xl">
                 {heroGame.title}
               </h3>
-              {heroGame.description && (
+              {(heroGame.recommendation_reason || heroGame.description) && (
                 <p className="line-clamp-2 max-w-xl text-sf-muted">
-                  {heroGame.description}
+                  {heroGame.recommendation_reason || heroGame.description}
                 </p>
               )}
               <span className="text-xl font-black uppercase tracking-wider text-sf-accent">

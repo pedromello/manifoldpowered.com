@@ -15,9 +15,13 @@ import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
 export function HeroBento({
   featured,
   itemHref,
+  mode,
+  storeName,
 }: {
   featured: GameApi[];
   itemHref: (slug: string) => string;
+  mode: "EDITORIAL" | "AUTOMATIC";
+  storeName?: string;
 }) {
   if (!featured || featured.length === 0) return null;
   const [main, ...rest] = featured;
@@ -34,6 +38,9 @@ export function HeroBento({
   const isDemo = (item: PricedItem) => isFree(item);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
+  const editorialLabel = storeName
+    ? `Recommended by ${storeName}`
+    : "Outlet recommendation";
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-7xl mx-auto auto-rows-[200px] md:auto-rows-[240px]">
@@ -64,11 +71,16 @@ export function HeroBento({
 
         <div className="absolute inset-x-4 bottom-4 md:inset-x-10 md:bottom-10 text-white flex flex-col items-start min-w-0 max-w-full">
           <span className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold tracking-widest uppercase mb-3 text-white/80 border border-white/5">
-            Featured Match
+            {mode === "EDITORIAL" ? editorialLabel : "Featured Match"}
           </span>
           <h2 className="w-full text-xl md:text-3xl lg:text-5xl font-black leading-none mb-2 tracking-tight transform group-hover:scale-105 transition-transform duration-500 origin-bottom-left text-white drop-shadow-2xl truncate">
             {main.title}
           </h2>
+          {mode === "EDITORIAL" && main.recommendation_reason && (
+            <p className="mb-2 max-w-2xl text-xs font-semibold leading-relaxed text-white/85 line-clamp-2 drop-shadow-md md:text-base">
+              {main.recommendation_reason}
+            </p>
+          )}
           <div className="flex items-center gap-4 mt-2">
             <div className="flex items-center gap-3">
               <span
@@ -136,9 +148,19 @@ export function HeroBento({
             )}
 
           <div className="absolute inset-x-4 bottom-4 text-white min-w-0 max-w-full">
+            {mode === "EDITORIAL" && (
+              <span className="mb-2 inline-flex max-w-full rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/75 backdrop-blur-md">
+                Outlet pick
+              </span>
+            )}
             <h3 className="w-full text-xl md:text-3xl font-black leading-tight mb-2 motion-safe:group-hover:translate-x-2 transition-transform duration-300 text-white drop-shadow-md truncate">
               {game.title}
             </h3>
+            {mode === "EDITORIAL" && game.recommendation_reason && (
+              <p className="mb-2 text-xs font-semibold leading-snug text-white/85 line-clamp-2 drop-shadow-md">
+                {game.recommendation_reason}
+              </p>
+            )}
             <div className="flex items-center gap-3">
               <span
                 className={`text-xl md:text-2xl font-bold bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border shadow-lg uppercase ${!isDemo(game) && formatBasePrice(game) !== null ? "" : "text-white border-white/20"}`}

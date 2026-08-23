@@ -5,23 +5,61 @@ import storeCuration from "models/store_curation";
 import { z } from "zod";
 
 export const MAX_FEATURED_GAMES = 3;
+export const MAX_RECOMMENDATION_REASON_LENGTH = 240;
 
-export const featuredGameSelectionSchema = z
-  .object({
-    game_slugs: z
-      .array(z.string().trim().min(1).max(255))
-      .min(1)
-      .max(MAX_FEATURED_GAMES),
-  })
-  .superRefine(({ game_slugs }, context) => {
-    if (new Set(game_slugs).size !== game_slugs.length) {
+const recommendationSchema = z.object({
+  game_slug: z.string().trim().min(1).max(255),
+  recommendation_reason: z
+    .string()
+    .trim()
+    .max(MAX_RECOMMENDATION_REASON_LENGTH)
+    .nullish()
+    .transform((reason) => reason || null),
+});
+
+const recommendationsSchema = z
+  .array(recommendationSchema)
+  .min(1)
+  .max(MAX_FEATURED_GAMES)
+  .superRefine((recommendations, context) => {
+    const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
+    if (new Set(gameSlugs).size !== gameSlugs.length) {
       context.addIssue({
         code: "custom",
-        path: ["game_slugs"],
+        path: [],
         message: "Featured games must be unique.",
       });
     }
   });
+
+export const featuredGameSelectionSchema = z.union([
+  z.object({ recommendations: recommendationsSchema }),
+  z
+    .object({
+      game_slugs: z
+        .array(z.string().trim().min(1).max(255))
+        .min(1)
+        .max(MAX_FEATURED_GAMES),
+    })
+    .transform(({ game_slugs }) => ({
+      recommendations: game_slugs.map((game_slug) => ({
+        game_slug,
+        recommendation_reason: null,
+      })),
+    }))
+    .superRefine(({ recommendations }, context) => {
+      const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
+      if (new Set(gameSlugs).size !== gameSlugs.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["game_slugs"],
+          message: "Featured games must be unique.",
+        });
+      }
+    }),
+]);
+
+export type FeaturedRecommendation = z.infer<typeof recommendationSchema>;
 
 interface EditorialGameQuery {
   storeId: string;
@@ -31,8 +69,12 @@ interface EditorialGameQuery {
   limit: number;
 }
 
-async function replaceSelection(storeId: string, gameSlugs: string[]) {
+async function replaceSelection(
+  storeId: string,
+  recommendations: FeaturedRecommendation[],
+) {
   const curationWhere = await storeCuration.getCurationWhereClause(storeId);
+  const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
 
   return prisma.$transaction(async (transaction) => {
     const andClauses: Prisma.GameWhereInput[] = [];
@@ -65,15 +107,16 @@ async function replaceSelection(storeId: string, gameSlugs: string[]) {
       where: { store_id: storeId },
     });
     await transaction.storeFeaturedGame.createMany({
-      data: gameSlugs.map((slug, index) => ({
+      data: recommendations.map((recommendation, index) => ({
         store_id: storeId,
-        game_id: gameBySlug.get(slug)!.id,
+        game_id: gameBySlug.get(recommendation.game_slug)!.id,
         position: index + 1,
+        recommendation_reason: recommendation.recommendation_reason,
       })),
     });
 
-    return gameSlugs.map((game_slug, index) => ({
-      game_slug,
+    return recommendations.map((recommendation, index) => ({
+      ...recommendation,
       position: index + 1,
     }));
   });
@@ -117,7 +160,15 @@ async function findAvailableEditorialGames({
 
   const gameById = new Map(games.map((game) => [game.id, game]));
   const orderedGames = selection
-    .map((entry) => gameById.get(entry.game_id))
+    .map((entry) => {
+      const selectedGame = gameById.get(entry.game_id);
+      return selectedGame
+        ? {
+            ...selectedGame,
+            recommendation_reason: entry.recommendation_reason,
+          }
+        : undefined;
+    })
     .filter((game) => game !== undefined);
   const total = orderedGames.length;
   const paginatedGames = orderedGames.slice((page - 1) * limit, page * limit);

@@ -424,12 +424,13 @@ model StoreGameOverride {
 }
 
 model StoreFeaturedGame {
-  id         String   @id @default(uuid())
-  store_id   String // Logical reference to Store.id
-  game_id    String // Logical reference to Game.id
-  position   Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  game_id               String // Logical reference to Game.id
+  position              Int
+  recommendation_reason String?  @db.VarChar(240)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   @@unique([store_id, game_id])
   @@unique([store_id, position])

@@ -57,13 +57,21 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
       currency,
       editorialResult.games,
     );
+    const reasonByGameId = new Map(
+      editorialResult.games.map((editorialGame) => [
+        editorialGame.id,
+        editorialGame.recommendation_reason,
+      ]),
+    );
+    const games = storefrontPricing
+      .filterAndPrice(req.context.user, editorialResult.games, context)
+      .map((featuredGame) => ({
+        ...featuredGame,
+        recommendation_reason: reasonByGameId.get(featuredGame.id) ?? null,
+      }));
 
     return res.status(200).json({
-      games: storefrontPricing.filterAndPrice(
-        req.context.user,
-        editorialResult.games,
-        context,
-      ),
+      games,
       pagination: editorialResult.pagination,
       currency,
       mode: "EDITORIAL",
@@ -117,12 +125,16 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const selection = await storeFeaturedGame.replaceSelection(
     foundStore.id,
-    result.data.game_slugs,
+    result.data.recommendations,
   );
 
   return res.status(200).json({
     mode: "EDITORIAL",
     game_slugs: selection.map((entry) => entry.game_slug),
+    recommendations: selection.map(({ game_slug, recommendation_reason }) => ({
+      game_slug,
+      recommendation_reason,
+    })),
   });
 }
 

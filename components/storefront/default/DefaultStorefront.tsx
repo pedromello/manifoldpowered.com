@@ -26,6 +26,7 @@ export function DefaultStorefront(props: DefaultStorefrontViewProps) {
   const {
     store,
     featured,
+    featuredMode,
     isFeaturedLoading,
     games,
     isLoading,
@@ -56,7 +57,12 @@ export function DefaultStorefront(props: DefaultStorefrontViewProps) {
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
               </div>
             ) : (
-              <HeroBento featured={featured.slice(0, 3)} itemHref={itemHref} />
+              <HeroBento
+                featured={featured.slice(0, 3)}
+                itemHref={itemHref}
+                mode={featuredMode}
+                storeName={store?.name}
+              />
             )}
           </div>
         </section>

@@ -33,6 +33,8 @@ export type GameApi = {
   positive_reviews?: number;
   negative_reviews?: number;
   review_score?: string | null;
+  /** Outlet-authored editorial copy; present only in editorial Featured feeds. */
+  recommendation_reason?: string | null;
 };
 
 /**
