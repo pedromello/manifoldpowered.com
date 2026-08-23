@@ -130,6 +130,55 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     );
   });
 
+  test("Fills unselected carousel slots automatically without claiming them as Outlet picks", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const store = await orchestrator.createStore(owner.id);
+    const chosen = await createPublicGame(owner.id, "The Outlet Choice");
+    await Promise.all(
+      ["Automatic One", "Automatic Two", "Automatic Three"].map((title) =>
+        createPublicGame(owner.id, title),
+      ),
+    );
+
+    const putResponse = await putRecommendations(store.slug, session.token, [
+      {
+        game_slug: chosen.slug,
+        recommendation_reason: "The sharpest systems in this catalog.",
+      },
+    ]);
+    expect(putResponse.status).toBe(200);
+
+    const publicResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
+    );
+    const body = await publicResponse.json();
+
+    expect(body.mode).toBe("HYBRID");
+    expect(body.games).toHaveLength(3);
+    expect(body.games[0]).toEqual(
+      expect.objectContaining({
+        slug: chosen.slug,
+        featured_source: "EDITORIAL",
+        recommendation_reason: "The sharpest systems in this catalog.",
+      }),
+    );
+    expect(
+      body.games
+        .slice(1)
+        .every(
+          (featuredGame: Record<string, unknown>) =>
+            featuredGame.featured_source === "AUTOMATIC" &&
+            !("recommendation_reason" in featuredGame),
+        ),
+    ).toBe(true);
+    expect(
+      new Set(body.games.map((featuredGame: { id: string }) => featuredGame.id))
+        .size,
+    ).toBe(3);
+  });
+
   test("Rejects an overlong reason without replacing the current selection", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
@@ -165,8 +214,12 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
     );
     const publicBody = await publicResponse.json();
-    expect(publicBody.games).toHaveLength(1);
-    expect(publicBody.games[0]).toEqual(
+    const editorialGames = publicBody.games.filter(
+      (featuredGame: { featured_source: string }) =>
+        featuredGame.featured_source === "EDITORIAL",
+    );
+    expect(editorialGames).toHaveLength(1);
+    expect(editorialGames[0]).toEqual(
       expect.objectContaining({
         slug: original.slug,
         recommendation_reason: "The original recommendation.",
@@ -315,13 +368,18 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
     );
     const publicBody = await publicResponse.json();
-    expect(publicBody.mode).toBe("EDITORIAL");
-    expect(publicBody.games.map((game: { slug: string }) => game.slug)).toEqual(
-      [valid.slug],
-    );
+    expect(publicBody.mode).toBe("HYBRID");
+    expect(
+      publicBody.games
+        .filter(
+          (featuredGame: { featured_source: string }) =>
+            featuredGame.featured_source === "EDITORIAL",
+        )
+        .map((featuredGame: { slug: string }) => featuredGame.slug),
+    ).toEqual([valid.slug]);
   });
 
-  test("Public GET hides a selected game that later becomes inactive without inventing an automatic recommendation", async () => {
+  test("Public GET replaces a selected game that becomes unavailable with clearly automatic slides", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
     const session = await orchestrator.createSession(owner.id);
@@ -337,8 +395,15 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
     );
     const publicBody = await publicResponse.json();
-    expect(publicBody.mode).toBe("EDITORIAL");
-    expect(publicBody.games).toEqual([]);
-    expect(publicBody.pagination.total).toBe(0);
+    expect(publicBody.mode).toBe("HYBRID");
+    expect(publicBody.games).toHaveLength(3);
+    expect(
+      publicBody.games.every(
+        (featuredGame: Record<string, unknown>) =>
+          featuredGame.featured_source === "AUTOMATIC" &&
+          !("recommendation_reason" in featuredGame),
+      ),
+    ).toBe(true);
+    expect(publicBody.pagination.total).toBe(3);
   });
 });

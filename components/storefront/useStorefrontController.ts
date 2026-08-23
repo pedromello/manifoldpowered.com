@@ -18,7 +18,7 @@ type ListResponse = {
   games: GameApi[];
   pagination?: PaginationApi;
   currency?: string;
-  mode?: "EDITORIAL" | "AUTOMATIC";
+  mode?: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
 };
 
 const fetcher = (url: string): Promise<ListResponse> =>

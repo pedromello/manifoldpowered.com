@@ -202,7 +202,7 @@ type FeaturedRecommendationDraft = {
 
 type FeaturedResponse = {
   games: GameApi[];
-  mode: "EDITORIAL" | "AUTOMATIC";
+  mode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
 };
 
 function FeaturedTab({
@@ -238,7 +238,16 @@ function FeaturedTab({
             game: featuredGame,
             recommendationReason: featuredGame.recommendation_reason ?? "",
           }))
-        : [],
+        : data.mode === "HYBRID"
+          ? data.games
+              .filter(
+                (featuredGame) => featuredGame.featured_source === "EDITORIAL",
+              )
+              .map((featuredGame) => ({
+                game: featuredGame,
+                recommendationReason: featuredGame.recommendation_reason ?? "",
+              }))
+          : [],
     );
     setIsInitialized(true);
   }, [data, isInitialized]);
@@ -366,14 +375,14 @@ function FeaturedTab({
         )}
       </div>
 
-      {data?.mode === "EDITORIAL" && recommendations.length === 0 && (
+      {data?.mode !== "AUTOMATIC" && recommendations.length === 0 && (
         <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-200">
           This Outlet has an editorial selection, but none of its games are
           currently available. Reset it or choose new games.
         </div>
       )}
 
-      {recommendations.length === 0 && data?.mode !== "EDITORIAL" ? (
+      {recommendations.length === 0 && data?.mode === "AUTOMATIC" ? (
         <div className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center">
           <p className="font-black text-white/70">Featured is automatic</p>
           <p className="mt-1 text-sm font-semibold text-white/35">

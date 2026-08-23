@@ -65,7 +65,7 @@ export type StorefrontViewProps = {
    */
   featured: GameApi[];
   /** Whether the Outlet chose these games or the catalog ranked them. */
-  featuredMode: "EDITORIAL" | "AUTOMATIC";
+  featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
 
   /** The required surface. A view that does not render this fails the contract. */
