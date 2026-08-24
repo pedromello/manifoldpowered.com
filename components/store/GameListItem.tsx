@@ -4,6 +4,7 @@ import { discountBadgeColor } from "components/store/constants";
 import { formatBasePrice, formatPrice, isFree } from "lib/price";
 import { itemHref as buildItemHref } from "lib/store-context";
 import type { GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 // Re-exported for the importers that still reach for the type through this
 // module. New code should import it from `components/store/types`.
@@ -16,6 +17,7 @@ export function GameListItem({
   game: GameApi;
   storeSlug?: string;
 }) {
+  const { t } = useI18n();
   const isDemo = isFree(game);
   const isDiscounted = !isDemo && formatBasePrice(game) !== null;
   const defaultGradient =
@@ -77,7 +79,7 @@ export function GameListItem({
                     : {}
                 }
               >
-                {isDemo ? "Free" : formatPrice(game)}
+                {isDemo ? t("Free") : formatPrice(game)}
               </div>
             </div>
           </div>

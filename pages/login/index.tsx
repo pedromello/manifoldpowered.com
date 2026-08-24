@@ -5,11 +5,13 @@ import Link from "next/link";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
 
 import AuthLayout from "components/AuthLayout";
+import { useI18n } from "lib/i18n";
 
 type Step = "login" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, translateError } = useI18n();
   const [step, setStep] = useState<Step>("login");
   const [login, setLogin] = useState("");
   const [code, setCode] = useState("");
@@ -66,9 +68,10 @@ export default function LoginPage() {
       setStep("code");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not send the login code.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Could not send the login code.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -98,9 +101,10 @@ export default function LoginPage() {
       router.push(typeof callbackUrl === "string" ? callbackUrl : "/store");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Invalid code. Please try again.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Invalid code. Please try again.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -115,7 +119,10 @@ export default function LoginPage() {
 
   if (isCheckingSession) {
     return (
-      <AuthLayout title="Login | Manifold" description="Log in to Manifold.">
+      <AuthLayout
+        title={t("Login | Manifold")}
+        description={t("Log in to Manifold.")}
+      >
         <div
           className="flex min-h-64 items-center justify-center"
           role="status"
@@ -127,28 +134,31 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Login | Manifold" description="Log in to Manifold.">
+    <AuthLayout
+      title={t("Login | Manifold")}
+      description={t("Log in to Manifold.")}
+    >
       <form
         className="flex flex-col gap-5"
         onSubmit={step === "login" ? handleRequestCode : handleVerifyCode}
       >
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
-            {step === "login" ? "Welcome back" : "Check your inbox"}
+            {step === "login" ? t("Welcome back") : t("Check your inbox")}
           </p>
           <h2 className="mt-2 text-3xl font-black tracking-[-0.025em]">
-            {step === "login" ? "Log in to Manifold" : "Enter your code"}
+            {step === "login" ? t("Log in to Manifold") : t("Enter your code")}
           </h2>
           <p className="mt-2 text-sm leading-6 text-white/45">
             {step === "login"
-              ? "No password needed. We will email you a one-time code."
-              : `We sent a six-digit code for ${login}.`}
+              ? t("No password needed. We will email you a one-time code.")
+              : t("We sent a six-digit code for {login}.", { login })}
           </p>
         </div>
 
         {step === "login" ? (
           <label className="flex flex-col gap-2 text-sm font-semibold text-white/70">
-            Username or email
+            {t("Username or email")}
             <div className="relative">
               <Mail
                 size={17}
@@ -167,7 +177,7 @@ export default function LoginPage() {
           </label>
         ) : (
           <label className="flex flex-col gap-2 text-sm font-semibold text-white/70">
-            Six-digit code
+            {t("Six-digit code")}
             <input
               autoComplete="one-time-code"
               inputMode="numeric"
@@ -201,11 +211,11 @@ export default function LoginPage() {
           {isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {isSubmitting
             ? step === "login"
-              ? "Sending code..."
-              : "Verifying..."
+              ? t("Sending code...")
+              : t("Verifying...")
             : step === "login"
-              ? "Send login code"
-              : "Log in"}
+              ? t("Send login code")
+              : t("Log in")}
           {!isSubmitting && <ArrowRight size={16} />}
         </button>
 
@@ -216,17 +226,17 @@ export default function LoginPage() {
             onClick={handleUseDifferentAccount}
             className="h-10 rounded-lg border border-white/10 text-sm font-semibold text-white/55 hover:border-white/20 hover:text-white"
           >
-            Use a different account
+            {t("Use a different account")}
           </button>
         )}
 
         <p className="border-t border-white/[0.08] pt-5 text-center text-sm text-white/40">
-          New to Manifold?{" "}
+          {t("New to Manifold?")}{" "}
           <Link
             href="/signup"
             className="font-bold text-violet-300 hover:text-violet-200"
           >
-            Create an account
+            {t("Create an account")}
           </Link>
         </p>
       </form>

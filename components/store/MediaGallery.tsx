@@ -5,6 +5,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
 } from "@tabler/icons-react";
+import { useI18n } from "lib/i18n";
 
 interface MediaGalleryProps {
   videos: string[];
@@ -66,6 +67,7 @@ function SteamVideoPlayer({
 }
 
 export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
+  const { t } = useI18n();
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -198,7 +200,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
           activeMedia.videoType === "youtube" ? (
             <iframe
               src={`https://www.youtube.com/embed/${activeMedia.id}?rel=0&modestbranding=1&autoplay=1&mute=1`}
-              title={`${gameTitle} Trailer`}
+              title={t("{title} trailer", { title: gameTitle })}
               className="absolute inset-0 w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -216,7 +218,10 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={activeMedia.url}
-            alt={`${gameTitle} Screenshot ${activeIndex + 1}`}
+            alt={t("{title} screenshot {number}", {
+              title: gameTitle,
+              number: activeIndex + 1,
+            })}
             className="absolute inset-0 h-full w-full animate-in object-cover fade-in duration-500"
           />
         )}
@@ -227,14 +232,14 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
             <button
               onClick={handlePrev}
               className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-black/70 text-white/80 opacity-0 transition-colors hover:bg-black group-hover:opacity-100"
-              aria-label="Previous media"
+              aria-label={t("Previous media")}
             >
               <IconChevronLeft size={24} stroke={2} />
             </button>
             <button
               onClick={handleNext}
               className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-black/70 text-white/80 opacity-0 transition-colors hover:bg-black group-hover:opacity-100"
-              aria-label="Next media"
+              aria-label={t("Next media")}
             >
               <IconChevronRight size={24} stroke={2} />
             </button>
@@ -286,7 +291,10 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={thumbUrl}
-                    alt={`${gameTitle} thumbnail ${idx + 1}`}
+                    alt={t("{title} thumbnail {number}", {
+                      title: gameTitle,
+                      number: idx + 1,
+                    })}
                     className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                   />
 

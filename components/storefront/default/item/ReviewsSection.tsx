@@ -8,6 +8,7 @@ import {
 
 import { ReviewCard } from "components/store/ReviewCard";
 import type { ItemReviews } from "components/storefront/useItemController";
+import { useI18n } from "lib/i18n";
 
 export function ReviewsSection({
   reviews,
@@ -20,6 +21,7 @@ export function ReviewsSection({
   onEditReview: () => void;
   onDeleteReview: () => void;
 }) {
+  const { locale, t } = useI18n();
   const hasAny = reviews.list.length > 0 || !!reviews.userReview;
 
   return (
@@ -29,12 +31,17 @@ export function ReviewsSection({
           <div className="flex flex-col gap-2">
             <h2 className="flex items-center gap-3 text-2xl font-black tracking-tight sm:text-3xl">
               <MessageSquare className="text-violet-300" size={24} />
-              Reviews
+              {t("Reviews")}
             </h2>
             <p className="max-w-xl text-sm font-medium leading-6 text-white/45">
               {reviews.total === 0
-                ? "Feedback from players who own the game."
-                : `${reviews.total.toLocaleString()} verified-player review${reviews.total === 1 ? "" : "s"}.`}
+                ? t("Feedback from players who own the game.")
+                : t(
+                    reviews.total === 1
+                      ? "{count} verified-player review."
+                      : "{count} verified-player reviews.",
+                    { count: reviews.total.toLocaleString(locale) },
+                  )}
             </p>
           </div>
 
@@ -47,14 +54,14 @@ export function ReviewsSection({
                 size={18}
                 className="group-hover:scale-110 transition-transform"
               />
-              Write a Review
+              {t("Write a Review")}
             </button>
           )}
 
           {reviews.canReview && reviews.userReview && (
             <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-white/40">
               <CheckCircle2 size={18} className="text-emerald-500/50" />
-              Reviewed
+              {t("Reviewed")}
             </div>
           )}
         </header>
@@ -63,7 +70,7 @@ export function ReviewsSection({
           <div className="mb-4 flex flex-col gap-4">
             <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-violet-300">
               <User size={20} />
-              Your review
+              {t("Your review")}
             </h3>
             <div className="max-w-2xl">
               <ReviewCard
@@ -85,7 +92,7 @@ export function ReviewsSection({
               onClick={reviews.retry}
               className="shrink-0 rounded-lg border border-rose-300/20 px-3 py-2 text-xs font-bold uppercase tracking-wider hover:bg-rose-300/10"
             >
-              Try again
+              {t("Try again")}
             </button>
           </div>
         )}
@@ -105,7 +112,7 @@ export function ReviewsSection({
             <div className="col-span-full flex flex-col items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.025] px-6 py-14 text-center text-white/40">
               <MessageSquare size={48} strokeWidth={1} />
               <p className="font-semibold">
-                No reviews yet. Be the first player to share one.
+                {t("No reviews yet. Be the first player to share one.")}
               </p>
             </div>
           ) : null}
@@ -114,7 +121,7 @@ export function ReviewsSection({
         {reviews.totalPages > 1 && !reviews.error && (
           <nav
             className="flex items-center justify-center gap-3"
-            aria-label="Review pages"
+            aria-label={t("Review pages")}
           >
             <button
               type="button"
@@ -122,10 +129,13 @@ export function ReviewsSection({
               disabled={reviews.page <= 1 || reviews.isLoading}
               className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-xs font-semibold text-white/35">
-              Page {reviews.page} of {reviews.totalPages}
+              {t("Page {current} of {total}", {
+                current: reviews.page,
+                total: reviews.totalPages,
+              })}
             </span>
             <button
               type="button"
@@ -133,7 +143,7 @@ export function ReviewsSection({
               disabled={reviews.page >= reviews.totalPages || reviews.isLoading}
               className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold text-white/60 transition hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </nav>
         )}

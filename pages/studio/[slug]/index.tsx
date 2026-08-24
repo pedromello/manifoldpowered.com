@@ -9,6 +9,7 @@ import { ReviewSummary } from "components/store/ReviewSummary";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney, formatPrice, isFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 interface Studio {
   id: string;
@@ -45,6 +46,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function StudioPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
   const [tab, setTab] = useState<Tab>("games");
 
@@ -64,7 +66,9 @@ export default function StudioPage() {
     <>
       <Head>
         <title>
-          {studio ? `${studio.name} | Manifold` : "Studio | Manifold"}
+          {studio
+            ? t("{name} | Manifold", { name: studio.name })
+            : t("Studio | Manifold")}
         </title>
       </Head>
 
@@ -75,7 +79,7 @@ export default function StudioPage() {
           </div>
         ) : error || !studio ? (
           <div className="flex items-center justify-center min-h-[60vh]">
-            <p className="text-rose-300 font-bold">Studio not found.</p>
+            <p className="text-rose-300 font-bold">{t("Studio not found.")}</p>
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -84,7 +88,7 @@ export default function StudioPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={studio.logo_url}
-                  alt={`${studio.name} logo`}
+                  alt={t("{name} logo", { name: studio.name })}
                   className="h-16 w-16 shrink-0 rounded-xl border border-white/10 bg-white/5 object-cover"
                 />
               ) : (
@@ -99,7 +103,7 @@ export default function StudioPage() {
                 </h1>
                 {studio.is_publisher && (
                   <span className="inline-block mt-1 px-2 py-0.5 rounded-lg bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
-                    Publisher
+                    {t("Publisher")}
                   </span>
                 )}
               </div>
@@ -108,7 +112,7 @@ export default function StudioPage() {
                 href={`/studio/${studio.slug}/games/steam-import`}
                 className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-center text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
               >
-                Import from Steam
+                {t("Import from Steam")}
               </Link>
             </div>
 
@@ -134,7 +138,7 @@ export default function StudioPage() {
                       : "text-white/40 border-transparent hover:text-white/70"
                   }`}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
@@ -149,13 +153,13 @@ export default function StudioPage() {
                   <div className="flex flex-col items-center gap-4 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-12 text-center">
                     <Gamepad2 size={32} className="text-white/20" />
                     <p className="text-white/50 font-bold text-sm">
-                      No games yet.
+                      {t("No games yet.")}
                     </p>
                     <Link
                       href={`/studio/${studio.slug}/games/steam-import`}
                       className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
                     >
-                      Import a Game from Steam
+                      {t("Import a Game from Steam")}
                     </Link>
                   </div>
                 ) : (
@@ -188,6 +192,7 @@ StudioPage.getLayout = function getLayout(page: React.ReactElement) {
 // empty list, which would read as "no sales".
 function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
   const [page, setPage] = useState(1);
+  const { locale, t, translateError } = useI18n();
 
   const { data, isLoading, error } = useSWR<{
     sales: StudioSaleApi[];
@@ -215,7 +220,7 @@ function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
   if (error) {
     return (
       <p className="text-rose-300 font-bold text-sm">
-        {error.message || "Failed to load sales."}
+        {translateError(error.message, "Failed to load sales.")}
       </p>
     );
   }
@@ -226,13 +231,22 @@ function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-white/50 text-sm font-bold">
-        {total} sale{total === 1 ? "" : "s"} of your games.
+        {t(
+          total === 1
+            ? "{count} sale of your games."
+            : "{count} sales of your games.",
+          {
+            count: total.toLocaleString(locale),
+          },
+        )}
       </p>
 
       {sales.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-12 text-center">
           <Gamepad2 size={32} className="text-white/20" />
-          <p className="text-white/50 font-bold text-sm">No sales yet.</p>
+          <p className="text-white/50 font-bold text-sm">
+            {t("No sales yet.")}
+          </p>
         </div>
       ) : (
         <>
@@ -259,7 +273,7 @@ function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
                     {formatMoney(sale.price_at_sale, sale.currency)}
                   </span>
                   <span className="text-white/40 text-xs font-bold">
-                    {new Date(sale.created_at).toLocaleDateString()}
+                    {new Date(sale.created_at).toLocaleDateString(locale)}
                   </span>
                 </div>
               </div>
@@ -275,12 +289,13 @@ function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
 
 function StudioGameCard({ game }: { game: GameApi }) {
   const [copied, setCopied] = useState(false);
+  const { locale, t } = useI18n();
 
   const isDemo = isFree(game);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
-  const launchDate = new Date(game.launch_date).toLocaleDateString("en-US", {
+  const launchDate = new Date(game.launch_date).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -313,13 +328,13 @@ function StudioGameCard({ game }: { game: GameApi }) {
                 STATUS_STYLES[game.status] ?? STATUS_STYLES.INACTIVE
               }`}
             >
-              {game.status}
+              {t(game.status)}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-3 text-xs text-white/40 font-bold">
-          <span>{isDemo ? "Free" : formatPrice(game)}</span>
+          <span>{isDemo ? t("Free") : formatPrice(game)}</span>
           <span className="text-white/20">•</span>
           <span>{launchDate}</span>
         </div>
@@ -337,12 +352,12 @@ function StudioGameCard({ game }: { game: GameApi }) {
           {copied ? (
             <>
               <Check size={14} className="text-emerald-400" />
-              Copied!
+              {t("Copied!")}
             </>
           ) : (
             <>
               <Copy size={14} />
-              Copy Link
+              {t("Copy Link")}
             </>
           )}
         </button>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useI18n } from "lib/i18n";
 
 /**
  * The category rail. Plain links rather than click handlers so a pill is
@@ -13,6 +14,7 @@ export function CategoryPills({
   categories: readonly string[];
   browseHref: (patch: { category: string | null }) => string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="w-full flex items-center gap-3 overflow-x-auto pb-4 pt-4 no-scrollbar px-6 md:px-0">
       {categories.map((cat) => (
@@ -26,7 +28,7 @@ export function CategoryPills({
               : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
           }`}
         >
-          {cat}
+          {t(cat)}
         </Link>
       ))}
     </div>

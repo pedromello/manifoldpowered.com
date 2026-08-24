@@ -7,6 +7,7 @@ import webserver from "infra/webserver";
 import { StoreLayout } from "components/store/StoreLayout";
 import { Storefront } from "components/store/Storefront";
 import type { StoreApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 interface CurrentUser {
   id: string;
@@ -60,6 +61,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function StorePage({ store }: { store: StoreApi }) {
+  const { t } = useI18n();
   const { data: currentUser } = useSWR<CurrentUser>(
     "/api/v1/user",
     userFetcher,
@@ -79,10 +81,12 @@ export default function StorePage({ store }: { store: StoreApi }) {
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
         browsePath={`/store/${store.slug}`}
         searchPagePath={`/store/${store.slug}`}
-        pageTitle={`${store.name} | Manifold Outlets`}
+        pageTitle={t("{name} | Manifold Outlets", { name: store.name })}
         metaDescription={
           store.description ||
-          `Explore ${store.name}'s curated catalog on Manifold.`
+          t("Explore {name}'s curated catalog on Manifold.", {
+            name: store.name,
+          })
         }
         heading={store.name}
         store={store}
@@ -94,7 +98,7 @@ export default function StorePage({ store }: { store: StoreApi }) {
           className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-wider shadow-2xl hover:bg-white/90 transition-colors"
         >
           <Settings size={16} />
-          Manage Outlet
+          {t("Manage Outlet")}
         </Link>
       )}
     </StoreLayout>

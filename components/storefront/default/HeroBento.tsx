@@ -6,6 +6,7 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
 import { type GameApi } from "components/store/types";
 import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 const AUTO_ADVANCE_MS = 7000;
 
@@ -35,6 +36,7 @@ export function HeroBento({
   mode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   storeName?: string;
 }) {
+  const { t } = useI18n();
   const slides = featured.slice(0, 3);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUserPaused, setIsUserPaused] = useState(false);
@@ -57,11 +59,11 @@ export function HeroBento({
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const editorialLabel = storeName
-    ? `Recommended by ${storeName}`
-    : "Outlet recommendation";
+    ? t("Recommended by {name}", { name: storeName })
+    : t("Outlet recommendation");
   const automaticLabel = storeName
-    ? `Featured in ${storeName}`
-    : "Featured on Manifold";
+    ? t("Featured in {name}", { name: storeName })
+    : t("Featured on Manifold");
 
   function showPrevious() {
     setActiveIndex((current) => (current - 1 + slides.length) % slides.length);
@@ -74,7 +76,7 @@ export function HeroBento({
   return (
     <section
       className="w-full max-w-7xl mx-auto"
-      aria-label="Featured games"
+      aria-label={t("Featured games")}
       onMouseEnter={() => setIsInteracting(true)}
       onMouseLeave={() => setIsInteracting(false)}
       onFocusCapture={() => setIsInteracting(true)}
@@ -85,7 +87,7 @@ export function HeroBento({
           key={activeGame.id}
           href={itemHref(activeGame.slug)}
           className="absolute inset-0"
-          aria-label={`View ${activeGame.title}`}
+          aria-label={t("View {title}", { title: activeGame.title })}
         >
           <div
             className="absolute inset-0 animate-[fadeIn_350ms_ease-out] transition-transform duration-1000 ease-out group-hover:scale-[1.025]"
@@ -137,7 +139,7 @@ export function HeroBento({
                     : {}
                 }
               >
-                {isDemo(activeGame) ? "Free Demo" : formatPrice(activeGame)}
+                {isDemo(activeGame) ? t("Free Demo") : formatPrice(activeGame)}
               </span>
               {!isDemo(activeGame) &&
                 activeGame.base_price &&
@@ -164,7 +166,7 @@ export function HeroBento({
               type="button"
               onClick={showPrevious}
               className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:left-5 md:p-3"
-              aria-label="Previous Featured game"
+              aria-label={t("Previous Featured game")}
             >
               <ChevronLeft size={22} />
             </button>
@@ -172,7 +174,7 @@ export function HeroBento({
               type="button"
               onClick={showNext}
               className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:right-5 md:p-3"
-              aria-label="Next Featured game"
+              aria-label={t("Next Featured game")}
             >
               <ChevronRight size={22} />
             </button>
@@ -182,8 +184,8 @@ export function HeroBento({
               className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:right-7 md:top-7"
               aria-label={
                 isUserPaused
-                  ? "Resume Featured carousel"
-                  : "Pause Featured carousel"
+                  ? t("Resume Featured carousel")
+                  : t("Pause Featured carousel")
               }
             >
               {isUserPaused ? <Play size={15} /> : <Pause size={15} />}
@@ -195,7 +197,7 @@ export function HeroBento({
       <div
         className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3"
         role="tablist"
-        aria-label="Choose a Featured game"
+        aria-label={t("Choose a Featured game")}
       >
         {slides.map((game, index) => {
           const editorial = isEditorial(game, mode);
@@ -230,7 +232,7 @@ export function HeroBento({
                     editorial ? "text-violet-300" : "text-white/35"
                   }`}
                 >
-                  {editorial ? "Outlet pick" : "Automatic pick"}
+                  {editorial ? t("Outlet pick") : t("Automatic pick")}
                 </span>
               </div>
               <span className="shrink-0 pr-1 text-xs font-black text-white/30">

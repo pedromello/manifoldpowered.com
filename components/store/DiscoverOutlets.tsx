@@ -1,5 +1,6 @@
 import Link from "next/link";
 import useSWR from "swr";
+import { useI18n } from "lib/i18n";
 
 interface PublicOutlet {
   id: string;
@@ -19,6 +20,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 // `showDiscover` prop) so shoppers can find other creators' outlets. Data
 // comes from the public GET /api/v1/public/stores listing.
 export function DiscoverOutlets() {
+  const { t } = useI18n();
   const { data, isLoading } = useSWR<PublicOutletsResponse>(
     "/api/v1/public/stores?limit=12",
     fetcher,
@@ -31,14 +33,15 @@ export function DiscoverOutlets() {
       <div className="mx-auto flex max-w-[1500px] flex-col gap-8 px-4 sm:px-6 lg:px-10">
         <div className="flex flex-col gap-3 max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
-            Independent storefronts
+            {t("Independent storefronts")}
           </p>
           <h2 className="text-2xl font-black tracking-[-0.02em] md:text-3xl">
-            Discover Outlets
+            {t("Discover Outlets")}
           </h2>
           <p className="text-sm leading-6 text-white/45">
-            Browse storefronts curated by creators across Manifold — each with
-            its own taste, its own picks, and the same catalog behind it.
+            {t(
+              "Browse storefronts curated by creators across Manifold — each with its own taste, its own picks, and the same catalog behind it.",
+            )}
           </p>
         </div>
 
@@ -48,7 +51,7 @@ export function DiscoverOutlets() {
           </div>
         ) : outlets.length === 0 ? (
           <p className="text-sm font-semibold text-white/30">
-            No other outlets to show yet.
+            {t("No other Outlets to show yet.")}
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -65,7 +68,7 @@ export function DiscoverOutlets() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={outlet.logo_url}
-                      alt={`${outlet.name} logo`}
+                      alt={t("{name} logo", { name: outlet.name })}
                       className="w-full h-full object-cover"
                     />
                   ) : (

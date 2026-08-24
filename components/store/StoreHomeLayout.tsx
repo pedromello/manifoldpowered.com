@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { Compass, Gamepad2, Library, Radio, Search, Store } from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
+import { LanguageSwitcher } from "components/LanguageSwitcher";
+import { useI18n } from "lib/i18n";
 
 const primaryNavigation = [
   { href: "/store", label: "Discover", icon: Compass },
@@ -19,11 +21,12 @@ const creatorNavigation = [
 ] as const;
 
 function Brand() {
+  const { t } = useI18n();
   return (
     <Link
       href="/store"
       className="inline-flex items-center gap-3 text-white"
-      aria-label="Manifold Store"
+      aria-label={t("Manifold Store")}
     >
       <Image
         src="/images/brand/manifold-logo.png"
@@ -39,6 +42,7 @@ function Brand() {
 }
 
 function GlobalSearch({ compact = false }: { compact?: boolean }) {
+  const { t } = useI18n();
   return (
     <Form
       action="/search"
@@ -53,8 +57,8 @@ function GlobalSearch({ compact = false }: { compact?: boolean }) {
       <input
         type="search"
         name="q"
-        aria-label="Search games"
-        placeholder={compact ? "Search" : "Search games on Manifold"}
+        aria-label={t("Search games")}
+        placeholder={compact ? t("Search") : t("Search games on Manifold")}
         className="h-10 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/35 hover:border-white/20 focus:border-violet-400/70 focus:ring-2 focus:ring-violet-500/20"
       />
     </Form>
@@ -62,6 +66,7 @@ function GlobalSearch({ compact = false }: { compact?: boolean }) {
 }
 
 function StoreHomeFooter() {
+  const { t } = useI18n();
   return (
     <footer className="border-t border-white/[0.08] bg-[#0b0812] px-4 py-10 sm:px-6 lg:px-10">
       <div className="mx-auto flex max-w-[1500px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -80,13 +85,13 @@ function StoreHomeFooter() {
 
         <nav
           className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-white/45"
-          aria-label="Footer navigation"
+          aria-label={t("Footer navigation")}
         >
           <Link href="/store" className="hover:text-white">
-            Browse games
+            {t("Browse games")}
           </Link>
           <Link href="/about" className="hover:text-white">
-            About
+            {t("About")}
           </Link>
           <a
             href="https://github.com/pedromello/manifoldpowered.com"
@@ -108,7 +113,9 @@ function StoreHomeFooter() {
 
         <div className="text-xs leading-5 text-white/25 sm:text-right">
           <p>© 2026 Manifold Powered</p>
-          <p>Steam is a trademark of Valve Corporation. No affiliation.</p>
+          <p>
+            {t("Steam is a trademark of Valve Corporation. No affiliation.")}
+          </p>
         </div>
       </div>
     </footer>
@@ -117,6 +124,7 @@ function StoreHomeFooter() {
 
 export function StoreHomeLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const { t } = useI18n();
 
   const isActive = (href: string) => {
     if (href === "/library") return router.pathname.startsWith("/library");
@@ -133,7 +141,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
 
         <nav
           className="flex flex-1 flex-col px-3 pb-6"
-          aria-label="Main navigation"
+          aria-label={t("Main navigation")}
         >
           <div className="space-y-1">
             {primaryNavigation.map(({ href, label, icon: Icon }) => (
@@ -148,14 +156,14 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
                 }`}
               >
                 <Icon size={18} strokeWidth={1.8} />
-                {label}
+                {t(label)}
               </Link>
             ))}
           </div>
 
           <div className="mt-7 border-t border-white/[0.08] pt-6">
             <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">
-              For creators
+              {t("For creators")}
             </p>
             <div className="space-y-1">
               {creatorNavigation.map(({ href, label, icon: Icon }) => (
@@ -165,7 +173,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
                   className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white"
                 >
                   <Icon size={18} strokeWidth={1.8} />
-                  {label}
+                  {t(label)}
                 </Link>
               ))}
             </div>
@@ -173,16 +181,16 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
 
           <div className="mt-auto rounded-lg border border-white/[0.08] bg-white/[0.025] p-4">
             <p className="text-sm font-semibold text-white/80">
-              New to Manifold?
+              {t("New to Manifold?")}
             </p>
             <p className="mt-1 text-xs leading-5 text-white/40">
-              Games live in one catalog. Outlets help you discover them.
+              {t("Games live in one catalog. Outlets help you discover them.")}
             </p>
             <Link
               href="/about"
               className="mt-3 inline-flex text-xs font-bold text-violet-300 hover:text-violet-200"
             >
-              How it works
+              {t("How it works")}
             </Link>
           </div>
         </nav>
@@ -192,13 +200,16 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#0b0812]/95 backdrop-blur-md">
           <div className="hidden h-16 items-center justify-between gap-6 px-6 lg:flex xl:px-10">
             <GlobalSearch />
-            <UserMenu variant="store-home" />
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
+              <UserMenu variant="store-home" />
+            </div>
           </div>
 
           <div className="flex h-16 items-center gap-4 px-4 lg:hidden">
             <Link
               href="/store"
-              aria-label="Manifold Store"
+              aria-label={t("Manifold Store")}
               className="shrink-0"
             >
               <Image
@@ -211,6 +222,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
               />
             </Link>
             <GlobalSearch compact />
+            <LanguageSwitcher compact />
             <UserMenu variant="store-home" />
           </div>
         </header>
@@ -221,7 +233,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
 
       <nav
         className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-3 border-t border-white/[0.1] bg-[#0d0a13]/98 px-4 pb-[env(safe-area-inset-bottom)] lg:hidden"
-        aria-label="Mobile navigation"
+        aria-label={t("Mobile navigation")}
       >
         {primaryNavigation.map(({ href, label, icon: Icon }) => (
           <Link
@@ -233,7 +245,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
             }`}
           >
             <Icon size={19} strokeWidth={1.8} />
-            {label}
+            {t(label)}
           </Link>
         ))}
       </nav>

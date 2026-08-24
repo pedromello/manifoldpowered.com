@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pencil, Trash2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useI18n } from "lib/i18n";
 
 export type Review = {
   id: string;
@@ -43,9 +44,12 @@ export function ReviewCard({
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
-  const username = review.user?.username || review.username || "Anonymous";
+  const { locale, t } = useI18n();
+  const username = review.user?.username || review.username || t("Anonymous");
   const dateStr = review.created_at || review.createdAt;
-  const date = dateStr ? new Date(dateStr).toLocaleDateString() : "Recently";
+  const date = dateStr
+    ? new Date(dateStr).toLocaleDateString(locale)
+    : t("Recently");
   const [isExpanded, setIsExpanded] = useState(false);
 
   const shouldTruncate = review.message.length > 260;
@@ -67,7 +71,9 @@ export function ReviewCard({
             <span className="font-black text-sm">
               {username}{" "}
               {isOwn && (
-                <span className="ml-2 text-xs text-violet-300">(You)</span>
+                <span className="ml-2 text-xs text-violet-300">
+                  ({t("You")})
+                </span>
               )}
             </span>
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
@@ -80,8 +86,8 @@ export function ReviewCard({
             <button
               onClick={onEdit}
               className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-white/40 transition-colors hover:border-violet-500/25 hover:bg-violet-500/10 hover:text-violet-200"
-              title="Edit Review"
-              aria-label="Edit review"
+              title={t("Edit Review")}
+              aria-label={t("Edit review")}
             >
               <Pencil size={16} />
             </button>
@@ -90,8 +96,8 @@ export function ReviewCard({
             <button
               onClick={onDelete}
               className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-white/40 transition-colors hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
-              title="Delete Review"
-              aria-label="Delete review"
+              title={t("Delete Review")}
+              aria-label={t("Delete review")}
             >
               <Trash2 size={16} />
             </button>
@@ -108,7 +114,7 @@ export function ReviewCard({
             ) : (
               <ThumbsDown size={14} />
             )}
-            {review.recommended ? "Recommended" : "Not Recommended"}
+            {review.recommended ? t("Recommended") : t("Not Recommended")}
           </div>
         </div>
       </div>
@@ -124,7 +130,7 @@ export function ReviewCard({
           onClick={() => setIsExpanded(!isExpanded)}
           className="mt-1 self-start text-xs font-bold uppercase text-violet-300 transition-colors hover:text-violet-200"
         >
-          {isExpanded ? "Show Less" : "Read More"}
+          {isExpanded ? t("Show Less") : t("Read More")}
         </button>
       )}
     </div>

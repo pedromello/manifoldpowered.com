@@ -7,6 +7,7 @@ import {
   BackofficeLayout,
   useBackofficeAccess,
 } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeUser {
   id: string;
@@ -32,6 +33,7 @@ function isDisabled(user: BackofficeUser) {
 }
 
 export default function BackofficeUsersPage() {
+  const { locale, t, translateError } = useI18n();
   const { user: currentAdmin } = useBackofficeAccess();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -67,7 +69,7 @@ export default function BackofficeUsersPage() {
     );
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to disable user.");
+      setActionError(translateError(body?.message, "Failed to disable user."));
       return;
     }
     setDisableTarget(null);
@@ -77,7 +79,10 @@ export default function BackofficeUsersPage() {
 
   async function enableUser(targetUser: BackofficeUser) {
     const confirmed = window.confirm(
-      `Re-enable "${targetUser.username}"? They'll get back exactly the access they had before being disabled.`,
+      t(
+        "Re-enable {username}? They'll get back exactly the access they had before being disabled.",
+        { username: `“${targetUser.username}”` },
+      ),
     );
     if (!confirmed) return;
 
@@ -88,7 +93,7 @@ export default function BackofficeUsersPage() {
     );
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to enable user.");
+      setActionError(translateError(body?.message, "Failed to enable user."));
       return;
     }
     mutate(key);
@@ -97,11 +102,11 @@ export default function BackofficeUsersPage() {
   return (
     <>
       <Head>
-        <title>Users | Manifold Admin</title>
+        <title>{t("Users | Manifold Admin")}</title>
       </Head>
 
       <div className="flex flex-col gap-6">
-        <h1 className="text-3xl font-black">Users</h1>
+        <h1 className="text-3xl font-black">{t("Users")}</h1>
 
         {actionError && (
           <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
@@ -116,7 +121,7 @@ export default function BackofficeUsersPage() {
           />
           <input
             type="text"
-            placeholder="Search by username or email..."
+            placeholder={t("Search by username or email...")}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -130,11 +135,11 @@ export default function BackofficeUsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 text-left">Username</th>
-                <th className="px-4 py-3 text-left">Email</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Joined</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-left">{t("Username")}</th>
+                <th className="px-4 py-3 text-left">{t("Email")}</th>
+                <th className="px-4 py-3 text-left">{t("Status")}</th>
+                <th className="px-4 py-3 text-left">{t("Joined")}</th>
+                <th className="px-4 py-3 text-right">{t("Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -150,7 +155,7 @@ export default function BackofficeUsersPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-rose-300 font-bold"
                   >
-                    Failed to load users.
+                    {t("Failed to load users.")}
                   </td>
                 </tr>
               ) : users.length === 0 ? (
@@ -159,7 +164,7 @@ export default function BackofficeUsersPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-white/40 font-bold"
                   >
-                    No users found.
+                    {t("No users found.")}
                   </td>
                 </tr>
               ) : (
@@ -187,17 +192,19 @@ export default function BackofficeUsersPage() {
                               : "bg-emerald-500/20 text-emerald-300"
                           }`}
                         >
-                          {disabled ? "Disabled" : "Active"}
+                          {disabled ? t("Disabled") : t("Active")}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-white/40">
-                        {new Date(targetUser.created_at).toLocaleDateString()}
+                        {new Date(targetUser.created_at).toLocaleDateString(
+                          locale,
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {isSelf ? (
                             <span className="text-xs text-white/30 font-bold uppercase tracking-wider">
-                              You
+                              {t("You")}
                             </span>
                           ) : disabled ? (
                             <button
@@ -205,7 +212,7 @@ export default function BackofficeUsersPage() {
                               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                             >
                               <CheckCircle2 size={14} />
-                              Enable
+                              {t("Enable")}
                             </button>
                           ) : (
                             <button
@@ -213,7 +220,7 @@ export default function BackofficeUsersPage() {
                               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                             >
                               <Ban size={14} />
-                              Disable
+                              {t("Disable")}
                             </button>
                           )}
                         </div>
@@ -233,17 +240,20 @@ export default function BackofficeUsersPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-sm font-bold text-white/50">
-              Page {pagination.page} of {pagination.pages}
+              {t("Page {current} of {total}", {
+                current: pagination.page,
+                total: pagination.pages,
+              })}
             </span>
             <button
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </div>
         )}
@@ -253,17 +263,19 @@ export default function BackofficeUsersPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
-              Disable &quot;{disableTarget.username}&quot;?
+              {t("Disable {username}?", {
+                username: `“${disableTarget.username}”`,
+              })}
             </h2>
             <p className="text-sm text-white/50 font-bold mb-4">
-              They&apos;ll be signed out of any real access immediately -
-              existing sessions degrade to logged-out-visitor level and they
-              can&apos;t log back in. This can be undone at any time.
+              {t(
+                "They'll be signed out immediately and won't be able to log back in. This can be undone at any time.",
+              )}
             </p>
             <textarea
               value={disableReason}
               onChange={(e) => setDisableReason(e.target.value)}
-              placeholder="Reason (optional)"
+              placeholder={t("Reason (optional)")}
               rows={3}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20 resize-none"
             />
@@ -275,13 +287,13 @@ export default function BackofficeUsersPage() {
                 }}
                 className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 onClick={submitDisable}
                 className="px-4 py-2 rounded-xl bg-rose-500 text-black font-black text-sm uppercase tracking-wider hover:bg-rose-400 transition-colors"
               >
-                Disable User
+                {t("Disable User")}
               </button>
             </div>
           </div>

@@ -9,6 +9,8 @@ import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/types";
 import { itemHref } from "lib/store-context";
 import { formatBasePrice, formatPrice } from "lib/price";
+import { LanguageSwitcher } from "components/LanguageSwitcher";
+import { useI18n } from "lib/i18n";
 
 export type StoreNavContext = {
   slug: string;
@@ -20,6 +22,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
+  const { t } = useI18n();
 
   const storeHref = store ? `/store/${store.slug}` : "/store";
   const searchEndpoint = store
@@ -58,7 +61,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
           >
             <Image
               src="/images/brand/manifold-logo.png"
-              alt="Manifold Logo"
+              alt={t("Manifold logo")}
               width={120}
               height={120}
               className="w-auto h-7 md:h-10 drop-shadow-md"
@@ -74,7 +77,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={store.logo_url}
-                  alt={`${store.name} logo`}
+                  alt={t("{name} logo", { name: store.name })}
                   className="w-6 h-6 rounded-lg object-cover border border-white/10"
                 />
               ) : (
@@ -99,7 +102,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all font-bold text-sm tracking-wide"
             >
               <Library size={18} />
-              Library
+              {t("Library")}
             </Link>
           </nav>
         </div>
@@ -115,7 +118,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             </div>
             <input
               type="text"
-              placeholder="Search games..."
+              placeholder={t("Search games...")}
               className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -163,7 +166,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                                       : "rgba(255, 255, 255, 0.4)",
                                 }}
                               >
-                                {isDemo ? "Free" : formatPrice(game)}
+                                {isDemo ? t("Free") : formatPrice(game)}
                               </p>
                               {!isDemo && formatBasePrice(game) && (
                                 <p className="text-xs font-semibold line-through text-white/40">
@@ -188,19 +191,22 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                         href={`${searchResultsHref}?q=${encodeURIComponent(searchQuery)}`}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
-                        View all results
+                        {t("View all results")}
                       </Link>
                     </div>
                   </>
                 ) : (
                   <div className="px-6 py-8 text-center text-white/40 font-semibold text-sm">
-                    No games found matching &quot;{searchQuery}&quot;
+                    {t("No games found matching {query}", {
+                      query: `“${searchQuery}”`,
+                    })}
                   </div>
                 )}
               </div>
             )}
           </div>
 
+          <LanguageSwitcher compact />
           <UserMenu />
         </div>
       </div>

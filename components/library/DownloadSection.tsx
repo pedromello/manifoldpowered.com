@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, HardDrive, Cpu, AlertCircle } from "lucide-react";
+import { useI18n } from "lib/i18n";
 
 export type GameFile = {
   id: string;
@@ -32,6 +33,7 @@ export function DownloadSection({
   error: unknown;
 }) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const handleDownload = async (fileId: string) => {
     if (downloadingId) return;
@@ -53,7 +55,7 @@ export function DownloadSection({
       document.body.removeChild(a);
     } catch (err) {
       console.error(err);
-      alert("There was an error initiating the download.");
+      alert(t("There was an error initiating the download."));
     } finally {
       setDownloadingId(null);
     }
@@ -64,7 +66,7 @@ export function DownloadSection({
       <div className="flex items-center gap-3 py-6 px-4">
         <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white/50"></div>
         <span className="text-sm font-bold text-white/50">
-          Checking for files...
+          {t("Checking for files...")}
         </span>
       </div>
     );
@@ -75,7 +77,7 @@ export function DownloadSection({
       <div className="flex items-center gap-3 py-6 px-4 text-rose-400">
         <AlertCircle size={20} />
         <span className="text-sm font-bold">
-          Unable to fetch available files.
+          {t("Unable to fetch available files.")}
         </span>
       </div>
     );
@@ -86,7 +88,7 @@ export function DownloadSection({
       <div className="flex items-center gap-3 py-6 px-4 text-white/40">
         <HardDrive size={20} />
         <span className="text-sm font-bold">
-          No files are currently available for this title.
+          {t("No files are currently available for this title.")}
         </span>
       </div>
     );
@@ -122,12 +124,12 @@ export function DownloadSection({
             {downloadingId === file.id ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
-                Starting...
+                {t("Starting...")}
               </>
             ) : (
               <>
                 <Download size={18} />
-                Download
+                {t("Download")}
               </>
             )}
           </button>

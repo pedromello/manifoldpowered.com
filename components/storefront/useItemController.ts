@@ -4,6 +4,7 @@ import useSWR from "swr";
 
 import type { Review, ReviewsApiResponse } from "components/store/ReviewCard";
 import { withStore } from "lib/store-context";
+import { useI18n } from "lib/i18n";
 
 export type ItemControllerOptions = {
   gameSlug: string;
@@ -99,6 +100,7 @@ export function useItemController({
   storeSlug,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
+  const { t, translateError } = useI18n();
   const [reviewPage, setReviewPage] = useState(1);
 
   const {
@@ -188,9 +190,10 @@ export function useItemController({
     } catch (error) {
       console.error(error);
       setAcquisitionError(
-        error instanceof Error
-          ? error.message
-          : "We could not add this game to your library.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "We could not add this game to your library.",
+        ),
       );
     } finally {
       setIsRedeeming(false);
@@ -223,7 +226,10 @@ export function useItemController({
     } catch (error) {
       console.error(error);
       setReviewActionError(
-        error instanceof Error ? error.message : "Failed to submit review.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to submit review.",
+        ),
       );
       return false;
     } finally {
@@ -256,7 +262,10 @@ export function useItemController({
     } catch (error) {
       console.error(error);
       setReviewActionError(
-        error instanceof Error ? error.message : "Failed to update review.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to update review.",
+        ),
       );
       return false;
     } finally {
@@ -285,7 +294,10 @@ export function useItemController({
     } catch (error) {
       console.error(error);
       setReviewActionError(
-        error instanceof Error ? error.message : "Failed to delete review.",
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to delete review.",
+        ),
       );
       return false;
     } finally {
@@ -317,7 +329,7 @@ export function useItemController({
 
       if (!res.ok) {
         if (res.status === 401) {
-          alert("You need to be logged in to add to wishlist.");
+          alert(t("You need to be logged in to add to wishlist."));
         }
         throw new Error("Failed to toggle wishlist");
       }
@@ -338,7 +350,10 @@ export function useItemController({
     acquisitionError:
       acquisitionError ||
       (!isLoggedOut && libraryError instanceof Error
-        ? libraryError.message
+        ? translateError(
+            libraryError.message,
+            "We could not check your library right now.",
+          )
         : null),
     showSuccessModal,
     dismissSuccess: () => setShowSuccessModal(false),
@@ -373,7 +388,12 @@ export function useItemController({
       isDeleting: isDeletingReview,
       error:
         reviewActionError ||
-        (reviewsError instanceof Error ? reviewsError.message : null),
+        (reviewsError instanceof Error
+          ? translateError(
+              reviewsError.message,
+              "We could not load reviews right now.",
+            )
+          : null),
       post: postReview,
       update: updateReview,
       remove: removeReview,

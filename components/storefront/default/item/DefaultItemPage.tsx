@@ -11,6 +11,7 @@ import {
 } from "components/storefront/default/item/ItemModals";
 import type { ItemViewProps } from "components/storefront/types";
 import { isFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 /**
  * Manifold's own product page, and the fallback for any outlet without a
@@ -33,6 +34,7 @@ export function DefaultItemPage({
   reviews,
   backHref,
 }: ItemViewProps) {
+  const { t } = useI18n();
   const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -53,7 +55,11 @@ export function DefaultItemPage({
               : game
           }
           backHref={backHref}
-          backLabel={store ? `Back to ${store.name}` : "Back to Outlets"}
+          backLabel={
+            store
+              ? t("Back to {name}", { name: store.name })
+              : t("Back to Outlets")
+          }
         />
 
         <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-10 border-t border-white/[0.08] px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-10 lg:py-14">

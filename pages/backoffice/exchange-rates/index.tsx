@@ -3,6 +3,7 @@ import Head from "next/head";
 import useSWR, { mutate } from "swr";
 import { Loader2, Plus } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface ExchangeRate {
   id: string;
@@ -37,6 +38,7 @@ const SOURCE_LABELS: Record<ExchangeRate["source"], string> = {
 };
 
 export default function BackofficeExchangeRatesPage() {
+  const { locale, t } = useI18n();
   const [baseFilter, setBaseFilter] = useState("");
   const [quoteFilter, setQuoteFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -68,17 +70,17 @@ export default function BackofficeExchangeRatesPage() {
   return (
     <>
       <Head>
-        <title>Exchange Rates | Manifold Admin</title>
+        <title>{t("Exchange Rates | Manifold Admin")}</title>
       </Head>
 
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-black">Exchange Rates</h1>
+            <h1 className="text-3xl font-black">{t("Exchange Rates")}</h1>
             <p className="text-sm font-bold text-white/40 mt-1">
-              Rates are append-only. Recording a new one never replaces the old,
-              so a past conversion stays reproducible from the rate that was in
-              effect at the time.
+              {t(
+                "Rates are append-only. Recording a new one never replaces the old, so a past conversion stays reproducible from the rate that was in effect at the time.",
+              )}
             </p>
           </div>
           <button
@@ -86,13 +88,13 @@ export default function BackofficeExchangeRatesPage() {
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
           >
             <Plus size={16} />
-            Record Rate
+            {t("Record Rate")}
           </button>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <CurrencySelect
-            label="Base"
+            label={t("Base")}
             value={baseFilter}
             codes={currencyCodes}
             onChange={(value) => {
@@ -101,7 +103,7 @@ export default function BackofficeExchangeRatesPage() {
             }}
           />
           <CurrencySelect
-            label="Quote"
+            label={t("Quote")}
             value={quoteFilter}
             codes={currencyCodes}
             onChange={(value) => {
@@ -115,11 +117,11 @@ export default function BackofficeExchangeRatesPage() {
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 text-left">Pair</th>
-                <th className="px-4 py-3 text-left">Rate</th>
-                <th className="px-4 py-3 text-left">Source</th>
-                <th className="px-4 py-3 text-left">Effective</th>
-                <th className="px-4 py-3 text-left">Recorded</th>
+                <th className="px-4 py-3 text-left">{t("Pair")}</th>
+                <th className="px-4 py-3 text-left">{t("Rate")}</th>
+                <th className="px-4 py-3 text-left">{t("Source")}</th>
+                <th className="px-4 py-3 text-left">{t("Effective")}</th>
+                <th className="px-4 py-3 text-left">{t("Recorded")}</th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +137,7 @@ export default function BackofficeExchangeRatesPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-rose-300 font-bold"
                   >
-                    Failed to load exchange rates.
+                    {t("Failed to load exchange rates.")}
                   </td>
                 </tr>
               ) : rates.length === 0 ? (
@@ -144,7 +146,7 @@ export default function BackofficeExchangeRatesPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-white/40 font-bold"
                   >
-                    No exchange rates recorded yet.
+                    {t("No exchange rates recorded yet.")}
                   </td>
                 </tr>
               ) : (
@@ -160,22 +162,24 @@ export default function BackofficeExchangeRatesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-1 rounded-md bg-white/5 text-white/60 text-xs font-black uppercase tracking-wider">
-                          {SOURCE_LABELS[rate.source]}
+                          {t(SOURCE_LABELS[rate.source])}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-white/60">
-                        {new Date(rate.effective_at).toLocaleString()}
+                        {new Date(rate.effective_at).toLocaleString(locale)}
                         {isFuture && (
                           <span
                             className="ml-2 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-xs font-black uppercase tracking-wider"
-                            title="Not in effect yet — today's prices still use the previous rate."
+                            title={t(
+                              "Not in effect yet — today's prices still use the previous rate.",
+                            )}
                           >
-                            Scheduled
+                            {t("Scheduled")}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-white/40">
-                        {new Date(rate.created_at).toLocaleDateString()}
+                        {new Date(rate.created_at).toLocaleDateString(locale)}
                       </td>
                     </tr>
                   );
@@ -192,17 +196,20 @@ export default function BackofficeExchangeRatesPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-sm font-bold text-white/50">
-              Page {pagination.page} of {pagination.pages}
+              {t("Page {current} of {total}", {
+                current: pagination.page,
+                total: pagination.pages,
+              })}
             </span>
             <button
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </div>
         )}
@@ -233,6 +240,7 @@ function CurrencySelect({
   codes: string[];
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <label className="flex items-center gap-2">
       <span className="text-xs font-black uppercase tracking-wider text-white/40">
@@ -243,7 +251,7 @@ function CurrencySelect({
         onChange={(e) => onChange(e.target.value)}
         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
       >
-        <option value="">Any</option>
+        <option value="">{t("Any")}</option>
         {codes.map((code) => (
           <option key={code} value={code} className="bg-[#14101c]">
             {code}
@@ -263,6 +271,7 @@ function RecordRateModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t, translateError } = useI18n();
   const [baseCurrency, setBaseCurrency] = useState("USD");
   const [quoteCurrency, setQuoteCurrency] = useState("");
   const [rate, setRate] = useState("");
@@ -294,7 +303,7 @@ function RecordRateModal({
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setFormError(body?.message || "Failed to record rate.");
+      setFormError(translateError(body?.message, "Failed to record rate."));
       return;
     }
 
@@ -304,9 +313,9 @@ function RecordRateModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
       <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
-        <h2 className="text-xl font-black mb-1">Record Exchange Rate</h2>
+        <h2 className="text-xl font-black mb-1">{t("Record Exchange Rate")}</h2>
         <p className="text-sm font-bold text-white/40 mb-4">
-          This adds a new rate rather than editing any existing one.
+          {t("This adds a new rate rather than editing any existing one.")}
         </p>
 
         {formError && (
@@ -319,7 +328,7 @@ function RecordRateModal({
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-black uppercase tracking-wider text-white/40">
-                Base
+                {t("Base")}
               </span>
               <select
                 value={baseCurrency}
@@ -336,7 +345,7 @@ function RecordRateModal({
 
             <label className="flex flex-col gap-1">
               <span className="text-xs font-black uppercase tracking-wider text-white/40">
-                Quote
+                {t("Quote")}
               </span>
               <select
                 value={quoteCurrency}
@@ -344,7 +353,7 @@ function RecordRateModal({
                 className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
               >
                 <option value="" className="bg-[#14101c]">
-                  Select...
+                  {t("Select...")}
                 </option>
                 {codes.map((code) => (
                   <option key={code} value={code} className="bg-[#14101c]">
@@ -357,7 +366,7 @@ function RecordRateModal({
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              Rate
+              {t("Rate")}
             </span>
             <input
               type="number"
@@ -369,13 +378,16 @@ function RecordRateModal({
               className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20 tabular-nums"
             />
             <span className="text-xs font-bold text-white/30">
-              How many {quoteCurrency || "quote"} units one {baseCurrency} buys.
+              {t("How many {quote} units one {base} buys.", {
+                quote: quoteCurrency || t("quote"),
+                base: baseCurrency,
+              })}
             </span>
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              Source
+              {t("Source")}
             </span>
             <select
               value={source}
@@ -385,20 +397,20 @@ function RecordRateModal({
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
             >
               <option value="MANUAL" className="bg-[#14101c]">
-                Manual
+                {t("Manual")}
               </option>
               <option value="BULK" className="bg-[#14101c]">
-                Bulk
+                {t("Bulk")}
               </option>
               <option value="AUTOMATIC" className="bg-[#14101c]">
-                Automatic
+                {t("Automatic")}
               </option>
             </select>
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              Effective from
+              {t("Effective from")}
             </span>
             <input
               type="datetime-local"
@@ -407,8 +419,9 @@ function RecordRateModal({
               className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
             />
             <span className="text-xs font-bold text-white/30">
-              Leave empty to take effect now. A future date is stored but
-              won&apos;t affect prices until it arrives.
+              {t(
+                "Leave empty to take effect now. A future date is stored but won't affect prices until it arrives.",
+              )}
             </span>
           </label>
         </div>
@@ -418,14 +431,14 @@ function RecordRateModal({
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             onClick={submit}
             disabled={isSaving || !quoteCurrency || !rate}
             className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:opacity-40"
           >
-            {isSaving ? "Recording..." : "Record Rate"}
+            {isSaving ? t("Recording...") : t("Record Rate")}
           </button>
         </div>
       </div>

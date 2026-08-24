@@ -6,6 +6,7 @@ import { StorefrontSearchBox } from "components/storefront/default/StorefrontSea
 import { GameList } from "components/storefront/default/GameList";
 import { PlatformStorefrontHome } from "components/storefront/default/PlatformStorefrontHome";
 import type { DefaultStorefrontProps } from "components/storefront/types";
+import { useI18n } from "lib/i18n";
 
 export type DefaultStorefrontViewProps = DefaultStorefrontProps;
 
@@ -19,6 +20,8 @@ export type DefaultStorefrontViewProps = DefaultStorefrontProps;
  * component can be read side by side with it.
  */
 export function DefaultStorefront(props: DefaultStorefrontViewProps) {
+  const { t } = useI18n();
+
   if (props.showPlatformWelcome) {
     return <PlatformStorefrontHome {...props} />;
   }
@@ -82,7 +85,9 @@ export function DefaultStorefront(props: DefaultStorefrontViewProps) {
             <div className="flex flex-col">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-5 mb-6">
                 <h1 className="text-4xl font-black md:text-6xl text-white drop-shadow-sm max-w-[20ch]">
-                  {heading}
+                  {heading === "Just Arrived at Manifold"
+                    ? t("Just Arrived at Manifold")
+                    : heading}
                 </h1>
 
                 <StorefrontSearchBox

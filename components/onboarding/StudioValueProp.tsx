@@ -1,4 +1,5 @@
 import { UploadCloud, Search, Users } from "lucide-react";
+import { useI18n } from "lib/i18n";
 
 // CEO-approved Studio value proposition. Shown on the Studio-creation flow so
 // developers understand the distribution/discovery upside before committing.
@@ -18,18 +19,20 @@ const BENEFITS = [
 ];
 
 export function StudioValueProp() {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-7">
       <div>
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
-          For developers
+          {t("For developers")}
         </p>
         <h2 className="text-3xl font-black leading-[1.05] tracking-tight md:text-4xl">
-          Ship once. Reach every Outlet.
+          {t("Ship once. Reach every Outlet.")}
         </h2>
         <p className="mt-4 max-w-md text-sm font-medium leading-relaxed text-white/55">
-          Create a Studio to distribute your games and get discovered across the
-          whole Manifold network.
+          {t(
+            "Create a Studio to distribute your games and get discovered across the whole Manifold network.",
+          )}
         </p>
       </div>
 
@@ -40,7 +43,7 @@ export function StudioValueProp() {
               <Icon size={16} />
             </span>
             <span className="text-sm font-semibold leading-relaxed text-white/75">
-              {text}
+              {t(text)}
             </span>
           </li>
         ))}

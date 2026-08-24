@@ -10,7 +10,7 @@ import type { GameDetailApi } from "components/store/types";
  *
  * `rehypeRaw` means the markdown may contain HTML — that is deliberate, it is
  * how studios embed trailers — so the `.markdown-content` rules in
- * app/global.css are what keep arbitrary markup inside the page's design.
+ * styles/global.css are what keep arbitrary markup inside the page's design.
  */
 export function ItemDescription({ game }: { game: GameDetailApi }) {
   return (

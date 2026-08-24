@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Building2, Gamepad2, Plus, Store } from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
+import { LanguageSwitcher } from "components/LanguageSwitcher";
+import { useI18n } from "lib/i18n";
 
 const links = [
   { href: "/store/mine", label: "My Outlets", icon: Store },
@@ -15,6 +17,7 @@ const links = [
 
 export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const { t } = useI18n();
 
   const isActive = (href: string) => {
     if (href === "/studio") return router.pathname.startsWith("/studio");
@@ -42,14 +45,14 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
           <div>
             <p className="text-xs font-black tracking-[0.14em]">MANIFOLD</p>
             <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-300">
-              Creator workspace
+              {t("Creator workspace")}
             </p>
           </div>
         </Link>
 
         <nav
           className="flex flex-1 flex-col gap-1 px-3 pb-5"
-          aria-label="Creator workspace"
+          aria-label={t("Creator workspace navigation")}
         >
           {links.map(({ href, label, icon: Icon }) => (
             <Link
@@ -63,7 +66,7 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
               }`}
             >
               <Icon size={18} strokeWidth={1.8} />
-              {label}
+              {t(label)}
             </Link>
           ))}
 
@@ -72,7 +75,7 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
               href="/store"
               className="flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-white/45 hover:bg-white/[0.05] hover:text-white"
             >
-              <ArrowLeft size={17} /> Back to Store
+              <ArrowLeft size={17} /> {t("Back to Store")}
             </Link>
           </div>
         </nav>
@@ -88,14 +91,17 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
               height={32}
               className="h-8 w-8 rounded-lg"
             />
-            <span className="text-xs font-black tracking-[0.12em]">
-              CREATOR
+            <span className="text-xs font-black uppercase tracking-[0.12em]">
+              {t("Creator")}
             </span>
           </Link>
           <p className="hidden text-sm font-semibold text-white/45 lg:block">
-            Manage what you publish and curate
+            {t("Manage what you publish and curate")}
           </p>
-          <UserMenu variant="store-home" />
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher compact />
+            <UserMenu variant="store-home" />
+          </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto border-t border-white/[0.06] px-3 py-2 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links.map(({ href, label, icon: Icon }) => (
@@ -106,7 +112,7 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
                 isActive(href) ? "bg-white/[0.09]" : "text-white/50"
               }`}
             >
-              <Icon size={15} /> {label}
+              <Icon size={15} /> {t(label)}
             </Link>
           ))}
         </nav>

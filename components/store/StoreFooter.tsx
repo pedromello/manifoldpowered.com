@@ -5,6 +5,7 @@ import {
   IconBrandGithub,
   IconCircleCheck,
 } from "@tabler/icons-react";
+import { useI18n } from "lib/i18n";
 
 /**
  * Manifold's own footer. An outlet with a bespoke theme supplies its own via
@@ -14,6 +15,7 @@ import {
  */
 export function StoreFooter({ store }: { store?: { slug: string } }) {
   const homeHref = store ? `/store/${store.slug}` : "/store";
+  const { t } = useI18n();
 
   return (
     <footer className="w-full bg-sf-bg border-t border-white/5 pt-20 pb-10 overflow-hidden relative">
@@ -30,15 +32,16 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
             >
               <Image
                 src="/images/brand/manifold-logo.png"
-                alt="Manifold Logo"
+                alt={t("Manifold logo")}
                 width={120}
                 height={120}
                 className="w-auto h-8 md:h-10 px-2 rounded-lg"
               />
             </Link>
             <p className="text-white/50 text-base leading-relaxed max-w-sm ml-2">
-              The open-source protocol for community-driven game distribution.
-              Reclaiming the digital shelf for creators and players alike.
+              {t(
+                "The open-source protocol for community-driven game distribution. Reclaiming the digital shelf for creators and players alike.",
+              )}
             </p>
             <div className="flex items-center gap-4 mt-2 ml-2">
               <a
@@ -46,7 +49,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-3 rounded-2xl bg-white/5 border border-white/5 text-white/40 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
-                aria-label="Follow us on X"
+                aria-label={t("Follow us on X")}
               >
                 <IconBrandX size={20} />
               </a>
@@ -55,7 +58,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-3 rounded-2xl bg-white/5 border border-white/5 text-white/40 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
-                aria-label="View Source on GitHub"
+                aria-label={t("View source on GitHub")}
               >
                 <IconBrandGithub size={20} />
               </a>
@@ -65,33 +68,33 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
           {/* Navigation Sections */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             <h4 className="text-white text-xs font-black uppercase tracking-[0.2em] mb-2 px-2">
-              Protocol
+              {t("Protocol")}
             </h4>
             <nav className="flex flex-col gap-1">
               <Link
                 href="/store"
                 className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
               >
-                Browse games
+                {t("Browse games")}
               </Link>
               <Link
                 href="/about"
                 className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
               >
-                About
+                {t("About")}
               </Link>
               <Link
                 href="/signup"
                 className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
               >
-                Secure your username
+                {t("Secure your username")}
               </Link>
             </nav>
           </div>
 
           <div className="lg:col-span-2 flex flex-col gap-6">
             <h4 className="text-white text-xs font-black uppercase tracking-[0.2em] mb-2 px-2">
-              Community
+              {t("Community")}
             </h4>
             <nav className="flex flex-col gap-1">
               <a
@@ -100,7 +103,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
                 rel="noopener noreferrer"
                 className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
               >
-                Developer Docs
+                {t("Developer Docs")}
               </a>
               <a
                 href="https://x.com/ManifoldPowered"
@@ -114,7 +117,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
                 href="mailto:contact@pedro.tec.br"
                 className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
               >
-                Get in touch
+                {t("Get in touch")}
               </a>
             </nav>
           </div>
@@ -129,7 +132,7 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
             <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <IconCircleCheck size={12} className="text-emerald-400" />
               <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                Network Status: Optimal
+                {t("Network Status: Optimal")}
               </span>
             </div>
           </div>
@@ -139,13 +142,13 @@ export function StoreFooter({ store }: { store?: { slug: string } }) {
               href="#"
               className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-white transition-colors"
             >
-              Terms of Service
+              {t("Terms of Service")}
             </Link>
             <Link
               href="#"
               className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-white transition-colors"
             >
-              Privacy Policy
+              {t("Privacy Policy")}
             </Link>
           </div>
         </div>
