@@ -37,6 +37,14 @@ function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
   );
 }
 
+function commercialLabel(game: GameApi) {
+  if (isFree(game)) return "Free Demo";
+  if (game.discount_label && formatBasePrice(game)) {
+    return game.discount_label;
+  }
+  return formatPrice(game);
+}
+
 function HeroSkeleton() {
   return (
     <div className="grid min-h-[340px] animate-pulse overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.035] md:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.75fr)]">
@@ -225,7 +233,7 @@ function SpotlightCarousel({
                     {game.title}
                   </span>
                   <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
-                    Featured 0{index + 1}
+                    {commercialLabel(game)}
                   </span>
                 </button>
               );
