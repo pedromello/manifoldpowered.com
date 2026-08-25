@@ -20,16 +20,20 @@ import type { ItemWishlist } from "components/storefront/useItemController";
 
 export function PurchaseCard({
   game,
-  isDemo,
+  isFreeGame,
   isInLibrary,
+  isCheckingLibrary,
   isRedeeming,
+  acquisitionError,
   onRedeem,
   wishlist,
 }: {
   game: GameDetailApi;
-  isDemo: boolean;
+  isFreeGame: boolean;
   isInLibrary: boolean;
+  isCheckingLibrary: boolean;
   isRedeeming: boolean;
+  acquisitionError: string | null;
   onRedeem: () => void;
   wishlist: ItemWishlist;
 }) {
@@ -40,7 +44,7 @@ export function PurchaseCard({
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            {!isDemo && formatBasePrice(game) && (
+            {!isFreeGame && formatBasePrice(game) && (
               <span className="text-sm font-semibold text-white/35 line-through">
                 {formatBasePrice(game)}
               </span>
@@ -49,10 +53,10 @@ export function PurchaseCard({
               className="text-3xl font-black uppercase tracking-tight"
               style={{ color: discountBadgeColor }}
             >
-              {isDemo ? "Free" : formatPrice(game)}
+              {isFreeGame ? "Free" : formatPrice(game)}
             </span>
           </div>
-          {!isDemo && game.discount_label && (
+          {!isFreeGame && game.discount_label && (
             <DiscountBadge label={game.discount_label} />
           )}
         </div>
@@ -67,11 +71,28 @@ export function PurchaseCard({
         ) : (
           <button
             onClick={onRedeem}
-            disabled={isRedeeming}
+            disabled={isCheckingLibrary || isRedeeming}
             className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isRedeeming ? "Redeeming..." : isDemo ? "Redeem Demo" : "Redeem"}
+            {isCheckingLibrary
+              ? "Checking library..."
+              : isRedeeming
+                ? isFreeGame
+                  ? "Adding..."
+                  : "Processing..."
+                : isFreeGame
+                  ? "Add to Library"
+                  : `Buy now · ${formatPrice(game)}`}
           </button>
+        )}
+
+        {acquisitionError && (
+          <p
+            role="alert"
+            className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-5 text-rose-200"
+          >
+            {acquisitionError}
+          </p>
         )}
 
         {game.social_links.steam_page ? (

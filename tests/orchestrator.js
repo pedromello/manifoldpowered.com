@@ -181,7 +181,7 @@ const createGame = async (userId, gameData = {}) => {
     detailed_description:
       gameData.detailed_description || faker.lorem.paragraph(),
     launch_date: gameData.launch_date || faker.date.past(),
-    price: gameData.price || faker.number.float(),
+    price: gameData.price === undefined ? faker.number.float() : gameData.price,
     tags: gameData.tags || [faker.lorem.word()],
     meta_tags: gameData.meta_tags || {},
     media: gameData.media || { screenshots: [], videos: [] },
