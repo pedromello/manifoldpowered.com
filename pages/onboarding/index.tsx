@@ -1,6 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { Gamepad2, Store } from "lucide-react";
+import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 
 // Post-signup hub: an informational fork that routes new users to the right
 // creation flow. Intentionally requires no auth and no account data to view —
@@ -13,15 +14,15 @@ export default function OnboardingHubPage() {
         <title>Get started | Manifold</title>
       </Head>
 
-      <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-4xl flex flex-col gap-10">
-          <h1 className="text-3xl md:text-5xl font-black leading-tight text-center">
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 py-12 text-white sm:px-6 lg:px-10">
+        <div className="flex w-full max-w-5xl flex-col gap-10">
+          <h1 className="text-center text-3xl font-black leading-tight tracking-tight md:text-5xl">
             Welcome to Manifold. What do you want to build?
           </h1>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8">
-              <span className="w-fit p-3 rounded-xl bg-indigo-500/15 text-indigo-300">
+            <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 transition hover:border-violet-400/30 md:p-8">
+              <span className="w-fit rounded-xl bg-violet-500/15 p-3 text-violet-300">
                 <Gamepad2 size={24} />
               </span>
               <h2 className="text-2xl font-black">I make games</h2>
@@ -31,14 +32,14 @@ export default function OnboardingHubPage() {
               </p>
               <Link
                 href="/onboarding/create"
-                className="w-full text-center px-4 py-3 rounded-xl bg-white text-black font-black text-sm uppercase tracking-wider hover:bg-white/90 transition-colors"
+                className="w-full rounded-xl bg-white px-4 py-3 text-center text-sm font-black uppercase tracking-wider text-black transition-colors hover:bg-white/90"
               >
                 Create a Studio
               </Link>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8">
-              <span className="w-fit p-3 rounded-xl bg-emerald-500/15 text-emerald-300">
+            <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 transition hover:border-fuchsia-400/30 md:p-8">
+              <span className="w-fit rounded-xl bg-fuchsia-500/15 p-3 text-fuchsia-300">
                 <Store size={24} />
               </span>
               <h2 className="text-2xl font-black">I sell games</h2>
@@ -47,7 +48,7 @@ export default function OnboardingHubPage() {
               </p>
               <Link
                 href="/store/new"
-                className="w-full text-center px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+                className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-center text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
               >
                 Create an Outlet
               </Link>
@@ -67,3 +68,7 @@ export default function OnboardingHubPage() {
     </>
   );
 }
+
+OnboardingHubPage.getLayout = function getLayout(page: React.ReactElement) {
+  return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
+};

@@ -61,7 +61,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex items-center gap-4">
+    <div className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-5">
       <div
         className={`p-3 rounded-xl shrink-0 ${accent ?? "bg-white/10 text-white/60"}`}
       >
@@ -106,7 +106,7 @@ export default function BackofficeRevenuePage() {
     <>
       <Head>
         <title>Revenue | Manifold</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
       <div className="flex flex-col gap-8">
@@ -140,7 +140,7 @@ export default function BackofficeRevenuePage() {
         ) : error ? (
           <p className="text-rose-300 font-bold">Failed to load revenue.</p>
         ) : revenue.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-16 text-center">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-6 py-16 text-center">
             <p className="text-white/40 font-bold">
               No ledger entries in this range.
             </p>

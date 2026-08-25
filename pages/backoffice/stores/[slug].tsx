@@ -54,7 +54,7 @@ export default function BackofficeStoreDetailPage() {
         ) : error || !store ? (
           <p className="text-rose-300 font-bold">Store not found.</p>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
             <div>
               <h1 className="text-3xl font-black">{store.name}</h1>
               {store.description && (

@@ -63,7 +63,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex items-center gap-4">
+    <div className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-5">
       <div
         className={`p-3 rounded-xl ${accent ?? "bg-white/10 text-white/60"}`}
       >
@@ -126,7 +126,7 @@ export default function BackofficeIndexPage() {
     <>
       <Head>
         <title>Backoffice | Manifold</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
       <div className="flex flex-col gap-8">
@@ -178,7 +178,7 @@ export default function BackofficeIndexPage() {
                     View review queue →
                   </Link>
                 </div>
-                <div className="rounded-2xl border border-white/10 overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
                   <table className="w-full text-sm">
                     <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
                       <tr>
@@ -232,7 +232,7 @@ export default function BackofficeIndexPage() {
 
             <div className="flex flex-col gap-3">
               <h2 className="text-xl font-black">Maintenance</h2>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-5">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-xl bg-white/10 text-white/60">

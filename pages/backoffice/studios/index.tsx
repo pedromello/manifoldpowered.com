@@ -63,7 +63,7 @@ export default function BackofficeStudiosPage() {
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>

@@ -1,4 +1,4 @@
-import { StoreLayout } from "components/store/StoreLayout";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { Storefront } from "components/store/Storefront";
 
 export default function StoreOption2() {
@@ -18,5 +18,5 @@ export default function StoreOption2() {
 }
 
 StoreOption2.getLayout = function getLayout(page: React.ReactElement) {
-  return <StoreLayout>{page}</StoreLayout>;
+  return <StoreHomeLayout>{page}</StoreHomeLayout>;
 };

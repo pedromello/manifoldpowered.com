@@ -70,7 +70,7 @@ export default function BackofficeStudioDetailPage() {
           <p className="text-rose-300 font-bold">Studio not found.</p>
         ) : (
           <>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-black">{studio.name}</h1>
@@ -113,7 +113,7 @@ export default function BackofficeStudioDetailPage() {
 
             <div className="flex flex-col gap-3">
               <h2 className="text-xl font-black">Games ({games.length})</h2>
-              <div className="rounded-2xl border border-white/10 overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
                 <table className="w-full text-sm">
                   <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
                     <tr>

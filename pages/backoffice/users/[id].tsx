@@ -114,7 +114,7 @@ export default function BackofficeUserDetailPage() {
         ) : error || !targetUser ? (
           <p className="text-rose-300 font-bold">User not found.</p>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-black">{targetUser.username}</h1>
@@ -185,7 +185,7 @@ export default function BackofficeUserDetailPage() {
               ) : disabled ? (
                 <button
                   onClick={enableUser}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
                 >
                   <CheckCircle2 size={16} />
                   Enable User
@@ -206,7 +206,7 @@ export default function BackofficeUserDetailPage() {
 
       {showDisableModal && targetUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
               Disable &quot;{targetUser.username}&quot;?
             </h2>

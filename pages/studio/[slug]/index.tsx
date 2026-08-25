@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 import { useState } from "react";
 import { Loader2, Building2, Copy, Check, Gamepad2 } from "lucide-react";
+import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { ReviewSummary } from "components/store/ReviewSummary";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
@@ -67,7 +68,7 @@ export default function StudioPage() {
         </title>
       </Head>
 
-      <div className="min-h-screen bg-[#1D0F3B] text-white px-4 py-12">
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0b0812] px-4 py-10 text-white sm:px-6 lg:px-10 lg:py-14">
         {isLoading ? (
           <div className="flex items-center justify-center min-h-[60vh]">
             <Loader2 className="animate-spin text-white/30" />
@@ -77,17 +78,17 @@ export default function StudioPage() {
             <p className="text-rose-300 font-bold">Studio not found.</p>
           </div>
         ) : (
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-8">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               {studio.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={studio.logo_url}
                   alt={`${studio.name} logo`}
-                  className="w-16 h-16 shrink-0 rounded-2xl object-cover border border-white/10 bg-white/5"
+                  className="h-16 w-16 shrink-0 rounded-xl border border-white/10 bg-white/5 object-cover"
                 />
               ) : (
-                <div className="w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-white/30">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/30">
                   <Building2 size={28} />
                 </div>
               )}
@@ -105,7 +106,7 @@ export default function StudioPage() {
 
               <Link
                 href={`/studio/${studio.slug}/games/steam-import`}
-                className="shrink-0 px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider text-center hover:bg-emerald-400 transition-colors"
+                className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-center text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
               >
                 Import from Steam
               </Link>
@@ -145,14 +146,14 @@ export default function StudioPage() {
                     <Loader2 className="animate-spin text-white/30" />
                   </div>
                 ) : games.length === 0 ? (
-                  <div className="flex flex-col items-center gap-4 py-12 px-6 rounded-2xl border border-white/10 bg-white/5 text-center">
+                  <div className="flex flex-col items-center gap-4 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-12 text-center">
                     <Gamepad2 size={32} className="text-white/20" />
                     <p className="text-white/50 font-bold text-sm">
                       No games yet.
                     </p>
                     <Link
                       href={`/studio/${studio.slug}/games/steam-import`}
-                      className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+                      className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
                     >
                       Import a Game from Steam
                     </Link>
@@ -174,6 +175,10 @@ export default function StudioPage() {
     </>
   );
 }
+
+StudioPage.getLayout = function getLayout(page: React.ReactElement) {
+  return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
+};
 
 // Sales of this studio's own games, resolved server-side through the catalogue
 // since Sale carries no studio_id.
@@ -225,7 +230,7 @@ function StudioSalesTab({ studioSlug }: { studioSlug: string }) {
       </p>
 
       {sales.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-12 px-6 rounded-2xl border border-white/10 bg-white/5 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-12 text-center">
           <Gamepad2 size={32} className="text-white/20" />
           <p className="text-white/50 font-bold text-sm">No sales yet.</p>
         </div>
@@ -289,7 +294,7 @@ function StudioGameCard({ game }: { game: GameApi }) {
   }
 
   return (
-    <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#14101c]">
       <div
         className="aspect-[16/9] w-full"
         style={{
