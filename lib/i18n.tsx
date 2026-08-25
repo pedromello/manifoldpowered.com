@@ -1,14 +1,10 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react";
 import { useRouter } from "next/router";
 import { ptBR } from "lib/i18n/pt-BR";
+import { localeNames, locales, type AppLocale } from "lib/locale";
 
-export const locales = ["en", "pt-BR"] as const;
-export type AppLocale = (typeof locales)[number];
-
-export const localeNames: Record<AppLocale, string> = {
-  en: "English",
-  "pt-BR": "Português (Brasil)",
-};
+export { localeNames, locales };
+export type { AppLocale };
 
 type TranslationValues = Record<string, string | number>;
 

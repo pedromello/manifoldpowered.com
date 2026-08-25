@@ -2,6 +2,7 @@ import { Languages } from "lucide-react";
 import { useRouter } from "next/router";
 
 import { localeNames, type AppLocale, useI18n } from "lib/i18n";
+import { LOCALE_COOKIE } from "lib/locale";
 
 export function LanguageSwitcher({
   className = "",
@@ -14,7 +15,7 @@ export function LanguageSwitcher({
   const { locale, t } = useI18n();
 
   async function changeLocale(nextLocale: AppLocale) {
-    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
     await router.push(router.asPath, router.asPath, { locale: nextLocale });
   }
 

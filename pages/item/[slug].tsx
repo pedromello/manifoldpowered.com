@@ -11,6 +11,7 @@ import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { headersForInternalFetch } from "lib/internal-fetch";
 
 type ItemPageProps = {
   game: GameDetailApi;
@@ -35,14 +36,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // Forwarded because the price shown here is regional (models/region.ts).
   // Without it a Brazilian visitor saw BRL on the storefront list and USD on
   // this page for the same game.
-  const headers: HeadersInit = {};
-  if (context.req.headers.cookie) {
-    headers.cookie = context.req.headers.cookie;
-  }
-  const country = context.req.headers["x-vercel-ip-country"];
-  if (typeof country === "string") {
-    headers["x-vercel-ip-country"] = country;
-  }
+  const headers = headersForInternalFetch(context.req.headers);
 
   try {
     const response = await fetch(

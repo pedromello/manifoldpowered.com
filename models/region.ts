@@ -1,10 +1,9 @@
 import { NextApiRequest } from "next";
 import currency from "models/currency";
 import { BASE_CURRENCY } from "models/pricing";
+import { COUNTRY_HEADER, countryCodeFromHeader } from "lib/country";
 
-// Vercel sets this on every request from its edge network. Kept as the only
-// source so there is exactly one place to change if the platform changes.
-export const COUNTRY_HEADER = "x-vercel-ip-country";
+export { COUNTRY_HEADER };
 
 // ISO 3166-1 alpha-2 → ISO 4217. Deliberately a static map rather than a
 // table: it is a property of the world, not of our catalogue, so putting it in
@@ -73,21 +72,7 @@ const COUNTRY_CURRENCY: Record<string, string> = {
 };
 
 function countryFromRequest(req: NextApiRequest): string | null {
-  const header = req.headers[COUNTRY_HEADER];
-  const value = Array.isArray(header) ? header[0] : header;
-
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().toUpperCase();
-
-  // Vercel sends "XX" when it cannot geolocate the request.
-  if (!/^[A-Z]{2}$/.test(normalized) || normalized === "XX") {
-    return null;
-  }
-
-  return normalized;
+  return countryCodeFromHeader(req.headers[COUNTRY_HEADER]);
 }
 
 export function currencyCodeForCountry(country: string | null): string {

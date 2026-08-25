@@ -8,6 +8,7 @@ import { StoreLayout } from "components/store/StoreLayout";
 import { Storefront } from "components/store/Storefront";
 import type { StoreApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { headersForInternalFetch } from "lib/internal-fetch";
 
 interface CurrentUser {
   id: string;
@@ -34,14 +35,7 @@ const userFetcher = (url: string) =>
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
 
-  const headers: HeadersInit = {};
-  if (context.req.headers.cookie) {
-    headers.cookie = context.req.headers.cookie;
-  }
-  const country = context.req.headers["x-vercel-ip-country"];
-  if (typeof country === "string") {
-    headers["x-vercel-ip-country"] = country;
-  }
+  const headers = headersForInternalFetch(context.req.headers);
 
   try {
     const response = await fetch(
