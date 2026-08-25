@@ -9,6 +9,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+import { useI18n } from "lib/i18n";
 
 const DEMO_NOTICE_KEY = "manifold-demo-notice-dismissed";
 
@@ -32,6 +33,7 @@ const STEPS = [
 
 export function StoreWelcome() {
   const [showDemoNotice, setShowDemoNotice] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -56,15 +58,15 @@ export function StoreWelcome() {
             aria-hidden="true"
           />
           <p className="flex-1 font-bold leading-relaxed">
-            You&apos;re exploring the Manifold preview. The games, prices, and
-            studios shown here are sample content and are not currently for
-            sale.
+            {t(
+              "You're exploring the Manifold preview. The games, prices, and Studios shown here are sample content and are not currently for sale.",
+            )}
           </p>
           <button
             type="button"
             onClick={dismissDemoNotice}
             className="shrink-0 rounded-lg p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="Dismiss preview notice"
+            aria-label={t("Dismiss preview notice")}
           >
             <X size={18} />
           </button>
@@ -75,16 +77,17 @@ export function StoreWelcome() {
         <div className="flex flex-col items-start gap-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/60">
             <Gamepad2 size={16} aria-hidden="true" />
-            Game distribution, powered by communities
+            {t("Game distribution, powered by communities")}
           </div>
 
           <div className="flex flex-col gap-4">
             <h1 className="max-w-[12ch] text-5xl font-black leading-[0.95] tracking-[-0.045em] text-white md:text-7xl lg:text-8xl">
-              One library. Endless storefronts.
+              {t("One library. Endless storefronts.")}
             </h1>
             <p className="max-w-2xl text-lg font-bold leading-relaxed text-white/60 md:text-xl">
-              Discover games through creators you trust, publish once across the
-              network, or launch an Outlet for your own community.
+              {t(
+                "Discover games through creators you trust, publish once across the network, or launch an Outlet for your own community.",
+              )}
             </p>
           </div>
 
@@ -93,27 +96,30 @@ export function StoreWelcome() {
               href="#catalog"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-black uppercase tracking-wider text-[#1D0F3B] transition-transform hover:-translate-y-0.5"
             >
-              Explore games
+              {t("Explore games")}
               <ArrowRight size={17} aria-hidden="true" />
             </a>
             <Link
               href="/onboarding/create"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-black uppercase tracking-wider text-white transition-colors hover:bg-white/10"
             >
-              Publish a game
+              {t("Publish a game")}
             </Link>
             <Link
               href="/store/new"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-black uppercase tracking-wider text-white transition-colors hover:bg-white/10"
             >
-              Create an Outlet
+              {t("Create an Outlet")}
             </Link>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3" aria-label="How Manifold works">
+        <div
+          className="flex flex-col gap-3"
+          aria-label={t("How Manifold works")}
+        >
           <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-white/40">
-            How Manifold works
+            {t("How Manifold works")}
           </p>
           {STEPS.map(({ icon: Icon, label, detail }, index) => (
             <div
@@ -129,8 +135,8 @@ export function StoreWelcome() {
                 aria-hidden="true"
               />
               <div className="min-w-0">
-                <p className="font-black text-white">{label}</p>
-                <p className="text-sm font-bold text-white/45">{detail}</p>
+                <p className="font-black text-white">{t(label)}</p>
+                <p className="text-sm font-bold text-white/45">{t(detail)}</p>
               </div>
             </div>
           ))}

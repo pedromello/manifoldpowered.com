@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
+import { useI18n } from "lib/i18n";
 
 interface Store {
   id: string;
@@ -29,6 +30,7 @@ const fetcher = (url: string) =>
 
 export default function MyStoresPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const { data, isLoading, error } = useSWR<StoresResponse>(
     "/api/v1/stores",
@@ -62,7 +64,7 @@ export default function MyStoresPage() {
   return (
     <>
       <Head>
-        <title>My Outlets | Manifold</title>
+        <title>{t("My Outlets | Manifold")}</title>
       </Head>
 
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 py-10 text-white sm:px-6">
@@ -71,9 +73,9 @@ export default function MyStoresPage() {
         ) : (
           <div className="flex w-full max-w-2xl flex-col gap-5 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 sm:p-8">
             <div>
-              <h1 className="text-2xl font-black">Choose an Outlet</h1>
+              <h1 className="text-2xl font-black">{t("Choose an Outlet")}</h1>
               <p className="text-white/50 text-sm font-bold mt-1">
-                Pick which one to open.
+                {t("Pick which one to open.")}
               </p>
             </div>
             {stores.map((storeItem) => (
@@ -85,7 +87,9 @@ export default function MyStoresPage() {
                 <span className="truncate">{storeItem.name}</span>
                 {currentUser && (
                   <span className="shrink-0 px-2 py-0.5 rounded-md bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
-                    {storeItem.owner_id === currentUser.id ? "Owner" : "Member"}
+                    {storeItem.owner_id === currentUser.id
+                      ? t("Owner")
+                      : t("Member")}
                   </span>
                 )}
               </Link>

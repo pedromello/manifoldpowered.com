@@ -10,6 +10,7 @@ import { DEFAULT_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 type ItemPageProps = {
   game: GameDetailApi;
@@ -80,6 +81,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default function GameDetailsPage({ game, store }: ItemPageProps) {
+  const { t } = useI18n();
   const controller = useItemController({
     gameSlug: game.slug,
     storeSlug: store?.slug,
@@ -95,7 +97,7 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
     <StorefrontShell
       store={store}
       palette={custom?.palette ?? (store ? DEFAULT_PALETTE : PLATFORM_PALETTE)}
-      title={`${game.title} | Manifold Outlets`}
+      title={t("{title} | Manifold Outlets", { title: game.title })}
       description={game.description}
     >
       <ItemView {...controller} game={game} store={store} />

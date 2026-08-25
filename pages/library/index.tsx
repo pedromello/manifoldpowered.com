@@ -6,6 +6,7 @@ import { BookMarked, PackageX, Receipt } from "lucide-react";
 import { LibraryGameCard } from "components/library/LibraryGameCard";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import type { GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 type LibraryItem = {
   id: string;
@@ -14,6 +15,7 @@ type LibraryItem = {
 };
 
 export default function LibraryPage() {
+  const { locale, t } = useI18n();
   const {
     data: libraryData,
     error,
@@ -34,7 +36,7 @@ export default function LibraryPage() {
   return (
     <div className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
       <Head>
-        <title>My Library | Manifold</title>
+        <title>{t("My Library | Manifold")}</title>
         <meta name="theme-color" content="#0b0812" />
       </Head>
 
@@ -43,14 +45,15 @@ export default function LibraryPage() {
           <div>
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.17em] text-violet-300">
               <BookMarked size={15} />
-              Your collection
+              {t("Your collection")}
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-[-0.035em] sm:text-5xl">
-              My Library
+              {t("My Library")}
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/45">
-              Every game you acquire through Manifold, ready to download from
-              one place.
+              {t(
+                "Every game you acquire through Manifold, ready to download from one place.",
+              )}
             </p>
           </div>
 
@@ -60,7 +63,7 @@ export default function LibraryPage() {
               className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
             >
               <Receipt size={16} />
-              Purchase history
+              {t("Purchase history")}
             </Link>
           )}
         </header>
@@ -69,23 +72,24 @@ export default function LibraryPage() {
           <section className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-xl border border-white/[0.09] bg-[#14101c] px-6 text-center">
             <BookMarked size={38} className="text-white/20" />
             <h2 className="mt-5 text-2xl font-black">
-              Log in to see your games
+              {t("Log in to see your games")}
             </h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/45">
-              Your library is tied to your Manifold account, no matter which
-              Outlet introduced you to a game.
+              {t(
+                "Your library is tied to your Manifold account, no matter which Outlet introduced you to a game.",
+              )}
             </p>
             <Link
               href="/login?callbackUrl=/library"
               className="mt-6 inline-flex h-11 items-center rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-bold hover:from-fuchsia-500 hover:to-violet-500"
             >
-              Log in to Manifold
+              {t("Log in to Manifold")}
             </Link>
           </section>
         ) : isLoading ? (
           <div
             className="grid gap-4 pt-8 lg:grid-cols-2"
-            aria-label="Loading library"
+            aria-label={t("Loading library")}
           >
             {Array.from({ length: 4 }).map((_, index) => (
               <div
@@ -98,7 +102,9 @@ export default function LibraryPage() {
           <section className="pt-8">
             <div className="mb-5 flex items-center justify-between">
               <p className="text-sm font-semibold text-white/40">
-                {games.length} {games.length === 1 ? "game" : "games"}
+                {t(games.length === 1 ? "{count} game" : "{count} games", {
+                  count: games.length.toLocaleString(locale),
+                })}
               </p>
             </div>
             <div className="grid gap-4 xl:grid-cols-2">
@@ -110,16 +116,19 @@ export default function LibraryPage() {
         ) : (
           <section className="mt-8 flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 px-6 text-center">
             <PackageX size={38} className="text-white/15" />
-            <h2 className="mt-5 text-2xl font-black">Your library is empty</h2>
+            <h2 className="mt-5 text-2xl font-black">
+              {t("Your library is empty")}
+            </h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/40">
-              Find a game through Manifold or an independent Outlet. It will
-              appear here after acquisition.
+              {t(
+                "Find a game through Manifold or an independent Outlet. It will appear here after acquisition.",
+              )}
             </p>
             <Link
               href="/store"
               className="mt-6 inline-flex h-10 items-center rounded-lg border border-white/15 px-4 text-sm font-semibold text-white/65 hover:border-white/30 hover:text-white"
             >
-              Browse games
+              {t("Browse games")}
             </Link>
           </section>
         )}

@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeStudio {
   id: string;
@@ -37,6 +38,7 @@ const fetcher = (url: string) =>
 
 export default function BackofficeStudioDetailPage() {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const { slug } = router.query;
 
   const key = slug ? `/api/v1/backoffice/studios/${slug}` : null;
@@ -50,8 +52,8 @@ export default function BackofficeStudioDetailPage() {
       <Head>
         <title>
           {studio
-            ? `${studio.name} | Manifold Admin`
-            : "Studio | Manifold Admin"}
+            ? t("{name} | Manifold Admin", { name: studio.name })
+            : t("Studio | Manifold Admin")}
         </title>
       </Head>
 
@@ -61,13 +63,13 @@ export default function BackofficeStudioDetailPage() {
           className="flex items-center gap-2 text-sm font-bold text-white/50 hover:text-white transition-colors w-fit"
         >
           <ArrowLeft size={14} />
-          Back to Studios
+          {t("Back to Studios")}
         </Link>
 
         {isLoading ? (
           <Loader2 className="animate-spin text-white/30" />
         ) : error || !studio ? (
-          <p className="text-rose-300 font-bold">Studio not found.</p>
+          <p className="text-rose-300 font-bold">{t("Studio not found.")}</p>
         ) : (
           <>
             <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
@@ -87,14 +89,14 @@ export default function BackofficeStudioDetailPage() {
                       : "bg-white/10 text-white/50"
                   }`}
                 >
-                  {studio.is_publisher ? "Publisher" : "Developer"}
+                  {studio.is_publisher ? t("Publisher") : t("Developer")}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                    Studio ID
+                    {t("Studio ID")}
                   </div>
                   <div className="text-white/70 font-mono text-xs break-all">
                     {studio.id}
@@ -102,24 +104,26 @@ export default function BackofficeStudioDetailPage() {
                 </div>
                 <div>
                   <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                    Created
+                    {t("Created")}
                   </div>
                   <div className="text-white/70 font-bold">
-                    {new Date(studio.created_at).toLocaleString()}
+                    {new Date(studio.created_at).toLocaleString(locale)}
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col gap-3">
-              <h2 className="text-xl font-black">Games ({games.length})</h2>
+              <h2 className="text-xl font-black">
+                {t("Games ({count})", { count: games.length })}
+              </h2>
               <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
                 <table className="w-full text-sm">
                   <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="px-4 py-3 text-left">Title</th>
-                      <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3 text-left">Submitted</th>
+                      <th className="px-4 py-3 text-left">{t("Title")}</th>
+                      <th className="px-4 py-3 text-left">{t("Status")}</th>
+                      <th className="px-4 py-3 text-left">{t("Submitted")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -129,7 +133,7 @@ export default function BackofficeStudioDetailPage() {
                           colSpan={3}
                           className="px-4 py-8 text-center text-white/40 font-bold"
                         >
-                          No games yet.
+                          {t("No games yet.")}
                         </td>
                       </tr>
                     ) : (
@@ -153,11 +157,13 @@ export default function BackofficeStudioDetailPage() {
                                     : "bg-white/10 text-white/50"
                               }`}
                             >
-                              {game.status}
+                              {t(game.status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-white/40">
-                            {new Date(game.created_at).toLocaleDateString()}
+                            {new Date(game.created_at).toLocaleDateString(
+                              locale,
+                            )}
                           </td>
                         </tr>
                       ))

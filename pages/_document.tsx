@@ -1,8 +1,14 @@
-import { Html, Head, Main, NextScript } from "next/document";
+import {
+  Html,
+  Head,
+  Main,
+  NextScript,
+  type DocumentProps,
+} from "next/document";
 
-export default function Document() {
+export default function Document({ __NEXT_DATA__ }: DocumentProps) {
   return (
-    <Html lang="pt-BR">
+    <Html lang={__NEXT_DATA__.locale ?? "en"}>
       <Head>
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="apple-touch-icon" href="/images/brand/apple-icon.png" />

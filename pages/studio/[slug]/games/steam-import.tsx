@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { Loader2 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { extractSteamAppId } from "lib/steam";
+import { useI18n } from "lib/i18n";
 
 interface CurrentUser {
   id: string;
@@ -27,6 +28,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function StudioSteamImportPage() {
   const router = useRouter();
+  const { t, translateError } = useI18n();
   const slug = router.query.slug as string | undefined;
 
   const { error: userError, isLoading: isUserLoading } = useSWR<CurrentUser>(
@@ -59,7 +61,9 @@ export default function StudioSteamImportPage() {
     const steamAppId = extractSteamAppId(input);
     if (!steamAppId) {
       setFormError(
-        "Enter a valid Steam store link (e.g. https://store.steampowered.com/app/400/) or a numeric App ID.",
+        t(
+          "Enter a valid Steam store link (e.g. https://store.steampowered.com/app/400/) or a numeric App ID.",
+        ),
       );
       return;
     }
@@ -78,7 +82,9 @@ export default function StudioSteamImportPage() {
       const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setFormError(body?.message || "Failed to import game from Steam.");
+        setFormError(
+          translateError(body?.message, "Failed to import game from Steam."),
+        );
         return;
       }
 
@@ -91,16 +97,16 @@ export default function StudioSteamImportPage() {
   return (
     <>
       <Head>
-        <title>Import from Steam | Manifold</title>
+        <title>{t("Import from Steam | Manifold")}</title>
       </Head>
 
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 py-10 text-white sm:px-6">
         <div className="flex w-full max-w-xl flex-col gap-6 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 sm:p-8">
           <div>
-            <h1 className="text-2xl font-black">Import from Steam</h1>
+            <h1 className="text-2xl font-black">{t("Import from Steam")}</h1>
             {studio && (
               <p className="text-white/50 text-sm font-bold mt-1 break-words">
-                Importing into {studio.name}
+                {t("Importing into {name}", { name: studio.name })}
               </p>
             )}
           </div>
@@ -108,12 +114,12 @@ export default function StudioSteamImportPage() {
           {isUserLoading || isStudioLoading ? (
             <Loader2 className="animate-spin text-white/30" />
           ) : !studio ? (
-            <p className="text-rose-300 font-bold">Studio not found.</p>
+            <p className="text-rose-300 font-bold">{t("Studio not found.")}</p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="flex flex-col gap-2">
                 <span className="text-xs font-black uppercase tracking-wider text-white/40">
-                  Steam store link or App ID
+                  {t("Steam store link or App ID")}
                 </span>
                 <input
                   type="text"
@@ -135,7 +141,7 @@ export default function StudioSteamImportPage() {
                 disabled={isSubmitting || !input.trim()}
                 className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isSubmitting ? "Importing..." : "Import Game"}
+                {isSubmitting ? t("Importing...") : t("Import Game")}
               </button>
             </form>
           )}

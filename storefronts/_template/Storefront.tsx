@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import type { StorefrontViewProps } from "components/storefront/types";
 import { formatPrice, isFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 /**
  * Starting point for a bespoke outlet storefront.
@@ -39,6 +40,7 @@ export function TemplateStorefront({
   browseHref,
   searchAction,
 }: StorefrontViewProps) {
+  const { t } = useI18n();
   return (
     <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] px-6 md:px-10 max-w-7xl mx-auto flex flex-col gap-10">
       <header className="flex flex-col gap-4">
@@ -66,7 +68,7 @@ export function TemplateStorefront({
                 </p>
               )}
               <span className="text-sf-accent font-black uppercase">
-                {isFree(game) ? "Free" : formatPrice(game)}
+                {isFree(game) ? t("Free") : formatPrice(game)}
               </span>
             </Link>
           ))}
@@ -80,7 +82,7 @@ export function TemplateStorefront({
           name="q"
           data-storefront="search"
           defaultValue={q}
-          placeholder="Search games..."
+          placeholder={t("Search games...")}
           className="w-full rounded-2xl border border-sf-border bg-sf-surface px-5 py-4 text-sf-fg placeholder:text-sf-muted outline-none"
         />
         {activeCategory && (
@@ -106,7 +108,7 @@ export function TemplateStorefront({
                   : "bg-sf-surface border border-sf-border text-sf-muted"
               }`}
             >
-              {category}
+              {t(category)}
             </Link>
           );
         })}
@@ -115,7 +117,9 @@ export function TemplateStorefront({
       {/* Required: the catalogue. */}
       <section data-storefront="game-list" className="flex flex-col gap-4">
         {isLoading ? (
-          <p className="py-20 text-center text-sf-muted font-bold">Loading…</p>
+          <p className="py-20 text-center text-sf-muted font-bold">
+            {t("Loading…")}
+          </p>
         ) : games.length > 0 ? (
           games.map((game) => (
             <Link
@@ -131,13 +135,13 @@ export function TemplateStorefront({
                 </p>
               </div>
               <span className="text-sf-accent font-black uppercase shrink-0">
-                {isFree(game) ? "Free" : formatPrice(game)}
+                {isFree(game) ? t("Free") : formatPrice(game)}
               </span>
             </Link>
           ))
         ) : (
           <p className="py-20 text-center text-sf-muted font-bold">
-            Nothing here yet.
+            {t("Nothing here yet.")}
           </p>
         )}
       </section>

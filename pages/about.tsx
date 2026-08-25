@@ -7,6 +7,7 @@ import { ArrowRight, Library, Radio, Upload } from "lucide-react";
 import { IconBrandGithub } from "@tabler/icons-react";
 
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import { useI18n } from "lib/i18n";
 
 type AudienceKey = "creators" | "developers" | "players";
 
@@ -157,6 +158,7 @@ export default function AboutPage({
   initialAudience: AudienceKey;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [selectedAudience, setSelectedAudience] =
     useState<AudienceKey>(initialAudience);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,12 +198,15 @@ export default function AboutPage({
   return (
     <>
       <Head>
-        <title>{selectedContent.title}</title>
-        <meta name="description" content={selectedContent.description} />
+        <title>{t(selectedContent.title)}</title>
+        <meta name="description" content={t(selectedContent.description)} />
         <meta name="theme-color" content="#0b0812" />
         <meta property="og:type" content="website" />
-        <meta property="og:title" content={selectedContent.title} />
-        <meta property="og:description" content={selectedContent.description} />
+        <meta property="og:title" content={t(selectedContent.title)} />
+        <meta
+          property="og:description"
+          content={t(selectedContent.description)}
+        />
         <meta
           property="og:image"
           content="https://manifoldpowered.com/images/brand/manifold-logo.png"
@@ -213,23 +218,26 @@ export default function AboutPage({
           <div className="mx-auto grid max-w-[1500px] gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
-                Open-source pre-release
+                {t("Open-source pre-release")}
               </p>
               <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[1.02] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-                A game marketplace built around who helps discovery happen.
+                {t(
+                  "A game marketplace built around the people who make discovery happen.",
+                )}
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-white/52 sm:text-lg">
-                Think Steam, but with creator-run storefronts. Games share one
-                catalog and players keep one library.
+                {t(
+                  "Think Steam, but with creator-run storefronts. Games share one catalog and players keep one library.",
+                )}
               </p>
             </div>
 
             <div className="rounded-xl border border-white/[0.09] bg-[#14101c] p-5">
               <p className="text-sm font-semibold text-white/75">
-                See Manifold from your perspective
+                {t("See Manifold from your perspective")}
               </p>
               <nav
-                aria-label="Select audience"
+                aria-label={t("Select audience")}
                 className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-black/25 p-1"
               >
                 {audienceKeys.map((audience) => {
@@ -246,7 +254,7 @@ export default function AboutPage({
                           : "text-white/40 hover:text-white/75"
                       }`}
                     >
-                      {audiences[audience].tabLabel}
+                      {t(audiences[audience].tabLabel)}
                     </button>
                   );
                 })}
@@ -259,10 +267,10 @@ export default function AboutPage({
           <div className="mx-auto max-w-[1500px]">
             <div className="grid gap-8 border-b border-white/[0.08] pb-12 lg:grid-cols-2 lg:pb-16">
               <h2 className="max-w-xl text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-                {selectedContent.hero}
+                {t(selectedContent.hero)}
               </h2>
               <p className="max-w-2xl text-base leading-8 text-white/55 lg:justify-self-end">
-                {selectedContent.manifesto}
+                {t(selectedContent.manifesto)}
               </p>
             </div>
 
@@ -273,10 +281,10 @@ export default function AboutPage({
                   className="bg-[#100c17] p-6 lg:p-8"
                 >
                   <h3 className="text-lg font-bold text-white">
-                    {feature.title}
+                    {t(feature.title)}
                   </h3>
                   <p className="mt-3 text-sm leading-6 text-white/45">
-                    {feature.description}
+                    {t(feature.description)}
                   </p>
                 </article>
               ))}
@@ -289,15 +297,16 @@ export default function AboutPage({
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
-                  The network
+                  {t("The network")}
                 </p>
                 <h2 className="mt-3 text-3xl font-black tracking-tight">
-                  How Manifold works
+                  {t("How Manifold works")}
                 </h2>
               </div>
               <p className="max-w-lg text-sm leading-6 text-white/42">
-                The catalog is shared. Discovery is distributed. Ownership stays
-                simple for the player.
+                {t(
+                  "The catalog is shared. Discovery is distributed. Ownership stays simple for the player.",
+                )}
               </p>
             </div>
 
@@ -314,9 +323,9 @@ export default function AboutPage({
                         {number}
                       </span>
                     </div>
-                    <h3 className="mt-7 text-lg font-bold">{title}</h3>
+                    <h3 className="mt-7 text-lg font-bold">{t(title)}</h3>
                     <p className="mt-2 text-sm leading-6 text-white/43">
-                      {description}
+                      {t(description)}
                     </p>
                   </article>
                 ),
@@ -329,10 +338,10 @@ export default function AboutPage({
           <div className="mx-auto flex max-w-[1500px] flex-col justify-between gap-8 rounded-xl border border-violet-400/20 bg-violet-500/[0.07] p-7 sm:p-10 lg:flex-row lg:items-center">
             <div>
               <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-                {selectedContent.ctaTitle}
+                {t(selectedContent.ctaTitle)}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/50">
-                {selectedContent.ctaText}
+                {t(selectedContent.ctaText)}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-3">
@@ -349,7 +358,7 @@ export default function AboutPage({
                 href="/signup"
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90"
               >
-                Create an account
+                {t("Create an account")}
                 <ArrowRight size={17} />
               </Link>
             </div>

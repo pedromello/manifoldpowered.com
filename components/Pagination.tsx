@@ -1,3 +1,5 @@
+import { useI18n } from "lib/i18n";
+
 export interface PaginationApi {
   page: number;
   limit: number;
@@ -15,6 +17,7 @@ export function Pagination({
   pagination?: PaginationApi;
   onPageChange: (updater: (page: number) => number) => void;
 }) {
+  const { t } = useI18n();
   if (!pagination || pagination.pages <= 1) {
     return null;
   }
@@ -26,17 +29,20 @@ export function Pagination({
         onClick={() => onPageChange((page) => Math.max(1, page - 1))}
         className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
       >
-        Previous
+        {t("Previous")}
       </button>
       <span className="text-sm font-bold text-white/50">
-        Page {pagination.page} of {pagination.pages}
+        {t("Page {current} of {total}", {
+          current: pagination.page,
+          total: pagination.pages,
+        })}
       </span>
       <button
         disabled={pagination.page >= pagination.pages}
         onClick={() => onPageChange((page) => page + 1)}
         className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
       >
-        Next
+        {t("Next")}
       </button>
     </div>
   );

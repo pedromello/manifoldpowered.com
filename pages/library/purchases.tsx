@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, PackageX, Receipt, Store } from "lucide-react";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { formatMoney } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 interface PurchaseApi {
   id: string;
@@ -20,6 +21,7 @@ interface PurchaseApi {
 }
 
 export default function PurchasesPage() {
+  const { locale, t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, error, isLoading } = useSWR<{
     purchases: PurchaseApi[];
@@ -40,7 +42,7 @@ export default function PurchasesPage() {
   return (
     <>
       <Head>
-        <title>Purchase History | Manifold</title>
+        <title>{t("Purchase History | Manifold")}</title>
         <meta name="theme-color" content="#0b0812" />
       </Head>
 
@@ -51,58 +53,62 @@ export default function PurchasesPage() {
             className="inline-flex items-center gap-2 text-sm font-semibold text-white/45 transition-colors hover:text-white"
           >
             <ArrowLeft size={16} />
-            Back to library
+            {t("Back to library")}
           </Link>
 
           <header className="mt-7 border-b border-white/[0.08] pb-8">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-violet-300">
               <Receipt size={16} />
-              Your account
+              {t("Your account")}
             </div>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              Purchase history
+              {t("Purchase history")}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">
-              The amount, currency, date, and referring Outlet recorded for each
-              purchase.
+              {t(
+                "The amount, currency, date, and referring Outlet recorded for each purchase.",
+              )}
             </p>
           </header>
 
           {error ? (
             <section className="mt-8 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-14 text-center">
               <h2 className="text-xl font-bold">
-                Log in to see your purchases
+                {t("Log in to see your purchases")}
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/45">
-                Purchase history is private and attached to your Manifold
-                account.
+                {t(
+                  "Purchase history is private and attached to your Manifold account.",
+                )}
               </p>
               <Link
                 href="/login?callbackUrl=/library/purchases"
                 className="mt-6 inline-flex rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-bold text-white"
               >
-                Log in
+                {t("Log in")}
               </Link>
             </section>
           ) : isLoading ? (
             <div className="flex items-center justify-center gap-3 py-24 text-sm font-semibold text-white/45">
               <Loader2 size={20} className="animate-spin" />
-              Loading purchase history
+              {t("Loading purchase history")}
             </div>
           ) : purchases.length > 0 ? (
             <section className="mt-8">
               <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-white/35">
-                {total} {total === 1 ? "purchase" : "purchases"}
+                {t(total === 1 ? "{count} purchase" : "{count} purchases", {
+                  count: total.toLocaleString(locale),
+                })}
               </p>
 
               <div className="overflow-x-auto rounded-xl border border-white/[0.09] bg-[#100c17]">
                 <table className="w-full min-w-[620px] text-sm">
                   <thead className="border-b border-white/[0.08] bg-white/[0.025] text-left text-[10px] uppercase tracking-[0.13em] text-white/35">
                     <tr>
-                      <th className="px-5 py-4">Game</th>
-                      <th className="px-5 py-4">Bought through</th>
-                      <th className="px-5 py-4">Date</th>
-                      <th className="px-5 py-4 text-right">Paid</th>
+                      <th className="px-5 py-4">{t("Game")}</th>
+                      <th className="px-5 py-4">{t("Bought through")}</th>
+                      <th className="px-5 py-4">{t("Date")}</th>
+                      <th className="px-5 py-4 text-right">{t("Paid")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -127,14 +133,16 @@ export default function PurchasesPage() {
                           {purchase.store_id ? (
                             <span className="inline-flex items-center gap-2">
                               <Store size={14} />
-                              An Outlet
+                              {t("An Outlet")}
                             </span>
                           ) : (
                             "Manifold"
                           )}
                         </td>
                         <td className="whitespace-nowrap px-5 py-4 text-white/45">
-                          {new Date(purchase.created_at).toLocaleDateString()}
+                          {new Date(purchase.created_at).toLocaleDateString(
+                            locale,
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-5 py-4 text-right font-bold text-white/85">
                           {formatMoney(
@@ -156,23 +164,27 @@ export default function PurchasesPage() {
               </div>
 
               <p className="mt-6 text-xs leading-5 text-white/28">
-                Manifold is the seller for these purchases. An Outlet records
-                who referred the purchase; your contract of sale is with
-                Manifold.
+                {t(
+                  "Manifold is the seller for these purchases. An Outlet records who referred the purchase; your contract of sale is with Manifold.",
+                )}
               </p>
             </section>
           ) : (
             <section className="mt-8 flex flex-col items-center rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-14 text-center">
               <PackageX size={34} className="text-white/25" />
-              <h2 className="mt-5 text-xl font-bold">No purchases yet</h2>
+              <h2 className="mt-5 text-xl font-bold">
+                {t("No purchases yet")}
+              </h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-white/45">
-                When you buy a game, the exact transaction will appear here.
+                {t(
+                  "When you buy a game, the exact transaction will appear here.",
+                )}
               </p>
               <Link
                 href="/store"
                 className="mt-6 rounded-lg border border-white/15 px-5 py-3 text-sm font-bold text-white/75 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
-                Browse games
+                {t("Browse games")}
               </Link>
             </section>
           )}

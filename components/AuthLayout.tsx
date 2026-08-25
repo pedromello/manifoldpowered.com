@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft, Check } from "lucide-react";
+import { LanguageSwitcher } from "components/LanguageSwitcher";
+import { useI18n } from "lib/i18n";
 
 interface AuthLayoutProps {
   title: string;
@@ -21,11 +23,12 @@ export default function AuthLayout({
   description = "Join Manifold",
   children,
 }: AuthLayoutProps) {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-[#0b0812] text-white">
       <Head>
         <title>{title}</title>
-        <meta name="description" content={description} />
+        <meta name="description" content={t(description)} />
         <meta name="robots" content="noindex" />
         <meta name="theme-color" content="#0b0812" />
         <link rel="icon" href="/images/brand/manifold-ico.ico" />
@@ -36,7 +39,7 @@ export default function AuthLayout({
           <Link
             href="/store"
             className="inline-flex items-center gap-3"
-            aria-label="Manifold Store"
+            aria-label={t("Manifold Store")}
           >
             <Image
               src="/images/brand/manifold-logo.png"
@@ -51,27 +54,31 @@ export default function AuthLayout({
             </span>
           </Link>
 
-          <Link
-            href="/store"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-white/45 transition-colors hover:text-white"
-          >
-            <ArrowLeft size={16} />
-            Back to Store
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher compact />
+            <Link
+              href="/store"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white/45 transition-colors hover:text-white"
+            >
+              <ArrowLeft size={16} />
+              {t("Back to Store")}
+            </Link>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_460px] lg:gap-20 lg:py-16">
         <section className="max-w-xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
-            Your Manifold account
+            {t("Your Manifold account")}
           </p>
           <h1 className="mt-4 text-4xl font-black leading-tight tracking-[-0.035em] sm:text-5xl">
-            Your games follow you, not the storefront.
+            {t("Your games follow you, not the storefront.")}
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-white/50">
-            Discover a game through any creator-run Outlet and keep it in the
-            same personal library.
+            {t(
+              "Discover a game through any creator-run Outlet and keep it in the same personal library.",
+            )}
           </p>
 
           <ul className="mt-8 space-y-4">
@@ -83,7 +90,7 @@ export default function AuthLayout({
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-violet-400/20 bg-violet-400/[0.08] text-violet-300">
                   <Check size={14} />
                 </span>
-                {benefit}
+                {t(benefit)}
               </li>
             ))}
           </ul>

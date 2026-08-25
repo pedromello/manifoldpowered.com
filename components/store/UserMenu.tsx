@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
+import { useI18n } from "lib/i18n";
 
 export function UserMenu({
   variant = "default",
@@ -18,6 +19,7 @@ export function UserMenu({
   variant?: "default" | "store-home";
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +81,7 @@ export function UserMenu({
         }
       >
         <User size={16} />
-        <span className="hidden sm:inline">Log in</span>
+        <span className="hidden sm:inline">{t("Log in")}</span>
       </Link>
     );
   }
@@ -89,7 +91,7 @@ export function UserMenu({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-colors"
-        aria-label="User menu"
+        aria-label={t("User menu")}
       >
         <span className="font-black text-sm uppercase">
           {user?.username?.charAt(0) || <User size={16} />}
@@ -111,7 +113,7 @@ export function UserMenu({
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Library size={16} className="text-indigo-400" />
-              My Library
+              {t("My Library")}
             </Link>
 
             <Link
@@ -120,7 +122,7 @@ export function UserMenu({
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Building2 size={16} className="text-indigo-400" />
-              My Studios
+              {t("My Studios")}
             </Link>
 
             <Link
@@ -129,7 +131,7 @@ export function UserMenu({
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Store size={16} className="text-indigo-400" />
-              My Outlets
+              {t("My Outlets")}
             </Link>
 
             {user?.username === "pedromello" && (
@@ -139,7 +141,7 @@ export function UserMenu({
                 className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <Shield size={16} className="text-indigo-400" />
-                Backoffice
+                {t("Backoffice")}
               </Link>
             )}
 
@@ -148,7 +150,7 @@ export function UserMenu({
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors w-full text-left"
             >
               <LogOut size={16} />
-              Sign Out
+              {t("Sign Out")}
             </button>
           </div>
         </div>

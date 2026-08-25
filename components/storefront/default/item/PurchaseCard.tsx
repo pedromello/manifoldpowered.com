@@ -17,6 +17,7 @@ import { discountBadgeColor } from "components/store/constants";
 import { formatBasePrice, formatPrice } from "lib/price";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
+import { useI18n } from "lib/i18n";
 
 export function PurchaseCard({
   game,
@@ -38,6 +39,7 @@ export function PurchaseCard({
   wishlist: ItemWishlist;
 }) {
   const router = useRouter();
+  const { locale, t } = useI18n();
 
   return (
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
@@ -53,7 +55,7 @@ export function PurchaseCard({
               className="text-3xl font-black uppercase tracking-tight"
               style={{ color: discountBadgeColor }}
             >
-              {isFreeGame ? "Free" : formatPrice(game)}
+              {isFreeGame ? t("Free") : formatPrice(game)}
             </span>
           </div>
           {!isFreeGame && game.discount_label && (
@@ -66,7 +68,7 @@ export function PurchaseCard({
             onClick={() => router.push("/library")}
             className="w-full rounded-lg border border-violet-400/30 bg-violet-500/15 px-5 py-3.5 text-sm font-bold text-violet-200 transition-colors hover:bg-violet-500/25"
           >
-            In Library
+            {t("In Library")}
           </button>
         ) : (
           <button
@@ -75,14 +77,14 @@ export function PurchaseCard({
             className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCheckingLibrary
-              ? "Checking library..."
+              ? t("Checking library...")
               : isRedeeming
                 ? isFreeGame
-                  ? "Adding..."
-                  : "Processing..."
+                  ? t("Adding...")
+                  : t("Processing...")
                 : isFreeGame
-                  ? "Add to Library"
-                  : `Buy now · ${formatPrice(game)}`}
+                  ? t("Add to Library")
+                  : t("Buy now · {price}", { price: formatPrice(game) })}
           </button>
         )}
 
@@ -103,7 +105,7 @@ export function PurchaseCard({
             className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
           >
             <IconBrandSteam size={24} className="text-white/65" />
-            <span>Add to Wishlist</span>
+            <span>{t("View on Steam")}</span>
             <ExternalLink
               size={16}
               className="opacity-60 group-hover:opacity-100 transition-opacity"
@@ -124,7 +126,7 @@ export function PurchaseCard({
               fill={wishlist.isWishlisted ? "currentColor" : "none"}
               className={wishlist.isToggling ? "opacity-50" : ""}
             />
-            {wishlist.isWishlisted ? "On Wishlist" : "Add to Wishlist"}
+            {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
           </button>
         )}
 
@@ -133,7 +135,7 @@ export function PurchaseCard({
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">
-              Developer
+              {t("Developer")}
             </span>
             <span className="text-right text-sm font-semibold text-white/80">
               {game.developer_name}
@@ -141,10 +143,10 @@ export function PurchaseCard({
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">
-              Release Date
+              {t("Release Date")}
             </span>
             <span className="text-sm font-semibold text-white/80">
-              {new Date(game.launch_date).toLocaleDateString("en-US", {
+              {new Date(game.launch_date).toLocaleDateString(locale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -155,21 +157,25 @@ export function PurchaseCard({
 
         <div className="flex flex-col gap-3">
           <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
-            Features
+            {t("Features")}
           </h4>
           <div className="grid grid-cols-1 gap-2">
             {/* TODO: these three are hardcoded rather than read from
                 game.meta_tags. Left as-is here because changing them changes
                 what customers see, which does not belong in a refactor. */}
-            <MetaTag icon={User} label="Single Player" active={true} />
-            <MetaTag icon={Users} label="Multiplayer" active={false} />
-            <MetaTag icon={Gamepad2} label="Controller Support" active={true} />
+            <MetaTag icon={User} label={t("Single Player")} active={true} />
+            <MetaTag icon={Users} label={t("Multiplayer")} active={false} />
+            <MetaTag
+              icon={Gamepad2}
+              label={t("Controller Support")}
+              active={true}
+            />
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
-            Stay Connected
+            {t("Stay Connected")}
           </h4>
           <div className="grid grid-cols-2 gap-2">
             <SocialLink
@@ -190,7 +196,7 @@ export function PurchaseCard({
             <SocialLink
               icon={Globe}
               href={game.social_links.website}
-              label="Website"
+              label={t("Website")}
             />
           </div>
         </div>

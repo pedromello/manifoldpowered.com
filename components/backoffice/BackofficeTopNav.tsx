@@ -14,6 +14,8 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import { LanguageSwitcher } from "components/LanguageSwitcher";
+import { useI18n } from "lib/i18n";
 
 const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
@@ -28,6 +30,7 @@ const NAV_ITEMS = [
 
 export function BackofficeTopNav({ username }: { username: string }) {
   const router = useRouter();
+  const { t } = useI18n();
 
   async function handleSignOut() {
     await fetch("/api/v1/sessions", { method: "DELETE" });
@@ -53,7 +56,7 @@ export function BackofficeTopNav({ username }: { username: string }) {
       }`}
     >
       <Icon size={17} strokeWidth={1.8} />
-      {label}
+      {t(label)}
     </Link>
   ));
 
@@ -71,18 +74,21 @@ export function BackofficeTopNav({ username }: { username: string }) {
           <div>
             <p className="text-xs font-black tracking-[0.14em]">MANIFOLD</p>
             <p className="mt-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-300">
-              <ShieldCheck size={11} /> Admin
+              <ShieldCheck size={11} /> {t("Admin")}
             </p>
           </div>
         </Link>
 
         <nav
           className="flex flex-1 flex-col gap-1 px-3 pb-5"
-          aria-label="Backoffice navigation"
+          aria-label={t("Backoffice navigation")}
         >
           {links}
 
           <div className="mt-auto border-t border-white/[0.08] pt-4">
+            <div className="mb-3 px-3">
+              <LanguageSwitcher />
+            </div>
             <p className="truncate px-3 text-xs font-semibold text-white/45">
               {username}
             </p>
@@ -90,13 +96,13 @@ export function BackofficeTopNav({ username }: { username: string }) {
               href="/store"
               className="mt-2 flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-white/45 hover:bg-white/[0.05] hover:text-white"
             >
-              <ArrowLeft size={16} /> Back to Store
+              <ArrowLeft size={16} /> {t("Back to Store")}
             </Link>
             <button
               onClick={handleSignOut}
               className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold text-white/45 hover:bg-rose-500/10 hover:text-rose-300"
             >
-              <LogOut size={16} /> Sign out
+              <LogOut size={16} /> {t("Sign out")}
             </button>
           </div>
         </nav>
@@ -109,15 +115,18 @@ export function BackofficeTopNav({ username }: { username: string }) {
             className="flex items-center gap-2 font-bold"
           >
             <ShieldCheck size={19} className="text-violet-300" />
-            Manifold Admin
+            Manifold {t("Admin")}
           </Link>
-          <button
-            onClick={handleSignOut}
-            aria-label="Sign out"
-            className="rounded-lg border border-white/10 p-2 text-white/55"
-          >
-            <LogOut size={17} />
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher compact />
+            <button
+              onClick={handleSignOut}
+              aria-label={t("Sign out")}
+              className="rounded-lg border border-white/10 p-2 text-white/55"
+            >
+              <LogOut size={17} />
+            </button>
+          </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto border-t border-white/[0.06] px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links}

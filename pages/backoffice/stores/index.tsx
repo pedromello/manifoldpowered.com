@@ -4,6 +4,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Loader2, Search } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeStore {
   id: string;
@@ -22,6 +23,7 @@ interface StoresResponse {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BackofficeStoresPage() {
+  const { locale, t } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -39,11 +41,11 @@ export default function BackofficeStoresPage() {
   return (
     <>
       <Head>
-        <title>Stores | Manifold Admin</title>
+        <title>{t("Outlets | Manifold Admin")}</title>
       </Head>
 
       <div className="flex flex-col gap-6">
-        <h1 className="text-3xl font-black">Stores</h1>
+        <h1 className="text-3xl font-black">{t("Outlets")}</h1>
 
         <div className="relative max-w-sm">
           <Search
@@ -52,7 +54,7 @@ export default function BackofficeStoresPage() {
           />
           <input
             type="text"
-            placeholder="Search by name..."
+            placeholder={t("Search by name...")}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -66,8 +68,8 @@ export default function BackofficeStoresPage() {
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">Created</th>
+                <th className="px-4 py-3 text-left">{t("Name")}</th>
+                <th className="px-4 py-3 text-left">{t("Created")}</th>
               </tr>
             </thead>
             <tbody>
@@ -83,7 +85,7 @@ export default function BackofficeStoresPage() {
                     colSpan={2}
                     className="px-4 py-12 text-center text-rose-300 font-bold"
                   >
-                    Failed to load stores.
+                    {t("Failed to load Outlets.")}
                   </td>
                 </tr>
               ) : stores.length === 0 ? (
@@ -92,7 +94,7 @@ export default function BackofficeStoresPage() {
                     colSpan={2}
                     className="px-4 py-12 text-center text-white/40 font-bold"
                   >
-                    No stores found.
+                    {t("No Outlets found.")}
                   </td>
                 </tr>
               ) : (
@@ -107,7 +109,9 @@ export default function BackofficeStoresPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-white/40">
-                      {new Date(storeItem.created_at).toLocaleDateString()}
+                      {new Date(storeItem.created_at).toLocaleDateString(
+                        locale,
+                      )}
                     </td>
                   </tr>
                 ))
@@ -123,17 +127,20 @@ export default function BackofficeStoresPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-sm font-bold text-white/50">
-              Page {pagination.page} of {pagination.pages}
+              {t("Page {current} of {total}", {
+                current: pagination.page,
+                total: pagination.pages,
+              })}
             </span>
             <button
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </div>
         )}

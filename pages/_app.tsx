@@ -1,11 +1,12 @@
 import type { AppProps } from "next/app";
 import { Analytics } from "@vercel/analytics/next";
-import "../app/global.css";
+import "../styles/global.css";
 
 import { ReactElement, ReactNode } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import { PullToRefresh } from "components/PullToRefresh";
+import { I18nProvider } from "lib/i18n";
 
 export type NextPageWithLayout<P = Record<string, unknown>, IP = P> = NextPage<
   P,
@@ -22,7 +23,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
   const getLayout = Component.getLayout ?? ((page) => page);
 
   return (
-    <>
+    <I18nProvider>
       <Head>
         <meta name="theme-color" content="#fffbf6" />
         <meta
@@ -33,6 +34,6 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
       {getLayout(<Component {...pageProps} />)}
       <PullToRefresh />
       <Analytics />
-    </>
+    </I18nProvider>
   );
 }

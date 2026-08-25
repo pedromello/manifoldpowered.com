@@ -4,17 +4,19 @@ import { Calendar, ChevronDown, Download } from "lucide-react";
 
 import { DownloadSection, type GameFile } from "./DownloadSection";
 import type { GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 export function LibraryGameCard({
   gameItem,
 }: {
   gameItem: { id: string; acquired_at: string; game: GameApi };
 }) {
+  const { locale, t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const game = gameItem.game;
   const acquiredDate = new Date(gameItem.acquired_at).toLocaleDateString(
-    "en-US",
+    locale,
     { month: "short", day: "numeric", year: "numeric" },
   );
 
@@ -47,7 +49,7 @@ export function LibraryGameCard({
       document.body.removeChild(anchor);
     } catch (downloadError) {
       console.error(downloadError);
-      alert("There was an error initiating the download.");
+      alert(t("There was an error initiating the download."));
     } finally {
       setDownloadingId(null);
     }
@@ -81,7 +83,7 @@ export function LibraryGameCard({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="flex items-center gap-2 text-xs text-white/35">
               <Calendar size={14} />
-              Added {acquiredDate}
+              {t("Added {date}", { date: acquiredDate })}
             </p>
 
             {files?.length === 1 ? (
@@ -91,7 +93,9 @@ export function LibraryGameCard({
                 className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-4 text-xs font-bold disabled:cursor-progress disabled:opacity-60"
               >
                 <Download size={14} />
-                {downloadingId === files[0].id ? "Preparing..." : "Download"}
+                {downloadingId === files[0].id
+                  ? t("Preparing...")
+                  : t("Download")}
               </button>
             ) : (
               <button
@@ -100,7 +104,7 @@ export function LibraryGameCard({
                 className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 px-4 text-xs font-semibold text-white/55 hover:border-white/20 hover:text-white"
                 aria-expanded={isExpanded}
               >
-                {isExpanded ? "Hide files" : "View files"}
+                {isExpanded ? t("Hide files") : t("View files")}
                 <ChevronDown
                   size={15}
                   className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -114,7 +118,7 @@ export function LibraryGameCard({
       {isExpanded && (
         <div className="border-t border-white/[0.08] bg-black/15 p-5">
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-white/30">
-            Available files
+            {t("Available files")}
           </p>
           <DownloadSection files={files} isLoading={isLoading} error={error} />
         </div>

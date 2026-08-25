@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { ReviewSummary } from "components/store/ReviewSummary";
 import type { GameDetailApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 export function GameHero({
   game,
@@ -13,6 +14,7 @@ export function GameHero({
   backHref: string;
   backLabel: string;
 }) {
+  const { t } = useI18n();
   return (
     <section className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
       <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]">
@@ -39,7 +41,7 @@ export function GameHero({
             ))}
             {game.tags.length > 5 && (
               <span className="px-1 text-[11px] font-semibold text-white/35">
-                +{game.tags.length - 5} more
+                {t("+{count} more", { count: game.tags.length - 5 })}
               </span>
             )}
           </div>
@@ -64,7 +66,7 @@ export function GameHero({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={game.media.banner}
-              alt={`${game.title} cover`}
+              alt={t("{title} cover", { title: game.title })}
               className="h-full w-full object-cover"
             />
             <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.04]" />
