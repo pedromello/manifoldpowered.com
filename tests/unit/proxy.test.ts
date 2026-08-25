@@ -64,6 +64,15 @@ describe("country-aware language proxy", () => {
     expect(getRedirectUrl(response)).toBeNull();
   });
 
+  test("does not redirect Next.js data requests for localized pages", () => {
+    const response = proxy(
+      request("/_next/data/build-id/pt-BR/store.json", { country: "BR" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(getRedirectUrl(response)).toBeNull();
+  });
+
   test.each(["/api/v1/games", "/_next/static/chunk.js", "/images/logo.png"])(
     "never redirects non-page route %s, even for Brazil",
     (url) => {
