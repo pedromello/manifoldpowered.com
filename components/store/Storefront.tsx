@@ -4,6 +4,7 @@ import { DefaultStorefront } from "components/storefront/default/DefaultStorefro
 import { DEFAULT_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
+import { FollowOutletButton } from "components/store/FollowOutletButton";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -55,6 +56,9 @@ export function Storefront({
   });
 
   const custom = store ? resolveStorefront(store) : null;
+  const followControl = store ? (
+    <FollowOutletButton storeSlug={store.slug} storeName={store.name} />
+  ) : null;
 
   return (
     <StorefrontShell
@@ -67,11 +71,16 @@ export function Storefront({
       hasGames={controller.games.length > 0}
     >
       {custom && store ? (
-        <custom.Storefront {...controller} store={store} />
+        <custom.Storefront
+          {...controller}
+          store={store}
+          followControl={followControl}
+        />
       ) : (
         <DefaultStorefront
           {...controller}
           store={store}
+          followControl={followControl}
           heading={heading}
           showDiscover={showDiscover}
           showPlatformWelcome={showPlatformWelcome}

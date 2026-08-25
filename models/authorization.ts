@@ -86,6 +86,12 @@ const AVAILABLE_FEATURES = [
   "read:wishlist",
   "delete:wishlist",
 
+  // Outlet follows
+  "create:store_follow",
+  "read:store_follow",
+  "delete:store_follow",
+  "read:store_follow_status",
+
   // Reviews
   "create:review",
   "read:review",
@@ -190,6 +196,10 @@ const ACTIVATED_USER_FEATURES = [
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
+  "create:store_follow",
+  "read:store_follow",
+  "delete:store_follow",
+  "read:store_follow_status",
   "create:review",
   "read:review",
   "delete:review",
@@ -251,6 +261,7 @@ const ANONYMOUS_USER_FEATURES = [
   "create:user",
   "read:public_game",
   "read:wishlist",
+  "read:store_follow_status",
   "read:review",
   "read:public_store",
   "read:public_studio",
@@ -746,6 +757,16 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };
+  }
+
+  if (
+    feature === "create:store_follow" ||
+    feature === "read:store_follow" ||
+    feature === "delete:store_follow" ||
+    feature === "read:store_follow_status"
+  ) {
+    const statusOutput = resource as { is_followed: boolean };
+    return { is_followed: statusOutput.is_followed };
   }
 
   // The admin view of a store, kept separate from the branch above because that

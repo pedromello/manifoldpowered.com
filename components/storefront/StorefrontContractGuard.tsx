@@ -49,6 +49,12 @@ export function StorefrontContractGuard({
       complain('no [data-storefront="filters"] — visitors cannot filter');
     }
 
+    if (!root.querySelector('[data-storefront="follow-outlet"]')) {
+      complain(
+        'no [data-storefront="follow-outlet"] — visitors cannot follow this Outlet',
+      );
+    }
+
     const list = root.querySelector('[data-storefront="game-list"]');
     if (!list) {
       complain('no [data-storefront="game-list"] — the catalogue is missing');

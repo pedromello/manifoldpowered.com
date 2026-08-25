@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Compass, Gamepad2, Library, Radio, Search, Store } from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
+import { FollowedOutlets } from "components/store/FollowedOutlets";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
 
@@ -179,19 +180,25 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="mt-auto rounded-lg border border-white/[0.08] bg-white/[0.025] p-4">
-            <p className="text-sm font-semibold text-white/80">
-              {t("New to Manifold?")}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-white/40">
-              {t("Games live in one catalog. Outlets help you discover them.")}
-            </p>
-            <Link
-              href="/about"
-              className="mt-3 inline-flex text-xs font-bold text-violet-300 hover:text-violet-200"
-            >
-              {t("How it works")}
-            </Link>
+          <div className="mt-auto space-y-3">
+            <FollowedOutlets />
+
+            <div className="rounded-lg border border-white/[0.08] bg-white/[0.025] p-4">
+              <p className="text-sm font-semibold text-white/80">
+                {t("New to Manifold?")}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-white/40">
+                {t(
+                  "Games live in one catalog. Outlets help you discover them.",
+                )}
+              </p>
+              <Link
+                href="/about"
+                className="mt-3 inline-flex text-xs font-bold text-violet-300 hover:text-violet-200"
+              >
+                {t("How it works")}
+              </Link>
+            </div>
           </div>
         </nav>
       </aside>

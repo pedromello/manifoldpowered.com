@@ -30,6 +30,7 @@ import { useI18n } from "lib/i18n";
  */
 export function TemplateStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -43,13 +44,18 @@ export function TemplateStorefront({
   const { t } = useI18n();
   return (
     <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] px-6 md:px-10 max-w-7xl mx-auto flex flex-col gap-10">
-      <header className="flex flex-col gap-4">
-        <h1 className="text-5xl md:text-7xl font-black tracking-tighter">
-          {store.name}
-        </h1>
-        {store.description && (
-          <p className="text-sf-muted max-w-2xl text-lg">{store.description}</p>
-        )}
+      <header className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter">
+            {store.name}
+          </h1>
+          {store.description && (
+            <p className="text-sf-muted max-w-2xl text-lg">
+              {store.description}
+            </p>
+          )}
+        </div>
+        {followControl}
       </header>
 
       {featured.length > 0 && (
