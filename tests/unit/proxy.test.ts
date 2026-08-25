@@ -65,6 +65,16 @@ describe("country-aware language proxy", () => {
   });
 
   test.each(["/api/v1/games", "/_next/static/chunk.js", "/images/logo.png"])(
+    "never redirects non-page route %s, even for Brazil",
+    (url) => {
+      const response = proxy(request(url, { country: "BR" }));
+
+      expect(response.status).toBe(200);
+      expect(getRedirectUrl(response)).toBeNull();
+    },
+  );
+
+  test.each(["/api/v1/games", "/_next/static/chunk.js", "/images/logo.png"])(
     "does not run for %s",
     (url) => {
       expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(

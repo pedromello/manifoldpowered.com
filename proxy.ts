@@ -16,6 +16,18 @@ function hasLocalePrefix(pathname: string) {
   );
 }
 
+function isPageRoute(pathname: string) {
+  return (
+    pathname !== "/api" &&
+    !pathname.startsWith("/api/") &&
+    pathname !== "/_next" &&
+    !pathname.startsWith("/_next/") &&
+    pathname !== "/favicon.ico" &&
+    pathname !== "/site.webmanifest" &&
+    !/\/[^/]+\.[^/]+$/.test(pathname)
+  );
+}
+
 function preferredLocale(request: NextRequest) {
   const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
 
@@ -34,7 +46,7 @@ export function proxy(request: NextRequest) {
   // A locale in the URL is an explicit choice and must never be overridden by
   // geolocation or a stale cookie.
   const pathname = new URL(request.url).pathname;
-  if (hasLocalePrefix(pathname)) {
+  if (!isPageRoute(pathname) || hasLocalePrefix(pathname)) {
     return NextResponse.next();
   }
 
