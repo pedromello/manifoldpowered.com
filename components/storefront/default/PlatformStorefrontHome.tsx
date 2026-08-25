@@ -1,7 +1,17 @@
 import Form from "next/form";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { ArrowRight, Check, ChevronDown, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  Search,
+  X,
+} from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 import type { GameApi } from "components/store/types";
@@ -25,6 +35,14 @@ function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
       </span>
     </div>
   );
+}
+
+function commercialLabel(game: GameApi) {
+  if (isFree(game)) return "Free Demo";
+  if (game.discount_label && formatBasePrice(game)) {
+    return game.discount_label;
+  }
+  return formatPrice(game);
 }
 
 function HeroSkeleton() {
@@ -103,6 +121,154 @@ function Spotlight({ game, itemHref }: { game: GameApi; itemHref: string }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function SpotlightCarousel({
+  games,
+  itemHref,
+}: {
+  games: GameApi[];
+  itemHref: (slug: string) => string;
+}) {
+  const slides = games.slice(0, 3);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isUserPaused, setIsUserPaused] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  useEffect(() => {
+    if (slides.length < 2 || isUserPaused || isInteracting) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % slides.length);
+    }, 7000);
+    return () => window.clearInterval(interval);
+  }, [slides.length, isUserPaused, isInteracting]);
+
+  if (slides.length === 0) return null;
+
+  const displayedIndex = Math.min(activeIndex, slides.length - 1);
+  const activeGame = slides[displayedIndex];
+
+  return (
+    <div
+      aria-label="Featured games on Manifold"
+      onMouseEnter={() => setIsInteracting(true)}
+      onMouseLeave={() => setIsInteracting(false)}
+      onFocusCapture={() => setIsInteracting(true)}
+      onBlurCapture={() => setIsInteracting(false)}
+    >
+      <Spotlight game={activeGame} itemHref={itemHref(activeGame.slug)} />
+
+      {slides.length > 1 && (
+        <>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-2 sm:hidden">
+            <button
+              type="button"
+              onClick={() =>
+                setActiveIndex(
+                  (current) => (current - 1 + slides.length) % slides.length,
+                )
+              }
+              className="rounded-lg border border-white/10 p-2.5 text-white/60 hover:bg-white/10 hover:text-white"
+              aria-label="Previous Featured game"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
+              {displayedIndex + 1} of {slides.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsUserPaused((currentPaused) => !currentPaused)}
+              className="rounded-lg border border-white/10 p-2.5 text-white/60 hover:bg-white/10 hover:text-white"
+              aria-label={
+                isUserPaused
+                  ? "Resume Featured carousel"
+                  : "Pause Featured carousel"
+              }
+            >
+              {isUserPaused ? <Play size={16} /> : <Pause size={16} />}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setActiveIndex((current) => (current + 1) % slides.length)
+              }
+              className="rounded-lg border border-white/10 p-2.5 text-white/60 hover:bg-white/10 hover:text-white"
+              aria-label="Next Featured game"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          <div className="mt-3 hidden grid-cols-[auto_repeat(3,minmax(0,1fr))_auto] gap-2 sm:grid">
+            <button
+              type="button"
+              onClick={() =>
+                setActiveIndex(
+                  (current) => (current - 1 + slides.length) % slides.length,
+                )
+              }
+              className="flex items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 text-white/45 transition hover:border-white/20 hover:text-white"
+              aria-label="Previous Featured game"
+            >
+              <ChevronLeft size={19} />
+            </button>
+
+            {slides.map((game, index) => {
+              const active = index === displayedIndex;
+              return (
+                <button
+                  key={game.id}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  aria-current={active ? "true" : undefined}
+                  className={`min-w-0 rounded-xl border px-4 py-3 text-left transition ${
+                    active
+                      ? "border-violet-400/50 bg-violet-400/[0.09]"
+                      : "border-white/[0.09] bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.045]"
+                  }`}
+                >
+                  <span className="block truncate text-sm font-bold text-white">
+                    {game.title}
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
+                    {commercialLabel(game)}
+                  </span>
+                </button>
+              );
+            })}
+
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setIsUserPaused((currentPaused) => !currentPaused)
+                }
+                className="flex flex-1 items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-white/45 transition hover:border-white/20 hover:text-white"
+                aria-label={
+                  isUserPaused
+                    ? "Resume Featured carousel"
+                    : "Pause Featured carousel"
+                }
+              >
+                {isUserPaused ? <Play size={15} /> : <Pause size={15} />}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveIndex((current) => (current + 1) % slides.length)
+                }
+                className="flex flex-1 items-center justify-center rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 text-white/45 transition hover:border-white/20 hover:text-white"
+                aria-label="Next Featured game"
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -194,7 +360,7 @@ export function PlatformStorefrontHome({
   searchAction,
   showDiscover,
 }: DefaultStorefrontProps) {
-  const spotlight = featured[0] ?? games[0];
+  const spotlightGames = (featured.length > 0 ? featured : games).slice(0, 3);
   const categoryLinks = useMemo(
     () =>
       categories.map((label) => ({
@@ -221,10 +387,10 @@ export function PlatformStorefrontHome({
           </p>
         </div>
 
-        {isFeaturedLoading && !spotlight ? (
+        {isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
-        ) : spotlight ? (
-          <Spotlight game={spotlight} itemHref={itemHref(spotlight.slug)} />
+        ) : spotlightGames.length > 0 ? (
+          <SpotlightCarousel games={spotlightGames} itemHref={itemHref} />
         ) : (
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
             The first games are being prepared for the catalog.

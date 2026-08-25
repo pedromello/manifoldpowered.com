@@ -60,6 +60,11 @@ export function TemplateStorefront({
               className="rounded-3xl border border-sf-border bg-sf-surface p-6 min-h-40 flex flex-col justify-end"
             >
               <h2 className="text-2xl font-black">{game.title}</h2>
+              {game.recommendation_reason && (
+                <p className="line-clamp-2 text-sm text-sf-muted">
+                  {game.recommendation_reason}
+                </p>
+              )}
               <span className="text-sf-accent font-black uppercase">
                 {isFree(game) ? "Free" : formatPrice(game)}
               </span>

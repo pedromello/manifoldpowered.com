@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
-import { Loader2, ExternalLink, X, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  ExternalLink,
+  X,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import { type GameApi } from "components/store/types";
@@ -67,12 +76,12 @@ const fetcher = (url: string) =>
     return res.json();
   });
 
-type Tab = "curation" | "settings" | "sales" | "earnings";
+type Tab = "featured" | "curation" | "settings" | "sales" | "earnings";
 
 export default function StoreManagePage() {
   const router = useRouter();
   const slug = router.query.slug as string | undefined;
-  const [tab, setTab] = useState<Tab>("curation");
+  const [tab, setTab] = useState<Tab>("featured");
 
   const {
     data: storeData,
@@ -101,16 +110,6 @@ export default function StoreManagePage() {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
         <p className="text-rose-300 font-bold">Outlet not found.</p>
-      </div>
-    );
-  }
-
-  if (tagFiltersError) {
-    return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 text-center">
-        <p className="text-rose-300 font-bold">
-          You do not have permission to manage this outlet.
-        </p>
       </div>
     );
   }
@@ -147,6 +146,7 @@ export default function StoreManagePage() {
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             [
+              ["featured", "Featured"],
               ["curation", "Curation"],
               ["settings", "Settings"],
               ["sales", "Sales"],
@@ -167,13 +167,22 @@ export default function StoreManagePage() {
           ))}
         </div>
 
-        {tab === "curation" && (
-          <CurationTab
-            storeSlug={storeData.slug}
-            tagFilters={tagFilters ?? []}
-            isTagFiltersLoading={isTagFiltersLoading}
-          />
+        {tab === "featured" && (
+          <FeaturedTab storeSlug={storeData.slug} storeName={storeData.name} />
         )}
+        {tab === "curation" &&
+          (tagFiltersError ? (
+            <p className="text-rose-300 font-bold text-sm">
+              You do not have permission to manage this outlet&apos;s catalog
+              curation.
+            </p>
+          ) : (
+            <CurationTab
+              storeSlug={storeData.slug}
+              tagFilters={tagFilters ?? []}
+              isTagFiltersLoading={isTagFiltersLoading}
+            />
+          ))}
         {tab === "settings" && <SettingsTab store={storeData} />}
         {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
         {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
@@ -185,6 +194,323 @@ export default function StoreManagePage() {
 StoreManagePage.getLayout = function getLayout(page: React.ReactElement) {
   return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
 };
+
+type FeaturedRecommendationDraft = {
+  game: GameApi;
+  recommendationReason: string;
+};
+
+type FeaturedResponse = {
+  games: GameApi[];
+  mode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
+};
+
+function FeaturedTab({
+  storeSlug,
+  storeName,
+}: {
+  storeSlug: string;
+  storeName: string;
+}) {
+  const featuredKey = `/api/v1/stores/${storeSlug}/featured`;
+  const { data, isLoading, error, mutate } = useSWR<FeaturedResponse>(
+    featuredKey,
+    fetcher,
+  );
+  const [recommendations, setRecommendations] = useState<
+    FeaturedRecommendationDraft[]
+  >([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsInitialized(false);
+    setRecommendations([]);
+  }, [featuredKey]);
+
+  useEffect(() => {
+    if (!data || isInitialized) return;
+    setRecommendations(
+      data.mode === "EDITORIAL"
+        ? data.games.map((featuredGame) => ({
+            game: featuredGame,
+            recommendationReason: featuredGame.recommendation_reason ?? "",
+          }))
+        : data.mode === "HYBRID"
+          ? data.games
+              .filter(
+                (featuredGame) => featuredGame.featured_source === "EDITORIAL",
+              )
+              .map((featuredGame) => ({
+                game: featuredGame,
+                recommendationReason: featuredGame.recommendation_reason ?? "",
+              }))
+          : [],
+    );
+    setIsInitialized(true);
+  }, [data, isInitialized]);
+
+  function addGame(game: GameApi) {
+    setFormError(null);
+    setSuccess(null);
+    if (recommendations.some((entry) => entry.game.slug === game.slug)) {
+      setFormError(`${game.title} is already in Featured.`);
+      return;
+    }
+    if (recommendations.length >= 3) {
+      setFormError("Featured can contain up to three games.");
+      return;
+    }
+    setRecommendations((current) => [
+      ...current,
+      { game, recommendationReason: "" },
+    ]);
+  }
+
+  function moveGame(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= recommendations.length) return;
+    setRecommendations((current) => {
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+    setSuccess(null);
+  }
+
+  function updateReason(index: number, recommendationReason: string) {
+    setRecommendations((current) =>
+      current.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, recommendationReason } : entry,
+      ),
+    );
+    setSuccess(null);
+  }
+
+  async function handleSave() {
+    if (recommendations.length === 0) return;
+    setIsSubmitting(true);
+    setFormError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(featuredKey, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recommendations: recommendations.map(
+            ({ game, recommendationReason }) => ({
+              game_slug: game.slug,
+              recommendation_reason: recommendationReason,
+            }),
+          ),
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFormError(body?.message || "Failed to update Featured games.");
+        return;
+      }
+      setSuccess("Featured recommendations saved.");
+      await mutate();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleReset() {
+    setIsSubmitting(true);
+    setFormError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(featuredKey, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setFormError(body?.message || "Failed to restore automatic Featured.");
+        return;
+      }
+      setRecommendations([]);
+      setSuccess("Automatic Featured restored.");
+      await mutate();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isLoading || !isInitialized) {
+    return <Loader2 className="animate-spin text-white/30" size={24} />;
+  }
+
+  if (error) {
+    return (
+      <p className="text-rose-300 font-bold text-sm">
+        Failed to load Featured recommendations.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex max-w-4xl flex-col gap-7">
+      <div>
+        <h2 className="text-xl font-black">Your Featured recommendations</h2>
+        <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-white/50">
+          Choose up to three games and tell visitors why each one is worth
+          playing. The first game receives the largest spot on {storeName}.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        {recommendations.length < 3 ? (
+          <GameAutocomplete
+            endpoint={`/api/v1/stores/${storeSlug}/search`}
+            onSelect={addGame}
+            placeholder="Search games in this Outlet..."
+          />
+        ) : (
+          <p className="text-sm font-bold text-white/40">
+            All three Featured spots are filled. Remove a game to choose
+            another.
+          </p>
+        )}
+      </div>
+
+      {data?.mode !== "AUTOMATIC" && recommendations.length === 0 && (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-200">
+          This Outlet has an editorial selection, but none of its games are
+          currently available. Reset it or choose new games.
+        </div>
+      )}
+
+      {recommendations.length === 0 && data?.mode === "AUTOMATIC" ? (
+        <div className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center">
+          <p className="font-black text-white/70">Featured is automatic</p>
+          <p className="mt-1 text-sm font-semibold text-white/35">
+            Add a game above to turn this into an editorial selection.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {recommendations.map((entry, index) => (
+            <article
+              key={entry.game.id}
+              className="overflow-hidden rounded-2xl border border-white/10 bg-[#14101c]"
+            >
+              <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
+                <div
+                  className="aspect-video w-full shrink-0 rounded-xl border border-white/10 bg-[#21152f] sm:w-48"
+                  style={{
+                    background: entry.game.media?.banner
+                      ? `url(${entry.game.media.banner}) center/cover no-repeat`
+                      : undefined,
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300/70">
+                        Position {index + 1}
+                      </span>
+                      <h3 className="truncate text-lg font-black text-white">
+                        {entry.game.title}
+                      </h3>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveGame(index, -1)}
+                        disabled={index === 0}
+                        className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-20"
+                        aria-label={`Move ${entry.game.title} up`}
+                      >
+                        <ArrowUp size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveGame(index, 1)}
+                        disabled={index === recommendations.length - 1}
+                        className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-20"
+                        aria-label={`Move ${entry.game.title} down`}
+                      >
+                        <ArrowDown size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecommendations((current) =>
+                            current.filter(
+                              (_, entryIndex) => entryIndex !== index,
+                            ),
+                          );
+                          setSuccess(null);
+                        }}
+                        className="rounded-lg border border-rose-400/20 p-2 text-rose-300/70 transition hover:bg-rose-400/10 hover:text-rose-200"
+                        aria-label={`Remove ${entry.game.title}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="mt-4 block">
+                    <span className="text-xs font-black uppercase tracking-wider text-white/45">
+                      Why do you recommend it?{" "}
+                      <span className="normal-case">(optional)</span>
+                    </span>
+                    <textarea
+                      value={entry.recommendationReason}
+                      onChange={(event) =>
+                        updateReason(index, event.target.value)
+                      }
+                      maxLength={240}
+                      rows={2}
+                      placeholder="A short, personal reason this game is worth their time."
+                      className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3.5 py-3 text-base font-semibold leading-relaxed text-white outline-none placeholder:text-white/25 focus:border-violet-400/40 focus:bg-white/[0.07] sm:text-sm"
+                    />
+                    <span className="mt-1 block text-right text-[11px] font-bold text-white/30">
+                      {entry.recommendationReason.length}/240
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {formError && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300">
+          {formError}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300">
+          {success}
+        </div>
+      )}
+
+      <div className="flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={isSubmitting}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-white/55 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
+        >
+          <RotateCcw size={15} />
+          Use automatic Featured
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSubmitting || recommendations.length === 0}
+          className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isSubmitting ? "Saving..." : "Save Featured"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function CurationTab({
   storeSlug,

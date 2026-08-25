@@ -72,6 +72,11 @@ function Tile({
         >
           {game.title}
         </h3>
+        {game.recommendation_reason && (
+          <p className="line-clamp-2 text-sm font-semibold leading-relaxed text-sf-fg/80">
+            {game.recommendation_reason}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-3">
           <Price game={game} />
           <span className="text-[10px] uppercase tracking-[0.25em] text-sf-muted truncate">

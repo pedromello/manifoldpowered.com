@@ -10,11 +10,16 @@ import { z } from "zod";
 import authorization from "models/authorization";
 import storeFeaturedGame, {
   featuredGameSelectionSchema,
+  MAX_FEATURED_GAMES,
 } from "models/store_featured_game";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
+  limit: z.coerce
+    .number()
+    .min(1)
+    .max(MAX_FEATURED_GAMES)
+    .default(MAX_FEATURED_GAMES),
 });
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -53,20 +58,62 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   });
 
   if (editorialResult) {
-    const context = await storefrontPricing.contextFor(
-      currency,
-      editorialResult.games,
+    const editorialIds = new Set(
+      editorialResult.games.map((editorialGame) => editorialGame.id),
     );
+    const missingSlots = Math.max(
+      0,
+      MAX_FEATURED_GAMES - editorialResult.games.length,
+    );
+    let automaticGames: Awaited<
+      ReturnType<typeof game.findAllPaginated>
+    >["games"] = [];
+
+    if (missingSlots > 0) {
+      const automaticResult = await game.findAllPaginated({
+        priceableGameIds: gameIds,
+        page: 1,
+        // Fetch enough candidates to discard any editorial games that also
+        // rank naturally without leaving a hole in the three-slide carousel.
+        limit: MAX_FEATURED_GAMES + editorialResult.games.length,
+        order: "featured",
+        curationWhere,
+      });
+      automaticGames = automaticResult.games
+        .filter((automaticGame) => !editorialIds.has(automaticGame.id))
+        .slice(0, missingSlots);
+    }
+
+    const combinedGames = [...editorialResult.games, ...automaticGames];
+    const context = await storefrontPricing.contextFor(currency, combinedGames);
+    const reasonByGameId = new Map(
+      editorialResult.games.map((editorialGame) => [
+        editorialGame.id,
+        editorialGame.recommendation_reason,
+      ]),
+    );
+    const pricedGames = storefrontPricing
+      .filterAndPrice(req.context.user, combinedGames, context)
+      .map((featuredGame) => ({
+        ...featuredGame,
+        featured_source: editorialIds.has(featuredGame.id)
+          ? "EDITORIAL"
+          : "AUTOMATIC",
+        ...(editorialIds.has(featuredGame.id) && {
+          recommendation_reason: reasonByGameId.get(featuredGame.id) ?? null,
+        }),
+      }));
 
     return res.status(200).json({
-      games: storefrontPricing.filterAndPrice(
-        req.context.user,
-        editorialResult.games,
-        context,
-      ),
-      pagination: editorialResult.pagination,
+      games: pricedGames,
+      pagination: {
+        page: 1,
+        limit: MAX_FEATURED_GAMES,
+        total: pricedGames.length,
+        pages: pricedGames.length > 0 ? 1 : 0,
+      },
       currency,
-      mode: "EDITORIAL",
+      mode: automaticGames.length > 0 ? "HYBRID" : "EDITORIAL",
     });
   }
 
@@ -80,7 +127,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const context = await storefrontPricing.contextFor(currency, games);
 
   return res.status(200).json({
-    games: storefrontPricing.filterAndPrice(req.context.user, games, context),
+    games: storefrontPricing
+      .filterAndPrice(req.context.user, games, context)
+      .map((featuredGame) => ({
+        ...featuredGame,
+        featured_source: "AUTOMATIC",
+      })),
     pagination,
     currency,
     mode: "AUTOMATIC",
@@ -117,12 +169,16 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const selection = await storeFeaturedGame.replaceSelection(
     foundStore.id,
-    result.data.game_slugs,
+    result.data.recommendations,
   );
 
   return res.status(200).json({
     mode: "EDITORIAL",
     game_slugs: selection.map((entry) => entry.game_slug),
+    recommendations: selection.map(({ game_slug, recommendation_reason }) => ({
+      game_slug,
+      recommendation_reason,
+    })),
   });
 }
 
