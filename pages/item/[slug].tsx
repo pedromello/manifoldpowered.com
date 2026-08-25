@@ -12,6 +12,8 @@ import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
+import { gameJsonLd, gameMetadata, socialImageUrl } from "lib/seo";
+import { fetchPageData } from "lib/page-data";
 
 type ItemPageProps = {
   game: GameDetailApi;
@@ -39,16 +41,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const headers = headersForInternalFetch(context.req.headers);
 
   try {
-    const response = await fetch(
+    const game = await fetchPageData<GameDetailApi>(
       `${webserver.getOrigin()}/api/v1/items/games/${slug}`,
       { headers },
     );
 
-    if (!response.ok) {
-      return { notFound: true };
-    }
-
-    const game = await response.json();
+    if (!game) return { notFound: true };
 
     // `?store=` is visitor-supplied, so an unknown or malformed value must
     // degrade to an unattributed page rather than 404 a game that exists.
@@ -70,12 +68,13 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { props: { game, store } };
   } catch (error) {
     console.error("Error fetching game via API:", error);
-    return { notFound: true };
+    throw error;
   }
 };
 
 export default function GameDetailsPage({ game, store }: ItemPageProps) {
-  const { t } = useI18n();
+  const { locale } = useI18n();
+  const metadata = gameMetadata(game, locale);
   const controller = useItemController({
     gameSlug: game.slug,
     storeSlug: store?.slug,
@@ -91,8 +90,16 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
     <StorefrontShell
       store={store}
       palette={custom?.palette ?? (store ? DEFAULT_PALETTE : PLATFORM_PALETTE)}
-      title={t("{title} | Manifold Outlets", { title: game.title })}
-      description={game.description}
+      title={metadata.title}
+      description={metadata.description}
+      canonicalPath={`/item/${game.slug}`}
+      socialImage={socialImageUrl("game", locale, game.slug)}
+      socialImageAlt={
+        locale === "pt-BR"
+          ? `Arte de ${game.title}, de ${game.developer_name}, com a marca Manifold`
+          : `${game.title} artwork by ${game.developer_name} with Manifold branding`
+      }
+      jsonLd={gameJsonLd(game, locale)}
     >
       <ItemView {...controller} game={game} store={store} />
     </StorefrontShell>

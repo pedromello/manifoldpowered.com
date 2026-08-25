@@ -4,6 +4,7 @@ import { DefaultStorefront } from "components/storefront/default/DefaultStorefro
 import { DEFAULT_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
+import type { JsonLd } from "lib/seo";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -16,6 +17,10 @@ export type StorefrontProps = {
   searchPagePath: string;
   pageTitle: string;
   metaDescription: string;
+  canonicalPath: string;
+  socialImage: string;
+  socialImageAlt: string;
+  jsonLd?: JsonLd;
   heading?: string;
   /** The outlet being rendered. Absent on the platform-wide storefront. */
   store?: StoreContext | null;
@@ -41,6 +46,10 @@ export function Storefront({
   searchPagePath,
   pageTitle,
   metaDescription,
+  canonicalPath,
+  socialImage,
+  socialImageAlt,
+  jsonLd,
   heading,
   store = null,
   showDiscover = false,
@@ -62,6 +71,10 @@ export function Storefront({
       palette={custom?.palette ?? DEFAULT_PALETTE}
       title={pageTitle}
       description={metaDescription}
+      canonicalPath={canonicalPath}
+      socialImage={socialImage}
+      socialImageAlt={socialImageAlt}
+      jsonLd={jsonLd}
       themeKey={custom && store ? store.slug : "default"}
       enforceContract={!!store}
       hasGames={controller.games.length > 0}

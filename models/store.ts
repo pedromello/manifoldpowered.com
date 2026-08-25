@@ -170,6 +170,13 @@ async function findAllForUser(userId: string) {
   return [...ownedStores.sort(byName), ...memberStores.sort(byName)];
 }
 
+async function findAllForSitemap() {
+  return prisma.store.findMany({
+    orderBy: { updated_at: "desc" },
+    select: { slug: true, updated_at: true },
+  });
+}
+
 async function findOneBySlug(slug: string) {
   const store = await prisma.store.findUnique({
     where: {
@@ -397,6 +404,7 @@ const store = {
   create,
   findAllPaginated,
   findAllForUser,
+  findAllForSitemap,
   findOneBySlug,
   findOneBySlugWithMembers,
   update,
