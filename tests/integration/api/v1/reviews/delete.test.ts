@@ -26,6 +26,10 @@ describe("DELETE /api/v1/reviews", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ACTIVE" },
+      });
 
       await prisma.review.create({
         data: {
@@ -68,6 +72,10 @@ describe("DELETE /api/v1/reviews", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ACTIVE" },
+      });
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
         method: "DELETE",
