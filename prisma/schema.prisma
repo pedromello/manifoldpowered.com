@@ -701,11 +701,11 @@ model PayoutAccount {
   @@map("payout_accounts")
 }
 
-// A price set explicitly by a developer/admin for one currency. Its presence
-// means "this is the price, do not convert" — it always wins over conversion
-// from the game's USD base price. This is also where commercially-shaped
-// prices live (e.g. 49.90 rather than a converted 51.37), which keeps the
-// conversion path a plain, auditable calculation.
+// A base-price anchor set explicitly by a developer/admin for one currency. It
+// always wins over converting the game's USD base price. The game's global
+// promotion ratio is then applied to this anchor, so USD 100 -> 50 and a BRL
+// anchor of 200 resolve as BRL 200 -> 100. This is also where commercially-
+// shaped regional prices live (e.g. 49.90 rather than a converted 51.37).
 //
 // Catalog-level only: storefront owners must never gain price control, since
 // that is what keeps them affiliates rather than sellers (see
