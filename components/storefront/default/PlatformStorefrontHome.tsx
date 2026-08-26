@@ -61,7 +61,15 @@ function HeroSkeleton() {
   );
 }
 
-function Spotlight({ game, itemHref }: { game: GameApi; itemHref: string }) {
+function Spotlight({
+  game,
+  itemHref,
+  storeName,
+}: {
+  game: GameApi;
+  itemHref: string;
+  storeName?: string;
+}) {
   const { t } = useI18n();
   return (
     <article className="grid overflow-hidden rounded-xl border border-white/[0.1] bg-[#14101c] md:min-h-[360px] md:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
@@ -86,7 +94,9 @@ function Spotlight({ game, itemHref }: { game: GameApi; itemHref: string }) {
 
       <div className="flex flex-col justify-center p-6 sm:p-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-300">
-          {t("Now on Manifold")}
+          {storeName
+            ? t("Featured in {name}", { name: storeName })
+            : t("Now on Manifold")}
         </p>
         <h2 className="mt-3 text-3xl font-black leading-tight tracking-[-0.025em] text-white sm:text-4xl">
           {game.title}
@@ -94,9 +104,9 @@ function Spotlight({ game, itemHref }: { game: GameApi; itemHref: string }) {
         <p className="mt-2 text-sm font-semibold text-white/45">
           {t("by {name}", { name: game.developer_name })}
         </p>
-        {game.description && (
+        {(game.recommendation_reason || game.description) && (
           <p className="mt-5 line-clamp-3 text-sm leading-6 text-white/60">
-            {game.description}
+            {game.recommendation_reason || game.description}
           </p>
         )}
 
@@ -130,9 +140,11 @@ function Spotlight({ game, itemHref }: { game: GameApi; itemHref: string }) {
 function SpotlightCarousel({
   games,
   itemHref,
+  storeName,
 }: {
   games: GameApi[];
   itemHref: (slug: string) => string;
+  storeName?: string;
 }) {
   const { t } = useI18n();
   const slides = games.slice(0, 3);
@@ -155,13 +167,21 @@ function SpotlightCarousel({
 
   return (
     <div
-      aria-label={t("Featured games on Manifold")}
+      aria-label={
+        storeName
+          ? t("Featured games in {name}", { name: storeName })
+          : t("Featured games on Manifold")
+      }
       onMouseEnter={() => setIsInteracting(true)}
       onMouseLeave={() => setIsInteracting(false)}
       onFocusCapture={() => setIsInteracting(true)}
       onBlurCapture={() => setIsInteracting(false)}
     >
-      <Spotlight game={activeGame} itemHref={itemHref(activeGame.slug)} />
+      <Spotlight
+        game={activeGame}
+        itemHref={itemHref(activeGame.slug)}
+        storeName={storeName}
+      />
 
       {slides.length > 1 && (
         <>
@@ -355,6 +375,8 @@ function PreviewNotice() {
 }
 
 export function PlatformStorefrontHome({
+  store,
+  followControl,
   featured,
   isFeaturedLoading,
   games,
@@ -385,23 +407,60 @@ export function PlatformStorefrontHome({
       <section className="mx-auto max-w-[1500px] px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9">
         <PreviewNotice />
 
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="max-w-2xl text-2xl font-black tracking-[-0.02em] sm:text-3xl">
-              {t("Think Steam, but with creator-run storefronts.")}
-            </h1>
-          </div>
-          <p className="max-w-md text-sm leading-6 text-white/45 sm:text-right">
-            {t(
-              "Buy games and keep them in one library while independent Outlets can earn commission on the sales they refer.",
-            )}
-          </p>
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          {store ? (
+            <div className="flex min-w-0 items-start gap-4">
+              {store.logo_url && (
+                // Outlet logos are arbitrary user-supplied URLs.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={store.logo_url}
+                  alt={t("{name} logo", { name: store.name })}
+                  className="h-14 w-14 shrink-0 rounded-xl border border-white/10 bg-white/[0.04] object-cover sm:h-16 sm:w-16"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-300">
+                  {t("Outlet")}
+                </p>
+                <h1 className="mt-1 max-w-3xl break-words text-3xl font-black tracking-[-0.025em] sm:text-4xl">
+                  {store.name}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
+                  {store.description ||
+                    t("Explore {name}'s curated catalog on Manifold.", {
+                      name: store.name,
+                    })}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h1 className="max-w-2xl text-2xl font-black tracking-[-0.02em] sm:text-3xl">
+                {t("Think Steam, but with creator-run storefronts.")}
+              </h1>
+            </div>
+          )}
+
+          {store ? (
+            <div className="shrink-0">{followControl}</div>
+          ) : (
+            <p className="max-w-md text-sm leading-6 text-white/45 sm:text-right">
+              {t(
+                "Buy games and keep them in one library while independent Outlets can earn commission on the sales they refer.",
+              )}
+            </p>
+          )}
         </div>
 
         {isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
         ) : spotlightGames.length > 0 ? (
-          <SpotlightCarousel games={spotlightGames} itemHref={itemHref} />
+          <SpotlightCarousel
+            games={spotlightGames}
+            itemHref={itemHref}
+            storeName={store?.name}
+          />
         ) : (
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
             {t("The first games are being prepared for the catalog.")}
@@ -418,7 +477,9 @@ export function PlatformStorefrontHome({
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
-              {t("Shared catalog")}
+              {store
+                ? t("{name}'s catalog", { name: store.name })
+                : t("Shared catalog")}
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.025em]">
               {t("Explore games")}
@@ -436,7 +497,11 @@ export function PlatformStorefrontHome({
                 name="q"
                 data-storefront="search"
                 defaultValue={q}
-                placeholder={t("Search the catalog")}
+                placeholder={
+                  store
+                    ? t("Search games in this Outlet...")
+                    : t("Search the catalog")
+                }
                 className="h-11 w-full rounded-lg border border-white/[0.1] bg-white/[0.035] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
               {activeCategory && (

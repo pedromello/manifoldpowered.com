@@ -15,15 +15,18 @@ type CurrentUser = { id: string };
 export function FollowOutletButton({
   storeSlug,
   storeName,
+  variant = "theme",
 }: {
   storeSlug: string;
   storeName: string;
+  variant?: "platform" | "theme";
 }) {
   const router = useRouter();
   const { t } = useI18n();
   const { mutate: mutateGlobal } = useSWRConfig();
   const [isMutating, setIsMutating] = useState(false);
   const [mutationFailed, setMutationFailed] = useState(false);
+  const shapeClass = variant === "platform" ? "rounded-lg" : "";
 
   const {
     data: currentUser,
@@ -79,7 +82,7 @@ export function FollowOutletButton({
         data-storefront="follow-outlet"
         disabled
         aria-label={t("Loading follow status")}
-        className="inline-flex min-h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-muted opacity-80"
+        className={`inline-flex min-h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-muted opacity-80 ${shapeClass}`}
       >
         <Loader2 size={15} className="animate-spin" aria-hidden="true" />
         {t("Follow")}
@@ -96,7 +99,7 @@ export function FollowOutletButton({
           router.push(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`)
         }
         aria-label={t("Follow {name}", { name: storeName })}
-        className="inline-flex min-h-10 items-center gap-2 bg-sf-accent px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+        className={`inline-flex min-h-10 items-center gap-2 bg-sf-accent px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${shapeClass}`}
       >
         <Plus size={15} aria-hidden="true" />
         {t("Follow")}
@@ -111,7 +114,7 @@ export function FollowOutletButton({
         data-storefront="follow-outlet"
         onClick={() => (userError ? retryUser() : mutateStatus())}
         aria-label={t("Could not load follow status. Retry")}
-        className="inline-flex min-h-10 items-center gap-2 border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-500/20"
+        className={`inline-flex min-h-10 items-center gap-2 border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-500/20 ${shapeClass}`}
       >
         <RotateCcw size={15} aria-hidden="true" />
         {t("Retry")}
@@ -134,7 +137,7 @@ export function FollowOutletButton({
             ? t("Unfollow {name}", { name: storeName })
             : t("Follow {name}", { name: storeName })
         }
-        className={`inline-flex min-h-10 items-center gap-2 border px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-70 ${
+        className={`inline-flex min-h-10 items-center gap-2 border px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-70 ${shapeClass} ${
           isFollowed
             ? "border-sf-border bg-sf-surface text-sf-fg hover:border-sf-accent"
             : "border-transparent bg-sf-accent text-sf-accent-fg hover:opacity-90"

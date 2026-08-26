@@ -1,12 +1,12 @@
 import { GetServerSideProps } from "next";
 
 import webserver from "infra/webserver";
-import { StoreLayout } from "components/store/StoreLayout";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultItemPage } from "components/storefront/default/item/DefaultItemPage";
 import { useItemController } from "components/storefront/useItemController";
-import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
@@ -18,16 +18,6 @@ type ItemPageProps = {
   /** The outlet this visit came through, or null for a direct visit. */
   store: StoreApi | null;
 };
-
-const PLATFORM_PALETTE = {
-  bg: "#0b0812",
-  surface: "#14101c",
-  border: "rgba(255, 255, 255, 0.10)",
-  fg: "#ffffff",
-  muted: "rgba(255, 255, 255, 0.55)",
-  accent: "#a78bfa",
-  accentFg: "#0b0812",
-} as const;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
@@ -84,13 +74,14 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
   // An outlet with a bespoke storefront but no bespoke product page still gets
   // its palette here, so the click from its catalogue does not jump back to
   // Manifold's colours mid-journey.
-  const custom = store ? resolveStorefront(store) : null;
+  const resolution = store ? resolveStorefront(store) : null;
+  const custom = resolution?.kind === "custom" ? resolution.storefront : null;
   const ItemView = custom?.ItemPage ?? DefaultItemPage;
 
   const page = (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? (store ? DEFAULT_PALETTE : PLATFORM_PALETTE)}
+      palette={custom?.palette ?? PLATFORM_PALETTE}
       title={t("{title} | Manifold Outlets", { title: game.title })}
       description={game.description}
     >
@@ -102,11 +93,5 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
     return <StoreHomeLayout>{page}</StoreHomeLayout>;
   }
 
-  return (
-    <StoreLayout
-      store={{ slug: store.slug, name: store.name, logo_url: store.logo_url }}
-    >
-      {page}
-    </StoreLayout>
-  );
+  return <StorefrontRouteLayout store={store}>{page}</StorefrontRouteLayout>;
 }
