@@ -260,7 +260,7 @@ function HomeCard({
         }}
       >
         <BrandLockup logo={logo} />
-        <div style={{ display: "flex", flexDirection: "column", width: 760 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 650 }}>
           <div
             style={{
               display: "flex",
@@ -278,12 +278,14 @@ function HomeCard({
           <div
             style={{
               display: "flex",
-              fontSize: 56,
+              fontSize: locale === "pt-BR" ? 50 : 56,
               lineHeight: 1.06,
               fontWeight: 900,
             }}
           >
-            {metadata.title.replace(/^Manifold — /, "")}
+            {locale === "pt-BR"
+              ? "Descubra seu próximo jogo"
+              : metadata.title.replace(/^Manifold — /, "")}
           </div>
           <div
             style={{
@@ -296,7 +298,7 @@ function HomeCard({
             }}
           >
             {locale === "pt-BR"
-              ? "Uma biblioteca. Outlets independentes. Descobertas com curadoria humana."
+              ? "Pérolas escolhidas por criadores independentes."
               : "One library. Independent Outlets. Discovery shaped by people."}
           </div>
         </div>
