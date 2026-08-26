@@ -164,6 +164,12 @@ const extractOtpCode = (text) => {
   return match ? match[0] : null;
 };
 
+// faker.commerce.productName() draws from a finite set, and game slugs must be
+// globally unique across the full integration suite. Keep generated titles
+// readable while making the fixture identity collision-resistant.
+const uniqueFakerGameTitle = () =>
+  `${faker.commerce.productName()} ${faker.string.alphanumeric(8)}`;
+
 // Games
 const createGame = async (userId, gameData = {}) => {
   let studioId = gameData.studio_id;
@@ -176,7 +182,7 @@ const createGame = async (userId, gameData = {}) => {
   return game.create({
     studio_id: studioId,
     publisher_id: gameData.publisher_id || undefined,
-    title: gameData.title || faker.commerce.productName(),
+    title: gameData.title || uniqueFakerGameTitle(),
     description: gameData.description || faker.lorem.sentence(),
     detailed_description:
       gameData.detailed_description || faker.lorem.paragraph(),

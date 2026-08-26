@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Head from "next/head";
 
+import { SeoHead } from "components/SeoHead";
 import { StorefrontContractGuard } from "components/storefront/StorefrontContractGuard";
 import {
   DEFAULT_PALETTE,
@@ -8,6 +9,8 @@ import {
   type StorefrontPalette,
 } from "components/storefront/palette";
 import type { StoreContext } from "components/storefront/types";
+import { useI18n } from "lib/i18n";
+import type { JsonLd } from "lib/seo";
 
 export type StorefrontShellProps = {
   /** Absent on the platform-wide storefront and on unattributed product pages. */
@@ -15,6 +18,10 @@ export type StorefrontShellProps = {
   palette?: StorefrontPalette;
   title: string;
   description: string;
+  canonicalPath: string;
+  socialImage: string;
+  socialImageAlt: string;
+  jsonLd?: JsonLd;
   /** Identifies the theme in contract-guard messages. */
   themeKey?: string;
   /** Skipped on product pages, which are not catalogue surfaces. */
@@ -42,11 +49,16 @@ export function StorefrontShell({
   palette = DEFAULT_PALETTE,
   title,
   description,
+  canonicalPath,
+  socialImage,
+  socialImageAlt,
+  jsonLd,
   themeKey = "default",
   enforceContract = false,
   hasGames = false,
   children,
 }: StorefrontShellProps) {
+  const { locale } = useI18n();
   const body = (
     <div className="min-h-screen bg-sf-bg text-sf-fg pb-24 overflow-x-hidden selection:bg-white selection:text-black">
       {children}
@@ -55,15 +67,16 @@ export function StorefrontShell({
 
   return (
     <>
+      <SeoHead
+        locale={locale}
+        path={canonicalPath}
+        title={title}
+        description={description}
+        image={socialImage}
+        imageAlt={socialImageAlt}
+        jsonLd={jsonLd}
+      />
       <Head>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        {store?.logo_url && (
-          <meta property="og:image" content={store.logo_url} />
-        )}
         {/* Overrides the global #fffbf6 in _app so the PWA status bar matches
             the outlet rather than the marketing site. */}
         <meta name="theme-color" content={palette.bg} />

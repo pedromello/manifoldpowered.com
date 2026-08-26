@@ -10,6 +10,8 @@ import type { StoreApi } from "components/store/types";
 import { fetchJson } from "lib/api-client";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
+import { outletJsonLd, outletMetadata, socialImageUrl } from "lib/seo";
+import { fetchPageData } from "lib/page-data";
 
 interface CurrentUser {
   id: string;
@@ -33,24 +35,23 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const headers = headersForInternalFetch(context.req.headers);
 
   try {
-    const response = await fetch(
+    const store = await fetchPageData<StoreApi>(
       `${webserver.getOrigin()}/api/v1/stores/${slug}`,
       { headers },
     );
 
-    if (!response.ok) {
-      return { notFound: true };
-    }
+    if (!store) return { notFound: true };
 
-    return { props: { store: await response.json() } };
+    return { props: { store } };
   } catch (error) {
     console.error("Error fetching outlet via API:", error);
-    return { notFound: true };
+    throw error;
   }
 };
 
 export default function StorePage({ store }: { store: StoreApi }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const metadata = outletMetadata(store, locale);
   const { data: currentUser } = useSWR<CurrentUser>("/api/v1/user", fetchJson, {
     shouldRetryOnError: false,
   });
@@ -62,13 +63,16 @@ export default function StorePage({ store }: { store: StoreApi }) {
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
         browsePath={`/store/${store.slug}`}
         searchPagePath={`/store/${store.slug}`}
-        pageTitle={t("{name} | Manifold Outlets", { name: store.name })}
-        metaDescription={
-          store.description ||
-          t("Explore {name}'s curated catalog on Manifold.", {
-            name: store.name,
-          })
+        pageTitle={metadata.title}
+        metaDescription={metadata.description}
+        canonicalPath={`/store/${store.slug}`}
+        socialImage={socialImageUrl("outlet", locale, store.slug)}
+        socialImageAlt={
+          locale === "pt-BR"
+            ? `Seleção de jogos da Outlet ${store.name}, com a marca Manifold`
+            : `${store.name}'s game selection with Manifold branding`
         }
+        jsonLd={outletJsonLd(store, locale)}
         store={store}
       />
 

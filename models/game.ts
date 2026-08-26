@@ -736,6 +736,14 @@ async function findAllPaginatedAdmin({
   };
 }
 
+async function findAllForSitemap() {
+  return prisma.game.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { updated_at: "desc" },
+    select: { slug: true, updated_at: true },
+  });
+}
+
 async function setStatus(id: string, status: GameStatus) {
   return await prisma.game.update({
     where: {
@@ -764,6 +772,7 @@ const game = {
   findOnePublicBySlug,
   findAllPaginated,
   findAllPaginatedAdmin,
+  findAllForSitemap,
   makePublic,
   setStatus,
   calculateReviewScore,

@@ -1,6 +1,16 @@
 import { defaultLocale, locales } from "./lib/locale";
 
 module.exports = {
+  async redirects() {
+    return [
+      {
+        source: "/favicon.ico",
+        destination: "/images/brand/manifold-ico.ico",
+        permanent: true,
+        locale: false,
+      },
+    ];
+  },
   i18n: {
     locales: [...locales],
     defaultLocale,

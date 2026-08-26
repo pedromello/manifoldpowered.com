@@ -7,7 +7,9 @@ import { ArrowRight, Library, Radio, Upload } from "lucide-react";
 import { IconBrandGithub } from "@tabler/icons-react";
 
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import { SeoHead } from "components/SeoHead";
 import { useI18n } from "lib/i18n";
+import { socialImageUrl } from "lib/seo";
 
 type AudienceKey = "creators" | "developers" | "players";
 
@@ -158,7 +160,7 @@ export default function AboutPage({
   initialAudience: AudienceKey;
 }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [selectedAudience, setSelectedAudience] =
     useState<AudienceKey>(initialAudience);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -197,20 +199,20 @@ export default function AboutPage({
 
   return (
     <>
+      <SeoHead
+        locale={locale}
+        path="/about"
+        title={t(selectedContent.title)}
+        description={t(selectedContent.description)}
+        image={socialImageUrl("home", locale)}
+        imageAlt={
+          locale === "pt-BR"
+            ? "Manifold, distribuição de jogos guiada por comunidades"
+            : "Manifold, community-powered game distribution"
+        }
+      />
       <Head>
-        <title>{t(selectedContent.title)}</title>
-        <meta name="description" content={t(selectedContent.description)} />
         <meta name="theme-color" content="#0b0812" />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={t(selectedContent.title)} />
-        <meta
-          property="og:description"
-          content={t(selectedContent.description)}
-        />
-        <meta
-          property="og:image"
-          content="https://manifoldpowered.com/images/brand/manifold-logo.png"
-        />
       </Head>
 
       <main className="bg-[#0b0812] text-white">

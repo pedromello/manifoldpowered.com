@@ -4,6 +4,7 @@ import { DefaultStorefront } from "components/storefront/default/DefaultStorefro
 import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
+import type { JsonLd } from "lib/seo";
 import { FollowOutletButton } from "components/store/FollowOutletButton";
 
 export type StorefrontProps = {
@@ -17,6 +18,10 @@ export type StorefrontProps = {
   searchPagePath: string;
   pageTitle: string;
   metaDescription: string;
+  canonicalPath: string;
+  socialImage: string;
+  socialImageAlt: string;
+  jsonLd?: JsonLd;
   /** The outlet being rendered. Absent on the platform-wide storefront. */
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
@@ -39,6 +44,10 @@ export function Storefront({
   searchPagePath,
   pageTitle,
   metaDescription,
+  canonicalPath,
+  socialImage,
+  socialImageAlt,
+  jsonLd,
   store = null,
   showDiscover = false,
 }: StorefrontProps) {
@@ -66,6 +75,10 @@ export function Storefront({
       palette={custom?.palette ?? PLATFORM_PALETTE}
       title={pageTitle}
       description={metaDescription}
+      canonicalPath={canonicalPath}
+      socialImage={socialImage}
+      socialImageAlt={socialImageAlt}
+      jsonLd={jsonLd}
       themeKey={resolution?.themeKey ?? "platform"}
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
