@@ -4,9 +4,10 @@ import { GetServerSideProps } from "next";
 import { Settings } from "lucide-react";
 
 import webserver from "infra/webserver";
-import { StoreLayout } from "components/store/StoreLayout";
+import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { Storefront } from "components/store/Storefront";
 import type { StoreApi } from "components/store/types";
+import { fetchJson } from "lib/api-client";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
 import { outletJsonLd, outletMetadata, socialImageUrl } from "lib/seo";
@@ -15,12 +16,6 @@ import { fetchPageData } from "lib/page-data";
 interface CurrentUser {
   id: string;
 }
-
-const userFetcher = (url: string) =>
-  fetch(url).then(async (res) => {
-    if (!res.ok) throw new Error("Not logged in");
-    return res.json();
-  });
 
 /**
  * Resolved on the server rather than through SWR in the browser.
@@ -57,20 +52,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 export default function StorePage({ store }: { store: StoreApi }) {
   const { locale, t } = useI18n();
   const metadata = outletMetadata(store, locale);
-  const { data: currentUser } = useSWR<CurrentUser>(
-    "/api/v1/user",
-    userFetcher,
-    { shouldRetryOnError: false },
-  );
+  const { data: currentUser } = useSWR<CurrentUser>("/api/v1/user", fetchJson, {
+    shouldRetryOnError: false,
+  });
 
   return (
-    <StoreLayout
-      store={{
-        slug: store.slug,
-        name: store.name,
-        logo_url: store.logo_url,
-      }}
-    >
+    <StorefrontRouteLayout store={store}>
       <Storefront
         featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
@@ -86,19 +73,19 @@ export default function StorePage({ store }: { store: StoreApi }) {
             : `${store.name}'s game selection with Manifold branding`
         }
         jsonLd={outletJsonLd(store, locale)}
-        heading={store.name}
         store={store}
       />
 
       {currentUser?.id === store.owner_id && (
         <Link
           href={`/store/${store.slug}/manage`}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-wider shadow-2xl hover:bg-white/90 transition-colors"
+          aria-label={t("Manage {name}", { name: store.name })}
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black uppercase tracking-wider text-black shadow-2xl transition-colors hover:bg-white/90 sm:right-6 sm:px-5 lg:bottom-6"
         >
           <Settings size={16} />
           {t("Manage Outlet")}
         </Link>
       )}
-    </StoreLayout>
+    </StorefrontRouteLayout>
   );
 }

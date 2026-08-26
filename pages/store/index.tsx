@@ -4,7 +4,7 @@ import { useI18n } from "lib/i18n";
 import { homeJsonLd, homeMetadata, socialImageUrl } from "lib/seo";
 
 export default function StoreOption2() {
-  const { locale, t } = useI18n();
+  const { locale } = useI18n();
   const metadata = homeMetadata(locale);
   return (
     <Storefront
@@ -22,9 +22,7 @@ export default function StoreOption2() {
           : "Manifold, one shared game catalog with creator-run Outlets"
       }
       jsonLd={homeJsonLd(locale)}
-      heading={t("Explore the shared catalog")}
       showDiscover
-      showPlatformWelcome
     />
   );
 }

@@ -34,6 +34,17 @@ export const DEFAULT_PALETTE: StorefrontPalette = {
   accentFg: "#000000",
 };
 
+/** The navigation/home palette used by Manifold and every standard Outlet. */
+export const PLATFORM_PALETTE: StorefrontPalette = {
+  bg: "#0b0812",
+  surface: "#14101c",
+  border: "rgba(255, 255, 255, 0.10)",
+  fg: "#ffffff",
+  muted: "rgba(255, 255, 255, 0.55)",
+  accent: "#a78bfa",
+  accentFg: "#0b0812",
+};
+
 /**
  * Renders a palette as the CSS that overrides the `@theme` defaults.
  *
