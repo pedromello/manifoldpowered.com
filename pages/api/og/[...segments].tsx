@@ -246,23 +246,6 @@ function HomeCard({
               height={174}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "flex-end",
-                padding: "18px 20px",
-                background:
-                  "linear-gradient(180deg, transparent 42%, rgba(8,4,13,0.88) 100%)",
-                color: "white",
-                fontSize: 18,
-                fontWeight: 800,
-                letterSpacing: "0.04em",
-              }}
-            >
-              {art.title}
-            </div>
           </div>
         ))}
       </div>
