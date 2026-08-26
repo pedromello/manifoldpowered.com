@@ -120,9 +120,7 @@ export type StorefrontControllerResult = Omit<
 export type DefaultStorefrontProps = StorefrontControllerResult & {
   store: StoreContext | null;
   followControl: ReactNode;
-  heading?: string;
   showDiscover?: boolean;
-  showPlatformWelcome?: boolean;
 };
 
 /**

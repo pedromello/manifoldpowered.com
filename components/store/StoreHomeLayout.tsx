@@ -130,6 +130,12 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
   const isActive = (href: string) => {
     if (href === "/library") return router.pathname.startsWith("/library");
     if (href === "/store") return router.pathname === "/store";
+    if (href === "/store#outlets") {
+      return (
+        router.pathname === "/store/[slug]" ||
+        router.asPath.startsWith("/store#outlets")
+      );
+    }
     return false;
   };
 

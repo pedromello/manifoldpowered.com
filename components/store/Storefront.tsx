@@ -1,7 +1,7 @@
 import { useStorefrontController } from "components/storefront/useStorefrontController";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultStorefront } from "components/storefront/default/DefaultStorefront";
-import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
 import { FollowOutletButton } from "components/store/FollowOutletButton";
@@ -17,13 +17,10 @@ export type StorefrontProps = {
   searchPagePath: string;
   pageTitle: string;
   metaDescription: string;
-  heading?: string;
   /** The outlet being rendered. Absent on the platform-wide storefront. */
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
   showDiscover?: boolean;
-  /** Explains the shared platform before the main catalogue. Main storefront only. */
-  showPlatformWelcome?: boolean;
 };
 
 /**
@@ -42,10 +39,8 @@ export function Storefront({
   searchPagePath,
   pageTitle,
   metaDescription,
-  heading,
   store = null,
   showDiscover = false,
-  showPlatformWelcome = false,
 }: StorefrontProps) {
   const controller = useStorefrontController({
     featuredEndpoint,
@@ -55,18 +50,23 @@ export function Storefront({
     storeSlug: store?.slug,
   });
 
-  const custom = store ? resolveStorefront(store) : null;
+  const resolution = store ? resolveStorefront(store) : null;
+  const custom = resolution?.kind === "custom" ? resolution.storefront : null;
   const followControl = store ? (
-    <FollowOutletButton storeSlug={store.slug} storeName={store.name} />
+    <FollowOutletButton
+      storeSlug={store.slug}
+      storeName={store.name}
+      variant={custom ? "theme" : "platform"}
+    />
   ) : null;
 
   return (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? DEFAULT_PALETTE}
+      palette={custom?.palette ?? PLATFORM_PALETTE}
       title={pageTitle}
       description={metaDescription}
-      themeKey={custom && store ? store.slug : "default"}
+      themeKey={resolution?.themeKey ?? "platform"}
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
     >
@@ -81,9 +81,7 @@ export function Storefront({
           {...controller}
           store={store}
           followControl={followControl}
-          heading={heading}
           showDiscover={showDiscover}
-          showPlatformWelcome={showPlatformWelcome}
         />
       )}
     </StorefrontShell>

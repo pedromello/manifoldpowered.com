@@ -14,9 +14,7 @@ export default function StoreOption2() {
       metaDescription={t(
         "Discover creator-curated game storefronts, publish once across the Manifold network, or launch an Outlet for your community.",
       )}
-      heading={t("Explore the shared catalog")}
       showDiscover
-      showPlatformWelcome
     />
   );
 }
