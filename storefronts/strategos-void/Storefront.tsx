@@ -66,6 +66,7 @@ function GameCard({
 
 export function StrategosVoidStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -112,6 +113,7 @@ export function StrategosVoidStorefront({
             </div>
 
             <div className="flex flex-wrap gap-3">
+              {followControl}
               <a
                 href={SOCIAL_LINKS.youtube}
                 target="_blank"

@@ -28,6 +28,7 @@ export function DefaultStorefront(props: DefaultStorefrontViewProps) {
 
   const {
     store,
+    followControl,
     featured,
     featuredMode,
     isFeaturedLoading,
@@ -55,6 +56,11 @@ export function DefaultStorefront(props: DefaultStorefrontViewProps) {
           }}
         >
           <div className="px-6 md:px-10 w-full flex flex-col items-center gap-12 md:gap-16">
+            {store && (
+              <div className="flex w-full max-w-7xl justify-end">
+                {followControl}
+              </div>
+            )}
             {isFeaturedLoading ? (
               <div className="flex h-64 items-center justify-center w-full max-w-7xl">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>

@@ -181,6 +181,25 @@ model WishlistItem {
   @@map("wishlist_items")
 }
 
+// A player's durable connection to an Outlet. This is deliberately separate
+// from WishlistItem: following a curator and saving a game express different
+// intent and will power different product surfaces.
+model StoreFollow {
+  id       String @id @default(uuid())
+  user_id  String // Logical reference to User.id
+  store_id String // Logical reference to Store.id
+
+  // No updated_at: a follow is immutable while it exists. Unfollowing and
+  // following again creates a new relationship with a new created_at.
+  created_at DateTime @default(now())
+
+  @@unique([user_id, store_id])
+  @@index([user_id, created_at])
+  // Supports future recommendation fan-out without exposing follower data.
+  @@index([store_id, created_at])
+  @@map("store_follows")
+}
+
 enum GamePlatform {
   WINDOWS
   MAC

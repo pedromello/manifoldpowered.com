@@ -59,6 +59,7 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Enabled",
   "Enabled currencies",
   "Featured",
+  "Following",
   "For You",
   "Games",
   "Horror",

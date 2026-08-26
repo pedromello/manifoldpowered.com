@@ -92,6 +92,7 @@ function Tile({
 
 export function NeonAlleyStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -113,12 +114,15 @@ export function NeonAlleyStorefront({
         <div className="max-w-7xl mx-auto">
           {/* The outlet name is the page's h1 even though it is styled as a
               rule-and-label. Every storefront needs one top-level heading. */}
-          <div className="flex items-center gap-3 mb-6">
-            <span className="h-px flex-1 bg-sf-border" />
-            <h1 className="text-[10px] md:text-xs uppercase tracking-[0.5em] text-sf-accent font-black">
-              {store.name}
-            </h1>
-            <span className="h-px flex-1 bg-sf-border" />
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="h-px flex-1 bg-sf-border" />
+              <h1 className="truncate text-[10px] font-black uppercase tracking-[0.5em] text-sf-accent md:text-xs">
+                {store.name}
+              </h1>
+              <span className="h-px flex-1 bg-sf-border" />
+            </div>
+            {followControl}
           </div>
 
           {marquee ? (

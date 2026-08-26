@@ -861,6 +861,27 @@ export const ptBR: Record<string, string> = {
   "Every purchase lands in the same account, whichever Outlet referred it.":
     "Toda compra chega à mesma conta, independentemente da Outlet que a indicou.",
 
+  // Outlet follows
+  Follow: "Seguir",
+  Following: "Seguindo",
+  "Follow {name}": "Seguir {name}",
+  "Unfollow {name}": "Deixar de seguir {name}",
+  "Loading follow status": "Carregando estado de acompanhamento",
+  "Could not load follow status. Retry":
+    "Não foi possível carregar o estado. Tentar novamente",
+  Retry: "Tentar novamente",
+  "Could not update this Outlet. Try again.":
+    "Não foi possível atualizar esta Outlet. Tente novamente.",
+  "Followed Outlets": "Outlets seguidas",
+  "Loading followed Outlets": "Carregando Outlets seguidas",
+  "Log in to see the Outlets you follow.":
+    "Entre para ver as Outlets que você segue.",
+  "Could not load followed Outlets. Retry":
+    "Não foi possível carregar as Outlets seguidas. Tentar novamente",
+  "Outlets you follow will appear here.":
+    "As Outlets que você seguir aparecerão aqui.",
+  "{count} more": "Mais {count}",
+
   // Dynamic labels
   Pending: "Pendente",
   Inactive: "Inativo",
