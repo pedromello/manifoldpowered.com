@@ -45,7 +45,7 @@ describe("models/pricing.ts", () => {
       expect(resolved?.exchange_rate?.toFixed(2)).toBe("5.50");
     });
 
-    test("a fixed override wins over conversion", async () => {
+    test("a regional anchor wins over conversion", async () => {
       const game = await setupGame(10);
       await orchestrator.createExchangeRate({ rate: 5.5 });
       await orchestrator.setGamePriceOverride(game.id, "BRL", 49.9);
@@ -54,7 +54,7 @@ describe("models/pricing.ts", () => {
 
       expect(resolved?.source).toBe("OVERRIDE");
       expect(resolved?.amount.toFixed(2)).toBe("49.90");
-      // An override is a stated price, not a converted one.
+      // A regional anchor is selected directly, not converted.
       expect(resolved?.exchange_rate).toBeNull();
     });
 

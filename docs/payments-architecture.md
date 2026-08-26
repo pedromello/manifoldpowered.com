@@ -127,7 +127,7 @@ flowchart TD
     OK --> LOOP["For each game"]
 
     LOOP --> O{"Override for<br/>this currency?"}
-    O -->|yes| OV["amount = override<br/>base_amount = null"]
+    O -->|yes| OV["base = regional anchor<br/>amount = anchor × global ratio"]
     O -->|no| B{"Is this the<br/>base currency?"}
     B -->|yes| BB["amount = game.price<br/>base_amount = game.base_price"]
     B -->|no| RT{"Rate available?"}
@@ -141,7 +141,12 @@ flowchart TD
 
 Two branches deserve special care when changing this:
 
-**`base_amount` is null on an override.** An override states an absolute local price with no localised "was" price, so showing the converted USD original beside it would invent a discount that was never offered. Under conversion both sides convert by the same rate, so a genuine discount survives — 40% off in USD is still 40% off in BRL.
+**An override is a regional base-price anchor.** With no global promotion it is
+the final local price and `base_amount` is null. During a global promotion, the
+same `price / base_price` ratio is applied to the anchor and the anchor becomes
+`base_amount` — USD 100 → 50 with a BRL anchor of 200 therefore resolves as BRL
+200 → 100. Under ordinary conversion both USD sides still convert by the same
+rate, so the same rule holds without an override.
 
 **The base currency works unregistered.** With zero currency rows the platform still sells in USD, and localisation is strictly additive on top of a working default. An earlier draft returned an empty map here, which would have emptied the entire storefront the moment it shipped unconfigured.
 
@@ -207,7 +212,9 @@ Additive. `price` stays the untouched USD base, so a client that has not been up
 
 1. Register the currency in the backoffice (`/backoffice/currencies`).
 2. Record a USD→XXX rate (`/backoffice/exchange-rates`). At this point the whole catalogue is purchasable there.
-3. Optionally set per-game overrides for commercially-shaped prices, via `PUT /api/v1/items/games/[slug]/prices/[currency]`.
+3. Optionally set per-game regional base-price anchors for commercially-shaped
+   prices, via `PUT /api/v1/items/games/[slug]/prices/[currency]`. Global
+   promotions are applied proportionally after this anchor is selected.
 
 If the country is not in `COUNTRY_CURRENCY` in `models/region.ts`, add it — that map is the only thing connecting a region to a currency.
 

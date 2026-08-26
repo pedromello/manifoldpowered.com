@@ -1,3 +1,5 @@
+-- A row stores the regional base-price anchor. The current regional amount is
+-- derived at read/purchase time by applying the game's global discount ratio.
 -- CreateTable
 CREATE TABLE "game_price_overrides" (
     "id" TEXT NOT NULL,

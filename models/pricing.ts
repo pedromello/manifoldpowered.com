@@ -23,7 +23,7 @@ export type GamePriceOverrideDto = z.infer<typeof gamePriceOverrideSchema>;
 export interface ResolvedPrice {
   amount: Prisma.Decimal;
   currency: string;
-  // Null when the price came from an override or is already in the base
+  // Null when the price came from a regional anchor or is already in the base
   // currency. Set to the rate actually used otherwise, so a sale recorded from
   // this price can be reconciled later against the rate that produced it.
   exchange_rate: Prisma.Decimal | null;
@@ -75,7 +75,7 @@ async function listOverrides(gameId: string) {
 
 // Resolves what a game costs in a given currency:
 //
-//   priceFor(game, currency) = fixedOverride(game, currency)
+//   priceFor(game, currency) = regionalAnchor(game, currency) * discountRatio
 //                           ?? convert(game.price, currency)
 //
 // Returns null when neither is available. Callers must treat null as "this
@@ -83,7 +83,7 @@ async function listOverrides(gameId: string) {
 // falling back to the base currency — showing a price in the wrong currency is
 // worse than showing nothing.
 async function priceFor(
-  game: Pick<Game, "id" | "price">,
+  game: Pick<Game, "id" | "price" | "base_price">,
   currencyCode: string,
   asOf: Date = new Date(),
 ): Promise<ResolvedPrice | null> {
@@ -109,7 +109,11 @@ async function priceFor(
 
   if (override) {
     return {
-      amount: override.amount,
+      amount: await amountFromRegionalAnchor(
+        game,
+        override.amount,
+        normalizedCode,
+      ),
       currency: normalizedCode,
       exchange_rate: null,
       source: "OVERRIDE",
@@ -160,7 +164,7 @@ export interface GamePriceView {
 // buyer in each currency would see — including the currencies where the game
 // is currently unavailable, which is the case most worth noticing.
 async function priceViewFor(
-  game: Pick<Game, "id" | "price">,
+  game: Pick<Game, "id" | "price" | "base_price">,
   asOf: Date = new Date(),
 ): Promise<GamePriceView[]> {
   const enabledCurrencies = await currency.findAllEnabled();
@@ -185,7 +189,7 @@ async function priceViewFor(
 // Same as priceFor but for callers that cannot render anything without a
 // price, e.g. a checkout that has already committed to a currency.
 async function priceForOrFail(
-  game: Pick<Game, "id" | "price">,
+  game: Pick<Game, "id" | "price" | "base_price">,
   currencyCode: string,
   asOf: Date = new Date(),
 ) {
@@ -205,9 +209,10 @@ async function priceForOrFail(
 export interface DisplayPrice {
   amount: string;
   // The "was" price, for a struck-through discount. Null when there is nothing
-  // meaningful to compare against: an override states an absolute price with no
-  // localised original, so showing the USD original beside it would misprice
-  // the discount. Conversion preserves the ratio, so both sides convert.
+  // meaningful to compare against. A regional override is the local base-price
+  // anchor, so a global promotion applies the same ratio to it and exposes the
+  // anchor here. Conversion likewise preserves the ratio by converting both
+  // sides.
   base_amount: string | null;
   currency: string;
   symbol: string;
@@ -273,9 +278,23 @@ async function displayPricesFor(
 
   for (const game of games) {
     const override = overrideByGameId.get(game.id);
+    const discountRatio = globalDiscountRatio(game);
+    const regionalAnchor = override?.toDecimalPlaces(
+      foundCurrency.decimal_places,
+      Prisma.Decimal.ROUND_HALF_UP,
+    );
 
     const amount =
-      override ??
+      (regionalAnchor
+        ? discountRatio
+          ? regionalAnchor
+              .mul(discountRatio)
+              .toDecimalPlaces(
+                foundCurrency.decimal_places,
+                Prisma.Decimal.ROUND_HALF_UP,
+              )
+          : regionalAnchor
+        : null) ??
       (normalizedCode === BASE_CURRENCY
         ? game.price
         : rate
@@ -291,20 +310,21 @@ async function displayPricesFor(
       continue;
     }
 
-    // An override has no localised "was" price, so no discount is shown.
     const baseAmount =
-      override || !game.base_price
+      !discountRatio || !game.base_price
         ? null
-        : normalizedCode === BASE_CURRENCY
-          ? game.base_price
-          : rate
+        : regionalAnchor
+          ? regionalAnchor
+          : normalizedCode === BASE_CURRENCY
             ? game.base_price
-                .mul(rate.rate)
-                .toDecimalPlaces(
-                  foundCurrency.decimal_places,
-                  Prisma.Decimal.ROUND_HALF_UP,
-                )
-            : null;
+            : rate
+              ? game.base_price
+                  .mul(rate.rate)
+                  .toDecimalPlaces(
+                    foundCurrency.decimal_places,
+                    Prisma.Decimal.ROUND_HALF_UP,
+                  )
+              : null;
 
     const formattedAmount = amount.toFixed(foundCurrency.decimal_places);
     const formattedBase = baseAmount
@@ -420,6 +440,36 @@ async function roundToCurrencyScale(amount: Prisma.Decimal, code: string) {
   return amount.toDecimalPlaces(
     foundCurrency.decimal_places,
     Prisma.Decimal.ROUND_HALF_UP,
+  );
+}
+
+// A regional override is the local equivalent of the game's global base price,
+// not a fixed final price. A promotion therefore applies the same global ratio
+// to every regional anchor: USD 100 -> 50 and BRL 200 -> 100 are both 50% off.
+// Null means there is no promotion; price increases never inflate an anchor.
+function globalDiscountRatio(
+  game: Pick<Game, "price" | "base_price">,
+): Prisma.Decimal | null {
+  if (
+    !game.base_price ||
+    game.base_price.isZero() ||
+    game.price.greaterThanOrEqualTo(game.base_price)
+  ) {
+    return null;
+  }
+
+  return game.price.div(game.base_price);
+}
+
+async function amountFromRegionalAnchor(
+  game: Pick<Game, "price" | "base_price">,
+  regionalAnchor: Prisma.Decimal,
+  code: string,
+) {
+  const discountRatio = globalDiscountRatio(game);
+  return await roundToCurrencyScale(
+    discountRatio ? regionalAnchor.mul(discountRatio) : regionalAnchor,
+    code,
   );
 }
 

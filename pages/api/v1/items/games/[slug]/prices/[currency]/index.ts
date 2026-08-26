@@ -30,8 +30,9 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const gameToPrice = await authorizeGame(req, slug as string);
 
-  // Upsert: setting a price for a currency that already has one replaces it,
-  // so the caller does not have to know whether an override exists yet.
+  // Upsert: setting a regional base-price anchor for a currency that already
+  // has one replaces it. The game's global promotion ratio is applied later by
+  // the shared pricing resolver.
   const override = await pricing.setOverride(gameToPrice.id, result.data);
 
   const priceRow = {
