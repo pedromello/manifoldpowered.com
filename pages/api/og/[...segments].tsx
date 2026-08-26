@@ -260,7 +260,16 @@ function HomeCard({
         }}
       >
         <BrandLockup logo={logo} />
-        <div style={{ display: "flex", flexDirection: "column", width: 650 }}>
+        <div
+          style={{
+            position: "absolute",
+            left: 82,
+            top: 278,
+            display: "flex",
+            flexDirection: "column",
+            width: 650,
+          }}
+        >
           <div
             style={{
               display: "flex",
