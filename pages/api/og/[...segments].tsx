@@ -23,6 +23,21 @@ const ALLOWED_IMAGE_HOSTS = new Set([
   "cdn.akamai.steamstatic.com",
 ]);
 
+const HOME_CATALOG_ART = [
+  {
+    title: "Twisted Tower",
+    url: "/images/social/home-catalog/twisted-tower.jpg",
+  },
+  {
+    title: "MMO98",
+    url: "/images/social/home-catalog/mmo98.jpg",
+  },
+  {
+    title: "Capyvarias",
+    url: "/images/social/home-catalog/capyvarias.jpg",
+  },
+] as const;
+
 function requestLocale(request: NextRequest): AppLocale {
   return new URL(request.url).searchParams.get("locale") === "pt-BR"
     ? "pt-BR"
@@ -176,9 +191,11 @@ function Frame({ children }: { children: React.ReactNode }) {
 function HomeCard({
   locale,
   logo,
+  catalogArt,
 }: {
   locale: AppLocale;
   logo: string | null;
+  catalogArt: Array<{ title: string; image: string }>;
 }) {
   const metadata = homeMetadata(locale);
 
@@ -196,19 +213,59 @@ function HomeCard({
       <div
         style={{
           position: "absolute",
-          right: 80,
-          top: 90,
+          right: 58,
+          top: 72,
           display: "flex",
-          width: 320,
-          height: 430,
-          borderRadius: 46,
-          transform: "rotate(8deg)",
-          background:
-            "linear-gradient(145deg, rgba(182,128,255,0.28), rgba(255,255,255,0.03))",
-          border: "1px solid rgba(255,255,255,0.2)",
-          boxShadow: "0 35px 90px rgba(0,0,0,0.45)",
+          width: 390,
+          height: 500,
         }}
-      />
+      >
+        {catalogArt.map((art, index) => (
+          <div
+            key={art.title}
+            style={{
+              position: "absolute",
+              top: index * 128,
+              left: index === 1 ? 42 : index === 2 ? 12 : 0,
+              display: "flex",
+              width: 340,
+              height: 174,
+              overflow: "hidden",
+              borderRadius: 24,
+              transform: `rotate(${index === 0 ? -4 : index === 1 ? 4 : -2}deg)`,
+              border: "1px solid rgba(255,255,255,0.35)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
+              background: "#1d102e",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt=""
+              src={art.image}
+              width={340}
+              height={174}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "flex-end",
+                padding: "18px 20px",
+                background:
+                  "linear-gradient(180deg, transparent 42%, rgba(8,4,13,0.88) 100%)",
+                color: "white",
+                fontSize: 18,
+                fontWeight: 800,
+                letterSpacing: "0.04em",
+              }}
+            >
+              {art.title}
+            </div>
+          </div>
+        ))}
+      </div>
       <div
         style={{
           position: "relative",
@@ -524,7 +581,21 @@ export default async function handler(request: NextRequest) {
   let card: React.ReactElement;
 
   if (kind === "home" && !slug) {
-    card = <HomeCard locale={locale} logo={brandLogo} />;
+    const catalogImages = await Promise.all(
+      HOME_CATALOG_ART.map(async (art) => ({
+        title: art.title,
+        image: await loadImageData(art.url, url.origin),
+      })),
+    );
+    card = (
+      <HomeCard
+        locale={locale}
+        logo={brandLogo}
+        catalogArt={catalogImages.flatMap((art) =>
+          art.image ? [{ title: art.title, image: art.image }] : [],
+        )}
+      />
+    );
   } else if (kind === "outlet" && slug) {
     const store = await fetchPublicJson<StoreApi>(
       new URL(`/api/v1/stores/${encodeURIComponent(slug)}`, url.origin),
