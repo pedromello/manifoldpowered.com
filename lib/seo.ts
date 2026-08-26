@@ -127,7 +127,7 @@ export function gameCommercialLabel(game: GameDetailApi, locale: AppLocale) {
     return locale === "pt-BR" ? "Grátis" : "Free";
   }
 
-  if (game.discount_label && amount) {
+  if (game.discount_label && amount && game.display_price?.base_amount) {
     return `${game.discount_label} · ${symbol}${amount}`;
   }
 

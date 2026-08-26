@@ -103,6 +103,20 @@ describe("SEO helpers", () => {
         "en",
       ).commercial,
     ).toBe("Free");
+    expect(
+      gameMetadata(
+        {
+          ...game,
+          display_price: {
+            amount: "49.90",
+            base_amount: null,
+            currency: "BRL",
+            symbol: "R$",
+          },
+        },
+        "pt-BR",
+      ).commercial,
+    ).toBe("R$49.90");
   });
 
   test("uses a safe content-specific social image URL", () => {
