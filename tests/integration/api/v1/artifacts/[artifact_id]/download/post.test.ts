@@ -145,6 +145,7 @@ describe("POST /api/v1/artifacts/[artifact_id]/download", () => {
       expect(Number(signedUrl.searchParams.get("X-Amz-Expires"))).toBe(
         storage.DOWNLOAD_EXPIRES_IN_SECONDS,
       );
+      expect(storage.DOWNLOAD_EXPIRES_IN_SECONDS).toBeGreaterThan(60);
 
       const expiresAt = Date.parse(authorization.expires_at);
       expect(expiresAt).toBeGreaterThanOrEqual(
