@@ -27,12 +27,44 @@ const s3Client = new S3Client({
 
 const bucketName = process.env.STORAGE_BUCKET_NAME;
 const UPLOAD_EXPIRES_IN_SECONDS = 3600; // 1 hour
-let DOWNLOAD_EXPIRES_IN_SECONDS = 60; // 1 minute
+const PRODUCTION_DOWNLOAD_EXPIRES_IN_SECONDS = 900; // 15 minutes
+const DEVELOPMENT_DOWNLOAD_EXPIRES_IN_SECONDS = 3600; // 1 hour
+const MIN_DOWNLOAD_EXPIRES_IN_SECONDS = 120;
+const MAX_DOWNLOAD_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
 
-// My PC has a some minutes delay that impact on this test
-if (process.env.NODE_ENV !== "production") {
-  DOWNLOAD_EXPIRES_IN_SECONDS = 3600;
+export function resolveDownloadExpiresInSeconds(
+  configuredValue: string | undefined,
+  nodeEnvironment = process.env.NODE_ENV,
+): number {
+  if (configuredValue === undefined || configuredValue.trim() === "") {
+    return nodeEnvironment === "production"
+      ? PRODUCTION_DOWNLOAD_EXPIRES_IN_SECONDS
+      : DEVELOPMENT_DOWNLOAD_EXPIRES_IN_SECONDS;
+  }
+
+  if (!/^\d+$/.test(configuredValue)) {
+    throw new Error(
+      "STORAGE_DOWNLOAD_EXPIRES_IN_SECONDS must be an integer number of seconds",
+    );
+  }
+
+  const expiresInSeconds = Number(configuredValue);
+  if (
+    !Number.isSafeInteger(expiresInSeconds) ||
+    expiresInSeconds < MIN_DOWNLOAD_EXPIRES_IN_SECONDS ||
+    expiresInSeconds > MAX_DOWNLOAD_EXPIRES_IN_SECONDS
+  ) {
+    throw new Error(
+      `STORAGE_DOWNLOAD_EXPIRES_IN_SECONDS must be between ${MIN_DOWNLOAD_EXPIRES_IN_SECONDS} and ${MAX_DOWNLOAD_EXPIRES_IN_SECONDS} seconds`,
+    );
+  }
+
+  return expiresInSeconds;
 }
+
+const DOWNLOAD_EXPIRES_IN_SECONDS = resolveDownloadExpiresInSeconds(
+  process.env.STORAGE_DOWNLOAD_EXPIRES_IN_SECONDS,
+);
 
 export async function getUploadUrl(
   key: string,

@@ -1,4 +1,29 @@
-import storage from "infra/storage";
+import storage, { resolveDownloadExpiresInSeconds } from "infra/storage";
+
+describe("artifact download authorization configuration", () => {
+  test("defaults production authorizations to fifteen minutes", () => {
+    expect(resolveDownloadExpiresInSeconds(undefined, "production")).toBe(900);
+  });
+
+  test("preserves the one-hour development default", () => {
+    expect(resolveDownloadExpiresInSeconds(undefined, "development")).toBe(
+      3600,
+    );
+  });
+
+  test("accepts a safe explicit TTL", () => {
+    expect(resolveDownloadExpiresInSeconds("1800", "production")).toBe(1800);
+  });
+
+  test.each(["60", "0", "1.5", "not-a-number", "604801"])(
+    "rejects unsafe TTL %s",
+    (value) => {
+      expect(() =>
+        resolveDownloadExpiresInSeconds(value, "production"),
+      ).toThrow("STORAGE_DOWNLOAD_EXPIRES_IN_SECONDS");
+    },
+  );
+});
 
 describe("artifact upload authorization", () => {
   test("binds checksum, content type and declared metadata as signed headers", async () => {
