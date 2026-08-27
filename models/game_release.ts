@@ -17,6 +17,7 @@ export const gameReleaseCreateSchema = z.object({
 
 export const gameReleaseUpdateSchema = gameReleaseCreateSchema
   .pick({ version: true, release_notes: true })
+  .extend({ release_notes: z.string().max(100_000).nullable().optional() })
   .partial()
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one release field must be supplied",
@@ -88,6 +89,76 @@ async function findById(id: string) {
   const release = await prisma.gameRelease.findUnique({ where: { id } });
   if (!release) throw releaseNotFound(id);
   return release;
+}
+
+async function listByGame(
+  gameId: string,
+  { page = 1, limit = 20 }: { page?: number; limit?: number } = {},
+) {
+  const [releases, total] = await Promise.all([
+    prisma.gameRelease.findMany({
+      where: { game_id: gameId },
+      orderBy: { release_number: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.gameRelease.count({ where: { game_id: gameId } }),
+  ]);
+
+  const artifacts = await prisma.gameArtifact.findMany({
+    where: { release_id: { in: releases.map((release) => release.id) } },
+    orderBy: [{ platform: "asc" }, { architecture: "asc" }],
+  });
+  const artifactsByRelease = new Map<string, typeof artifacts>();
+  for (const artifact of artifacts) {
+    const releaseArtifacts = artifactsByRelease.get(artifact.release_id) ?? [];
+    releaseArtifacts.push(artifact);
+    artifactsByRelease.set(artifact.release_id, releaseArtifacts);
+  }
+
+  return {
+    releases: releases.map((release) => ({
+      ...release,
+      artifacts: (artifactsByRelease.get(release.id) ?? []).map((artifact) => ({
+        id: artifact.id,
+        platform: artifact.platform,
+        architecture: artifact.architecture,
+        archive_format: artifact.archive_format,
+        compressed_size_bytes:
+          artifact.compressed_size_bytes?.toString() ?? null,
+        installed_size_bytes: artifact.installed_size_bytes?.toString() ?? null,
+        sha256: artifact.sha256,
+        manifest_schema_version: artifact.manifest_schema_version,
+        manifest: sanitizeManifest(artifact.manifest),
+        status: artifact.status,
+        created_at: artifact.created_at,
+        updated_at: artifact.updated_at,
+      })),
+    })),
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  };
+}
+
+function sanitizeManifest(manifest: Prisma.JsonValue | null) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    return null;
+  }
+
+  const value = manifest as Record<string, Prisma.JsonValue>;
+  return {
+    schema_version: value.schema_version,
+    release_id: value.release_id,
+    artifact_id: value.artifact_id,
+    entrypoint: value.entrypoint,
+    launch_arguments: value.launch_arguments,
+    working_directory: value.working_directory,
+    executables: value.executables,
+  };
 }
 
 async function updateDraft(id: string, input: GameReleaseUpdateDto) {
@@ -341,6 +412,7 @@ function invalidTransition(
 const gameRelease = {
   createDraft,
   findById,
+  listByGame,
   updateDraft,
   beginProcessing,
   markFailed,
