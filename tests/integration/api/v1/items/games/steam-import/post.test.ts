@@ -23,6 +23,11 @@ describe("POST /api/v1/items/games/steam-import", () => {
             data: {
               name: "Community Catalog Fixture",
               short_description: "A deterministic Steam import fixture",
+              price_overview: {
+                currency: "USD",
+                initial: 2999,
+                final: 1999,
+              },
             },
           }),
         },
@@ -51,6 +56,13 @@ describe("POST /api/v1/items/games/steam-import", () => {
         purchase_mode: "STEAM_ONLY",
         price: null,
         base_price: null,
+        external_offer: {
+          provider: "STEAM",
+          amount: "19.99",
+          currency: "USD",
+          url: `https://store.steampowered.com/app/${steamAppId}/`,
+          captured_at: expect.any(String),
+        },
       });
       expect(responseBody.social_links.steam_page).toBe(
         `https://store.steampowered.com/app/${steamAppId}/`,
@@ -61,7 +73,10 @@ describe("POST /api/v1/items/games/steam-import", () => {
         status: "ONLY_DISPLAY",
         steam_app_id: steamAppId,
         studio_id: null,
+        steam_price_currency: "USD",
       });
+      expect(persistedGame.price.toFixed(2)).toBe("0.00");
+      expect(persistedGame.steam_price?.toFixed(2)).toBe("19.99");
 
       const catalogResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(responseBody.title)}`,
@@ -74,6 +89,13 @@ describe("POST /api/v1/items/games/steam-import", () => {
           status: "ONLY_DISPLAY",
           display_price: null,
           purchase_mode: "STEAM_ONLY",
+          external_offer: {
+            provider: "STEAM",
+            amount: "19.99",
+            currency: "USD",
+            url: `https://store.steampowered.com/app/${steamAppId}/`,
+            captured_at: expect.any(String),
+          },
         }),
       );
 

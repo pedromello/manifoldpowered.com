@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useStorefrontTrending } from "components/storefront/useStorefrontExtras";
 import type { StorefrontViewProps } from "components/storefront/types";
 import type { GameApi } from "components/store/types";
-import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import { formatBasePrice, formatCatalogPrice, isFree } from "lib/price";
 
 /**
  * Neon Alley — the pilot bespoke storefront.
@@ -19,13 +19,14 @@ import { formatBasePrice, formatPrice, isFree } from "lib/price";
  */
 
 function Price({ game }: { game: GameApi }) {
-  const free = isFree(game);
-  const was = formatBasePrice(game);
+  const isPlatformPurchase = game.purchase_mode === "PLATFORM";
+  const free = isPlatformPurchase && isFree(game);
+  const was = isPlatformPurchase ? formatBasePrice(game) : null;
 
   return (
     <span className="flex items-baseline gap-2">
       <span className="text-sf-accent font-black uppercase tracking-tight">
-        {free ? "Free" : formatPrice(game)}
+        {formatCatalogPrice(game)}
       </span>
       {!free && was && (
         <span className="text-sf-muted text-xs line-through">{was}</span>
@@ -202,7 +203,7 @@ export function NeonAlleyStorefront({
                 >
                   <span className="truncate">{game.title}</span>
                   <span className="text-sf-accent shrink-0 text-xs">
-                    {isFree(game) ? "Free" : formatPrice(game)}
+                    {formatCatalogPrice(game)}
                   </span>
                 </Link>
               ))}

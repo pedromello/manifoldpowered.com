@@ -144,6 +144,13 @@ model Game {
   // the same Steam app can't be imported twice.
   steam_app_id String? @unique @db.VarChar(20)
 
+  // Informational Steam offer captured during import. These fields are kept
+  // separate from price/base_price because they never make the game
+  // purchasable on Manifold and may become stale or vary by Steam region.
+  steam_price             Decimal?  @db.Decimal(19, 4)
+  steam_price_currency    String?   @db.VarChar(3)
+  steam_price_captured_at DateTime?
+
   // Flexibility (JSONB) to facilitate expansion
   meta_tags    Json @default("{}")
   media        Json @default("{}")
@@ -168,14 +175,14 @@ model Game {
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
 model SteamImportAttempt {
-  id                            String                    @id @default(uuid())
-  user_id                       String
-  steam_app_id                  String                    @db.VarChar(20)
-  outcome                       SteamImportAttemptOutcome @default(PENDING)
-  content_descriptor_ids        Int[]                     @default([])
-  content_descriptors_present   Boolean                   @default(false)
-  created_at                    DateTime                  @default(now())
-  updated_at                    DateTime                  @updatedAt
+  id                          String                    @id @default(uuid())
+  user_id                     String
+  steam_app_id                String                    @db.VarChar(20)
+  outcome                     SteamImportAttemptOutcome @default(PENDING)
+  content_descriptor_ids      Int[]                     @default([])
+  content_descriptors_present Boolean                   @default(false)
+  created_at                  DateTime                  @default(now())
+  updated_at                  DateTime                  @updatedAt
 
   @@index([user_id, created_at])
   @@index([steam_app_id])

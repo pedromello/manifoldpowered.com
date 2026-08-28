@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
-import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import {
+  formatBasePrice,
+  formatCatalogPrice,
+  formatPrice,
+  isFree,
+} from "lib/price";
 import { itemHref as buildItemHref } from "lib/store-context";
 import type { GameApi } from "components/store/types";
 
@@ -79,9 +84,7 @@ export function GameListItem({
                 }
               >
                 {isCatalogOnly
-                  ? game.purchase_mode === "STEAM_ONLY"
-                    ? "View on Steam"
-                    : "Catalog only"
+                  ? formatCatalogPrice(game)
                   : isDemo
                     ? "Free"
                     : formatPrice(game)}

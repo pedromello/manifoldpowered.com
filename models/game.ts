@@ -75,10 +75,16 @@ export const gameSchema = z.object({
 
 export type GameCreateDto = z.infer<typeof gameSchema>;
 
-export const steamImportedGameSchema = gameSchema.omit({
-  studio_id: true,
-  publisher_id: true,
-});
+export const steamImportedGameSchema = gameSchema
+  .omit({
+    studio_id: true,
+    publisher_id: true,
+  })
+  .extend({
+    steam_price: z.coerce.number().min(0).max(1000000).nullable(),
+    steam_price_currency: z.string().length(3).nullable(),
+    steam_price_captured_at: z.date(),
+  });
 export type SteamImportedGameData = z.infer<typeof steamImportedGameSchema>;
 
 export const gameOrderValues = [
@@ -205,6 +211,9 @@ async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
       publisher_name: null,
       slug,
       status: "ONLY_DISPLAY",
+      // `price` is a local platform price. A community import has no local
+      // offer, so the Steam amount is persisted only in the steam_* fields.
+      price: 0,
       base_price: null,
       launch_date: new Date(gameData.launch_date),
       meta_tags: gameData.meta_tags || {},
@@ -310,10 +319,11 @@ export function mapSteamAppToGameData(
   steamGame: SteamAppDetailsData,
   steamAppId: string,
 ): SteamImportedGameData {
-  const priceCents = steamGame.is_free
+  const steamPriceCents = steamGame.is_free
     ? 0
-    : (steamGame.price_overview?.final ?? 0);
-  const price = priceCents / 100;
+    : steamGame.price_overview?.final;
+  const steamPrice =
+    steamPriceCents === undefined ? null : steamPriceCents / 100;
 
   const genreTags = (steamGame.genres ?? []).map((g) => g.description);
   const categoryTags = (steamGame.categories ?? []).map((c) => c.description);
@@ -334,7 +344,12 @@ export function mapSteamAppToGameData(
       steamGame.about_the_game ||
       steamGame.name,
     launch_date: parseSteamReleaseDate(steamGame.release_date),
-    price,
+    // Required legacy local-price column. createUnclaimedSteamGame overrides
+    // this to zero; the external amount below is the value exposed to users.
+    price: 0,
+    steam_price: steamPrice,
+    steam_price_currency: steamGame.price_overview?.currency ?? null,
+    steam_price_captured_at: new Date(),
     tags,
     meta_tags: {
       category: steamGame.genres?.[0]?.description,

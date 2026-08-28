@@ -18,6 +18,14 @@ export interface PricedItem {
   display_price?: DisplayPrice | null;
 }
 
+export interface ExternalPricedItem {
+  external_offer?: {
+    provider: "STEAM";
+    amount: string | null;
+    currency: string | null;
+  } | null;
+}
+
 const BASE_SYMBOL = "$";
 
 // Currencies whose convention is a comma decimal separator and a period
@@ -60,7 +68,40 @@ function localizeAmount(amount: string, currency: string): string {
 
 export function isFree(item: PricedItem): boolean {
   const amount = item.display_price?.amount ?? item.price;
-  return !amount || Number(amount) === 0;
+  return amount !== null && amount !== undefined && Number(amount) === 0;
+}
+
+export function formatExternalPrice(item: ExternalPricedItem): string | null {
+  const offer = item.external_offer;
+  if (!offer || offer.amount === null) {
+    return null;
+  }
+
+  if (Number(offer.amount) === 0) {
+    return "Free on Steam";
+  }
+
+  const currency = offer.currency?.toUpperCase();
+  if (!currency) {
+    return `${offer.amount} on Steam`;
+  }
+
+  return `${currencySymbol(currency)}${localizeAmount(offer.amount, currency)} on Steam`;
+}
+
+export function formatCatalogPrice(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+  freeLabel = "Free",
+): string {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    return formatExternalPrice(item) ?? "View on Steam";
+  }
+
+  if (item.purchase_mode !== "PLATFORM") {
+    return "Catalog only";
+  }
+
+  return isFree(item) ? freeLabel : formatPrice(item);
 }
 
 export function formatPrice(item: PricedItem): string {

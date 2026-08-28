@@ -548,6 +548,21 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     feature === "update:game:status:any"
   ) {
     const gameOutput = resource as Game;
+    const steamPage =
+      gameOutput.social_links &&
+      typeof gameOutput.social_links === "object" &&
+      !Array.isArray(gameOutput.social_links) &&
+      "steam_page" in gameOutput.social_links &&
+      typeof gameOutput.social_links.steam_page === "string"
+        ? gameOutput.social_links.steam_page
+        : null;
+    const purchaseMode =
+      gameOutput.status === "ACTIVE"
+        ? "PLATFORM"
+        : steamPage
+          ? "STEAM_ONLY"
+          : "UNAVAILABLE";
+
     return {
       id: gameOutput.id,
       slug: gameOutput.slug,
@@ -576,14 +591,18 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       review_score: gameOutput.review_score,
       base_price: gameOutput.base_price?.toFixed(2) ?? null,
       ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
-      purchase_mode:
-        gameOutput.status === "ACTIVE"
-          ? "PLATFORM"
-          : gameOutput.social_links &&
-              typeof gameOutput.social_links === "object" &&
-              "steam_page" in gameOutput.social_links
-            ? "STEAM_ONLY"
-            : "UNAVAILABLE",
+      purchase_mode: purchaseMode,
+      external_offer:
+        purchaseMode === "STEAM_ONLY" && steamPage
+          ? {
+              provider: "STEAM",
+              amount: gameOutput.steam_price?.toFixed(2) ?? null,
+              currency: gameOutput.steam_price_currency,
+              url: steamPage,
+              captured_at:
+                gameOutput.steam_price_captured_at?.toISOString() ?? null,
+            }
+          : null,
       discount_label: gameOutput.discount_label,
       created_at: gameOutput.created_at,
       updated_at: gameOutput.updated_at,

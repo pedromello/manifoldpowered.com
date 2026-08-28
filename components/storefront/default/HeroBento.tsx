@@ -3,7 +3,7 @@ import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
 import { type GameApi } from "components/store/types";
-import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
+import { formatBasePrice, formatCatalogPrice, isFree } from "lib/price";
 
 /**
  * The default storefront's hero: one large tile plus two stacked ones.
@@ -31,7 +31,8 @@ export function HeroBento({
       : "md:col-span-3 md:row-span-2";
 
   // Kept as a local alias so the many call sites below read the same as before.
-  const isDemo = (item: PricedItem) => isFree(item);
+  const isDemo = (item: GameApi) =>
+    item.purchase_mode === "PLATFORM" && isFree(item);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
@@ -84,7 +85,7 @@ export function HeroBento({
                     : {}
                 }
               >
-                {isDemo(main) ? "Free Demo" : formatPrice(main)}
+                {formatCatalogPrice(main, "Free Demo")}
               </span>
               {!isDemo(main) &&
                 main.base_price &&
@@ -153,7 +154,7 @@ export function HeroBento({
                     : {}
                 }
               >
-                {isDemo(game) ? "Free Demo" : formatPrice(game)}
+                {formatCatalogPrice(game, "Free Demo")}
               </span>
               {!isDemo(game) &&
                 game.base_price &&

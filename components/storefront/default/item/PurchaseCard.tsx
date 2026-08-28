@@ -14,7 +14,7 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { MetaTag } from "components/store/MetaTag";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
-import { formatBasePrice, formatPrice } from "lib/price";
+import { formatBasePrice, formatExternalPrice, formatPrice } from "lib/price";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 
@@ -79,22 +79,29 @@ export function PurchaseCard({
           ))}
 
         {game.social_links.steam_page ? (
-          <a
-            href={game.social_links.steam_page}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
-          >
-            <IconBrandSteam
-              size={24}
-              className="group-hover:scale-110 transition-transform"
-            />
-            <span>Add to Wishlist</span>
-            <ExternalLink
-              size={16}
-              className="opacity-60 group-hover:opacity-100 transition-opacity"
-            />
-          </a>
+          <div className="flex flex-col gap-3">
+            {!isPlatformPurchase && formatExternalPrice(game) && (
+              <p className="text-center text-xl font-black text-white">
+                {formatExternalPrice(game)}
+              </p>
+            )}
+            <a
+              href={game.social_links.steam_page}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+            >
+              <IconBrandSteam
+                size={24}
+                className="group-hover:scale-110 transition-transform"
+              />
+              <span>Add to Wishlist on Steam</span>
+              <ExternalLink
+                size={16}
+                className="opacity-60 group-hover:opacity-100 transition-opacity"
+              />
+            </a>
+          </div>
         ) : isPlatformPurchase ? (
           <button
             onClick={wishlist.toggle}

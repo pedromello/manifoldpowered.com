@@ -132,6 +132,7 @@ describe("GET /api/v1/library", () => {
         negative_reviews: game.negative_reviews,
         ownership_status: "CLAIMED",
         purchase_mode: "UNAVAILABLE",
+        external_offer: null,
         review_score: game.review_score,
         base_price: game.base_price?.toFixed(2) ?? null,
         discount_label: game.discount_label,

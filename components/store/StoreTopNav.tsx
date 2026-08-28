@@ -8,7 +8,7 @@ import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/types";
 import { itemHref } from "lib/store-context";
-import { formatBasePrice, formatPrice } from "lib/price";
+import { formatBasePrice, formatCatalogPrice } from "lib/price";
 
 export type StoreNavContext = {
   slug: string;
@@ -133,7 +133,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                 ) : filteredGames.length > 0 ? (
                   <>
                     {filteredGames.map((game) => {
-                      const isDemo = !game.price || Number(game.price) === 0;
+                      const isDemo =
+                        game.purchase_mode === "PLATFORM" &&
+                        Number(game.display_price?.amount ?? game.price) === 0;
                       return (
                         <Link
                           key={game.id}
@@ -163,7 +165,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                                       : "rgba(255, 255, 255, 0.4)",
                                 }}
                               >
-                                {isDemo ? "Free" : formatPrice(game)}
+                                {formatCatalogPrice(game)}
                               </p>
                               {!isDemo && formatBasePrice(game) && (
                                 <p className="text-xs font-semibold line-through text-white/40">

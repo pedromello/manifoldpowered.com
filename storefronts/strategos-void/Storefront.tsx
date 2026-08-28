@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PlaySquare, MessageCircle } from "lucide-react";
 
 import type { StorefrontViewProps } from "components/storefront/types";
-import { formatPrice, isFree } from "lib/price";
+import { formatCatalogPrice } from "lib/price";
 
 /**
  * Strategos Void — grand strategy / 4X / city-builder channel.
@@ -33,8 +33,6 @@ function GameCard({
   game: StorefrontViewProps["games"][number];
   href: string;
 }) {
-  const free = isFree(game);
-
   return (
     <Link
       href={href}
@@ -54,7 +52,7 @@ function GameCard({
           {game.title}
         </h3>
         <span className="font-black uppercase tracking-wider text-sf-accent">
-          {free ? "Free" : formatPrice(game)}
+          {formatCatalogPrice(game)}
         </span>
       </div>
     </Link>
@@ -228,7 +226,7 @@ export function StrategosVoidStorefront({
                 </p>
               )}
               <span className="text-xl font-black uppercase tracking-wider text-sf-accent">
-                {isFree(heroGame) ? "Free" : formatPrice(heroGame)}
+                {formatCatalogPrice(heroGame)}
               </span>
             </div>
           </Link>
