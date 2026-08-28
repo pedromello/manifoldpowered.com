@@ -34,45 +34,49 @@ export function PurchaseCard({
   wishlist: ItemWishlist;
 }) {
   const router = useRouter();
+  const isPlatformPurchase = game.purchase_mode === "PLATFORM";
 
   return (
     <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-xl sticky top-28 shadow-2xl">
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            {!isDemo && formatBasePrice(game) && (
-              <span className="text-xl font-bold text-white/30 line-through">
-                {formatBasePrice(game)}
+        {isPlatformPurchase && (
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              {!isDemo && formatBasePrice(game) && (
+                <span className="text-xl font-bold text-white/30 line-through">
+                  {formatBasePrice(game)}
+                </span>
+              )}
+              <span
+                className="text-4xl md:text-5xl font-black uppercase"
+                style={{ color: discountBadgeColor }}
+              >
+                {isDemo ? "Free" : formatPrice(game)}
               </span>
+            </div>
+            {!isDemo && game.discount_label && (
+              <DiscountBadge label={game.discount_label} />
             )}
-            <span
-              className="text-4xl md:text-5xl font-black uppercase"
-              style={{ color: discountBadgeColor }}
-            >
-              {isDemo ? "Free" : formatPrice(game)}
-            </span>
           </div>
-          {!isDemo && game.discount_label && (
-            <DiscountBadge label={game.discount_label} />
-          )}
-        </div>
-
-        {isInLibrary ? (
-          <button
-            onClick={() => router.push("/library")}
-            className="w-full py-5 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xl font-black uppercase tracking-wider hover:bg-indigo-500/30 cursor-pointer transition-all shadow-[0_20px_40px_rgba(99,102,241,0.1)]"
-          >
-            In Library
-          </button>
-        ) : (
-          <button
-            onClick={onRedeem}
-            disabled={isRedeeming}
-            className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] disabled:opacity-70 disabled:hover:scale-100"
-          >
-            {isRedeeming ? "Redeeming..." : isDemo ? "Redeem Demo" : "Redeem"}
-          </button>
         )}
+
+        {isPlatformPurchase &&
+          (isInLibrary ? (
+            <button
+              onClick={() => router.push("/library")}
+              className="w-full py-5 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xl font-black uppercase tracking-wider hover:bg-indigo-500/30 cursor-pointer transition-all shadow-[0_20px_40px_rgba(99,102,241,0.1)]"
+            >
+              In Library
+            </button>
+          ) : (
+            <button
+              onClick={onRedeem}
+              disabled={isRedeeming}
+              className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] disabled:opacity-70 disabled:hover:scale-100"
+            >
+              {isRedeeming ? "Redeeming..." : isDemo ? "Redeem Demo" : "Redeem"}
+            </button>
+          ))}
 
         {game.social_links.steam_page ? (
           <a
@@ -91,7 +95,7 @@ export function PurchaseCard({
               className="opacity-60 group-hover:opacity-100 transition-opacity"
             />
           </a>
-        ) : (
+        ) : isPlatformPurchase ? (
           <button
             onClick={wishlist.toggle}
             disabled={wishlist.isToggling}
@@ -108,7 +112,7 @@ export function PurchaseCard({
             />
             {wishlist.isWishlisted ? "On Wishlist" : "Add to Wishlist"}
           </button>
-        )}
+        ) : null}
 
         <div className="h-px bg-white/10" />
 

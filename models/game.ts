@@ -75,6 +75,12 @@ export const gameSchema = z.object({
 
 export type GameCreateDto = z.infer<typeof gameSchema>;
 
+export const steamImportedGameSchema = gameSchema.omit({
+  studio_id: true,
+  publisher_id: true,
+});
+export type SteamImportedGameData = z.infer<typeof steamImportedGameSchema>;
+
 export const gameOrderValues = [
   "newest",
   "oldest",
@@ -112,7 +118,12 @@ export const gameQuerySchema = z
     },
   );
 
-export const gameStatusValues = ["ACTIVE", "INACTIVE", "PRIVATE"] as const;
+export const gameStatusValues = [
+  "ACTIVE",
+  "ONLY_DISPLAY",
+  "INACTIVE",
+  "PRIVATE",
+] as const;
 
 export const gameAdminQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -177,6 +188,33 @@ async function create(gameData: GameCreateDto) {
   });
 }
 
+async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
+  const slug = generateSlug(gameData.title);
+  await validateUniqueSlug(slug);
+
+  if (gameData.media.videos.length > 0) {
+    await validateVideoUrls(gameData.media.videos);
+  }
+
+  return await prisma.game.create({
+    data: {
+      ...gameData,
+      studio_id: null,
+      publisher_id: null,
+      developer_name: "Unclaimed",
+      publisher_name: null,
+      slug,
+      status: "ONLY_DISPLAY",
+      base_price: null,
+      launch_date: new Date(gameData.launch_date),
+      meta_tags: gameData.meta_tags || {},
+      media: gameData.media || {},
+      social_links: gameData.social_links || {},
+      requirements: gameData.requirements || {},
+    },
+  });
+}
+
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -231,11 +269,6 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
-export type SteamImportedGameData = Omit<
-  GameCreateDto,
-  "studio_id" | "publisher_id"
->;
-
 async function findOneBySteamAppId(steamAppId: string) {
   return await prisma.game.findUnique({
     where: {
@@ -251,9 +284,9 @@ async function findOneBySteamAppIdWithStudio(steamAppId: string) {
     return null;
   }
 
-  const studioWithMembers = await studioModel.findOneByIdWithMembers(
-    gameResource.studio_id,
-  );
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
 
   return { ...gameResource, studio: studioWithMembers };
 }
@@ -273,7 +306,7 @@ async function buildGameDataFromSteam(
   return mapSteamAppToGameData(result.data, steamAppId);
 }
 
-function mapSteamAppToGameData(
+export function mapSteamAppToGameData(
   steamGame: SteamAppDetailsData,
   steamAppId: string,
 ): SteamImportedGameData {
@@ -424,9 +457,9 @@ async function findOneBySlugWithStudio(slug: string) {
     return null;
   }
 
-  const studioWithMembers = await studioModel.findOneByIdWithMembers(
-    gameResource.studio_id,
-  );
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
 
   return { ...gameResource, studio: studioWithMembers };
 }
@@ -593,7 +626,7 @@ async function findAllPaginated({
   priceableGameIds?: string[] | null;
 }) {
   const where: Prisma.GameWhereInput = {
-    status: "ACTIVE",
+    status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
   };
 
   if (tags && tags.length > 0) {
@@ -623,7 +656,12 @@ async function findAllPaginated({
   }
 
   if (priceableGameIds) {
-    andClauses.push({ id: { in: priceableGameIds } });
+    andClauses.push({
+      OR: [
+        { status: "ONLY_DISPLAY" },
+        { status: "ACTIVE", id: { in: priceableGameIds } },
+      ],
+    });
   }
 
   if (andClauses.length > 0) {
@@ -733,8 +771,18 @@ async function makePublic(id: string) {
   return await setStatus(id, "ACTIVE");
 }
 
+function ensurePurchasable(gameResource: { status: GameStatus }) {
+  if (gameResource.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "This game is not available for purchase on the platform.",
+      action: "Open the external store page when one is available.",
+    });
+  }
+}
+
 const game = {
   create,
+  createUnclaimedSteamGame,
   update,
   findOneBySlug,
   findOneBySlugWithStudio,
@@ -746,6 +794,7 @@ const game = {
   findAllPaginatedAdmin,
   makePublic,
   setStatus,
+  ensurePurchasable,
   calculateReviewScore,
 };
 

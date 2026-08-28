@@ -39,6 +39,13 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  if (gameResource.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "Files cannot be uploaded to an unclaimed display-only game.",
+      action: "Complete the ownership claim flow first.",
+    });
+  }
+
   const hasGameOwnership = authorization.can(
     req.context.user,
     "update:game",
@@ -86,6 +93,13 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     throw new NotFoundError({
       message: "Game not found",
       action: "Check the URL and try again",
+    });
+  }
+
+  if (gameResource.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "Files cannot be uploaded to an unclaimed display-only game.",
+      action: "Complete the ownership claim flow first.",
     });
   }
 

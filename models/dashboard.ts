@@ -42,6 +42,7 @@ async function getMetrics() {
 
   const gamesByStatus: Record<GameStatus, number> = {
     ACTIVE: 0,
+    ONLY_DISPLAY: 0,
     INACTIVE: 0,
     PRIVATE: 0,
   };

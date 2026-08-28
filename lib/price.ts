@@ -13,7 +13,7 @@ export interface DisplayPrice {
 }
 
 export interface PricedItem {
-  price: string;
+  price: string | null;
   base_price?: string | null;
   display_price?: DisplayPrice | null;
 }
@@ -69,7 +69,7 @@ export function formatPrice(item: PricedItem): string {
     return `${symbol}${localizeAmount(amount, currency)}`;
   }
 
-  return `${BASE_SYMBOL}${item.price}`;
+  return item.price === null ? "" : `${BASE_SYMBOL}${item.price}`;
 }
 
 // The struck-through "was" price, or null when there is no discount to show.

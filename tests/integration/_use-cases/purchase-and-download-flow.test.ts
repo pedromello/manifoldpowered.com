@@ -258,6 +258,8 @@ describe("Use case: Purchase and Download Flow", () => {
         // The API serialises Decimal to a fixed 2-decimal string.
         price: game.price.toFixed(2),
         base_price: game.base_price?.toFixed(2) ?? null,
+        ownership_status: "CLAIMED",
+        purchase_mode: "PLATFORM",
       };
       expect(gamesInLibrary).toContainEqual(gameWithDatesAsString);
 

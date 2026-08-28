@@ -16,7 +16,8 @@ export function GameListItem({
   game: GameApi;
   storeSlug?: string;
 }) {
-  const isDemo = isFree(game);
+  const isCatalogOnly = game.purchase_mode !== "PLATFORM";
+  const isDemo = !isCatalogOnly && isFree(game);
   const isDiscounted = !isDemo && formatBasePrice(game) !== null;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
@@ -77,7 +78,13 @@ export function GameListItem({
                     : {}
                 }
               >
-                {isDemo ? "Free" : formatPrice(game)}
+                {isCatalogOnly
+                  ? game.purchase_mode === "STEAM_ONLY"
+                    ? "View on Steam"
+                    : "Catalog only"
+                  : isDemo
+                    ? "Free"
+                    : formatPrice(game)}
               </div>
             </div>
           </div>

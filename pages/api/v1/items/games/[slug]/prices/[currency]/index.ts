@@ -74,6 +74,13 @@ async function authorizeGame(req: NextApiRequest, slug: string) {
     });
   }
 
+  if (foundGame.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "Display-only games cannot receive platform prices.",
+      action: "Complete the ownership and sales approval flow first.",
+    });
+  }
+
   if (!authorization.can(req.context.user, "update:game_price", foundGame)) {
     throw new ForbiddenError({
       message: "You do not have permission to update this game's prices",

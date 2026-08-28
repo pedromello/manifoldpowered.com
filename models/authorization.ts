@@ -44,7 +44,7 @@ function buyerRefFor(userId: string, storeId: string | null): string {
 
 type StoreWithMembers = Store & { members: StoreMember[] };
 type StudioWithMembers = Studio & { members: StudioMember[] };
-type GameWithStudio = Game & { studio: StudioWithMembers };
+type GameWithStudio = Game & { studio: StudioWithMembers | null };
 
 const AVAILABLE_FEATURES = [
   // User
@@ -71,6 +71,7 @@ const AVAILABLE_FEATURES = [
   // Games
   "create:game",
   "create:game:any",
+  "import:steam_game",
   "read:public_game",
   "update:game",
   "update:game:any",
@@ -181,6 +182,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:session",
   "update:user",
   "read:public_game",
+  "import:steam_game",
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
@@ -298,8 +300,10 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     const gameResource = resource as GameWithStudio;
     const studioResource = gameResource.studio;
 
-    const isOwner = user.id === studioResource.owner_id;
-    const isPermittedMember = studioResource.members?.some(
+    const isOwner = Boolean(
+      studioResource && user.id === studioResource.owner_id,
+    );
+    const isPermittedMember = studioResource?.members.some(
       (member) =>
         member.user_id === user.id && member.permissions.includes(feature),
     );
@@ -537,6 +541,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
 
   if (
     feature === "create:game" ||
+    feature === "import:steam_game" ||
     feature === "read:public_game" ||
     feature === "update:game" ||
     feature === "read:game:any" ||
@@ -550,9 +555,11 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: gameOutput.description,
       detailed_description: gameOutput.detailed_description,
       launch_date: gameOutput.launch_date,
-      // Decimal is serialised at this boundary so the wire format stays a
-      // fixed 2-decimal string, independent of the stored 4-decimal scale.
-      price: gameOutput.price.toFixed(2),
+      // Display-only catalogue entries deliberately expose no local price.
+      price:
+        gameOutput.status === "ONLY_DISPLAY"
+          ? null
+          : gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
       publisher_name: gameOutput.publisher_name,
       tags: gameOutput.tags,
@@ -568,6 +575,15 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
       base_price: gameOutput.base_price?.toFixed(2) ?? null,
+      ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
+      purchase_mode:
+        gameOutput.status === "ACTIVE"
+          ? "PLATFORM"
+          : gameOutput.social_links &&
+              typeof gameOutput.social_links === "object" &&
+              "steam_page" in gameOutput.social_links
+            ? "STEAM_ONLY"
+            : "UNAVAILABLE",
       discount_label: gameOutput.discount_label,
       created_at: gameOutput.created_at,
       updated_at: gameOutput.updated_at,

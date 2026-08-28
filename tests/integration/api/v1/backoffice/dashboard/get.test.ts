@@ -70,6 +70,7 @@ describe("GET /api/v1/backoffice/dashboard", () => {
       ).toEqual([pendingGame.id]);
       expect(body.games.by_status).toEqual({
         ACTIVE: 1,
+        ONLY_DISPLAY: 0,
         INACTIVE: 0,
         PRIVATE: 1,
       });

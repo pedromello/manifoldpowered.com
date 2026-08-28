@@ -19,6 +19,10 @@ export interface SteamAppDetailsData {
   supported_languages?: string;
   website?: string;
   required_age?: number | string;
+  content_descriptors?: {
+    ids?: number[];
+    notes?: string;
+  };
   release_date?: { coming_soon: boolean; date: string };
   movies?: {
     id: number;

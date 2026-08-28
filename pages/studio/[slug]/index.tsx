@@ -104,7 +104,7 @@ export default function StudioPage() {
               </div>
 
               <Link
-                href={`/studio/${studio.slug}/games/steam-import`}
+                href="/games/steam-import"
                 className="shrink-0 px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider text-center hover:bg-emerald-400 transition-colors"
               >
                 Import from Steam
@@ -151,7 +151,7 @@ export default function StudioPage() {
                       No games yet.
                     </p>
                     <Link
-                      href={`/studio/${studio.slug}/games/steam-import`}
+                      href="/games/steam-import"
                       className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
                     >
                       Import a Game from Steam
