@@ -92,6 +92,22 @@ describe("GET /api/v1/reviews", () => {
 
       expect(response.status).toBe(404);
     });
+
+    test("With an ONLY_DISPLAY game should return reviews", async () => {
+      const gameCreator = await orchestrator.createUser();
+      const game = await orchestrator.createGame(gameCreator.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ONLY_DISPLAY" },
+      });
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/reviews?slug=${game.slug}`,
+      );
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).can_review).toBe(false);
+    });
   });
 
   describe("Authenticated user", () => {
@@ -124,6 +140,26 @@ describe("GET /api/v1/reviews", () => {
       expect(body.can_review).toBe(true);
       expect(body.user_review.user.username).toBe("reviewowner");
       expect(body.user_review.user.email).toBeUndefined();
+    });
+
+    test("Should allow any authenticated user to review an ONLY_DISPLAY game", async () => {
+      const gameCreator = await orchestrator.createUser();
+      const reviewer = await orchestrator.createUser();
+      await orchestrator.activateUser(reviewer.id);
+      const session = await orchestrator.createSession(reviewer.id);
+      const game = await orchestrator.createGame(gameCreator.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ONLY_DISPLAY" },
+      });
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/reviews?slug=${game.slug}`,
+        { headers: { Cookie: `session_id=${session.token}` } },
+      );
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).can_review).toBe(true);
     });
   });
 });

@@ -7,7 +7,14 @@ import { Prisma } from "generated/prisma/client";
 async function findReviewableGame(slug: string) {
   const game = await gameModel.findOneBySlug(slug);
 
-  return game?.status === "ACTIVE" ? game : null;
+  return game && ["ACTIVE", "ONLY_DISPLAY"].includes(game.status) ? game : null;
+}
+
+async function canUserReviewGame(
+  userId: string,
+  game: NonNullable<Awaited<ReturnType<typeof findReviewableGame>>>,
+) {
+  return game.status === "ONLY_DISPLAY" || library.hasItem(userId, game.id);
 }
 
 async function add(
@@ -25,7 +32,7 @@ async function add(
     });
   }
 
-  if (!(await library.hasItem(userId, game.id))) {
+  if (!(await canUserReviewGame(userId, game))) {
     throw new ForbiddenError({
       message: "Only players who own this game can review it.",
       action: "Add the game to your library before posting a review.",
@@ -95,7 +102,7 @@ async function update(
     });
   }
 
-  if (!(await library.hasItem(userId, game.id))) {
+  if (!(await canUserReviewGame(userId, game))) {
     throw new ForbiddenError({
       message: "Only players who own this game can review it.",
       action: "Add the game to your library before updating a review.",
@@ -273,7 +280,7 @@ async function getPaginatedReviewsBySlug(
         where: { id: userId },
         select: { id: true, username: true },
       }),
-      library.hasItem(userId, game.id),
+      canUserReviewGame(userId, game),
     ]);
 
     canReview = ownsGame;
