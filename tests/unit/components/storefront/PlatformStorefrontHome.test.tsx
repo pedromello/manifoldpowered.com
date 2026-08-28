@@ -149,6 +149,9 @@ describe("PlatformStorefrontHome", () => {
     expect(markup).toContain("$19.99");
     expect(markup).toContain("$29.99");
     expect(markup).toContain("-33%");
+    expect(markup).toContain("background-color:#FFB400");
+    expect(markup).not.toContain("bg-emerald-400");
+    expect(markup).not.toContain("-33% OFF");
     expect(markup.toLowerCase()).not.toContain("on steam");
   });
 });

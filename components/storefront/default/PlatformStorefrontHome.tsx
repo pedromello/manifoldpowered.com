@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { DiscountBadge } from "components/store/DiscountBadge";
 import type { GameApi } from "components/store/types";
 import type { DefaultStorefrontProps } from "components/storefront/types";
 import {
@@ -329,8 +330,8 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
           <div className="h-full w-full bg-[linear-gradient(135deg,#28183b,#15101d)]" />
         )}
         {discountLabel && formatCatalogBasePrice(game) && (
-          <span className="absolute bottom-2 left-2 rounded-md bg-emerald-400 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-950">
-            {discountLabel}
+          <span className="absolute bottom-2 left-2">
+            <DiscountBadge label={discountLabel} size="small" />
           </span>
         )}
       </div>
