@@ -52,10 +52,16 @@ function filterAndPrice<T extends Game>(
   context: StorefrontPricingContext,
 ) {
   return games
-    .filter((game) => context.displayPrices.has(game.id))
+    .filter(
+      (game) =>
+        game.status === "ONLY_DISPLAY" || context.displayPrices.has(game.id),
+    )
     .map((game) => ({
       ...authorization.filterOutput(user, "read:public_game", game),
-      display_price: context.displayPrices.get(game.id),
+      display_price:
+        game.status === "ONLY_DISPLAY"
+          ? null
+          : context.displayPrices.get(game.id),
     }));
 }
 

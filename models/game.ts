@@ -75,6 +75,20 @@ export const gameSchema = z.object({
 
 export type GameCreateDto = z.infer<typeof gameSchema>;
 
+export const steamImportedGameSchema = gameSchema
+  .omit({
+    studio_id: true,
+    publisher_id: true,
+  })
+  .extend({
+    steam_price: z.coerce.number().min(0).max(1000000).nullable(),
+    steam_original_price: z.coerce.number().min(0).max(1000000).nullable(),
+    steam_discount_percent: z.coerce.number().int().min(0).max(100).nullable(),
+    steam_price_currency: z.string().length(3).nullable(),
+    steam_price_captured_at: z.date(),
+  });
+export type SteamImportedGameData = z.infer<typeof steamImportedGameSchema>;
+
 export const gameOrderValues = [
   "newest",
   "oldest",
@@ -112,7 +126,12 @@ export const gameQuerySchema = z
     },
   );
 
-export const gameStatusValues = ["ACTIVE", "INACTIVE", "PRIVATE"] as const;
+export const gameStatusValues = [
+  "ACTIVE",
+  "ONLY_DISPLAY",
+  "INACTIVE",
+  "PRIVATE",
+] as const;
 
 export const gameAdminQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -177,6 +196,36 @@ async function create(gameData: GameCreateDto) {
   });
 }
 
+async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
+  const slug = generateSlug(gameData.title);
+  await validateUniqueSlug(slug);
+
+  if (gameData.media.videos.length > 0) {
+    await validateVideoUrls(gameData.media.videos);
+  }
+
+  return await prisma.game.create({
+    data: {
+      ...gameData,
+      studio_id: null,
+      publisher_id: null,
+      developer_name: "Unclaimed",
+      publisher_name: null,
+      slug,
+      status: "ONLY_DISPLAY",
+      // `price` is a local platform price. A community import has no local
+      // offer, so the Steam amount is persisted only in the steam_* fields.
+      price: 0,
+      base_price: null,
+      launch_date: new Date(gameData.launch_date),
+      meta_tags: gameData.meta_tags || {},
+      media: gameData.media || {},
+      social_links: gameData.social_links || {},
+      requirements: gameData.requirements || {},
+    },
+  });
+}
+
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -231,11 +280,6 @@ function validateVideoUrls(urls: string[]) {
   }
 }
 
-export type SteamImportedGameData = Omit<
-  GameCreateDto,
-  "studio_id" | "publisher_id"
->;
-
 async function findOneBySteamAppId(steamAppId: string) {
   return await prisma.game.findUnique({
     where: {
@@ -251,9 +295,9 @@ async function findOneBySteamAppIdWithStudio(steamAppId: string) {
     return null;
   }
 
-  const studioWithMembers = await studioModel.findOneByIdWithMembers(
-    gameResource.studio_id,
-  );
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
 
   return { ...gameResource, studio: studioWithMembers };
 }
@@ -273,14 +317,33 @@ async function buildGameDataFromSteam(
   return mapSteamAppToGameData(result.data, steamAppId);
 }
 
-function mapSteamAppToGameData(
+export function mapSteamAppToGameData(
   steamGame: SteamAppDetailsData,
   steamAppId: string,
 ): SteamImportedGameData {
-  const priceCents = steamGame.is_free
+  const steamPriceCents = steamGame.is_free
     ? 0
-    : (steamGame.price_overview?.final ?? 0);
-  const price = priceCents / 100;
+    : steamGame.price_overview?.final;
+  const steamPrice =
+    steamPriceCents === undefined ? null : steamPriceCents / 100;
+  const steamOriginalPriceCents = steamGame.is_free
+    ? 0
+    : steamGame.price_overview?.initial;
+  const steamOriginalPrice =
+    steamOriginalPriceCents === undefined
+      ? null
+      : steamOriginalPriceCents / 100;
+  const steamDiscountPercent =
+    steamGame.price_overview?.discount_percent ??
+    (steamOriginalPriceCents &&
+    steamPriceCents !== undefined &&
+    steamPriceCents < steamOriginalPriceCents
+      ? Math.round(
+          ((steamOriginalPriceCents - steamPriceCents) /
+            steamOriginalPriceCents) *
+            100,
+        )
+      : 0);
 
   const genreTags = (steamGame.genres ?? []).map((g) => g.description);
   const categoryTags = (steamGame.categories ?? []).map((c) => c.description);
@@ -301,7 +364,14 @@ function mapSteamAppToGameData(
       steamGame.about_the_game ||
       steamGame.name,
     launch_date: parseSteamReleaseDate(steamGame.release_date),
-    price,
+    // Required legacy local-price column. createUnclaimedSteamGame overrides
+    // this to zero; the external amount below is the value exposed to users.
+    price: 0,
+    steam_price: steamPrice,
+    steam_original_price: steamOriginalPrice,
+    steam_discount_percent: steamDiscountPercent,
+    steam_price_currency: steamGame.price_overview?.currency ?? null,
+    steam_price_captured_at: new Date(),
     tags,
     meta_tags: {
       category: steamGame.genres?.[0]?.description,
@@ -428,9 +498,9 @@ async function findOneByIdWithStudio(id: string) {
     return null;
   }
 
-  const studioWithMembers = await studioModel.findOneByIdWithMembers(
-    gameResource.studio_id,
-  );
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
 
   return { ...gameResource, studio: studioWithMembers };
 }
@@ -442,9 +512,9 @@ async function findOneBySlugWithStudio(slug: string) {
     return null;
   }
 
-  const studioWithMembers = await studioModel.findOneByIdWithMembers(
-    gameResource.studio_id,
-  );
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
 
   return { ...gameResource, studio: studioWithMembers };
 }
@@ -611,7 +681,7 @@ async function findAllPaginated({
   priceableGameIds?: string[] | null;
 }) {
   const where: Prisma.GameWhereInput = {
-    status: "ACTIVE",
+    status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
   };
 
   if (tags && tags.length > 0) {
@@ -641,7 +711,12 @@ async function findAllPaginated({
   }
 
   if (priceableGameIds) {
-    andClauses.push({ id: { in: priceableGameIds } });
+    andClauses.push({
+      OR: [
+        { status: "ONLY_DISPLAY" },
+        { status: "ACTIVE", id: { in: priceableGameIds } },
+      ],
+    });
   }
 
   if (andClauses.length > 0) {
@@ -738,7 +813,7 @@ async function findAllPaginatedAdmin({
 
 async function findAllForSitemap() {
   return prisma.game.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
     orderBy: { updated_at: "desc" },
     select: { slug: true, updated_at: true },
   });
@@ -759,8 +834,18 @@ async function makePublic(id: string) {
   return await setStatus(id, "ACTIVE");
 }
 
+function ensurePurchasable(gameResource: { status: GameStatus }) {
+  if (gameResource.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "This game is not available for purchase on the platform.",
+      action: "Open the external store page when one is available.",
+    });
+  }
+}
+
 const game = {
   create,
+  createUnclaimedSteamGame,
   update,
   findOneById,
   findOneByIdWithStudio,
@@ -775,6 +860,7 @@ const game = {
   findAllForSitemap,
   makePublic,
   setStatus,
+  ensurePurchasable,
   calculateReviewScore,
 };
 

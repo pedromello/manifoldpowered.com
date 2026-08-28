@@ -14,7 +14,12 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { MetaTag } from "components/store/MetaTag";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
-import { formatBasePrice, formatPrice } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 import { useI18n } from "lib/i18n";
@@ -40,55 +45,64 @@ export function PurchaseCard({
 }) {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const isPlatformPurchase = game.purchase_mode === "PLATFORM";
+  const free = isCatalogFree(game);
+  const basePrice = formatCatalogBasePrice(game);
+  const discountLabel = catalogDiscountLabel(game);
+  const hasDisplayedPrice =
+    isPlatformPurchase || game.external_offer?.amount !== null;
 
   return (
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            {!isFreeGame && formatBasePrice(game) && (
-              <span className="text-sm font-semibold text-white/35 line-through">
-                {formatBasePrice(game)}
+        {hasDisplayedPrice && (
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              {!free && basePrice && (
+                <span className="text-sm font-semibold text-white/35 line-through">
+                  {basePrice}
+                </span>
+              )}
+              <span
+                className="text-3xl font-black uppercase tracking-tight"
+                style={{ color: discountBadgeColor }}
+              >
+                {free ? t("Free") : formatCatalogPrice(game)}
               </span>
-            )}
-            <span
-              className="text-3xl font-black uppercase tracking-tight"
-              style={{ color: discountBadgeColor }}
-            >
-              {isFreeGame ? t("Free") : formatPrice(game)}
-            </span>
+            </div>
+            {!free && discountLabel && <DiscountBadge label={discountLabel} />}
           </div>
-          {!isFreeGame && game.discount_label && (
-            <DiscountBadge label={game.discount_label} />
-          )}
-        </div>
-
-        {isInLibrary ? (
-          <button
-            onClick={() => router.push("/library")}
-            className="w-full rounded-lg border border-violet-400/30 bg-violet-500/15 px-5 py-3.5 text-sm font-bold text-violet-200 transition-colors hover:bg-violet-500/25"
-          >
-            {t("In Library")}
-          </button>
-        ) : (
-          <button
-            onClick={onRedeem}
-            disabled={isCheckingLibrary || isRedeeming}
-            className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isCheckingLibrary
-              ? t("Checking library...")
-              : isRedeeming
-                ? isFreeGame
-                  ? t("Adding...")
-                  : t("Processing...")
-                : isFreeGame
-                  ? t("Add to Library")
-                  : t("Buy now · {price}", { price: formatPrice(game) })}
-          </button>
         )}
 
-        {acquisitionError && (
+        {isPlatformPurchase &&
+          (isInLibrary ? (
+            <button
+              onClick={() => router.push("/library")}
+              className="w-full rounded-lg border border-violet-400/30 bg-violet-500/15 px-5 py-3.5 text-sm font-bold text-violet-200 transition-colors hover:bg-violet-500/25"
+            >
+              {t("In Library")}
+            </button>
+          ) : (
+            <button
+              onClick={onRedeem}
+              disabled={isCheckingLibrary || isRedeeming}
+              className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCheckingLibrary
+                ? t("Checking library...")
+                : isRedeeming
+                  ? isFreeGame
+                    ? t("Adding...")
+                    : t("Processing...")
+                  : isFreeGame
+                    ? t("Add to Library")
+                    : t("Buy now · {price}", {
+                        price: formatCatalogPrice(game),
+                      })}
+            </button>
+          ))}
+
+        {isPlatformPurchase && acquisitionError && (
           <p
             role="alert"
             className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-5 text-rose-200"

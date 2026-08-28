@@ -8,6 +8,7 @@ import {
   Store,
   Loader2,
   Shield,
+  Download,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -114,6 +115,15 @@ export function UserMenu({
             >
               <Library size={16} className="text-indigo-400" />
               {t("My Library")}
+            </Link>
+
+            <Link
+              href="/games/steam-import"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Download size={16} className="text-emerald-400" />
+              Add from Steam
             </Link>
 
             <Link

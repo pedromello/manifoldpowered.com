@@ -8,7 +8,12 @@ import { DiscountBadge } from "./DiscountBadge";
 import { UserMenu } from "./UserMenu";
 import { type GameApi } from "components/store/types";
 import { itemHref } from "lib/store-context";
-import { formatBasePrice, formatPrice } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
 
@@ -136,7 +141,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                 ) : filteredGames.length > 0 ? (
                   <>
                     {filteredGames.map((game) => {
-                      const isDemo = !game.price || Number(game.price) === 0;
+                      const free = isCatalogFree(game);
+                      const discountLabel = catalogDiscountLabel(game);
+                      const basePrice = formatCatalogBasePrice(game);
                       return (
                         <Link
                           key={game.id}
@@ -161,24 +168,24 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                                 className="text-xs font-black md:text-sm uppercase"
                                 style={{
                                   color:
-                                    isDemo || game.discount_label
+                                    free || discountLabel
                                       ? "#FFB400"
                                       : "rgba(255, 255, 255, 0.4)",
                                 }}
                               >
-                                {isDemo ? t("Free") : formatPrice(game)}
+                                {free ? t("Free") : formatCatalogPrice(game)}
                               </p>
-                              {!isDemo && formatBasePrice(game) && (
+                              {!free && basePrice && (
                                 <p className="text-xs font-semibold line-through text-white/40">
-                                  {formatBasePrice(game)}
+                                  {basePrice}
                                 </p>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center justify-end">
-                            {!isDemo && game.discount_label && (
+                            {!free && discountLabel && (
                               <DiscountBadge
-                                label={game.discount_label}
+                                label={discountLabel}
                                 size="small"
                               />
                             )}

@@ -8,7 +8,7 @@ import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayou
 import { ReviewSummary } from "components/store/ReviewSummary";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
-import { formatMoney, formatPrice, isFree } from "lib/price";
+import { formatCatalogPrice, formatMoney, isCatalogFree } from "lib/price";
 import { useI18n } from "lib/i18n";
 
 interface Studio {
@@ -40,6 +40,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-emerald-500/20 text-emerald-300",
+  ONLY_DISPLAY: "bg-violet-500/20 text-violet-300",
   PRIVATE: "bg-amber-500/20 text-amber-300",
   INACTIVE: "bg-white/10 text-white/50",
 };
@@ -109,7 +110,7 @@ export default function StudioPage() {
               </div>
 
               <Link
-                href={`/studio/${studio.slug}/games/steam-import`}
+                href="/games/steam-import"
                 className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-center text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
               >
                 {t("Import from Steam")}
@@ -156,7 +157,7 @@ export default function StudioPage() {
                       {t("No games yet.")}
                     </p>
                     <Link
-                      href={`/studio/${studio.slug}/games/steam-import`}
+                      href="/games/steam-import"
                       className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
                     >
                       {t("Import a Game from Steam")}
@@ -291,7 +292,7 @@ function StudioGameCard({ game }: { game: GameApi }) {
   const [copied, setCopied] = useState(false);
   const { locale, t } = useI18n();
 
-  const isDemo = isFree(game);
+  const free = isCatalogFree(game);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
@@ -334,7 +335,7 @@ function StudioGameCard({ game }: { game: GameApi }) {
         </div>
 
         <div className="flex items-center gap-3 text-xs text-white/40 font-bold">
-          <span>{isDemo ? t("Free") : formatPrice(game)}</span>
+          <span>{free ? t("Free") : formatCatalogPrice(game)}</span>
           <span className="text-white/20">•</span>
           <span>{launchDate}</span>
         </div>

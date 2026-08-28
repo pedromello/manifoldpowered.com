@@ -10,7 +10,7 @@ interface BackofficeGame {
   slug: string;
   title: string;
   developer_name: string;
-  status: "ACTIVE" | "INACTIVE" | "PRIVATE";
+  status: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
   created_at: string;
 }
 

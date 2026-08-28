@@ -2,7 +2,7 @@ import Form from "next/form";
 import Link from "next/link";
 
 import type { StorefrontViewProps } from "components/storefront/types";
-import { formatPrice, isFree } from "lib/price";
+import { formatCatalogPrice, isCatalogFree } from "lib/price";
 import { useI18n } from "lib/i18n";
 
 /**
@@ -74,7 +74,7 @@ export function TemplateStorefront({
                 </p>
               )}
               <span className="text-sf-accent font-black uppercase">
-                {isFree(game) ? t("Free") : formatPrice(game)}
+                {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
               </span>
             </Link>
           ))}
@@ -141,7 +141,7 @@ export function TemplateStorefront({
                 </p>
               </div>
               <span className="text-sf-accent font-black uppercase shrink-0">
-                {isFree(game) ? t("Free") : formatPrice(game)}
+                {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
               </span>
             </Link>
           ))

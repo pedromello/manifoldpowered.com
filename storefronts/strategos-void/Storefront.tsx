@@ -5,7 +5,7 @@ import { PlaySquare, MessageCircle } from "lucide-react";
 
 import type { StorefrontViewProps } from "components/storefront/types";
 import { useI18n } from "lib/i18n";
-import { formatPrice, isFree } from "lib/price";
+import { formatCatalogPrice, isCatalogFree } from "lib/price";
 
 /**
  * Strategos Void — grand strategy / 4X / city-builder channel.
@@ -36,7 +36,7 @@ function GameCard({
   href: string;
 }) {
   const { t } = useI18n();
-  const free = isFree(game);
+  const free = isCatalogFree(game);
 
   return (
     <Link
@@ -57,7 +57,7 @@ function GameCard({
           {game.title}
         </h3>
         <span className="font-black uppercase tracking-wider text-sf-accent">
-          {free ? t("Free") : formatPrice(game)}
+          {free ? t("Free") : formatCatalogPrice(game)}
         </span>
       </div>
     </Link>
@@ -243,7 +243,9 @@ export function StrategosVoidStorefront({
                 </p>
               )}
               <span className="text-xl font-black uppercase tracking-wider text-sf-accent">
-                {isFree(heroGame) ? t("Free") : formatPrice(heroGame)}
+                {isCatalogFree(heroGame)
+                  ? t("Free")
+                  : formatCatalogPrice(heroGame)}
               </span>
             </div>
           </Link>

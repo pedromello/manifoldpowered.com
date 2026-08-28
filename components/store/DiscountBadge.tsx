@@ -1,5 +1,4 @@
 import { discountBadgeColor } from "./constants";
-import { useI18n } from "lib/i18n";
 
 export function DiscountBadge({
   label,
@@ -10,18 +9,17 @@ export function DiscountBadge({
   color?: string;
   size?: "normal" | "small";
 }) {
-  const { t } = useI18n();
   return (
     <span
-      className={`py-1 rounded-lg text-xs md:text-lg font-black text-black uppercase tracking-wider shadow-lg transform rotate-2 animate-pulse-glow ${
-        size === "small" ? "text-xs py-2 px-1" : "text-sm px-3"
+      className={`inline-flex items-center justify-center rounded-md font-black leading-none text-black shadow-lg ${
+        size === "small" ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-xs"
       }`}
       style={{
         backgroundColor: color,
         boxShadow: `0 0 20px ${color}66`,
       }}
     >
-      {label && size === "normal" ? t("{label} OFF", { label }) : label}
+      {label}
     </span>
   );
 }

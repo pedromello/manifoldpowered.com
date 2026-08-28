@@ -50,6 +50,13 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  if (gameResource.status === "ONLY_DISPLAY") {
+    throw new ValidationError({
+      message: "Files cannot be uploaded to an unclaimed display-only game.",
+      action: "Complete the ownership claim flow first.",
+    });
+  }
+
   if (!authorization.can(req.context.user, "create:game_file", gameResource)) {
     throw new ForbiddenError({
       message: "You are not allowed to upload files for this game",

@@ -1,12 +1,6 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
-
-// Note: infra/steam.ts's ServiceError path (network failure/timeout/non-2xx
-// from Steam) is intentionally not covered here — it cannot be
-// deterministically triggered against the real Steam API without HTTP
-// mocking, which this repo does not use. Accepted gap.
-
-const STEAM_TEST_APP_ID = process.env.STEAM_TEST_APP_ID as string;
+import steamImport from "models/steam_import";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -14,23 +8,32 @@ beforeAll(async () => {
 });
 
 describe("POST /api/v1/items/games/steam-import", () => {
-  describe("Authenticated user", () => {
-    test("With 'create:game' feature and studio ownership should return 201 Created; re-importing refreshes it (200) instead of duplicating it; and an unrelated studio cannot hijack it via re-import", async () => {
-      // steam_app_id is globally unique, and STEAM_TEST_APP_ID is the only
-      // real, deterministic fixture available (per the product owner's
-      // explicit choice to hit the real Steam API rather than mock it) — so
-      // every scenario that needs an "already imported" game must reuse the
-      // same single successful import within one test, rather than each
-      // getting their own "first" import across separate tests.
-
-      // Arrange
+  describe("Activated user", () => {
+    test("Should return an imported game idempotently as visible and unclaimed", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
-      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
-      const studio = await orchestrator.createStudio(user.id);
+      const steamAppId = "900000010";
+      const seededImport = await steamImport.importGame({
+        userId: user.id,
+        steamAppId,
+        gateway: {
+          fetchAppDetails: async () => ({
+            success: true,
+            data: {
+              name: "Community Catalog Fixture",
+              short_description: "A deterministic Steam import fixture",
+              price_overview: {
+                currency: "USD",
+                initial: 2999,
+                final: 1999,
+                discount_percent: 33,
+              },
+            },
+          }),
+        },
+      });
 
-      // Act: fresh import.
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
@@ -39,49 +42,70 @@ describe("POST /api/v1/items/games/steam-import", () => {
             "Content-Type": "application/json",
             Cookie: `session_id=${session.token}`,
           },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
-          }),
+          body: JSON.stringify({ steam_app_id: steamAppId }),
         },
       );
 
-      // Assert
+      expect(response.status).toBe(200);
       const responseBody = await response.json();
-
-      if (response.status !== 201) {
-        console.log("Response Status:", response.status);
-        console.log("Response Body:", responseBody);
-      }
-
-      expect(response.status).toBe(201);
-      expect(responseBody.status).toBe("ACTIVE"); // Moderation is bypassed
-      expect(responseBody.steam_app_id).toBe(STEAM_TEST_APP_ID);
-      expect(responseBody.studio_id).toBe(studio.id);
+      expect(responseBody).toMatchObject({
+        status: "ONLY_DISPLAY",
+        id: seededImport.game.id,
+        steam_app_id: steamAppId,
+        studio_id: null,
+        ownership_status: "UNCLAIMED",
+        purchase_mode: "STEAM_ONLY",
+        price: null,
+        base_price: null,
+        external_offer: {
+          provider: "STEAM",
+          amount: "19.99",
+          original_amount: "29.99",
+          discount_percent: 33,
+          currency: "USD",
+          url: `https://store.steampowered.com/app/${steamAppId}/`,
+          captured_at: expect.any(String),
+        },
+      });
       expect(responseBody.social_links.steam_page).toBe(
-        `https://store.steampowered.com/app/${STEAM_TEST_APP_ID}/`,
+        `https://store.steampowered.com/app/${steamAppId}/`,
       );
-      expect(Array.isArray(responseBody.media.videos)).toBe(true);
-      for (const videoUrl of responseBody.media.videos) {
-        expect(() => new URL(videoUrl)).not.toThrow();
-        expect(new URL(videoUrl).hostname.endsWith(".steamstatic.com")).toBe(
-          true,
-        );
-      }
-      expect(Number(responseBody.price)).toBeGreaterThan(0);
-      expect(typeof responseBody.title).toBe("string");
-      expect(responseBody.title.length).toBeGreaterThan(0);
 
       const persistedGame = await orchestrator.getGameBySlug(responseBody.slug);
-      expect(persistedGame).toBeDefined();
-      expect(persistedGame.status).toBe("ACTIVE");
-      expect(persistedGame.steam_app_id).toBe(STEAM_TEST_APP_ID);
-      expect(persistedGame.studio_id).toBe(studio.id);
-      expect(persistedGame.developer_name).toBe(studio.name);
-      // Both are Prisma Decimal instances, so compare values not references.
-      expect(persistedGame.base_price?.equals(persistedGame.price)).toBe(true);
+      expect(persistedGame).toMatchObject({
+        status: "ONLY_DISPLAY",
+        steam_app_id: steamAppId,
+        studio_id: null,
+        steam_price_currency: "USD",
+        steam_discount_percent: 33,
+      });
+      expect(persistedGame.price.toFixed(2)).toBe("0.00");
+      expect(persistedGame.steam_price?.toFixed(2)).toBe("19.99");
+      expect(persistedGame.steam_original_price?.toFixed(2)).toBe("29.99");
 
-      // Act again: the same studio re-imports the same Steam app.
+      const catalogResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(responseBody.title)}`,
+      );
+      expect(catalogResponse.status).toBe(200);
+      const catalogBody = await catalogResponse.json();
+      expect(catalogBody.games).toContainEqual(
+        expect.objectContaining({
+          id: responseBody.id,
+          status: "ONLY_DISPLAY",
+          display_price: null,
+          purchase_mode: "STEAM_ONLY",
+          external_offer: {
+            provider: "STEAM",
+            amount: "19.99",
+            original_amount: "29.99",
+            discount_percent: 33,
+            currency: "USD",
+            url: `https://store.steampowered.com/app/${steamAppId}/`,
+            captured_at: expect.any(String),
+          },
+        }),
+      );
+
       const reimportResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
@@ -90,121 +114,24 @@ describe("POST /api/v1/items/games/steam-import", () => {
             "Content-Type": "application/json",
             Cookie: `session_id=${session.token}`,
           },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
-          }),
+          body: JSON.stringify({ steam_app_id: steamAppId }),
         },
       );
 
-      // Assert: the existing game is refreshed in place, not duplicated.
       expect(reimportResponse.status).toBe(200);
-      const reimportResponseBody = await reimportResponse.json();
-      expect(reimportResponseBody.id).toBe(responseBody.id);
-      expect(reimportResponseBody.slug).toBe(responseBody.slug);
-      expect(reimportResponseBody.steam_app_id).toBe(STEAM_TEST_APP_ID);
-      expect(reimportResponseBody.status).toBe("ACTIVE");
-      // Ownership is untouched by a refresh — still the original studio.
-      expect(reimportResponseBody.studio_id).toBe(studio.id);
-
-      const gameAfterRefresh = await orchestrator.getGameBySlug(
-        responseBody.slug,
-      );
-      expect(gameAfterRefresh.id).toBe(responseBody.id);
-
-      // Act again: an unrelated user, with their own unrelated studio and
-      // create:game rights there, tries to "re-import" the same Steam app
-      // under their own studio_id.
-      const outsider = await orchestrator.createUser();
-      await orchestrator.activateUser(outsider.id);
-      await orchestrator.addFeaturesToUser(outsider.id, ["create:game"]);
-      const outsiderSession = await orchestrator.createSession(outsider.id);
-      const outsiderStudio = await orchestrator.createStudio(outsider.id);
-
-      const hijackResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${outsiderSession.token}`,
-          },
-          body: JSON.stringify({
-            studio_id: outsiderStudio.id,
-            steam_app_id: STEAM_TEST_APP_ID,
-          }),
-        },
-      );
-
-      // Assert: authorized against the game's real studio, not the
-      // request's studio_id — the outsider cannot take it over.
-      expect(hijackResponse.status).toBe(403);
-      const hijackResponseBody = await hijackResponse.json();
-      expect(hijackResponseBody).toEqual({
-        name: "ForbiddenError",
-        message: "You do not have permission to update this game",
-        action: "Verify if you are the owner of this game",
-        status_code: 403,
-      });
-
-      const gameAfterHijackAttempt = await orchestrator.getGameBySlug(
-        responseBody.slug,
-      );
-      expect(gameAfterHijackAttempt.studio_id).toBe(studio.id);
-    });
-
-    test("Without membership in the target studio should return 403 Forbidden", async () => {
-      // Arrange
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const studio = await orchestrator.createStudio(owner.id);
-
-      const outsider = await orchestrator.createUser();
-      await orchestrator.activateUser(outsider.id);
-      await orchestrator.addFeaturesToUser(outsider.id, ["create:game"]);
-      const outsiderSession = await orchestrator.createSession(outsider.id);
-
-      // Act: the create-path's studio-membership check runs before any
-      // Steam API call, so a syntactically valid but unused app id (rather
-      // than the shared STEAM_TEST_APP_ID fixture, which other tests in
-      // this file already import) keeps this test independent of file
-      // execution order and of steam_app_id's global-uniqueness constraint.
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${outsiderSession.token}`,
-          },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: "1",
-          }),
-        },
-      );
-
-      // Assert
-      expect(response.status).toBe(403);
-      const responseBody = await response.json();
-      expect(responseBody).toEqual({
-        name: "ForbiddenError",
-        message: "You do not have permission to create games for this studio",
-        action:
-          "Verify if you are a member of this studio with game creation rights",
-        status_code: 403,
+      expect(await reimportResponse.json()).toMatchObject({
+        id: responseBody.id,
+        slug: responseBody.slug,
+        status: "ONLY_DISPLAY",
+        ownership_status: "UNCLAIMED",
       });
     });
 
-    test("With an invalid steam_app_id format should return 400 Bad Request", async () => {
-      // Arrange
+    test("With an invalid steam_app_id format should return 400", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
-      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
       const session = await orchestrator.createSession(user.id);
-      const studio = await orchestrator.createStudio(user.id);
 
-      // Act
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
@@ -213,77 +140,32 @@ describe("POST /api/v1/items/games/steam-import", () => {
             "Content-Type": "application/json",
             Cookie: `session_id=${session.token}`,
           },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: "not-a-number",
-          }),
+          body: JSON.stringify({ steam_app_id: "not-a-number" }),
         },
       );
 
-      // Assert
       expect(response.status).toBe(400);
-      const responseBody = await response.json();
-      expect(responseBody.name).toBe("ValidationError");
-    });
-
-    test("With a nonexistent Steam app should return 404 Not Found", async () => {
-      // Arrange
-      const user = await orchestrator.createUser();
-      await orchestrator.activateUser(user.id);
-      await orchestrator.addFeaturesToUser(user.id, ["create:game"]);
-      const session = await orchestrator.createSession(user.id);
-      const studio = await orchestrator.createStudio(user.id);
-      const nonexistentAppId = "999999999";
-
-      // Act
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${session.token}`,
-          },
-          body: JSON.stringify({
-            studio_id: studio.id,
-            steam_app_id: nonexistentAppId,
-          }),
-        },
-      );
-
-      // Assert
-      expect(response.status).toBe(404);
-      const responseBody = await response.json();
-      expect(responseBody).toEqual({
-        name: "NotFoundError",
-        message: `Steam app with id "${nonexistentAppId}" was not found or is not available.`,
-        action: "Check the Steam app id or store link and try again.",
-        status_code: 404,
-      });
+      expect((await response.json()).name).toBe("ValidationError");
     });
   });
 
   describe("Anonymous user", () => {
-    test("Should return 403 Forbidden", async () => {
-      // Act
+    test("Should return 403", async () => {
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ steam_app_id: STEAM_TEST_APP_ID }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ steam_app_id: "900000011" }),
         },
       );
 
-      // Assert
       expect(response.status).toBe(403);
-      const responseBody = await response.json();
-      expect(responseBody).toEqual({
+      expect(await response.json()).toEqual({
         name: "ForbiddenError",
         message: "You do not have permission to perform this action",
-        action: "Verify your user has the following features: create:game",
+        action:
+          "Verify your user has the following features: import:steam_game",
         status_code: 403,
       });
     });

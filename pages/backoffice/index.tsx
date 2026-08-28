@@ -24,7 +24,12 @@ interface DashboardMetrics {
       title: string;
       created_at: string;
     }[];
-    by_status: { ACTIVE: number; INACTIVE: number; PRIVATE: number };
+    by_status: {
+      ACTIVE: number;
+      ONLY_DISPLAY: number;
+      INACTIVE: number;
+      PRIVATE: number;
+    };
   };
   users: {
     total: number;

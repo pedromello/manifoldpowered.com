@@ -13,9 +13,19 @@ export interface DisplayPrice {
 }
 
 export interface PricedItem {
-  price: string;
+  price: string | null;
   base_price?: string | null;
   display_price?: DisplayPrice | null;
+}
+
+export interface ExternalPricedItem {
+  external_offer?: {
+    provider: "STEAM";
+    amount: string | null;
+    original_amount?: string | null;
+    discount_percent?: number | null;
+    currency: string | null;
+  } | null;
 }
 
 const BASE_SYMBOL = "$";
@@ -60,7 +70,92 @@ function localizeAmount(amount: string, currency: string): string {
 
 export function isFree(item: PricedItem): boolean {
   const amount = item.display_price?.amount ?? item.price;
-  return !amount || Number(amount) === 0;
+  return amount !== null && amount !== undefined && Number(amount) === 0;
+}
+
+export function formatExternalPrice(item: ExternalPricedItem): string | null {
+  const offer = item.external_offer;
+  if (!offer || offer.amount === null) {
+    return null;
+  }
+
+  if (Number(offer.amount) === 0) {
+    return "Free";
+  }
+
+  const currency = offer.currency?.toUpperCase();
+  if (!currency) {
+    return offer.amount;
+  }
+
+  return `${currencySymbol(currency)}${localizeAmount(offer.amount, currency)}`;
+}
+
+export function formatExternalBasePrice(
+  item: ExternalPricedItem,
+): string | null {
+  const offer = item.external_offer;
+  if (
+    !offer?.original_amount ||
+    offer.amount === null ||
+    offer.original_amount === offer.amount
+  ) {
+    return null;
+  }
+
+  const currency = offer.currency?.toUpperCase();
+  return currency
+    ? `${currencySymbol(currency)}${localizeAmount(offer.original_amount, currency)}`
+    : offer.original_amount;
+}
+
+export function formatCatalogBasePrice(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+): string | null {
+  return item.purchase_mode === "STEAM_ONLY"
+    ? formatExternalBasePrice(item)
+    : formatBasePrice(item);
+}
+
+export function catalogDiscountLabel(
+  item: PricedItem &
+    ExternalPricedItem & {
+      purchase_mode: string;
+      discount_label?: string | null;
+    },
+): string | null {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    const percent = item.external_offer?.discount_percent;
+    return percent && formatExternalBasePrice(item) ? `-${percent}%` : null;
+  }
+
+  return item.discount_label ?? null;
+}
+
+export function isCatalogFree(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+): boolean {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    const amount = item.external_offer?.amount;
+    return amount !== null && amount !== undefined && Number(amount) === 0;
+  }
+
+  return item.purchase_mode === "PLATFORM" && isFree(item);
+}
+
+export function formatCatalogPrice(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+  freeLabel = "Free",
+): string {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    return formatExternalPrice(item) ?? "View on Steam";
+  }
+
+  if (item.purchase_mode !== "PLATFORM") {
+    return "Catalog only";
+  }
+
+  return isFree(item) ? freeLabel : formatPrice(item);
 }
 
 export function formatPrice(item: PricedItem): string {
@@ -69,7 +164,7 @@ export function formatPrice(item: PricedItem): string {
     return `${symbol}${localizeAmount(amount, currency)}`;
   }
 
-  return `${BASE_SYMBOL}${item.price}`;
+  return item.price === null ? "" : `${BASE_SYMBOL}${item.price}`;
 }
 
 // The struck-through "was" price, or null when there is no discount to show.

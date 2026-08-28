@@ -1,5 +1,15 @@
 import { DisplayPrice } from "lib/price";
 
+export type ExternalOffer = {
+  provider: "STEAM";
+  amount: string | null;
+  original_amount: string | null;
+  discount_percent: number | null;
+  currency: string | null;
+  url: string;
+  captured_at: string | null;
+};
+
 /**
  * The wire shape of a game as it leaves `filterOutput(user, "read:public_game")`,
  * with the `display_price` that `models/storefront_pricing.filterAndPrice` appends.
@@ -16,8 +26,8 @@ export type GameApi = {
   description: string;
   detailed_description: string;
   launch_date: string;
-  price: string;
-  base_price?: string;
+  price: string | null;
+  base_price?: string | null;
   display_price?: DisplayPrice | null;
   discount_label?: string;
   developer_name: string;
@@ -29,7 +39,10 @@ export type GameApi = {
     icon?: string;
     videos: string[];
   };
-  status?: "ACTIVE" | "INACTIVE" | "PRIVATE";
+  status?: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
+  ownership_status?: "UNCLAIMED" | "CLAIMED";
+  purchase_mode: "STEAM_ONLY" | "UNAVAILABLE" | "PLATFORM";
+  external_offer: ExternalOffer | null;
   positive_reviews?: number;
   negative_reviews?: number;
   review_score?: string | null;

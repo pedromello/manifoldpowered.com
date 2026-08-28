@@ -260,14 +260,29 @@ describe("Use case: Purchase and Download Flow", () => {
       const libraryItems = libraryResponseBody.games;
       const gamesInLibrary = libraryItems.map((item) => item.game);
 
+      const publicGame = Object.fromEntries(
+        Object.entries(game).filter(
+          ([key]) =>
+            ![
+              "steam_price",
+              "steam_original_price",
+              "steam_discount_percent",
+              "steam_price_currency",
+              "steam_price_captured_at",
+            ].includes(key),
+        ),
+      );
       const gameWithDatesAsString = {
-        ...game,
+        ...publicGame,
         launch_date: game.launch_date.toISOString(),
         created_at: game.created_at.toISOString(),
         updated_at: game.updated_at.toISOString(),
         // The API serialises Decimal to a fixed 2-decimal string.
         price: game.price.toFixed(2),
         base_price: game.base_price?.toFixed(2) ?? null,
+        ownership_status: "CLAIMED",
+        purchase_mode: "PLATFORM",
+        external_offer: null,
       };
       expect(gamesInLibrary).toContainEqual(gameWithDatesAsString);
 

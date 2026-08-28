@@ -14,13 +14,19 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { DiscountBadge } from "components/store/DiscountBadge";
 import type { GameApi } from "components/store/types";
 import type { DefaultStorefrontProps } from "components/storefront/types";
-import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import { useI18n } from "lib/i18n";
 
 function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
-  const basePrice = formatBasePrice(game);
+  const basePrice = formatCatalogBasePrice(game);
   const { t } = useI18n();
 
   return (
@@ -33,18 +39,21 @@ function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
       <span
         className={`${large ? "text-xl" : "text-sm"} font-black text-white`}
       >
-        {isFree(game) ? t("Free") : formatPrice(game)}
+        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
       </span>
     </div>
   );
 }
 
 function commercialLabel(game: GameApi, t: (message: string) => string) {
-  if (isFree(game)) return t("Free Demo");
-  if (game.discount_label && formatBasePrice(game)) {
-    return game.discount_label;
+  if (isCatalogFree(game)) {
+    return game.purchase_mode === "PLATFORM" ? t("Free Demo") : t("Free");
   }
-  return formatPrice(game);
+  const discountLabel = catalogDiscountLabel(game);
+  if (discountLabel && formatCatalogBasePrice(game)) {
+    return discountLabel;
+  }
+  return formatCatalogPrice(game);
 }
 
 function HeroSkeleton() {
@@ -300,6 +309,7 @@ function SpotlightCarousel({
 }
 
 function GameCard({ game, href }: { game: GameApi; href: string }) {
+  const discountLabel = catalogDiscountLabel(game);
   return (
     <Link
       href={href}
@@ -319,9 +329,9 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
         ) : (
           <div className="h-full w-full bg-[linear-gradient(135deg,#28183b,#15101d)]" />
         )}
-        {game.discount_label && formatBasePrice(game) && (
-          <span className="absolute bottom-2 left-2 rounded-md bg-emerald-400 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-950">
-            {game.discount_label}
+        {discountLabel && formatCatalogBasePrice(game) && (
+          <span className="absolute bottom-2 left-2">
+            <DiscountBadge label={discountLabel} size="small" />
           </span>
         )}
       </div>

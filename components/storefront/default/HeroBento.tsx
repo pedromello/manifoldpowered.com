@@ -5,7 +5,12 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
 import { type GameApi } from "components/store/types";
-import { PricedItem, formatBasePrice, formatPrice, isFree } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import { useI18n } from "lib/i18n";
 
 const AUTO_ADVANCE_MS = 7000;
@@ -55,7 +60,10 @@ export function HeroBento({
   const displayedIndex = Math.min(activeIndex, slides.length - 1);
   const activeGame = slides[displayedIndex];
   const activeIsEditorial = isEditorial(activeGame, mode);
-  const isDemo = (item: PricedItem) => isFree(item);
+  const activeFree = isCatalogFree(activeGame);
+  const activeIsDemo = activeGame.purchase_mode === "PLATFORM" && activeFree;
+  const activeBasePrice = formatCatalogBasePrice(activeGame);
+  const activeDiscountLabel = catalogDiscountLabel(activeGame);
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const editorialLabel = storeName
@@ -100,13 +108,11 @@ export function HeroBento({
           <div className="absolute inset-0 bg-gradient-to-r from-[#120923]/95 via-[#1D0F3B]/50 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#120923] via-transparent to-black/20" />
 
-          {!isDemo(activeGame) &&
-            formatBasePrice(activeGame) !== null &&
-            activeGame.discount_label && (
-              <div className="absolute right-5 top-5 z-10 md:right-8 md:top-8 md:scale-110">
-                <DiscountBadge label={activeGame.discount_label} />
-              </div>
-            )}
+          {!activeFree && activeBasePrice && activeDiscountLabel && (
+            <div className="absolute right-5 top-5 z-10 md:right-8 md:top-8 md:scale-110">
+              <DiscountBadge label={activeDiscountLabel} />
+            </div>
+          )}
 
           <div className="absolute inset-x-6 bottom-8 flex max-w-3xl flex-col items-start text-white md:inset-x-12 md:bottom-12">
             <span className="mb-4 max-w-full truncate rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/85 backdrop-blur-md md:text-xs">
@@ -124,14 +130,12 @@ export function HeroBento({
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span
                 className={`rounded-xl border bg-black/60 px-4 py-2 text-lg font-black uppercase shadow-2xl backdrop-blur-md md:text-2xl ${
-                  !isDemo(activeGame) && formatBasePrice(activeGame) !== null
+                  !activeFree && activeBasePrice
                     ? ""
                     : "border-white/20 text-white"
                 }`}
                 style={
-                  !isDemo(activeGame) &&
-                  activeGame.base_price &&
-                  formatBasePrice(activeGame) !== null
+                  !activeFree && activeBasePrice
                     ? {
                         color: discountBadgeColor,
                         borderColor: discountBadgeColor,
@@ -139,15 +143,17 @@ export function HeroBento({
                     : {}
                 }
               >
-                {isDemo(activeGame) ? t("Free Demo") : formatPrice(activeGame)}
+                {activeFree
+                  ? activeIsDemo
+                    ? t("Free Demo")
+                    : t("Free")
+                  : formatCatalogPrice(activeGame)}
               </span>
-              {!isDemo(activeGame) &&
-                activeGame.base_price &&
-                formatBasePrice(activeGame) !== null && (
-                  <span className="text-base font-bold text-white/45 line-through md:text-lg">
-                    {formatBasePrice(activeGame)}
-                  </span>
-                )}
+              {!activeFree && activeBasePrice && (
+                <span className="text-base font-bold text-white/45 line-through md:text-lg">
+                  {activeBasePrice}
+                </span>
+              )}
               {(activeGame.tags || []).slice(0, 3).map((tag) => (
                 <span
                   key={tag}

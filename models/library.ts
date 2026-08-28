@@ -29,6 +29,8 @@ async function acquireGame(
     });
   }
 
+  game.ensurePurchasable(existingGame);
+
   // What the buyer is actually charged, in their own currency. Throws when the
   // game has no price here, which is the same answer the listings and the
   // detail page already give — a game you cannot see a price for is a game you

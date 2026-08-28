@@ -86,8 +86,18 @@ model UserOtp {
 
 enum GameStatus {
   ACTIVE
+  ONLY_DISPLAY
   INACTIVE
   PRIVATE
+}
+
+enum SteamImportAttemptOutcome {
+  PENDING
+  SUCCESS
+  NOT_FOUND
+  SERVICE_ERROR
+  INVALID_DATA
+  BLOCKED_ADULT
 }
 
 enum ReviewScore {
@@ -104,7 +114,7 @@ enum ReviewScore {
 
 model Game {
   id                   String     @id @default(uuid())
-  studio_id            String // Logical reference to Studio.id (Developer)
+  studio_id            String? // Logical reference to Studio.id (Developer); null means unclaimed
   publisher_id         String? // Logical reference to Studio.id (Publisher; absent means self-published by studio_id)
   title                String     @db.VarChar(255)
   slug                 String     @unique @db.VarChar(255)
@@ -134,6 +144,15 @@ model Game {
   // the same Steam app can't be imported twice.
   steam_app_id String? @unique @db.VarChar(20)
 
+  // Informational Steam offer captured during import. These fields are kept
+  // separate from price/base_price because they never make the game
+  // purchasable on Manifold and may become stale or vary by Steam region.
+  steam_price             Decimal?  @db.Decimal(19, 4)
+  steam_original_price    Decimal?  @db.Decimal(19, 4)
+  steam_discount_percent  Int?
+  steam_price_currency    String?   @db.VarChar(3)
+  steam_price_captured_at DateTime?
+
   // Flexibility (JSONB) to facilitate expansion
   meta_tags    Json @default("{}")
   media        Json @default("{}")
@@ -153,6 +172,23 @@ model Game {
   @@index([slug])
   @@index([title])
   @@map("games")
+}
+
+// Stateful record used both for abuse prevention and for content-policy audit.
+// There are no foreign keys by design; user_id is a logical reference to User.id.
+model SteamImportAttempt {
+  id                          String                    @id @default(uuid())
+  user_id                     String
+  steam_app_id                String                    @db.VarChar(20)
+  outcome                     SteamImportAttemptOutcome @default(PENDING)
+  content_descriptor_ids      Int[]                     @default([])
+  content_descriptors_present Boolean                   @default(false)
+  created_at                  DateTime                  @default(now())
+  updated_at                  DateTime                  @updatedAt
+
+  @@index([user_id, created_at])
+  @@index([steam_app_id])
+  @@map("steam_import_attempts")
 }
 
 model Review {

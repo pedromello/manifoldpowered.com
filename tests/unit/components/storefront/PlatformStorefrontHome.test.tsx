@@ -33,6 +33,8 @@ const game: GameApi = {
   developer_name: "Test Studio",
   tags: ["Strategy"],
   media: { screenshots: [], videos: [] },
+  purchase_mode: "PLATFORM",
+  external_offer: null,
   recommendation_reason: "A trusted editorial pick.",
   featured_source: "EDITORIAL",
 };
@@ -114,5 +116,42 @@ describe("PlatformStorefrontHome", () => {
     expect(markup).toContain("Think Steam, but with creator-run storefronts.");
     expect(markup).toContain('action="/search"');
     expect(markup).not.toContain('data-storefront="follow-outlet"');
+  });
+
+  test("renders a discounted Steam-only offer without a Steam suffix", () => {
+    const steamGame: GameApi = {
+      ...game,
+      id: "steam-game-1",
+      slug: "steam-only-game",
+      price: null,
+      base_price: null,
+      display_price: null,
+      discount_label: undefined,
+      purchase_mode: "STEAM_ONLY",
+      external_offer: {
+        provider: "STEAM",
+        amount: "19.99",
+        original_amount: "29.99",
+        discount_percent: 33,
+        currency: "USD",
+        url: "https://store.steampowered.com/app/123/",
+        captured_at: "2026-08-28T00:00:00.000Z",
+      },
+    };
+    const steamProps = props(null);
+    steamProps.featured = [steamGame];
+    steamProps.games = [steamGame];
+
+    const markup = renderToStaticMarkup(
+      <PlatformStorefrontHome {...steamProps} />,
+    );
+
+    expect(markup).toContain("$19.99");
+    expect(markup).toContain("$29.99");
+    expect(markup).toContain("-33%");
+    expect(markup).toContain("background-color:#FFB400");
+    expect(markup).not.toContain("bg-emerald-400");
+    expect(markup).not.toContain("-33% OFF");
+    expect(markup.toLowerCase()).not.toContain("on steam");
   });
 });

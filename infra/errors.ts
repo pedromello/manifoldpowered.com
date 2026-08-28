@@ -229,3 +229,61 @@ export class ForbiddenError extends Error {
     };
   }
 }
+
+export class UnsupportedContentError extends Error {
+  public statusCode: number;
+  public action: string;
+
+  constructor({
+    message,
+    cause,
+    action,
+  }: {
+    message?: string;
+    cause?: unknown;
+    action?: string;
+  }) {
+    super(message || "Unsupported content", { cause });
+    this.name = "UnsupportedContentError";
+    this.statusCode = 422;
+    this.action = action || "Choose content supported by the platform";
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}
+
+export class TooManyRequestsError extends Error {
+  public statusCode: number;
+  public action: string;
+
+  constructor({
+    message,
+    cause,
+    action,
+  }: {
+    message?: string;
+    cause?: unknown;
+    action?: string;
+  }) {
+    super(message || "Too many requests", { cause });
+    this.name = "TooManyRequestsError";
+    this.statusCode = 429;
+    this.action = action || "Wait before trying again";
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}

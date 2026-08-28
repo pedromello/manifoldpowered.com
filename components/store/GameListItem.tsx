@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { discountBadgeColor } from "components/store/constants";
-import { formatBasePrice, formatPrice, isFree } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import { itemHref as buildItemHref } from "lib/store-context";
 import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
@@ -18,8 +23,9 @@ export function GameListItem({
   storeSlug?: string;
 }) {
   const { t } = useI18n();
-  const isDemo = isFree(game);
-  const isDiscounted = !isDemo && formatBasePrice(game) !== null;
+  const free = isCatalogFree(game);
+  const discountLabel = catalogDiscountLabel(game);
+  const isDiscounted = !free && formatCatalogBasePrice(game) !== null;
   const defaultGradient =
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const itemHref = buildItemHref(game.slug, storeSlug);
@@ -57,15 +63,15 @@ export function GameListItem({
           <div className="flex items-end gap-1 w-fit">
             <div className="flex w-full h-full">
               <div className="flex items-center">
-                {isDiscounted && game.discount_label && (
-                  <DiscountBadge label={game.discount_label} size="small" />
+                {isDiscounted && discountLabel && (
+                  <DiscountBadge label={discountLabel} size="small" />
                 )}
               </div>
             </div>
             <div className="flex flex-col h-full justify-center pr-2">
               {isDiscounted && (
                 <span className="text-sm md:text-xl font-bold text-white/30 line-through">
-                  {formatBasePrice(game)}
+                  {formatCatalogBasePrice(game)}
                 </span>
               )}
               <div
@@ -79,7 +85,7 @@ export function GameListItem({
                     : {}
                 }
               >
-                {isDemo ? t("Free") : formatPrice(game)}
+                {free ? t("Free") : formatCatalogPrice(game)}
               </div>
             </div>
           </div>

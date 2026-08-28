@@ -21,7 +21,7 @@ interface BackofficeGame {
   id: string;
   slug: string;
   title: string;
-  status: "ACTIVE" | "INACTIVE" | "PRIVATE";
+  status: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
   created_at: string;
 }
 

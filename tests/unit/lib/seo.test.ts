@@ -49,6 +49,8 @@ const game: GameDetailApi = {
   },
   meta_tags: { platforms: ["Windows", "Linux"] },
   social_links: {},
+  purchase_mode: "PLATFORM",
+  external_offer: null,
 };
 
 describe("SEO helpers", () => {
