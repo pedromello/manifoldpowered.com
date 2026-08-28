@@ -26,7 +26,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const currency = await region.currencyForRequest(req);
-  const context = await storefrontPricing.contextFor(currency, [foundGame]);
+  const context = await storefrontPricing.contextFor(
+    currency,
+    [foundGame],
+    req,
+  );
   const [pricedGame] = storefrontPricing.filterAndPrice(
     req.context.user,
     [foundGame],

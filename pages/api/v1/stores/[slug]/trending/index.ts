@@ -46,7 +46,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     curationWhere,
   });
 
-  const context = await storefrontPricing.contextFor(currency, games);
+  const context = await storefrontPricing.contextFor(currency, games, req);
 
   return res.status(200).json({
     games: storefrontPricing.filterAndPrice(req.context.user, games, context),

@@ -9,69 +9,35 @@ beforeAll(async () => {
 
 describe("POST /api/v1/items/games/steam-import", () => {
   describe("Activated user", () => {
-    test("Should return an imported game idempotently as visible and unclaimed", async () => {
+    test("Should expose the regional Steam offer for an imported catalog game", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
-      const session = await orchestrator.createSession(user.id);
       const steamAppId = "900000010";
       const seededImport = await steamImport.importGame({
         userId: user.id,
         steamAppId,
         gateway: {
-          fetchAppDetails: async () => ({
+          fetchAppDetails: async (_appId, countryCode) => ({
             success: true,
             data: {
               name: "Community Catalog Fixture",
               short_description: "A deterministic Steam import fixture",
+              developers: ["Crystal Dynamics"],
+              publishers: ["Square Enix"],
               price_overview: {
-                currency: "USD",
-                initial: 2999,
-                final: 1999,
-                discount_percent: 33,
+                currency: countryCode === "br" ? "BRL" : "USD",
+                initial: countryCode === "br" ? 5990 : 2999,
+                final: countryCode === "br" ? 4990 : 1999,
+                discount_percent: countryCode === "br" ? 17 : 33,
               },
             },
           }),
         },
       });
 
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${session.token}`,
-          },
-          body: JSON.stringify({ steam_app_id: steamAppId }),
-        },
+      const persistedGame = await orchestrator.getGameBySlug(
+        seededImport.game.slug,
       );
-
-      expect(response.status).toBe(200);
-      const responseBody = await response.json();
-      expect(responseBody).toMatchObject({
-        status: "ONLY_DISPLAY",
-        id: seededImport.game.id,
-        steam_app_id: steamAppId,
-        studio_id: null,
-        ownership_status: "UNCLAIMED",
-        purchase_mode: "STEAM_ONLY",
-        price: null,
-        base_price: null,
-        external_offer: {
-          provider: "STEAM",
-          amount: "19.99",
-          original_amount: "29.99",
-          discount_percent: 33,
-          currency: "USD",
-          url: `https://store.steampowered.com/app/${steamAppId}/`,
-          captured_at: expect.any(String),
-        },
-      });
-      expect(responseBody.social_links.steam_page).toBe(
-        `https://store.steampowered.com/app/${steamAppId}/`,
-      );
-
-      const persistedGame = await orchestrator.getGameBySlug(responseBody.slug);
       expect(persistedGame).toMatchObject({
         status: "ONLY_DISPLAY",
         steam_app_id: steamAppId,
@@ -83,14 +49,17 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(persistedGame.steam_price?.toFixed(2)).toBe("19.99");
       expect(persistedGame.steam_original_price?.toFixed(2)).toBe("29.99");
 
-      const catalogResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(responseBody.title)}`,
+      const usdResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(seededImport.game.title)}`,
+        { headers: { "x-vercel-ip-country": "US" } },
       );
-      expect(catalogResponse.status).toBe(200);
-      const catalogBody = await catalogResponse.json();
-      expect(catalogBody.games).toContainEqual(
+      expect(usdResponse.status).toBe(200);
+      const usdBody = await usdResponse.json();
+      expect(usdBody.games).toContainEqual(
         expect.objectContaining({
-          id: responseBody.id,
+          id: seededImport.game.id,
+          developer_name: "Crystal Dynamics",
+          publisher_name: "Square Enix",
           status: "ONLY_DISPLAY",
           display_price: null,
           purchase_mode: "STEAM_ONLY",
@@ -106,24 +75,41 @@ describe("POST /api/v1/items/games/steam-import", () => {
         }),
       );
 
-      const reimportResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/steam-import`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${session.token}`,
-          },
-          body: JSON.stringify({ steam_app_id: steamAppId }),
-        },
+      const brlResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(seededImport.game.title)}`,
+        { headers: { "x-vercel-ip-country": "BR" } },
+      );
+      expect(brlResponse.status).toBe(200);
+      const brlBody = await brlResponse.json();
+      expect(brlBody.games).toContainEqual(
+        expect.objectContaining({
+          id: seededImport.game.id,
+          external_offer: expect.objectContaining({
+            amount: "49.90",
+            original_amount: "59.90",
+            discount_percent: 17,
+            currency: "BRL",
+          }),
+        }),
       );
 
-      expect(reimportResponse.status).toBe(200);
-      expect(await reimportResponse.json()).toMatchObject({
-        id: responseBody.id,
-        slug: responseBody.slug,
-        status: "ONLY_DISPLAY",
-        ownership_status: "UNCLAIMED",
+      const detailResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/items/games/${seededImport.game.slug}`,
+        { headers: { "x-vercel-ip-country": "BR" } },
+      );
+      expect(detailResponse.status).toBe(200);
+      expect(await detailResponse.json()).toMatchObject({
+        id: seededImport.game.id,
+        developer_name: "Crystal Dynamics",
+        external_offer: {
+          provider: "STEAM",
+          amount: "49.90",
+          original_amount: "59.90",
+          discount_percent: 17,
+          currency: "BRL",
+          url: `https://store.steampowered.com/app/${steamAppId}/`,
+          captured_at: expect.any(String),
+        },
       });
     });
 

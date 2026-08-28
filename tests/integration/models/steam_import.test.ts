@@ -1,6 +1,12 @@
 import { prisma } from "infra/database";
-import { TooManyRequestsError, UnsupportedContentError } from "infra/errors";
+import {
+  ServiceError,
+  TooManyRequestsError,
+  UnsupportedContentError,
+} from "infra/errors";
 import type { SteamAppDetailsResult } from "infra/steam";
+import { mapSteamAppToGameData } from "models/game";
+import externalOffer from "models/external_offer";
 import steamImport from "models/steam_import";
 import library from "models/library";
 import orchestrator from "tests/orchestrator";
@@ -11,6 +17,34 @@ beforeAll(async () => {
 });
 
 describe("Steam community import", () => {
+  test.each([
+    {
+      developers: ["Studio A", "Studio B", "Studio A"],
+      publishers: ["Publisher"],
+      expected: "Studio A, Studio B",
+    },
+    {
+      developers: undefined,
+      publishers: ["Publisher Fallback"],
+      expected: "Publisher Fallback",
+    },
+    {
+      developers: undefined,
+      publishers: undefined,
+      expected: "Unknown developer",
+    },
+  ])(
+    "Should map Steam authorship to $expected",
+    ({ developers, publishers, expected }) => {
+      expect(
+        mapSteamAppToGameData(
+          { name: "Authorship Fixture", developers, publishers },
+          "900000000",
+        ).developer_name,
+      ).toBe(expected);
+    },
+  );
+
   test("Should reject a game classified as Adult Only Sexual Content without persisting it", async () => {
     const user = await orchestrator.createUser();
     await orchestrator.activateUser(user.id);
@@ -41,7 +75,9 @@ describe("Steam community import", () => {
       caughtError = error as UnsupportedContentError;
     }
 
-    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(steamAppId);
+    expect(gateway.fetchAppDetails).toHaveBeenCalledTimes(2);
+    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(steamAppId, "us");
+    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(steamAppId, "br");
     expect(caughtError).toBeInstanceOf(UnsupportedContentError);
     expect(caughtError?.toJSON()).toEqual({
       name: "UnsupportedContentError",
@@ -128,15 +164,18 @@ describe("Steam community import", () => {
       userId: user.id,
       steamAppId,
       gateway: {
-        fetchAppDetails: async () => ({
+        fetchAppDetails: async (_appId: string, countryCode?: string) => ({
           success: true,
           data: {
             name: "Allowed Unclaimed Fixture",
             short_description: "Catalog-only fixture",
+            developers: ["Crystal Dynamics", "Crystal Dynamics", "  "],
+            publishers: ["Square Enix"],
             price_overview: {
-              currency: "BRL",
-              initial: 5990,
-              final: 5990,
+              currency: countryCode === "br" ? "BRL" : "USD",
+              initial: countryCode === "br" ? 5990 : 2999,
+              final: countryCode === "br" ? 5990 : 1999,
+              discount_percent: countryCode === "br" ? 0 : 33,
             },
           },
         }),
@@ -147,13 +186,44 @@ describe("Steam community import", () => {
       status: "ONLY_DISPLAY",
       studio_id: null,
       steam_app_id: steamAppId,
-      steam_price_currency: "BRL",
-      steam_discount_percent: 0,
+      developer_name: "Crystal Dynamics",
+      publisher_name: "Square Enix",
+      steam_price_currency: "USD",
+      steam_discount_percent: 33,
     });
     expect(result.game.price.toFixed(2)).toBe("0.00");
-    expect(result.game.steam_price?.toFixed(2)).toBe("59.90");
-    expect(result.game.steam_original_price?.toFixed(2)).toBe("59.90");
+    expect(result.game.steam_price?.toFixed(2)).toBe("19.99");
+    expect(result.game.steam_original_price?.toFixed(2)).toBe("29.99");
     expect(result.game.steam_price_captured_at).toBeInstanceOf(Date);
+    const offers = await prisma.gameExternalOffer.findMany({
+      where: { game_id: result.game.id },
+      orderBy: { country: "asc" },
+    });
+    expect(offers).toMatchObject([
+      {
+        provider: "STEAM",
+        country: "BR",
+        currency: "BRL",
+        discount_percent: 0,
+        url: `https://store.steampowered.com/app/${steamAppId}/`,
+      },
+      {
+        provider: "STEAM",
+        country: "US",
+        currency: "USD",
+        discount_percent: 33,
+        url: `https://store.steampowered.com/app/${steamAppId}/`,
+      },
+    ]);
+    expect(offers[0].amount?.toFixed(2)).toBe("59.90");
+    expect(offers[0].original_amount?.toFixed(2)).toBe("59.90");
+    expect(offers[1].amount?.toFixed(2)).toBe("19.99");
+    expect(offers[1].original_amount?.toFixed(2)).toBe("29.99");
+    expect(
+      (await externalOffer.regionalSteamOffers([result.game.id], "EUR")).get(
+        result.game.id,
+      ),
+    ).toMatchObject({ country: "US", currency: "USD" });
     await expect(
       library.acquireGame(user.id, result.game.slug),
     ).rejects.toMatchObject({
@@ -162,5 +232,123 @@ describe("Steam community import", () => {
     });
     expect(await prisma.libraryItem.count()).toBe(0);
     expect(await prisma.sale.count()).toBe(0);
+  });
+
+  test("Should refresh Steam metadata and regional offers without changing catalog identity", async () => {
+    const user = await orchestrator.createUser();
+    await orchestrator.activateUser(user.id);
+    const steamAppId = "920000002";
+    const first = await steamImport.importGame({
+      userId: user.id,
+      steamAppId,
+      gateway: {
+        fetchAppDetails: async (_appId, countryCode) => ({
+          success: true,
+          data: {
+            name: "Stable Catalog Identity",
+            developers: ["Original Developer"],
+            price_overview: {
+              currency: countryCode === "br" ? "BRL" : "USD",
+              initial: 1000,
+              final: 1000,
+            },
+          },
+        }),
+      },
+    });
+
+    const refreshed = await steamImport.importGame({
+      userId: user.id,
+      steamAppId,
+      gateway: {
+        fetchAppDetails: async (_appId, countryCode) => ({
+          success: true,
+          data: {
+            name: "Changed Steam Title",
+            developers: ["Updated Developer"],
+            publishers: ["Updated Publisher"],
+            price_overview: {
+              currency: countryCode === "br" ? "BRL" : "USD",
+              initial: countryCode === "br" ? 7990 : 3999,
+              final: countryCode === "br" ? 6990 : 2999,
+            },
+          },
+        }),
+      },
+    });
+
+    expect(refreshed.created).toBe(false);
+    expect(refreshed.game).toMatchObject({
+      id: first.game.id,
+      slug: first.game.slug,
+      status: "ONLY_DISPLAY",
+      studio_id: null,
+      title: "Changed Steam Title",
+      developer_name: "Updated Developer",
+      publisher_name: "Updated Publisher",
+      steam_price_currency: "USD",
+      steam_discount_percent: 25,
+    });
+    expect(refreshed.game.steam_price?.toFixed(2)).toBe("29.99");
+    expect(refreshed.game.steam_original_price?.toFixed(2)).toBe("39.99");
+    const offers = await prisma.gameExternalOffer.findMany({
+      where: { game_id: first.game.id },
+      orderBy: { country: "asc" },
+    });
+    expect(offers).toHaveLength(2);
+    expect(offers[0]).toMatchObject({ country: "BR", currency: "BRL" });
+    expect(offers[0].amount?.toFixed(2)).toBe("69.90");
+    expect(offers[1]).toMatchObject({ country: "US", currency: "USD" });
+    expect(offers[1].amount?.toFixed(2)).toBe("29.99");
+
+    const partialRefresh = await steamImport.importGame({
+      userId: user.id,
+      steamAppId,
+      gateway: {
+        fetchAppDetails: async (_appId, countryCode) => {
+          if (countryCode === "br") throw new Error("regional timeout");
+          return {
+            success: true,
+            data: {
+              name: "Changed Steam Title",
+              developers: ["Updated Developer"],
+              price_overview: {
+                currency: "USD",
+                initial: 1999,
+                final: 1499,
+              },
+            },
+          };
+        },
+      },
+    });
+    expect(partialRefresh.game.steam_price?.toFixed(2)).toBe("14.99");
+    const preservedBrlOffer = await prisma.gameExternalOffer.findUnique({
+      where: {
+        game_id_provider_country: {
+          game_id: first.game.id,
+          provider: "STEAM",
+          country: "BR",
+        },
+      },
+    });
+    expect(preservedBrlOffer?.amount?.toFixed(2)).toBe("69.90");
+  });
+
+  test("Should report a service failure when no region returns usable data", async () => {
+    const user = await orchestrator.createUser();
+    await orchestrator.activateUser(user.id);
+    await expect(
+      steamImport.importGame({
+        userId: user.id,
+        steamAppId: "920000003",
+        gateway: {
+          fetchAppDetails: async (_appId, countryCode) => {
+            if (countryCode === "br") throw new Error("regional timeout");
+            return { success: false };
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(ServiceError);
   });
 });

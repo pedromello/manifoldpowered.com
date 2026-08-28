@@ -3,6 +3,8 @@ import { Game } from "generated/prisma/client";
 import authorization from "models/authorization";
 import pricing, { DisplayPrice } from "models/pricing";
 import region from "models/region";
+import externalOffer from "models/external_offer";
+import type { GameExternalOffer } from "generated/prisma/client";
 
 // Everything a storefront read needs to price its results for the visitor,
 // resolved once per request. Kept in one place because seven read endpoints
@@ -13,6 +15,7 @@ import region from "models/region";
 export interface StorefrontPricingContext {
   currency: string;
   displayPrices: Map<string, DisplayPrice>;
+  externalOffers: Map<string, GameExternalOffer>;
 }
 
 // The id constraint to apply to the query, so unpriceable games never enter the
@@ -29,10 +32,19 @@ async function idConstraintForRequest(req: NextApiRequest) {
 async function contextFor(
   currency: string,
   games: Pick<Game, "id" | "price" | "base_price">[],
+  req?: NextApiRequest,
 ): Promise<StorefrontPricingContext> {
+  const externalOfferCurrency = req
+    ? region.currencyCodeForCountry(region.countryFromRequest(req))
+    : currency;
+
   return {
     currency,
     displayPrices: await pricing.displayPricesFor(games, currency),
+    externalOffers: await externalOffer.regionalSteamOffers(
+      games.map((game) => game.id),
+      externalOfferCurrency,
+    ),
   };
 }
 
@@ -56,13 +68,31 @@ function filterAndPrice<T extends Game>(
       (game) =>
         game.status === "ONLY_DISPLAY" || context.displayPrices.has(game.id),
     )
-    .map((game) => ({
-      ...authorization.filterOutput(user, "read:public_game", game),
-      display_price:
-        game.status === "ONLY_DISPLAY"
-          ? null
-          : context.displayPrices.get(game.id),
-    }));
+    .map((game) => {
+      const regionalOffer = context.externalOffers.get(game.id);
+      const gameWithRegionalOffer = regionalOffer
+        ? {
+            ...game,
+            steam_price: regionalOffer.amount,
+            steam_original_price: regionalOffer.original_amount,
+            steam_discount_percent: regionalOffer.discount_percent,
+            steam_price_currency: regionalOffer.currency,
+            steam_price_captured_at: regionalOffer.captured_at,
+          }
+        : game;
+
+      return {
+        ...authorization.filterOutput(
+          user,
+          "read:public_game",
+          gameWithRegionalOffer,
+        ),
+        display_price:
+          game.status === "ONLY_DISPLAY"
+            ? null
+            : context.displayPrices.get(game.id),
+      };
+    });
 }
 
 const storefrontPricing = {
