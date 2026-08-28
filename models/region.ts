@@ -1,7 +1,11 @@
 import { NextApiRequest } from "next";
 import currency from "models/currency";
 import { BASE_CURRENCY } from "models/pricing";
-import { COUNTRY_HEADER, countryCodeFromHeader } from "lib/country";
+import {
+  COUNTRY_HEADER,
+  SSR_COUNTRY_HEADER,
+  countryCodeFromHeader,
+} from "lib/country";
 
 export { COUNTRY_HEADER };
 
@@ -75,6 +79,17 @@ function countryFromRequest(req: NextApiRequest): string | null {
   return countryCodeFromHeader(req.headers[COUNTRY_HEADER]);
 }
 
+// SSR calls the public API through Vercel a second time, where
+// x-vercel-ip-country describes the server rather than the original visitor.
+// This fallback is safe only for external, informational offers and must not
+// be used for Manifold checkout pricing.
+function externalOfferCountryFromRequest(req: NextApiRequest): string | null {
+  return (
+    countryCodeFromHeader(req.headers[SSR_COUNTRY_HEADER]) ??
+    countryFromRequest(req)
+  );
+}
+
 export function currencyCodeForCountry(country: string | null): string {
   if (!country) {
     return BASE_CURRENCY;
@@ -104,6 +119,7 @@ async function currencyForRequest(req: NextApiRequest): Promise<string> {
 const region = {
   COUNTRY_HEADER,
   countryFromRequest,
+  externalOfferCountryFromRequest,
   currencyCodeForCountry,
   currencyForRequest,
 };

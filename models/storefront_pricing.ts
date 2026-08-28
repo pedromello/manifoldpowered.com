@@ -35,7 +35,7 @@ async function contextFor(
   req?: NextApiRequest,
 ): Promise<StorefrontPricingContext> {
   const externalOfferCurrency = req
-    ? region.currencyCodeForCountry(region.countryFromRequest(req))
+    ? region.currencyCodeForCountry(region.externalOfferCountryFromRequest(req))
     : currency;
 
   return {

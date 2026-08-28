@@ -30,6 +30,7 @@ describe("country-based locale selection", () => {
     ).toEqual({
       cookie: "session=abc",
       "x-vercel-ip-country": "BR",
+      "x-manifold-visitor-country": "BR",
     });
   });
 });
