@@ -68,12 +68,32 @@ async function listWhere(
     select: { id: true, title: true, slug: true },
   });
   const gameById = new Map(games.map((gameRow) => [gameRow.id, gameRow]));
+  const storeIds = [
+    ...new Set(
+      sales
+        .map((saleItem) => saleItem.store_id)
+        .filter((storeId): storeId is string => storeId !== null),
+    ),
+  ];
+  const stores = await prisma.store.findMany({
+    where: { id: { in: storeIds } },
+    select: { id: true, name: true, slug: true, logo_url: true },
+  });
+  const storeById = new Map(stores.map((storeRow) => [storeRow.id, storeRow]));
 
-  const salesWithGame = sales.map((saleItem) => ({
-    ...saleItem,
-    game_title: gameById.get(saleItem.game_id)?.title || "Unknown game",
-    game_slug: gameById.get(saleItem.game_id)?.slug || null,
-  }));
+  const salesWithGame = sales.map((saleItem) => {
+    const saleStore = saleItem.store_id
+      ? storeById.get(saleItem.store_id)
+      : null;
+    return {
+      ...saleItem,
+      game_title: gameById.get(saleItem.game_id)?.title || "Unknown game",
+      game_slug: gameById.get(saleItem.game_id)?.slug || null,
+      store_name: saleStore?.name || null,
+      store_slug: saleStore?.slug || null,
+      store_logo_url: saleStore?.logo_url || null,
+    };
+  });
 
   return {
     sales: salesWithGame,

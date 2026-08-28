@@ -120,7 +120,12 @@ describe("GET /api/v1/user/purchases", () => {
       expect(response.status).toBe(200);
 
       const responseBody = await response.json();
-      expect(responseBody.purchases[0].store_id).toBe(outlet.id);
+      expect(responseBody.purchases[0]).toMatchObject({
+        store_id: outlet.id,
+        store_name: outlet.name,
+        store_slug: outlet.slug,
+        store_logo_url: outlet.logo_url,
+      });
     });
 
     // There is no id in the request, so this is what proves the scoping rather

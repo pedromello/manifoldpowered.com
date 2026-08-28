@@ -19,7 +19,13 @@ import {
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
 
-type SaleWithGame = Sale & { game_title?: string; game_slug?: string | null };
+type SaleWithGame = Sale & {
+  game_title?: string;
+  game_slug?: string | null;
+  store_name?: string | null;
+  store_slug?: string | null;
+  store_logo_url?: string | null;
+};
 
 // A buyer, as an outlet is allowed to know them: stable within that outlet, and
 // different at every other one.
@@ -813,6 +819,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       game_title: saleOutput.game_title,
       game_slug: saleOutput.game_slug,
       store_id: saleOutput.store_id,
+      store_name: saleOutput.store_name,
+      store_slug: saleOutput.store_slug,
+      store_logo_url: saleOutput.store_logo_url,
       price_at_sale: saleOutput.price_at_sale.toFixed(2),
       currency: saleOutput.currency,
       created_at: saleOutput.created_at,
