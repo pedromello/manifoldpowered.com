@@ -162,6 +162,40 @@ describe("POST /api/v1/reviews", () => {
       );
     });
 
+    test("Without owning an ONLY_DISPLAY game should allow the review", async () => {
+      const gameCreator = await orchestrator.createUser();
+      const reviewer = await orchestrator.createUser();
+      await orchestrator.activateUser(reviewer.id);
+      const session = await orchestrator.createSession(reviewer.id);
+      const game = await orchestrator.createGame(gameCreator.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ONLY_DISPLAY" },
+      });
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({
+          slug: game.slug,
+          message: "I played this game outside Manifold.",
+          recommended: true,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(
+        await prisma.review.findUnique({
+          where: {
+            user_id_game_id: { user_id: reviewer.id, game_id: game.id },
+          },
+        }),
+      ).toBeDefined();
+    });
+
     test("With a whitespace-only message should return 400", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);

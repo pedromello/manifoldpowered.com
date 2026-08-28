@@ -154,4 +154,52 @@ describe("PATCH /api/v1/reviews", () => {
 
     expect(response.status).toBe(403);
   });
+
+  test("Review author can update an ONLY_DISPLAY game without owning it", async () => {
+    const gameCreator = await orchestrator.createUser();
+    const reviewer = await orchestrator.createUser();
+    await orchestrator.activateUser(reviewer.id);
+    const session = await orchestrator.createSession(reviewer.id);
+    const game = await orchestrator.createGame(gameCreator.id);
+    await prisma.game.update({
+      where: { id: game.id },
+      data: {
+        status: "ONLY_DISPLAY",
+        positive_reviews: 1,
+        review_score: "POSITIVE",
+      },
+    });
+    await prisma.review.create({
+      data: {
+        user_id: reviewer.id,
+        game_id: game.id,
+        message: "Original review",
+        recommended: true,
+      },
+    });
+
+    const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `session_id=${session.token}`,
+      },
+      body: JSON.stringify({
+        slug: game.slug,
+        message: "Updated review",
+        recommended: false,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const updatedReview = await prisma.review.findUnique({
+      where: {
+        user_id_game_id: { user_id: reviewer.id, game_id: game.id },
+      },
+    });
+    expect(updatedReview).toMatchObject({
+      message: "Updated review",
+      recommended: false,
+    });
+  });
 });
