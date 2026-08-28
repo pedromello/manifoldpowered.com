@@ -22,6 +22,8 @@ export interface ExternalPricedItem {
   external_offer?: {
     provider: "STEAM";
     amount: string | null;
+    original_amount?: string | null;
+    discount_percent?: number | null;
     currency: string | null;
   } | null;
 }
@@ -78,15 +80,67 @@ export function formatExternalPrice(item: ExternalPricedItem): string | null {
   }
 
   if (Number(offer.amount) === 0) {
-    return "Free on Steam";
+    return "Free";
   }
 
   const currency = offer.currency?.toUpperCase();
   if (!currency) {
-    return `${offer.amount} on Steam`;
+    return offer.amount;
   }
 
-  return `${currencySymbol(currency)}${localizeAmount(offer.amount, currency)} on Steam`;
+  return `${currencySymbol(currency)}${localizeAmount(offer.amount, currency)}`;
+}
+
+export function formatExternalBasePrice(
+  item: ExternalPricedItem,
+): string | null {
+  const offer = item.external_offer;
+  if (
+    !offer?.original_amount ||
+    offer.amount === null ||
+    offer.original_amount === offer.amount
+  ) {
+    return null;
+  }
+
+  const currency = offer.currency?.toUpperCase();
+  return currency
+    ? `${currencySymbol(currency)}${localizeAmount(offer.original_amount, currency)}`
+    : offer.original_amount;
+}
+
+export function formatCatalogBasePrice(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+): string | null {
+  return item.purchase_mode === "STEAM_ONLY"
+    ? formatExternalBasePrice(item)
+    : formatBasePrice(item);
+}
+
+export function catalogDiscountLabel(
+  item: PricedItem &
+    ExternalPricedItem & {
+      purchase_mode: string;
+      discount_label?: string | null;
+    },
+): string | null {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    const percent = item.external_offer?.discount_percent;
+    return percent && formatExternalBasePrice(item) ? `-${percent}%` : null;
+  }
+
+  return item.discount_label ?? null;
+}
+
+export function isCatalogFree(
+  item: PricedItem & ExternalPricedItem & { purchase_mode: string },
+): boolean {
+  if (item.purchase_mode === "STEAM_ONLY") {
+    const amount = item.external_offer?.amount;
+    return amount !== null && amount !== undefined && Number(amount) === 0;
+  }
+
+  return item.purchase_mode === "PLATFORM" && isFree(item);
 }
 
 export function formatCatalogPrice(

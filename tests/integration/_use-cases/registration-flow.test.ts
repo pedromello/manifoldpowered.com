@@ -4,6 +4,9 @@ import activation from "models/activation";
 import user from "models/user";
 import orchestrator from "tests/orchestrator";
 
+const testClientAddress =
+  orchestrator.createTestClientAddress("registration-flow");
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -108,6 +111,10 @@ describe("Use case: Registration Flow (all successful)", () => {
         "create:wishlist",
         "read:wishlist",
         "delete:wishlist",
+        "create:store_follow",
+        "read:store_follow",
+        "delete:store_follow",
+        "read:store_follow_status",
         "create:review",
         "read:review",
         "delete:review",
@@ -139,6 +146,7 @@ describe("Use case: Registration Flow (all successful)", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Forwarded-For": testClientAddress,
         },
         body: JSON.stringify({
           email: "registration-flow@manifoldpowered.com",
@@ -181,6 +189,10 @@ describe("Use case: Registration Flow (all successful)", () => {
         "create:wishlist",
         "read:wishlist",
         "delete:wishlist",
+        "create:store_follow",
+        "read:store_follow",
+        "delete:store_follow",
+        "read:store_follow_status",
         "create:review",
         "read:review",
         "delete:review",

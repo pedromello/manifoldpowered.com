@@ -217,6 +217,18 @@ describe("GET /api/v1/library", () => {
       });
       // Should be Game 1
       expect(body2.games[0].item_id).toBe(game1.id);
+
+      const ownershipResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/library?page=1&limit=1&slug=${game1.slug}`,
+        {
+          headers: { Cookie: `session_id=${session.token}` },
+        },
+      );
+      expect(ownershipResponse.status).toBe(200);
+      const ownershipBody = await ownershipResponse.json();
+      expect(ownershipBody.games).toHaveLength(1);
+      expect(ownershipBody.games[0].item_id).not.toBe(game1.id);
+      expect(ownershipBody.is_owned).toBe(true);
     });
   });
 });

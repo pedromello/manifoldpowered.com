@@ -1,9 +1,11 @@
 import Form from "next/form";
+import Image from "next/image";
 import Link from "next/link";
 import { PlaySquare, MessageCircle } from "lucide-react";
 
 import type { StorefrontViewProps } from "components/storefront/types";
-import { formatCatalogPrice } from "lib/price";
+import { useI18n } from "lib/i18n";
+import { formatCatalogPrice, isCatalogFree } from "lib/price";
 
 /**
  * Strategos Void — grand strategy / 4X / city-builder channel.
@@ -20,7 +22,7 @@ const SOCIAL_LINKS = {
 };
 
 const CURATOR_QUOTE =
-  "Eu não jogo pra vencer rápido — jogo pra reescrever a história e ver o mapa dobrar ao meu comando.";
+  "I don't play to win quickly — I play to rewrite history and watch the map bend to my command.";
 
 // Internal curation plumbing (see storefronts/registry.ts's tag filter), never
 // meant to be shown to a visitor as a filter option.
@@ -33,6 +35,9 @@ function GameCard({
   game: StorefrontViewProps["games"][number];
   href: string;
 }) {
+  const { t } = useI18n();
+  const free = isCatalogFree(game);
+
   return (
     <Link
       href={href}
@@ -52,7 +57,7 @@ function GameCard({
           {game.title}
         </h3>
         <span className="font-black uppercase tracking-wider text-sf-accent">
-          {formatCatalogPrice(game)}
+          {free ? t("Free") : formatCatalogPrice(game)}
         </span>
       </div>
     </Link>
@@ -61,6 +66,7 @@ function GameCard({
 
 export function StrategosVoidStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -70,6 +76,7 @@ export function StrategosVoidStorefront({
   browseHref,
   searchAction,
 }: StorefrontViewProps) {
+  const { locale, t } = useI18n();
   const heroGame = featured[0] ?? games[0] ?? null;
 
   // Filter pills are built from the tags actually present on this outlet's
@@ -79,7 +86,7 @@ export function StrategosVoidStorefront({
     new Set(games.flatMap((game) => game.tags || [])),
   )
     .filter((tag) => tag.toLowerCase() !== CURATION_TAG)
-    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+    .sort((a, b) => a.localeCompare(b, locale));
 
   return (
     <main className="w-full pt-[calc(env(safe-area-inset-top)+6rem)]">
@@ -88,9 +95,11 @@ export function StrategosVoidStorefront({
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-14 md:px-10 md:py-20">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <img
+              <Image
                 src="/storefronts/strategos-void/logo.jpg"
                 alt=""
+                width={80}
+                height={80}
                 className="h-16 w-16 shrink-0 rounded-full border-2 border-sf-accent object-cover md:h-20 md:w-20"
               />
               <div>
@@ -98,12 +107,13 @@ export function StrategosVoidStorefront({
                   {store.name || "Strategos Void"}
                 </h1>
                 <p className="mt-2 text-xs uppercase tracking-[0.4em] text-sf-accent">
-                  Grand Strategy · 4X · City Builders
+                  {t("Grand Strategy · 4X · City Builders")}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
+              {followControl}
               <a
                 href={SOCIAL_LINKS.youtube}
                 target="_blank"
@@ -127,7 +137,9 @@ export function StrategosVoidStorefront({
 
           <p className="max-w-2xl text-base text-sf-muted md:text-lg">
             {store.description ||
-              "Análises sérias de grand strategy, 4X e city builders — impérios, dinastias e guerras totais, sem simplificar o tabuleiro."}
+              t(
+                "Serious analysis of grand strategy, 4X, and city builders — empires, dynasties, and total wars, without simplifying the board.",
+              )}
           </p>
         </div>
       </header>
@@ -137,10 +149,15 @@ export function StrategosVoidStorefront({
         <div className="mb-10 flex flex-col gap-6 border-b border-sf-border pb-8 md:flex-row md:items-end md:justify-between">
           <div>
             <span className="text-xs uppercase tracking-[0.4em] text-sf-accent">
-              A seleção do estrategista
+              {t("The strategist's selection")}
             </span>
             <h2 className="mt-3 text-3xl font-black uppercase tracking-tight text-sf-fg md:text-4xl">
-              10 jogos, nenhum escolhido à toa
+              {t(
+                games.length === 1
+                  ? "{count} game, chosen for a reason"
+                  : "{count} games, every one chosen for a reason",
+                { count: games.length.toLocaleString(locale) },
+              )}
             </h2>
           </div>
 
@@ -150,7 +167,7 @@ export function StrategosVoidStorefront({
               name="q"
               data-storefront="search"
               defaultValue={q}
-              placeholder="Buscar na seleção..."
+              placeholder={t("Search the selection...")}
               className="w-full border border-sf-border bg-sf-surface px-5 py-3 text-sf-fg placeholder:text-sf-muted outline-none focus:border-sf-accent"
             />
             {tags.map((tag) => (
@@ -170,7 +187,7 @@ export function StrategosVoidStorefront({
                     : "border-sf-border text-sf-muted hover:border-sf-accent hover:text-sf-accent"
                 }`}
               >
-                Todos
+                {t("All")}
               </Link>
               {availableTags.map((tag) => {
                 const isActive = tags.includes(tag);
@@ -194,7 +211,7 @@ export function StrategosVoidStorefront({
             </>
           ) : (
             <span className="text-xs uppercase tracking-widest text-sf-muted">
-              Sem tags para filtrar ainda.
+              {t("No tags to filter yet.")}
             </span>
           )}
         </nav>
@@ -215,18 +232,20 @@ export function StrategosVoidStorefront({
             />
             <div className="flex flex-1 flex-col justify-center gap-4 p-8 md:p-12">
               <span className="text-xs uppercase tracking-[0.4em] text-sf-accent">
-                Escolha da semana
+                {t("Pick of the week")}
               </span>
               <h3 className="text-2xl font-black uppercase tracking-tight text-sf-fg md:text-4xl">
                 {heroGame.title}
               </h3>
-              {heroGame.description && (
+              {(heroGame.recommendation_reason || heroGame.description) && (
                 <p className="line-clamp-2 max-w-xl text-sf-muted">
-                  {heroGame.description}
+                  {heroGame.recommendation_reason || heroGame.description}
                 </p>
               )}
               <span className="text-xl font-black uppercase tracking-wider text-sf-accent">
-                {formatCatalogPrice(heroGame)}
+                {isCatalogFree(heroGame)
+                  ? t("Free")
+                  : formatCatalogPrice(heroGame)}
               </span>
             </div>
           </Link>
@@ -238,7 +257,7 @@ export function StrategosVoidStorefront({
         >
           {isLoading ? (
             <p className="col-span-full py-20 text-center font-bold uppercase tracking-widest text-sf-muted">
-              Carregando a seleção…
+              {t("Loading the selection…")}
             </p>
           ) : games.length > 0 ? (
             games.map((game) => (
@@ -246,7 +265,7 @@ export function StrategosVoidStorefront({
             ))
           ) : (
             <p className="col-span-full py-20 text-center font-bold uppercase tracking-widest text-sf-muted">
-              A prateleira ainda está sendo montada.
+              {t("The shelf is still being stocked.")}
             </p>
           )}
         </div>
@@ -255,16 +274,18 @@ export function StrategosVoidStorefront({
       {/* ---- About the curator ---- */}
       <section className="border-t border-sf-border">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-16 text-center md:px-10 md:py-24">
-          <img
+          <Image
             src="/storefronts/strategos-void/logo.jpg"
             alt="Strategos Void"
+            width={112}
+            height={112}
             className="h-24 w-24 rounded-full border-2 border-sf-accent object-cover md:h-28 md:w-28"
           />
           <span className="text-xs uppercase tracking-[0.4em] text-sf-accent">
-            Sobre o curador
+            {t("About the curator")}
           </span>
           <blockquote className="max-w-2xl text-2xl font-medium leading-relaxed text-sf-fg md:text-3xl">
-            &ldquo;{CURATOR_QUOTE}&rdquo;
+            &ldquo;{t(CURATOR_QUOTE)}&rdquo;
           </blockquote>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-sf-muted">
             — Strategos Void

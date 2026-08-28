@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { SectionDivider } from "components/store/SectionDivider";
 import { GameHero } from "components/storefront/default/item/GameHero";
 import { ItemDescription } from "components/storefront/default/item/ItemDescription";
 import { PurchaseCard } from "components/storefront/default/item/PurchaseCard";
@@ -11,6 +10,8 @@ import {
   ConfirmDeleteReviewModal,
 } from "components/storefront/default/item/ItemModals";
 import type { ItemViewProps } from "components/storefront/types";
+import { isFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 /**
  * Manifold's own product page, and the fallback for any outlet without a
@@ -23,83 +24,128 @@ export function DefaultItemPage({
   game,
   store,
   isInLibrary,
+  isCheckingLibrary,
   isRedeeming,
   redeem,
+  acquisitionError,
   showSuccessModal,
   dismissSuccess,
   wishlist,
   reviews,
   backHref,
 }: ItemViewProps) {
-  const [showReviewModal, setShowReviewModal] = useState(false);
+  const { t } = useI18n();
+  const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // TODO: hardcoded rather than derived from the game's price. Preserved from
-  // the previous implementation because changing it changes what every
-  // customer is charged, which needs its own decision.
-  const isDemo = true;
+  const isFreeGame = isFree(game);
 
   return (
     <>
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+4.75rem)]">
+      <main className="w-full bg-[#0b0812] pb-8 text-white">
         <GameHero
-          game={game}
+          game={
+            reviews.summary
+              ? {
+                  ...game,
+                  positive_reviews: reviews.summary.positiveReviews,
+                  negative_reviews: reviews.summary.negativeReviews,
+                  review_score: reviews.summary.reviewScore,
+                }
+              : game
+          }
           backHref={backHref}
-          backLabel={store ? `Back to ${store.name}` : "Back to Outlets"}
+          backLabel={
+            store
+              ? t("Back to {name}", { name: store.name })
+              : t("Back to Outlets")
+          }
         />
 
-        <SectionDivider />
-
-        {/* Content Grid */}
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-10 border-t border-white/[0.08] px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-10 lg:py-14">
           <ItemDescription game={game} />
 
-          <aside className="lg:col-span-4 flex flex-col gap-8">
+          <aside className="flex flex-col gap-8 lg:col-span-4">
             <PurchaseCard
               game={game}
-              isDemo={isDemo}
+              isFreeGame={isFreeGame}
               isInLibrary={isInLibrary}
+              isCheckingLibrary={isCheckingLibrary}
               isRedeeming={isRedeeming}
+              acquisitionError={acquisitionError}
               onRedeem={redeem}
               wishlist={wishlist}
             />
           </aside>
         </div>
 
-        <SectionDivider />
-
-        <ReviewsSection
-          reviews={reviews}
-          isInLibrary={isInLibrary}
-          onWriteReview={() => setShowReviewModal(true)}
-          onDeleteReview={() => setShowDeleteModal(true)}
-        />
+        <div className="border-t border-white/[0.08]">
+          <ReviewsSection
+            reviews={reviews}
+            onWriteReview={() => {
+              reviews.clearError();
+              setReviewMode("create");
+            }}
+            onEditReview={() => {
+              reviews.clearError();
+              setReviewMode("edit");
+            }}
+            onDeleteReview={() => {
+              reviews.clearError();
+              setShowDeleteModal(true);
+            }}
+          />
+        </div>
       </main>
 
       {showSuccessModal && (
-        <RedeemSuccessModal gameTitle={game.title} onDismiss={dismissSuccess} />
+        <RedeemSuccessModal
+          gameTitle={game.title}
+          continueHref={backHref}
+          onDismiss={dismissSuccess}
+        />
       )}
 
-      {showReviewModal && (
+      {reviewMode && (
         <ReviewComposerModal
           gameTitle={game.title}
+          mode={reviewMode}
+          initialReview={
+            reviewMode === "edit" && reviews.userReview
+              ? {
+                  message: reviews.userReview.message,
+                  recommended: reviews.userReview.recommended,
+                }
+              : undefined
+          }
           isSubmitting={reviews.isSubmitting}
+          error={reviews.error}
           onSubmit={async (input) => {
-            const posted = await reviews.post(input);
-            if (posted) setShowReviewModal(false);
+            const saved =
+              reviewMode === "edit"
+                ? await reviews.update(input)
+                : await reviews.post(input);
+            if (saved) setReviewMode(null);
           }}
-          onDismiss={() => setShowReviewModal(false)}
+          onDismiss={() => {
+            reviews.clearError();
+            setReviewMode(null);
+          }}
         />
       )}
 
       {showDeleteModal && (
         <ConfirmDeleteReviewModal
           isDeleting={reviews.isDeleting}
+          error={reviews.error}
           onConfirm={async () => {
             const removed = await reviews.remove();
             if (removed) setShowDeleteModal(false);
           }}
-          onDismiss={() => setShowDeleteModal(false)}
+          onDismiss={() => {
+            reviews.clearError();
+            setShowDeleteModal(false);
+          }}
         />
       )}
     </>

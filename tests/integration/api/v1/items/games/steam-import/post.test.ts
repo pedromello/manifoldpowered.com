@@ -27,6 +27,7 @@ describe("POST /api/v1/items/games/steam-import", () => {
                 currency: "USD",
                 initial: 2999,
                 final: 1999,
+                discount_percent: 33,
               },
             },
           }),
@@ -59,6 +60,8 @@ describe("POST /api/v1/items/games/steam-import", () => {
         external_offer: {
           provider: "STEAM",
           amount: "19.99",
+          original_amount: "29.99",
+          discount_percent: 33,
           currency: "USD",
           url: `https://store.steampowered.com/app/${steamAppId}/`,
           captured_at: expect.any(String),
@@ -74,9 +77,11 @@ describe("POST /api/v1/items/games/steam-import", () => {
         steam_app_id: steamAppId,
         studio_id: null,
         steam_price_currency: "USD",
+        steam_discount_percent: 33,
       });
       expect(persistedGame.price.toFixed(2)).toBe("0.00");
       expect(persistedGame.steam_price?.toFixed(2)).toBe("19.99");
+      expect(persistedGame.steam_original_price?.toFixed(2)).toBe("29.99");
 
       const catalogResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(responseBody.title)}`,
@@ -92,6 +97,8 @@ describe("POST /api/v1/items/games/steam-import", () => {
           external_offer: {
             provider: "STEAM",
             amount: "19.99",
+            original_amount: "29.99",
+            discount_percent: 33,
             currency: "USD",
             url: `https://store.steampowered.com/app/${steamAppId}/`,
             captured_at: expect.any(String),

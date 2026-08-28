@@ -9,7 +9,12 @@ export interface SteamAppDetailsData {
   detailed_description?: string;
   about_the_game?: string;
   is_free?: boolean;
-  price_overview?: { currency: string; initial: number; final: number };
+  price_overview?: {
+    currency: string;
+    initial: number;
+    final: number;
+    discount_percent?: number;
+  };
   header_image?: string;
   capsule_image?: string;
   screenshots?: { id: number; path_thumbnail: string; path_full: string }[];

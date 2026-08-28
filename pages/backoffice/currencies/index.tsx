@@ -3,6 +3,7 @@ import Head from "next/head";
 import useSWR, { mutate } from "swr";
 import { Ban, CheckCircle2, Loader2, Pencil, Plus } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface Currency {
   id: string;
@@ -24,6 +25,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 type EnabledFilter = "all" | "true" | "false";
 
 export default function BackofficeCurrenciesPage() {
+  const { t, translateError } = useI18n();
   const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
   const [page, setPage] = useState(1);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -56,7 +58,9 @@ export default function BackofficeCurrenciesPage() {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to update currency.");
+      setActionError(
+        translateError(body?.message, "Failed to update currency."),
+      );
       return;
     }
 
@@ -66,7 +70,9 @@ export default function BackofficeCurrenciesPage() {
 
   async function enableCurrency(currency: Currency) {
     const confirmed = window.confirm(
-      `Enable ${currency.code}? Products priced in it become visible again.`,
+      t("Enable {code}? Products priced in it become visible again.", {
+        code: currency.code,
+      }),
     );
     if (!confirmed) return;
 
@@ -76,24 +82,25 @@ export default function BackofficeCurrenciesPage() {
   return (
     <>
       <Head>
-        <title>Currencies | Manifold Admin</title>
+        <title>{t("Currencies | Manifold Admin")}</title>
       </Head>
 
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-black">Currencies</h1>
+            <h1 className="text-3xl font-black">{t("Currencies")}</h1>
             <p className="text-sm font-bold text-white/40 mt-1">
-              USD is the base currency — every product is priced in it, and
-              other currencies are derived.
+              {t(
+                "USD is the base currency — every product is priced in it, and other currencies are derived.",
+              )}
             </p>
           </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500 text-black font-black text-sm uppercase tracking-wider hover:bg-indigo-400 transition-colors"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
           >
             <Plus size={16} />
-            New Currency
+            {t("New Currency")}
           </button>
         </div>
 
@@ -106,9 +113,9 @@ export default function BackofficeCurrenciesPage() {
         <div className="flex items-center gap-2">
           {(
             [
-              ["all", "All"],
-              ["true", "Enabled"],
-              ["false", "Disabled"],
+              ["all", "All currencies"],
+              ["true", "Enabled currencies"],
+              ["false", "Disabled currencies"],
             ] as [EnabledFilter, string][]
           ).map(([value, label]) => (
             <button
@@ -123,20 +130,20 @@ export default function BackofficeCurrenciesPage() {
                   : "text-white/40 hover:text-white hover:bg-white/5"
               }`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 text-left">Code</th>
-                <th className="px-4 py-3 text-left">Symbol</th>
-                <th className="px-4 py-3 text-left">Decimals</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-left">{t("Code")}</th>
+                <th className="px-4 py-3 text-left">{t("Symbol")}</th>
+                <th className="px-4 py-3 text-left">{t("Decimals")}</th>
+                <th className="px-4 py-3 text-left">{t("Status")}</th>
+                <th className="px-4 py-3 text-right">{t("Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -152,7 +159,7 @@ export default function BackofficeCurrenciesPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-rose-300 font-bold"
                   >
-                    Failed to load currencies.
+                    {t("Failed to load currencies.")}
                   </td>
                 </tr>
               ) : currencies.length === 0 ? (
@@ -161,7 +168,7 @@ export default function BackofficeCurrenciesPage() {
                     colSpan={5}
                     className="px-4 py-12 text-center text-white/40 font-bold"
                   >
-                    No currencies found.
+                    {t("No currencies found.")}
                   </td>
                 </tr>
               ) : (
@@ -184,7 +191,9 @@ export default function BackofficeCurrenciesPage() {
                             : "bg-rose-500/20 text-rose-300"
                         }`}
                       >
-                        {currency.enabled ? "Enabled" : "Disabled"}
+                        {currency.enabled
+                          ? t("Enabled currencies")
+                          : t("Disabled currencies")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -194,7 +203,7 @@ export default function BackofficeCurrenciesPage() {
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white text-xs font-black uppercase tracking-wider transition-colors"
                         >
                           <Pencil size={14} />
-                          Edit
+                          {t("Edit")}
                         </button>
                         {currency.enabled ? (
                           <button
@@ -202,7 +211,7 @@ export default function BackofficeCurrenciesPage() {
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                           >
                             <Ban size={14} />
-                            Disable
+                            {t("Disable")}
                           </button>
                         ) : (
                           <button
@@ -210,7 +219,7 @@ export default function BackofficeCurrenciesPage() {
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                           >
                             <CheckCircle2 size={14} />
-                            Enable
+                            {t("Enable")}
                           </button>
                         )}
                       </div>
@@ -229,17 +238,20 @@ export default function BackofficeCurrenciesPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-sm font-bold text-white/50">
-              Page {pagination.page} of {pagination.pages}
+              {t("Page {current} of {total}", {
+                current: pagination.page,
+                total: pagination.pages,
+              })}
             </span>
             <button
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </div>
         )}
@@ -268,28 +280,28 @@ export default function BackofficeCurrenciesPage() {
 
       {disableTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
-              Disable {disableTarget.code}?
+              {t("Disable {code}?", { code: disableTarget.code })}
             </h2>
             <p className="text-sm text-white/50 font-bold mb-4">
-              Every product priced in {disableTarget.code} disappears from the
-              storefront for anyone browsing in it — including products with a
-              fixed {disableTarget.code} price. No prices are deleted, so
-              re-enabling restores everything exactly as it was.
+              {t(
+                "Every product priced in {code} disappears from the storefront for anyone browsing in it — including products with a fixed {code} price. No prices are deleted, so re-enabling restores everything exactly as it was.",
+                { code: disableTarget.code },
+              )}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDisableTarget(null)}
                 className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 onClick={() => setEnabled(disableTarget, false)}
                 className="px-4 py-2 rounded-xl bg-rose-500 text-black font-black text-sm uppercase tracking-wider hover:bg-rose-400 transition-colors"
               >
-                Disable {disableTarget.code}
+                {t("Disable {code}", { code: disableTarget.code })}
               </button>
             </div>
           </div>
@@ -308,6 +320,7 @@ function CurrencyFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t, translateError } = useI18n();
   const isEditing = Boolean(currency);
   const [code, setCode] = useState(currency?.code ?? "");
   const [symbol, setSymbol] = useState(currency?.symbol ?? "");
@@ -346,7 +359,7 @@ function CurrencyFormModal({
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setFormError(body?.message || "Failed to save currency.");
+      setFormError(translateError(body?.message, "Failed to save currency."));
       return;
     }
 
@@ -355,9 +368,11 @@ function CurrencyFormModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
         <h2 className="text-xl font-black mb-4">
-          {isEditing ? `Edit ${currency!.code}` : "New Currency"}
+          {isEditing
+            ? t("Edit {code}", { code: currency!.code })
+            : t("New Currency")}
         </h2>
 
         {formError && (
@@ -369,7 +384,7 @@ function CurrencyFormModal({
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              ISO 4217 code
+              {t("ISO 4217 code")}
             </span>
             <input
               type="text"
@@ -382,15 +397,16 @@ function CurrencyFormModal({
             />
             {isEditing && (
               <span className="text-xs font-bold text-white/30">
-                The code can&apos;t change — rates and price overrides point at
-                it.
+                {t(
+                  "The code can't change — rates and price overrides point at it.",
+                )}
               </span>
             )}
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              Symbol
+              {t("Symbol")}
             </span>
             <input
               type="text"
@@ -404,7 +420,7 @@ function CurrencyFormModal({
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-black uppercase tracking-wider text-white/40">
-              Decimal places
+              {t("Decimal places")}
             </span>
             <input
               type="number"
@@ -415,8 +431,9 @@ function CurrencyFormModal({
               className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
             />
             <span className="text-xs font-bold text-white/30">
-              How many decimals to display. Amounts are always stored at full
-              precision regardless.
+              {t(
+                "How many decimals to display. Amounts are always stored at full precision regardless.",
+              )}
             </span>
           </label>
         </div>
@@ -426,14 +443,18 @@ function CurrencyFormModal({
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             onClick={submit}
             disabled={isSaving}
-            className="px-4 py-2 rounded-xl bg-indigo-500 text-black font-black text-sm uppercase tracking-wider hover:bg-indigo-400 transition-colors disabled:opacity-40"
+            className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:opacity-40"
           >
-            {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Create"}
+            {isSaving
+              ? t("Saving...")
+              : isEditing
+                ? t("Save Changes")
+                : t("Create")}
           </button>
         </div>
       </div>

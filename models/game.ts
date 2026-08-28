@@ -82,6 +82,8 @@ export const steamImportedGameSchema = gameSchema
   })
   .extend({
     steam_price: z.coerce.number().min(0).max(1000000).nullable(),
+    steam_original_price: z.coerce.number().min(0).max(1000000).nullable(),
+    steam_discount_percent: z.coerce.number().int().min(0).max(100).nullable(),
     steam_price_currency: z.string().length(3).nullable(),
     steam_price_captured_at: z.date(),
   });
@@ -324,6 +326,24 @@ export function mapSteamAppToGameData(
     : steamGame.price_overview?.final;
   const steamPrice =
     steamPriceCents === undefined ? null : steamPriceCents / 100;
+  const steamOriginalPriceCents = steamGame.is_free
+    ? 0
+    : steamGame.price_overview?.initial;
+  const steamOriginalPrice =
+    steamOriginalPriceCents === undefined
+      ? null
+      : steamOriginalPriceCents / 100;
+  const steamDiscountPercent =
+    steamGame.price_overview?.discount_percent ??
+    (steamOriginalPriceCents &&
+    steamPriceCents !== undefined &&
+    steamPriceCents < steamOriginalPriceCents
+      ? Math.round(
+          ((steamOriginalPriceCents - steamPriceCents) /
+            steamOriginalPriceCents) *
+            100,
+        )
+      : 0);
 
   const genreTags = (steamGame.genres ?? []).map((g) => g.description);
   const categoryTags = (steamGame.categories ?? []).map((c) => c.description);
@@ -348,6 +368,8 @@ export function mapSteamAppToGameData(
     // this to zero; the external amount below is the value exposed to users.
     price: 0,
     steam_price: steamPrice,
+    steam_original_price: steamOriginalPrice,
+    steam_discount_percent: steamDiscountPercent,
     steam_price_currency: steamGame.price_overview?.currency ?? null,
     steam_price_captured_at: new Date(),
     tags,
@@ -463,6 +485,24 @@ async function findOneBySlug(slug: string) {
       slug,
     },
   });
+}
+
+async function findOneById(id: string) {
+  return await prisma.game.findUnique({ where: { id } });
+}
+
+async function findOneByIdWithStudio(id: string) {
+  const gameResource = await findOneById(id);
+
+  if (!gameResource) {
+    return null;
+  }
+
+  const studioWithMembers = gameResource.studio_id
+    ? await studioModel.findOneByIdWithMembers(gameResource.studio_id)
+    : null;
+
+  return { ...gameResource, studio: studioWithMembers };
 }
 
 async function findOneBySlugWithStudio(slug: string) {
@@ -771,6 +811,14 @@ async function findAllPaginatedAdmin({
   };
 }
 
+async function findAllForSitemap() {
+  return prisma.game.findMany({
+    where: { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
+    orderBy: { updated_at: "desc" },
+    select: { slug: true, updated_at: true },
+  });
+}
+
 async function setStatus(id: string, status: GameStatus) {
   return await prisma.game.update({
     where: {
@@ -799,6 +847,8 @@ const game = {
   create,
   createUnclaimedSteamGame,
   update,
+  findOneById,
+  findOneByIdWithStudio,
   findOneBySlug,
   findOneBySlugWithStudio,
   findOneBySteamAppId,
@@ -807,6 +857,7 @@ const game = {
   findOnePublicBySlug,
   findAllPaginated,
   findAllPaginatedAdmin,
+  findAllForSitemap,
   makePublic,
   setStatus,
   ensurePurchasable,

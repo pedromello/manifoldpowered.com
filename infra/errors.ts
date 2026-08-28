@@ -82,6 +82,33 @@ export class ServiceError extends Error {
   }
 }
 
+export class RateLimitError extends Error {
+  public statusCode: number;
+  public action: string;
+
+  constructor({
+    message,
+    action,
+  }: {
+    message?: string;
+    action?: string;
+  } = {}) {
+    super(message || "Too many requests");
+    this.name = "RateLimitError";
+    this.statusCode = 429;
+    this.action = action || "Try again later";
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}
+
 export class ValidationError extends Error {
   public statusCode: number;
   public action: string;

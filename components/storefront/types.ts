@@ -5,6 +5,7 @@ import type {
   StoreApi,
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
+import type { ReactNode } from "react";
 
 export type { GameApi, GameDetailApi, PaginationApi };
 
@@ -57,6 +58,8 @@ export type StorefrontQuery = {
  */
 export type StorefrontViewProps = {
   store: StoreContext;
+  /** Shared behavior; themes only decide where it belongs visually. */
+  followControl: ReactNode;
 
   /**
    * The hero rail. Themes must handle any length including zero — the default
@@ -64,6 +67,8 @@ export type StorefrontViewProps = {
    * outlet with two curated games showing a blank band.
    */
   featured: GameApi[];
+  /** Whether the Outlet chose these games or the catalog ranked them. */
+  featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
 
   /** The required surface. A view that does not render this fails the contract. */
@@ -102,7 +107,10 @@ export type StorefrontViewProps = {
  * which the page supplies since only the page knows whether it is rendering an
  * outlet or the platform-wide storefront.
  */
-export type StorefrontControllerResult = Omit<StorefrontViewProps, "store">;
+export type StorefrontControllerResult = Omit<
+  StorefrontViewProps,
+  "store" | "followControl"
+>;
 
 /**
  * The default view serves both `/store` (no outlet) and `/store/[slug]`, so it
@@ -111,7 +119,7 @@ export type StorefrontControllerResult = Omit<StorefrontViewProps, "store">;
  */
 export type DefaultStorefrontProps = StorefrontControllerResult & {
   store: StoreContext | null;
-  heading?: string;
+  followControl: ReactNode;
   showDiscover?: boolean;
 };
 

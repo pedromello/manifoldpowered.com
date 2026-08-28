@@ -1,0 +1,148 @@
+import fs from "node:fs";
+import path from "node:path";
+
+import { ptBR } from "lib/i18n/pt-BR";
+
+const SOURCE_ROOTS = ["pages", "components", "storefronts"];
+
+function sourceFiles(directory: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entryPath === path.join(process.cwd(), "pages", "api")) return [];
+      return sourceFiles(entryPath);
+    }
+
+    return /\.(?:ts|tsx)$/.test(entry.name) ? [entryPath] : [];
+  });
+}
+
+function literalTranslationKeys() {
+  const keys = new Set<string>();
+
+  for (const root of SOURCE_ROOTS) {
+    for (const file of sourceFiles(path.join(process.cwd(), root))) {
+      const source = fs.readFileSync(file, "utf8");
+      const matches = source.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)*)"/g);
+
+      for (const match of matches) {
+        keys.add(match[1].replaceAll('\\"', '"'));
+      }
+
+      for (const call of source.matchAll(/\btranslateError\(([\s\S]*?)\)/g)) {
+        for (const match of call[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
+          keys.add(match[1].replaceAll('\\"', '"'));
+        }
+      }
+    }
+  }
+
+  return [...keys];
+}
+
+// These messages are intentionally stored in data arrays and passed to t()
+// dynamically. Keeping them here makes their translation requirement explicit.
+const DYNAMIC_TRANSLATION_KEYS = [
+  "Action",
+  "Active",
+  "All",
+  "All currencies",
+  "Automatic",
+  "Bulk",
+  "Creators",
+  "Curation",
+  "Dashboard",
+  "Developers",
+  "Disabled",
+  "Disabled currencies",
+  "Enabled",
+  "Enabled currencies",
+  "Featured",
+  "Following",
+  "For You",
+  "Games",
+  "Horror",
+  "Inactive",
+  "Indie",
+  "Last 30 days",
+  "Last 7 days",
+  "Manual",
+  "Mixed",
+  "Mostly Negative",
+  "Mostly Positive",
+  "My Outlets",
+  "My Studios",
+  "Negative",
+  "Newest First",
+  "No Reviews",
+  "Oldest First",
+  "Outlets",
+  "Overwhelmingly Negative",
+  "Overwhelmingly Positive",
+  "Pending",
+  "Players",
+  "Positive",
+  "RPG",
+  "Racing",
+  "Rates",
+  "Revenue",
+  "Sales",
+  "Settings",
+  "Simulation",
+  "Strategy",
+  "Studios",
+  "Title (A-Z)",
+  "Very Negative",
+  "Very Positive",
+  "Your Games",
+] as const;
+
+function placeholders(message: string) {
+  return [...message.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+}
+
+describe("i18n catalog", () => {
+  test("every literal UI message has a pt-BR translation", () => {
+    const missing = literalTranslationKeys().filter(
+      (message) => !Object.prototype.hasOwnProperty.call(ptBR, message),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  test("dynamic UI messages have pt-BR translations", () => {
+    const missing = DYNAMIC_TRANSLATION_KEYS.filter(
+      (message) => !Object.prototype.hasOwnProperty.call(ptBR, message),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  test("translations preserve interpolation placeholders", () => {
+    const invalid = Object.entries(ptBR)
+      .filter(
+        ([source, translation]) =>
+          placeholders(source).join(",") !==
+          placeholders(translation).join(","),
+      )
+      .map(([source]) => source);
+
+    expect(invalid).toEqual([]);
+  });
+
+  test.each(["Manifold", "Outlet", "Studio"])(
+    "keeps the protected name %s when it appears in source copy",
+    (protectedName) => {
+      const invalid = Object.entries(ptBR)
+        .filter(
+          ([source, translation]) =>
+            source.includes(protectedName) &&
+            !translation.includes(protectedName),
+        )
+        .map(([source]) => source);
+
+      expect(invalid).toEqual([]);
+    },
+  );
+});

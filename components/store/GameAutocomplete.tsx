@@ -2,23 +2,25 @@ import { useState } from "react";
 import useSWR from "swr";
 import { Search, Loader2 } from "lucide-react";
 import { type GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function GameAutocomplete({
   onSelect,
   placeholder = "Search games...",
+  endpoint = "/api/v1/games",
 }: {
   onSelect: (game: GameApi) => void;
   placeholder?: string;
+  endpoint?: string;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    query.trim()
-      ? `/api/v1/games?q=${encodeURIComponent(query)}&limit=5`
-      : null,
+    query.trim() ? `${endpoint}?q=${encodeURIComponent(query)}&limit=5` : null,
     fetcher,
   );
 
@@ -43,7 +45,7 @@ export function GameAutocomplete({
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
         className="w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 py-2.5 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
       />
 
@@ -76,7 +78,9 @@ export function GameAutocomplete({
             ))
           ) : (
             <div className="px-6 py-6 text-center text-white/40 font-semibold text-sm">
-              No games found matching &quot;{query}&quot;
+              {t("No games found matching {query}", {
+                query: `“${query}”`,
+              })}
             </div>
           )}
         </div>

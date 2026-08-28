@@ -4,6 +4,7 @@ import {
   InternalServerError,
   MethodNotAllowedError,
   NotFoundError,
+  RateLimitError,
   ServiceError,
   UnauthorizedError,
   ValidationError,
@@ -38,6 +39,7 @@ const onErrorHandler = (
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
     error instanceof ForbiddenError ||
+    error instanceof RateLimitError ||
     error instanceof ServiceError
   ) {
     if (error instanceof ServiceError) {
@@ -70,7 +72,9 @@ function logServerError(
   console.error(
     JSON.stringify({
       method: req.method,
-      path: req.url,
+      // Query strings may contain signed URLs or other credentials. Logging
+      // only the pathname keeps those secrets out of operational logs.
+      path: req.url?.split("?", 1)[0],
       name: error.name,
       status_code: error.statusCode,
       message: error.message,
@@ -113,7 +117,7 @@ async function injectAnonymousOrUser(
   next: NextHandler,
 ) {
   if (req.cookies?.session_id) {
-    await injectAuthenticatedUser(req);
+    await injectAuthenticatedUser(req, req.cookies.session_id);
     return next();
   }
 
@@ -121,8 +125,10 @@ async function injectAnonymousOrUser(
   return next();
 }
 
-async function injectAuthenticatedUser(req: NextApiRequest) {
-  const sessionToken = req.cookies?.session_id;
+async function injectAuthenticatedUser(
+  req: NextApiRequest,
+  sessionToken: string,
+) {
   const validSession = await session.findOneValidByToken(sessionToken);
   const authenticatedUser = await user.findOneById(validSession.user_id);
   req.context = { ...req.context, user: authenticatedUser };
@@ -149,6 +155,21 @@ function canRequest(feature: string) {
   };
 }
 
+function requireAuthentication(
+  req: NextApiRequest,
+  _res: NextApiResponse,
+  next: NextHandler,
+) {
+  if (!req.context?.user?.id) {
+    throw new UnauthorizedError({
+      message: "Authentication required",
+      action: "Sign in and send the session_id cookie",
+    });
+  }
+
+  return next();
+}
+
 const controller = {
   errorHandlers: {
     onNoMatch: onNoMatchHandler,
@@ -157,6 +178,8 @@ const controller = {
   setSessionCookie,
   clearSessionCookie,
   injectAnonymousOrUser,
+  requireAuthentication,
+  logServerError,
   canRequest,
 };
 

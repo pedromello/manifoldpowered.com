@@ -148,9 +148,11 @@ describe("Steam community import", () => {
       studio_id: null,
       steam_app_id: steamAppId,
       steam_price_currency: "BRL",
+      steam_discount_percent: 0,
     });
     expect(result.game.price.toFixed(2)).toBe("0.00");
     expect(result.game.steam_price?.toFixed(2)).toBe("59.90");
+    expect(result.game.steam_original_price?.toFixed(2)).toBe("59.90");
     expect(result.game.steam_price_captured_at).toBeInstanceOf(Date);
     await expect(
       library.acquireGame(user.id, result.game.slug),

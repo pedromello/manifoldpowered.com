@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 
 import { ReviewSummary } from "components/store/ReviewSummary";
 import type { GameDetailApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 export function GameHero({
   game,
@@ -14,50 +14,43 @@ export function GameHero({
   backHref: string;
   backLabel: string;
 }) {
+  const { t } = useI18n();
   return (
-    <section className="relative w-full max-h-[700px] overflow-hidden">
-      <div className="absolute inset-0">
-        {game.media.banner && (
-          <Image
-            src={game.media.banner}
-            alt={game.title}
-            fill
-            className="object-cover opacity-40 blur-sm"
-            priority
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1D0F3B] via-[#1D0F3B]/60 to-transparent" />
-      </div>
-
-      <div className="relative h-full max-w-7xl mx-auto px-6 md:px-10 flex flex-col justify-end pb-12">
-        <div className="flex flex-col items-start gap-4 md:gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <section className="mx-auto w-full max-w-[1500px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]">
+        <div className="flex min-w-0 flex-col items-start gap-5">
           <Link
             href={backHref}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-bold text-white/60 hover:bg-white/10 hover:text-white transition-all group"
+            className="group flex items-center gap-2 text-sm font-semibold text-white/50 transition-colors hover:text-white"
           >
             <ArrowLeft
               size={16}
-              className="group-hover:-translate-x-1 transition-transform"
+              className="transition-transform group-hover:-translate-x-0.5"
             />
             {backLabel}
           </Link>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {game.tags.map((tag) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {game.tags.slice(0, 5).map((tag) => (
               <span
                 key={tag}
-                className="px-3 py-1 rounded-lg bg-white/10 backdrop-blur-md text-[10px] md:text-xs font-black tracking-widest uppercase border border-white/10 text-white/90"
+                className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55"
               >
                 {tag}
               </span>
             ))}
+            {game.tags.length > 5 && (
+              <span className="px-1 text-[11px] font-semibold text-white/35">
+                {t("+{count} more", { count: game.tags.length - 5 })}
+              </span>
+            )}
           </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-8xl font-black tracking-tighter leading-none text-white drop-shadow-2xl">
+          <h1 className="max-w-4xl text-4xl font-black leading-[0.98] tracking-[-0.045em] text-white sm:text-5xl lg:text-6xl">
             {game.title}
           </h1>
 
-          <p className="max-w-2xl text-lg md:text-2xl font-medium text-white/80 leading-relaxed drop-shadow-md">
+          <p className="max-w-2xl text-base font-medium leading-7 text-white/58 sm:text-lg">
             {game.description}
           </p>
 
@@ -67,6 +60,18 @@ export function GameHero({
             reviewScore={game.review_score}
           />
         </div>
+
+        {game.media.banner && (
+          <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-[#14101c]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={game.media.banner}
+              alt={t("{title} cover", { title: game.title })}
+              className="h-full w-full object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.04]" />
+          </div>
+        )}
       </div>
     </section>
   );

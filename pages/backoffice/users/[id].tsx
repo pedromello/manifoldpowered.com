@@ -8,6 +8,7 @@ import {
   BackofficeLayout,
   useBackofficeAccess,
 } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeUser {
   id: string;
@@ -31,6 +32,7 @@ function isDisabled(user: BackofficeUser) {
 
 export default function BackofficeUserDetailPage() {
   const router = useRouter();
+  const { locale, t, translateError } = useI18n();
   const { id } = router.query;
   const { user: currentAdmin } = useBackofficeAccess();
   const [showDisableModal, setShowDisableModal] = useState(false);
@@ -59,7 +61,7 @@ export default function BackofficeUserDetailPage() {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to disable user.");
+      setActionError(translateError(body?.message, "Failed to disable user."));
       return;
     }
     setShowDisableModal(false);
@@ -70,7 +72,10 @@ export default function BackofficeUserDetailPage() {
   async function enableUser() {
     if (!key || !targetUser) return;
     const confirmed = window.confirm(
-      `Re-enable "${targetUser.username}"? They'll get back exactly the access they had before being disabled.`,
+      t(
+        "Re-enable {username}? They'll get back exactly the access they had before being disabled.",
+        { username: `“${targetUser.username}”` },
+      ),
     );
     if (!confirmed) return;
 
@@ -78,7 +83,7 @@ export default function BackofficeUserDetailPage() {
     const response = await fetch(`${key}/enable`, { method: "PATCH" });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to enable user.");
+      setActionError(translateError(body?.message, "Failed to enable user."));
       return;
     }
     mutate(key);
@@ -89,8 +94,10 @@ export default function BackofficeUserDetailPage() {
       <Head>
         <title>
           {targetUser
-            ? `${targetUser.username} | Manifold Admin`
-            : "User | Manifold Admin"}
+            ? t("{username} | Manifold Admin", {
+                username: targetUser.username,
+              })
+            : t("User | Manifold Admin")}
         </title>
       </Head>
 
@@ -100,7 +107,7 @@ export default function BackofficeUserDetailPage() {
           className="flex items-center gap-2 text-sm font-bold text-white/50 hover:text-white transition-colors w-fit"
         >
           <ArrowLeft size={14} />
-          Back to Users
+          {t("Back to Users")}
         </Link>
 
         {actionError && (
@@ -112,9 +119,9 @@ export default function BackofficeUserDetailPage() {
         {isLoading ? (
           <Loader2 className="animate-spin text-white/30" />
         ) : error || !targetUser ? (
-          <p className="text-rose-300 font-bold">User not found.</p>
+          <p className="text-rose-300 font-bold">{t("User not found.")}</p>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-black">{targetUser.username}</h1>
@@ -127,14 +134,14 @@ export default function BackofficeUserDetailPage() {
                     : "bg-emerald-500/20 text-emerald-300"
                 }`}
               >
-                {disabled ? "Disabled" : "Active"}
+                {disabled ? t("Disabled") : t("Active")}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  User ID
+                  {t("User ID")}
                 </div>
                 <div className="text-white/70 font-mono text-xs break-all">
                   {targetUser.id}
@@ -142,15 +149,15 @@ export default function BackofficeUserDetailPage() {
               </div>
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  Joined
+                  {t("Joined")}
                 </div>
                 <div className="text-white/70 font-bold">
-                  {new Date(targetUser.created_at).toLocaleString()}
+                  {new Date(targetUser.created_at).toLocaleString(locale)}
                 </div>
               </div>
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  Features
+                  {t("Features")}
                 </div>
                 <div className="text-white/70 font-bold">
                   {targetUser.features.length}
@@ -158,10 +165,10 @@ export default function BackofficeUserDetailPage() {
               </div>
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  Last Updated
+                  {t("Last Updated")}
                 </div>
                 <div className="text-white/70 font-bold">
-                  {new Date(targetUser.updated_at).toLocaleString()}
+                  {new Date(targetUser.updated_at).toLocaleString(locale)}
                 </div>
               </div>
             </div>
@@ -180,15 +187,15 @@ export default function BackofficeUserDetailPage() {
             <div className="border-t border-white/10 pt-5">
               {isSelf ? (
                 <p className="text-sm text-white/40 font-bold">
-                  This is your own account - you can&apos;t disable it.
+                  {t("This is your own account — you can't disable it.")}
                 </p>
               ) : disabled ? (
                 <button
                   onClick={enableUser}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
                 >
                   <CheckCircle2 size={16} />
-                  Enable User
+                  {t("Enable User")}
                 </button>
               ) : (
                 <button
@@ -196,7 +203,7 @@ export default function BackofficeUserDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 text-black font-black text-sm uppercase tracking-wider hover:bg-rose-400 transition-colors"
                 >
                   <Ban size={16} />
-                  Disable User
+                  {t("Disable User")}
                 </button>
               )}
             </div>
@@ -206,19 +213,21 @@ export default function BackofficeUserDetailPage() {
 
       {showDisableModal && targetUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
-              Disable &quot;{targetUser.username}&quot;?
+              {t("Disable {username}?", {
+                username: `“${targetUser.username}”`,
+              })}
             </h2>
             <p className="text-sm text-white/50 font-bold mb-4">
-              They&apos;ll be signed out of any real access immediately -
-              existing sessions degrade to logged-out-visitor level and they
-              can&apos;t log back in. This can be undone at any time.
+              {t(
+                "They'll be signed out immediately and won't be able to log back in. This can be undone at any time.",
+              )}
             </p>
             <textarea
               value={disableReason}
               onChange={(e) => setDisableReason(e.target.value)}
-              placeholder="Reason (optional)"
+              placeholder={t("Reason (optional)")}
               rows={3}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20 resize-none"
             />
@@ -230,13 +239,13 @@ export default function BackofficeUserDetailPage() {
                 }}
                 className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 onClick={submitDisable}
                 className="px-4 py-2 rounded-xl bg-rose-500 text-black font-black text-sm uppercase tracking-wider hover:bg-rose-400 transition-colors"
               >
-                Disable User
+                {t("Disable User")}
               </button>
             </div>
           </div>

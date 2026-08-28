@@ -23,6 +23,7 @@ export type StoreCreateDto = z.infer<typeof storeSchema> & {
 // provider reference, and because changing it resets verification to false.
 export const MEMBER_PERMISSIONS = [
   "update:store",
+  "manage:store_featured_games",
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",
@@ -167,6 +168,13 @@ async function findAllForUser(userId: string) {
     a.name.localeCompare(b.name);
 
   return [...ownedStores.sort(byName), ...memberStores.sort(byName)];
+}
+
+async function findAllForSitemap() {
+  return prisma.store.findMany({
+    orderBy: { updated_at: "desc" },
+    select: { slug: true, updated_at: true },
+  });
 }
 
 async function findOneBySlug(slug: string) {
@@ -396,6 +404,7 @@ const store = {
   create,
   findAllPaginated,
   findAllForUser,
+  findAllForSitemap,
   findOneBySlug,
   findOneBySlugWithMembers,
   update,

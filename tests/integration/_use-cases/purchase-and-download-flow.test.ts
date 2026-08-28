@@ -3,6 +3,10 @@ import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import gameModel from "models/game";
 
+const testClientAddress = orchestrator.createTestClientAddress(
+  "purchase-and-download-flow",
+);
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
@@ -58,7 +62,10 @@ describe("Use case: Purchase and Download Flow", () => {
         `${webserver.getOrigin()}/api/v1/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({
             email: sellerData.email,
             password: sellerData.password,
@@ -195,7 +202,10 @@ describe("Use case: Purchase and Download Flow", () => {
         `${webserver.getOrigin()}/api/v1/sessions`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": testClientAddress,
+          },
           body: JSON.stringify({
             email: buyerData.email,
             password: buyerData.password,
@@ -255,6 +265,8 @@ describe("Use case: Purchase and Download Flow", () => {
           ([key]) =>
             ![
               "steam_price",
+              "steam_original_price",
+              "steam_discount_percent",
               "steam_price_currency",
               "steam_price_captured_at",
             ].includes(key),

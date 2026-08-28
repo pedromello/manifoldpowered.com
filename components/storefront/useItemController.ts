@@ -4,6 +4,7 @@ import useSWR from "swr";
 
 import type { Review, ReviewsApiResponse } from "components/store/ReviewCard";
 import { withStore } from "lib/store-context";
+import { useI18n } from "lib/i18n";
 
 export type ItemControllerOptions = {
   gameSlug: string;
@@ -22,20 +23,38 @@ export type ItemReviews = {
   /** Everyone else's reviews. The viewer's own is separated out below. */
   list: Review[];
   userReview: Review | null;
+  canReview: boolean;
+  summary: {
+    positiveReviews: number;
+    negativeReviews: number;
+    reviewScore: string | null;
+  } | null;
   total: number;
+  page: number;
+  totalPages: number;
   /** True only on the first load, so the list does not flash on revalidation. */
   isLoading: boolean;
   isSubmitting: boolean;
   isDeleting: boolean;
+  error: string | null;
   post: (input: { message: string; recommended: boolean }) => Promise<boolean>;
+  update: (input: {
+    message: string;
+    recommended: boolean;
+  }) => Promise<boolean>;
   remove: () => Promise<boolean>;
+  setPage: (page: number) => void;
+  retry: () => void;
+  clearError: () => void;
 };
 
 export type ItemControllerResult = {
   isLoggedOut: boolean;
   isInLibrary: boolean;
+  isCheckingLibrary: boolean;
   isRedeeming: boolean;
   redeem: () => void;
+  acquisitionError: string | null;
   showSuccessModal: boolean;
   dismissSuccess: () => void;
   wishlist: ItemWishlist;
@@ -44,10 +63,28 @@ export type ItemControllerResult = {
   backHref: string;
 };
 
-const okJson = (res: Response) => {
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  return res.json();
+class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
+const okJson = async (res: Response) => {
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new ApiRequestError(
+      body?.message || `Request failed: ${res.status}`,
+      res.status,
+    );
+  }
+  return body;
 };
+
+const fetchJson = (url: string) => fetch(url).then(okJson);
 
 /**
  * Everything the product page does beyond rendering: ownership, wishlist and
@@ -63,20 +100,29 @@ export function useItemController({
   storeSlug,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
+  const { t, translateError } = useI18n();
+  const [reviewPage, setReviewPage] = useState(1);
 
   const {
     data: libraryData,
     error: libraryError,
     mutate: mutateLibrary,
-  } = useSWR("/api/v1/library", okJson, { shouldRetryOnError: false });
+  } = useSWR(
+    `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
+    fetchJson,
+    {
+      shouldRetryOnError: false,
+    },
+  );
 
   const {
     data: reviewsData,
+    error: reviewsError,
     mutate: mutateReviews,
     isValidating: isReviewsLoading,
   } = useSWR<ReviewsApiResponse>(
-    `/api/v1/reviews?slug=${gameSlug}&page=1&limit=10`,
-    (url) => fetch(url).then((res) => res.json()),
+    `/api/v1/reviews?slug=${gameSlug}&page=${reviewPage}&limit=10`,
+    fetchJson,
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
@@ -84,21 +130,34 @@ export function useItemController({
     (url) => fetch(url).then((res) => res.json()),
   );
 
-  // A failing /api/v1/library is how the page learns there is no session; the
-  // endpoint 401s for an anonymous visitor.
-  const isLoggedOut = !!libraryError;
+  // Anonymous access is forbidden, while a server-side failure is a real
+  // library error and must not be disguised as a login redirect.
+  const isLoggedOut =
+    libraryError instanceof ApiRequestError &&
+    (libraryError.status === 401 || libraryError.status === 403);
+  const isCheckingLibrary = !libraryData && !libraryError;
+  const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
+    hasJustAcquired ||
+    libraryData?.is_owned ||
     libraryData?.games?.some(
       (item: { game: { slug: string } }) => item.game.slug === gameSlug,
-    ) || false;
+    ) ||
+    false;
 
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [acquisitionError, setAcquisitionError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const [reviewActionError, setReviewActionError] = useState<string | null>(
+    null,
+  );
   const [isToggling, setIsToggling] = useState(false);
 
   const redeem = async () => {
+    setAcquisitionError(null);
+
     if (isLoggedOut) {
       router.push(
         `/login?callbackUrl=${encodeURIComponent(
@@ -108,7 +167,7 @@ export function useItemController({
       return;
     }
 
-    if (isInLibrary || isRedeeming) return;
+    if (isCheckingLibrary || isInLibrary || isRedeeming) return;
 
     setIsRedeeming(true);
     try {
@@ -118,12 +177,24 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, store_slug: storeSlug }),
       });
 
-      if (!res.ok) throw new Error("Failed to redeem");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.message || "We could not add this game to your library.",
+        );
+      }
 
-      mutateLibrary();
+      setHasJustAcquired(true);
+      void mutateLibrary();
       setShowSuccessModal(true);
     } catch (error) {
       console.error(error);
+      setAcquisitionError(
+        translateError(
+          error instanceof Error ? error.message : null,
+          "We could not add this game to your library.",
+        ),
+      );
     } finally {
       setIsRedeeming(false);
     }
@@ -135,6 +206,7 @@ export function useItemController({
   }) => {
     if (!input.message.trim()) return false;
 
+    setReviewActionError(null);
     setIsSubmittingReview(true);
     try {
       const res = await fetch("/api/v1/reviews", {
@@ -143,13 +215,58 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, ...input }),
       });
 
-      if (!res.ok) throw new Error("Failed to post review");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to post review");
+      }
+
+      setReviewPage(1);
+      await mutateReviews();
+      return true;
+    } catch (error) {
+      console.error(error);
+      setReviewActionError(
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to submit review.",
+        ),
+      );
+      return false;
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const updateReview = async (input: {
+    message: string;
+    recommended: boolean;
+  }) => {
+    if (!input.message.trim()) return false;
+
+    setReviewActionError(null);
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch("/api/v1/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: gameSlug, ...input }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to update review");
+      }
 
       await mutateReviews();
       return true;
     } catch (error) {
       console.error(error);
-      alert("Failed to submit review.");
+      setReviewActionError(
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to update review.",
+        ),
+      );
       return false;
     } finally {
       setIsSubmittingReview(false);
@@ -157,6 +274,7 @@ export function useItemController({
   };
 
   const removeReview = async () => {
+    setReviewActionError(null);
     setIsDeletingReview(true);
     try {
       const res = await fetch("/api/v1/reviews", {
@@ -165,13 +283,22 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug }),
       });
 
-      if (!res.ok) throw new Error("Failed to delete review");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to delete review");
+      }
 
+      setReviewPage(1);
       await mutateReviews();
       return true;
     } catch (error) {
       console.error(error);
-      alert("Failed to delete review.");
+      setReviewActionError(
+        translateError(
+          error instanceof Error ? error.message : null,
+          "Failed to delete review.",
+        ),
+      );
       return false;
     } finally {
       setIsDeletingReview(false);
@@ -202,7 +329,7 @@ export function useItemController({
 
       if (!res.ok) {
         if (res.status === 401) {
-          alert("You need to be logged in to add to wishlist.");
+          alert(t("You need to be logged in to add to wishlist."));
         }
         throw new Error("Failed to toggle wishlist");
       }
@@ -217,8 +344,17 @@ export function useItemController({
   return {
     isLoggedOut,
     isInLibrary,
+    isCheckingLibrary,
     isRedeeming,
     redeem,
+    acquisitionError:
+      acquisitionError ||
+      (!isLoggedOut && libraryError instanceof Error
+        ? translateError(
+            libraryError.message,
+            "We could not check your library right now.",
+          )
+        : null),
     showSuccessModal,
     dismissSuccess: () => setShowSuccessModal(false),
 
@@ -236,12 +372,34 @@ export function useItemController({
         (review) => review.id !== reviewsData?.user_review?.id,
       ),
       userReview: reviewsData?.user_review ?? null,
+      canReview: reviewsData?.can_review ?? false,
+      summary: reviewsData?.summary
+        ? {
+            positiveReviews: reviewsData.summary.positive_reviews,
+            negativeReviews: reviewsData.summary.negative_reviews,
+            reviewScore: reviewsData.summary.review_score,
+          }
+        : null,
       total: reviewsData?.pagination?.total_items ?? 0,
+      page: reviewsData?.pagination?.current_page ?? reviewPage,
+      totalPages: reviewsData?.pagination?.total_pages ?? 0,
       isLoading: !reviewsData && isReviewsLoading,
       isSubmitting: isSubmittingReview,
       isDeleting: isDeletingReview,
+      error:
+        reviewActionError ||
+        (reviewsError instanceof Error
+          ? translateError(
+              reviewsError.message,
+              "We could not load reviews right now.",
+            )
+          : null),
       post: postReview,
+      update: updateReview,
       remove: removeReview,
+      setPage: (page) => setReviewPage(Math.max(1, page)),
+      retry: () => void mutateReviews(),
+      clearError: () => setReviewActionError(null),
     },
 
     backHref: storeSlug ? `/store/${storeSlug}` : "/store",

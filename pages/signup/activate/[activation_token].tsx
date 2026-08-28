@@ -2,11 +2,13 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import AuthLayout from "../../../components/AuthLayout";
+import { useI18n } from "lib/i18n";
 
 type ActivationState = "loading" | "success" | "error";
 
 export default function ActivateSignup() {
   const router = useRouter();
+  const { t, translateError } = useI18n();
   const { activation_token: activationToken } = router.query;
   const [activationState, setActivationState] =
     useState<ActivationState>("loading");
@@ -38,30 +40,31 @@ export default function ActivateSignup() {
       } catch (error) {
         setActivationState("error");
         setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "We could not activate your account with this link.",
+          translateError(
+            error instanceof Error ? error.message : null,
+            "We could not activate your account with this link.",
+          ),
         );
       }
     }
 
     activateAccount();
-  }, [activationToken, router.isReady]);
+  }, [activationToken, router.isReady, translateError]);
 
   return (
     <AuthLayout
-      title="Activate Your Manifold Account"
-      description="Activate your Manifold early access account."
+      title={t("Activate Your Manifold Account")}
+      description={t("Activate your Manifold early access account.")}
     >
       {activationState === "loading" ? (
         <>
           <div className="status-mark loading-mark" aria-hidden="true">
             <span></span>
           </div>
-          <p className="eyebrow">Activating your account</p>
-          <h1>Hold tight.</h1>
+          <p className="eyebrow">{t("Activating your account")}</p>
+          <h1>{t("Hold tight.")}</h1>
           <p className="message">
-            We are confirming your early access spot now.
+            {t("We are confirming your early access spot now.")}
           </p>
         </>
       ) : null}
@@ -71,24 +74,25 @@ export default function ActivateSignup() {
           <div className="status-mark success-mark" aria-hidden="true">
             <span>!</span>
           </div>
-          <p className="eyebrow">Account activated</p>
-          <h1>You are officially in.</h1>
+          <p className="eyebrow">{t("Account activated")}</p>
+          <h1>{t("You are officially in.")}</h1>
           <p className="message">
-            Welcome to Manifold. We will notify you as soon as the early access
-            begins.
+            {t(
+              "Welcome to Manifold. We will notify you as soon as the early access begins.",
+            )}
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/store"
-              className="flex-1 inline-flex items-center justify-center rounded-lg border-2 border-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--color-purple-dark)] transition-colors hover:bg-[var(--color-purple-dark)] hover:text-[var(--bg-primary)]"
+              className="inline-flex flex-1 items-center justify-center rounded-lg border border-white/15 px-6 py-3 font-bold text-white transition-colors hover:bg-white/10"
             >
-              I want to play
+              {t("I want to play")}
             </Link>
             <Link
               href="/onboarding/create"
-              className="flex-1 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
+              className="inline-flex flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-bold text-white transition hover:brightness-110"
             >
-              I want to publish games
+              {t("I want to publish games")}
             </Link>
           </div>
         </>
@@ -99,16 +103,16 @@ export default function ActivateSignup() {
           <div className="status-mark error-mark" aria-hidden="true">
             <span>x</span>
           </div>
-          <p className="eyebrow">Activation link failed</p>
-          <h1>We could not activate this account.</h1>
+          <p className="eyebrow">{t("Activation link failed")}</p>
+          <h1>{t("We could not activate this account.")}</h1>
           <p className="message">
-            {errorMessage} The link may be expired or already used.
+            {errorMessage} {t("The link may be expired or already used.")}
           </p>
           <Link
             href="/signup"
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-[var(--color-purple-dark)] px-6 py-3 font-bold text-[var(--bg-primary)] transition-colors hover:bg-black"
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3 font-bold text-white transition hover:brightness-110"
           >
-            Request a new invite
+            {t("Request a new invite")}
           </Link>
         </>
       ) : null}
@@ -121,22 +125,22 @@ export default function ActivateSignup() {
           border-radius: 50%;
           display: grid;
           place-items: center;
-          background: var(--color-purple-dark);
-          color: var(--bg-primary);
+          background: linear-gradient(135deg, #8b5cf6, #d946ef);
+          color: white;
           font-size: 2.5rem;
           font-weight: 900;
           line-height: 1;
         }
 
         .loading-mark {
-          background: rgba(53, 34, 89, 0.12);
+          background: rgba(139, 92, 246, 0.12);
         }
 
         .loading-mark span {
           width: 2.25rem;
           height: 2.25rem;
-          border: 4px solid rgba(53, 34, 89, 0.18);
-          border-top-color: var(--color-purple-dark);
+          border: 4px solid rgba(255, 255, 255, 0.12);
+          border-top-color: #c4b5fd;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
@@ -151,7 +155,7 @@ export default function ActivateSignup() {
 
         .eyebrow {
           margin: 0 0 0.75rem;
-          color: rgba(53, 34, 89, 0.72);
+          color: #c4b5fd;
           font-size: 0.95rem;
           font-weight: 800;
           letter-spacing: 0;
@@ -160,8 +164,8 @@ export default function ActivateSignup() {
 
         h1 {
           margin: 0;
-          color: var(--color-purple-dark);
-          font-size: 4rem;
+          color: white;
+          font-size: 3rem;
           font-weight: 900;
           line-height: 0.95;
           letter-spacing: 0;
@@ -170,8 +174,8 @@ export default function ActivateSignup() {
         .message {
           max-width: 560px;
           margin: 1.5rem auto 0;
-          color: rgba(53, 34, 89, 0.84);
-          font-size: 1.25rem;
+          color: rgba(255, 255, 255, 0.58);
+          font-size: 1.1rem;
           line-height: 1.6;
         }
 

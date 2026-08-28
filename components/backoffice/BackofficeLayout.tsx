@@ -53,17 +53,19 @@ export function BackofficeLayout({ children }: { children: ReactNode }) {
 
   if (isLoading || isLoggedOut || !isAdmin) {
     return (
-      <div className="min-h-screen bg-[#1D0F3B] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-white/20" />
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0812]">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/10 border-t-violet-300" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white">
+    <div className="min-h-screen bg-[#0b0812] text-white lg:pl-60">
       <BackofficeTopNav username={user.username} />
-      <main className="pt-[calc(env(safe-area-inset-top)+8rem)] md:pt-[calc(env(safe-area-inset-top)+6rem)] pb-16 px-4 md:px-10 max-w-7xl mx-auto">
-        {children}
+      <main className="mx-auto max-w-[1500px] px-4 pb-16 pt-36 sm:px-6 lg:px-10 lg:pt-10">
+        <div className="rounded-xl border border-white/[0.07] bg-[#100c17] p-5 sm:p-7 lg:p-9">
+          {children}
+        </div>
       </main>
     </div>
   );

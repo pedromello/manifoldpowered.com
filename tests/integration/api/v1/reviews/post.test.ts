@@ -30,6 +30,11 @@ describe("POST /api/v1/reviews", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ACTIVE" },
+      });
+      await orchestrator.addToLibrary(user.id, game.id);
 
       const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
         method: "POST",
@@ -67,6 +72,11 @@ describe("POST /api/v1/reviews", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ACTIVE" },
+      });
+      await orchestrator.addToLibrary(user.id, game.id);
 
       await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
         method: "POST",
@@ -117,6 +127,57 @@ describe("POST /api/v1/reviews", () => {
           Cookie: `session_id=${session.token}`,
         },
         body: JSON.stringify({}),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    test("Without owning the game should return 403", async () => {
+      const gameCreator = await orchestrator.createUser();
+      const reviewer = await orchestrator.createUser();
+      await orchestrator.activateUser(reviewer.id);
+      const session = await orchestrator.createSession(reviewer.id);
+      const game = await orchestrator.createGame(gameCreator.id);
+      await prisma.game.update({
+        where: { id: game.id },
+        data: { status: "ACTIVE" },
+      });
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({
+          slug: game.slug,
+          message: "I do not own this game.",
+          recommended: true,
+        }),
+      });
+
+      expect(response.status).toBe(403);
+      expect((await response.json()).message).toBe(
+        "Only players who own this game can review it.",
+      );
+    });
+
+    test("With a whitespace-only message should return 400", async () => {
+      const user = await orchestrator.createUser();
+      await orchestrator.activateUser(user.id);
+      const session = await orchestrator.createSession(user.id);
+
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({
+          slug: "some-game",
+          message: "   ",
+          recommended: true,
+        }),
       });
 
       expect(response.status).toBe(400);

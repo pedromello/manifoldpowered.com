@@ -1,5 +1,6 @@
 import { GameListItem } from "components/store/GameListItem";
 import { type GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 /**
  * The catalogue rows, plus the loading and empty states that go with them.
@@ -14,6 +15,7 @@ export function GameList({
   isLoading: boolean;
   storeSlug?: string;
 }) {
+  const { t } = useI18n();
   return (
     <section
       data-storefront="game-list"
@@ -30,7 +32,7 @@ export function GameList({
         ))
       ) : (
         <div className="py-20 text-center text-white/20 font-black italic text-4xl uppercase tracking-tighter">
-          Empty Archives
+          {t("Empty Archives")}
         </div>
       )}
     </section>

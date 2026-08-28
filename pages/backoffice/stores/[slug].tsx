@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeStore {
   id: string;
@@ -23,6 +24,7 @@ const fetcher = (url: string) =>
 
 export default function BackofficeStoreDetailPage() {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const { slug } = router.query;
 
   const key = slug ? `/api/v1/backoffice/stores/${slug}` : null;
@@ -36,7 +38,9 @@ export default function BackofficeStoreDetailPage() {
     <>
       <Head>
         <title>
-          {store ? `${store.name} | Manifold Admin` : "Store | Manifold Admin"}
+          {store
+            ? t("{name} | Manifold Admin", { name: store.name })
+            : t("Outlet | Manifold Admin")}
         </title>
       </Head>
 
@@ -46,15 +50,15 @@ export default function BackofficeStoreDetailPage() {
           className="flex items-center gap-2 text-sm font-bold text-white/50 hover:text-white transition-colors w-fit"
         >
           <ArrowLeft size={14} />
-          Back to Stores
+          {t("Back to Outlets")}
         </Link>
 
         {isLoading ? (
           <Loader2 className="animate-spin text-white/30" />
         ) : error || !store ? (
-          <p className="text-rose-300 font-bold">Store not found.</p>
+          <p className="text-rose-300 font-bold">{t("Outlet not found.")}</p>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-white/[0.08] bg-white/[0.04] p-6">
             <div>
               <h1 className="text-3xl font-black">{store.name}</h1>
               {store.description && (
@@ -67,7 +71,7 @@ export default function BackofficeStoreDetailPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  Store ID
+                  {t("Outlet ID")}
                 </div>
                 <div className="text-white/70 font-mono text-xs break-all">
                   {store.id}
@@ -75,10 +79,10 @@ export default function BackofficeStoreDetailPage() {
               </div>
               <div>
                 <div className="text-white/40 font-bold uppercase text-xs tracking-wider mb-1">
-                  Created
+                  {t("Created")}
                 </div>
                 <div className="text-white/70 font-bold">
-                  {new Date(store.created_at).toLocaleString()}
+                  {new Date(store.created_at).toLocaleString(locale)}
                 </div>
               </div>
             </div>

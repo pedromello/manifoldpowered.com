@@ -1,24 +1,23 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { ChevronDown, Calendar, Download } from "lucide-react";
+import { Calendar, ChevronDown, Download } from "lucide-react";
+
 import { DownloadSection, type GameFile } from "./DownloadSection";
-import { type GameApi } from "components/store/types";
+import type { GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 export function LibraryGameCard({
   gameItem,
 }: {
   gameItem: { id: string; acquired_at: string; game: GameApi };
 }) {
+  const { locale, t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const game = gameItem.game;
-
   const acquiredDate = new Date(gameItem.acquired_at).toLocaleDateString(
-    "en-US",
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    },
+    locale,
+    { month: "short", day: "numeric", year: "numeric" },
   );
 
   const {
@@ -26,132 +25,104 @@ export function LibraryGameCard({
     error,
     isLoading,
   } = useSWR<GameFile[]>(`/api/v1/games/${game.slug}/files`, (url) =>
-    fetch(url).then((res) => {
-      if (!res.ok) throw new Error("Failed to fetch files");
-      return res.json();
+    fetch(url).then((response) => {
+      if (!response.ok) throw new Error("Failed to fetch files");
+      return response.json();
     }),
   );
 
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-
-  const handleDownload = async (e: React.MouseEvent, fileId: string) => {
-    e.stopPropagation();
+  const handleDownload = async (event: React.MouseEvent, fileId: string) => {
+    event.stopPropagation();
     if (downloadingId) return;
     setDownloadingId(fileId);
 
     try {
-      const res = await fetch(`/api/v1/library/download/${fileId}`);
-      if (!res.ok) throw new Error("Failed to get download URL");
-
-      const { download_url } = await res.json();
-
-      const a = document.createElement("a");
-      a.href = download_url;
-      a.target = "_blank";
-      a.download = "";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error(err);
-      alert("There was an error initiating the download.");
+      const response = await fetch(`/api/v1/library/download/${fileId}`);
+      if (!response.ok) throw new Error("Failed to get download URL");
+      const { download_url } = await response.json();
+      const anchor = document.createElement("a");
+      anchor.href = download_url;
+      anchor.target = "_blank";
+      anchor.download = "";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    } catch (downloadError) {
+      console.error(downloadError);
+      alert(t("There was an error initiating the download."));
     } finally {
       setDownloadingId(null);
     }
   };
 
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
-
   return (
-    <div
-      className={`flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden ${isExpanded ? "bg-white/10 border-white/20 shadow-[0_0_40px_rgba(165,180,252,0.15)]" : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:-translate-y-1"}`}
-    >
-      {/* Header / Main Card */}
-      <div
-        className="flex flex-col sm:flex-row items-stretch cursor-pointer p-0 sm:p-4 gap-4"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div
-          className="w-full sm:w-48 md:w-64 aspect-[16/9] sm:aspect-video sm:rounded-2xl overflow-hidden shrink-0 border-b sm:border border-white/10 relative"
-          style={{
-            background: game.media?.banner
-              ? `url(${game.media.banner}) center/cover no-repeat`
-              : defaultGradient,
-          }}
-        >
-          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+    <article className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#14101c] transition-colors hover:border-white/20">
+      <div className="flex flex-col sm:flex-row">
+        <div className="aspect-[920/430] w-full shrink-0 overflow-hidden bg-[#21182f] sm:w-52">
+          {game.media?.banner ? (
+            // Game banners may be hosted outside Next's image allowlist.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={game.media.banner}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full bg-[linear-gradient(135deg,#28183b,#15101d)]" />
+          )}
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between flex-1 p-4 sm:p-0 min-w-0 gap-4 sm:gap-6">
-          {/* Left Column: Title, Developer, and Acquired date at the bottom */}
-          <div className="flex flex-col justify-between flex-1 min-w-0">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-xl sm:text-2xl font-black text-white truncate">
-                {game.title}
-              </h3>
-              <span className="text-sm text-white/50 font-bold uppercase tracking-widest">
-                {game.developer_name}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-white/40 mt-3 sm:mt-0">
-              <Calendar size={14} />
-              <span>Acquired {acquiredDate}</span>
-            </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-5 p-5">
+          <div className="min-w-0">
+            <h3 className="truncate text-xl font-bold">{game.title}</h3>
+            <p className="mt-1 truncate text-sm text-white/40">
+              {game.developer_name}
+            </p>
           </div>
 
-          {/* Right Column: Download button or accordion trigger */}
-          <div className="flex items-center justify-center sm:justify-end w-full sm:w-auto mt-4 sm:mt-0 shrink-0">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-center gap-2 text-xs text-white/35">
+              <Calendar size={14} />
+              {t("Added {date}", { date: acquiredDate })}
+            </p>
+
             {files?.length === 1 ? (
               <button
-                onClick={(e) => handleDownload(e, files[0].id)}
+                onClick={(event) => handleDownload(event, files[0].id)}
                 disabled={downloadingId === files[0].id}
-                className="flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 h-9 rounded-lg font-black uppercase text-xs tracking-wider transition-transform hover:scale-105 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 shrink-0"
-                style={{ backgroundColor: "#FFB400", color: "#1D0F3B" }}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-4 text-xs font-bold disabled:cursor-progress disabled:opacity-60"
               >
-                {downloadingId === files[0].id ? (
-                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-t-2 border-b-2 border-current"></div>
-                ) : (
-                  <Download size={14} />
-                )}
-                Download
+                <Download size={14} />
+                {downloadingId === files[0].id
+                  ? t("Preparing...")
+                  : t("Download")}
               </button>
             ) : (
-              <div
-                className={`flex items-center justify-center w-full sm:w-9 h-9 rounded-lg sm:rounded-full bg-white/5 border border-white/10 text-white/60 transition-colors duration-300 shrink-0 ${isExpanded ? "bg-white/10 text-white" : ""}`}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((current) => !current)}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 px-4 text-xs font-semibold text-white/55 hover:border-white/20 hover:text-white"
+                aria-expanded={isExpanded}
               >
-                <span className="sm:hidden text-xs font-black uppercase tracking-wider mr-2">
-                  {isExpanded ? "Hide Files" : "View Files"}
-                </span>
-                <div
-                  className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
-                >
-                  <ChevronDown size={18} />
-                </div>
-              </div>
+                {isExpanded ? t("Hide files") : t("View files")}
+                <ChevronDown
+                  size={15}
+                  className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                />
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Accordion Content */}
-      <div
-        className={`transition-all duration-500 ease-in-out ${isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}
-      >
-        <div className="p-6 pt-2 border-t border-white/10 bg-black/20">
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-black uppercase tracking-widest text-white/40 mb-2">
-              Game Files
-            </h4>
-            <DownloadSection
-              files={files}
-              isLoading={isLoading}
-              error={error}
-            />
-          </div>
+      {isExpanded && (
+        <div className="border-t border-white/[0.08] bg-black/15 p-5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-white/30">
+            {t("Available files")}
+          </p>
+          <DownloadSection files={files} isLoading={isLoading} error={error} />
         </div>
-      </div>
-    </div>
+      )}
+    </article>
   );
 }

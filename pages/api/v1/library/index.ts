@@ -10,6 +10,7 @@ import { ValidationError } from "infra/errors";
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
+  slug: z.string().min(1).max(255).optional(),
 });
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -29,13 +30,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const { page, limit } = parsedQuery.data;
+  const { page, limit, slug } = parsedQuery.data;
 
-  const result = await library.findAllPaginatedGamesByUserId(
-    req.context.user.id!,
-    page,
-    limit,
-  );
+  const [result, isOwned] = await Promise.all([
+    library.findAllPaginatedGamesByUserId(req.context.user.id!, page, limit),
+    slug ? library.hasGameBySlug(req.context.user.id!, slug) : false,
+  ]);
 
   const filteredGames = result.games.map((item) => {
     return authorization.filterOutput(req.context.user, "read:library", item);
@@ -43,6 +43,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   return res.status(200).json({
     games: filteredGames,
+    ...(slug ? { is_owned: isOwned } : {}),
     pagination: result.pagination,
   });
 }

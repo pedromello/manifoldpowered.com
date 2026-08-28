@@ -107,6 +107,49 @@ describe("models/authorization.ts", () => {
         updated_at: targetUser.updated_at,
       });
     });
+
+    test("store follow output exposes only the requester-specific boolean", () => {
+      const requester: Partial<User> = {
+        id: "player-1",
+        features: ["read:store_follow_status"],
+      };
+
+      expect(
+        authorization.filterOutput(requester, "read:store_follow_status", {
+          is_followed: true,
+          user_id: "player-1",
+          follower_count: 42,
+        }),
+      ).toEqual({ is_followed: true });
+    });
+  });
+
+  describe("Outlet follow features", () => {
+    test("activated users can list, follow, unfollow and read their status", () => {
+      expect(authorization.ACTIVATED_USER_FEATURES).toEqual(
+        expect.arrayContaining([
+          "create:store_follow",
+          "read:store_follow",
+          "delete:store_follow",
+          "read:store_follow_status",
+        ]),
+      );
+    });
+
+    test("anonymous users can read status but cannot list or mutate follows", () => {
+      expect(authorization.ANONYMOUS_USER_FEATURES).toContain(
+        "read:store_follow_status",
+      );
+      expect(authorization.ANONYMOUS_USER_FEATURES).not.toContain(
+        "read:store_follow",
+      );
+      expect(authorization.ANONYMOUS_USER_FEATURES).not.toContain(
+        "create:store_follow",
+      );
+      expect(authorization.ANONYMOUS_USER_FEATURES).not.toContain(
+        "delete:store_follow",
+      );
+    });
   });
 
   describe(".ADMIN_ONLY_FEATURES / .ADMIN_FEATURES", () => {

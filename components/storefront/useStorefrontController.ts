@@ -18,6 +18,7 @@ type ListResponse = {
   games: GameApi[];
   pagination?: PaginationApi;
   currency?: string;
+  mode?: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
 };
 
 const fetcher = (url: string): Promise<ListResponse> =>
@@ -145,6 +146,7 @@ export function useStorefrontController({
 
   return {
     featured: featuredData?.games || [],
+    featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
 
     games: data?.games || [],

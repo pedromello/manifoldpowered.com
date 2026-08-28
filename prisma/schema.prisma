@@ -148,6 +148,8 @@ model Game {
   // separate from price/base_price because they never make the game
   // purchasable on Manifold and may become stale or vary by Steam region.
   steam_price             Decimal?  @db.Decimal(19, 4)
+  steam_original_price    Decimal?  @db.Decimal(19, 4)
+  steam_discount_percent  Int?
   steam_price_currency    String?   @db.VarChar(3)
   steam_price_captured_at DateTime?
 
@@ -215,10 +217,54 @@ model WishlistItem {
   @@map("wishlist_items")
 }
 
+// A player's durable connection to an Outlet. This is deliberately separate
+// from WishlistItem: following a curator and saving a game express different
+// intent and will power different product surfaces.
+model StoreFollow {
+  id       String @id @default(uuid())
+  user_id  String // Logical reference to User.id
+  store_id String // Logical reference to Store.id
+
+  // No updated_at: a follow is immutable while it exists. Unfollowing and
+  // following again creates a new relationship with a new created_at.
+  created_at DateTime @default(now())
+
+  @@unique([user_id, store_id])
+  @@index([user_id, created_at])
+  // Supports future recommendation fan-out without exposing follower data.
+  @@index([store_id, created_at])
+  @@map("store_follows")
+}
+
 enum GamePlatform {
   WINDOWS
   MAC
   LINUX
+}
+
+enum GameArchitecture {
+  X86_64
+  AARCH64
+}
+
+enum GameArchiveFormat {
+  ZIP
+  TAR_GZ
+}
+
+enum GameReleaseStatus {
+  DRAFT
+  PROCESSING
+  PUBLISHED
+  FAILED
+  RETIRED
+}
+
+enum GameArtifactStatus {
+  PENDING
+  VERIFYING
+  READY
+  FAILED
 }
 
 model GameFile {
@@ -234,6 +280,50 @@ model GameFile {
 
   @@index([game_id])
   @@map("game_files")
+}
+
+// Immutable distribution snapshot. release_number is the machine-facing,
+// monotonic identity; version is the human-facing label chosen by the studio.
+// References remain logical, consistent with the rest of this schema.
+model GameRelease {
+  id             String            @id @default(uuid())
+  game_id        String // Logical reference to Game.id
+  version        String            @db.VarChar(50)
+  release_number Int
+  status         GameReleaseStatus @default(DRAFT)
+  release_notes  String?           @db.Text
+  published_at   DateTime?
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+
+  @@unique([game_id, release_number])
+  @@index([game_id, status, release_number])
+  @@map("game_releases")
+}
+
+// A release can have one archive for each supported platform/architecture.
+// Integrity metadata and the manifest are filled by verification and become
+// immutable as soon as the owning release is published.
+model GameArtifact {
+  id                      String             @id @default(uuid())
+  release_id              String // Logical reference to GameRelease.id
+  platform                GamePlatform
+  architecture            GameArchitecture
+  archive_format          GameArchiveFormat
+  storage_object_key      String             @unique @db.VarChar(1024)
+  created_by_user_id      String? // Logical reference to the publisher User who initiated the upload
+  compressed_size_bytes   BigInt?
+  installed_size_bytes    BigInt?
+  sha256                  String?            @db.Char(64)
+  manifest_schema_version String?            @db.VarChar(10)
+  manifest                Json?
+  status                  GameArtifactStatus @default(PENDING)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+
+  @@unique([release_id, platform, architecture])
+  @@index([release_id, status])
+  @@map("game_artifacts")
 }
 
 enum ItemType {
@@ -386,6 +476,22 @@ model StoreGameOverride {
   @@unique([store_id, game_id])
   @@index([store_id])
   @@map("store_game_overrides")
+}
+
+model StoreFeaturedGame {
+  id                    String   @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  game_id               String // Logical reference to Game.id
+  position              Int
+  recommendation_reason String?  @db.VarChar(240)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@unique([store_id, game_id])
+  @@unique([store_id, position])
+  @@index([store_id])
+  @@index([game_id])
+  @@map("store_featured_games")
 }
 
 model AdminActionLog {
@@ -631,11 +737,11 @@ model PayoutAccount {
   @@map("payout_accounts")
 }
 
-// A price set explicitly by a developer/admin for one currency. Its presence
-// means "this is the price, do not convert" — it always wins over conversion
-// from the game's USD base price. This is also where commercially-shaped
-// prices live (e.g. 49.90 rather than a converted 51.37), which keeps the
-// conversion path a plain, auditable calculation.
+// A base-price anchor set explicitly by a developer/admin for one currency. It
+// always wins over converting the game's USD base price. The game's global
+// promotion ratio is then applied to this anchor, so USD 100 -> 50 and a BRL
+// anchor of 200 resolve as BRL 200 -> 100. This is also where commercially-
+// shaped regional prices live (e.g. 49.90 rather than a converted 51.37).
 //
 // Catalog-level only: storefront owners must never gain price control, since
 // that is what keeps them affiliates rather than sellers (see

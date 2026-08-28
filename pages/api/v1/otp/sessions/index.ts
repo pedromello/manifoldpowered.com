@@ -4,8 +4,9 @@ import controller from "infra/controller";
 import otp from "models/otp";
 import session from "models/session";
 import authorization from "models/authorization";
-import { ForbiddenError, ValidationError } from "infra/errors";
+import { ForbiddenError, RateLimitError, ValidationError } from "infra/errors";
 import { z } from "zod";
+import authRateLimit from "infra/auth_rate_limit";
 
 const verifyOtpSchema = z.object({
   login: z.string().trim().min(1),
@@ -28,6 +29,14 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  const limit = authRateLimit.consume(req, result.data.login);
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfterSeconds));
+    throw new RateLimitError({
+      message: "Too many authentication attempts",
+    });
+  }
+
   const authUser = await otp.validateAndConsume(
     result.data.login,
     result.data.code,
@@ -41,6 +50,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const newSession = await session.create(authUser.id);
+  authRateLimit.reset(result.data.login);
 
   controller.setSessionCookie(res, newSession.token);
 

@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import pricing from "models/pricing";
 import currency from "models/currency";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -44,7 +45,7 @@ describe("models/pricing.ts", () => {
       expect(resolved?.exchange_rate?.toFixed(2)).toBe("5.50");
     });
 
-    test("a fixed override wins over conversion", async () => {
+    test("a regional anchor wins over conversion", async () => {
       const game = await setupGame(10);
       await orchestrator.createExchangeRate({ rate: 5.5 });
       await orchestrator.setGamePriceOverride(game.id, "BRL", 49.9);
@@ -53,7 +54,7 @@ describe("models/pricing.ts", () => {
 
       expect(resolved?.source).toBe("OVERRIDE");
       expect(resolved?.amount.toFixed(2)).toBe("49.90");
-      // An override is a stated price, not a converted one.
+      // A regional anchor is selected directly, not converted.
       expect(resolved?.exchange_rate).toBeNull();
     });
 
@@ -65,6 +66,32 @@ describe("models/pricing.ts", () => {
 
       expect(resolved?.source).toBe("OVERRIDE");
       expect(resolved?.amount.toFixed(2)).toBe("49.90");
+    });
+
+    test("applies the global discount ratio to a regional price anchor", async () => {
+      const game = await setupGame(100);
+      await orchestrator.createExchangeRate({ rate: 5 });
+      await orchestrator.setGamePriceOverride(game.id, "BRL", 200);
+
+      // The game's global promotion changes USD 100 -> 50. The BRL override is
+      // the regional anchor equivalent to the USD 100 base price, not a fixed
+      // final price, so the same 50% promotion must produce BRL 200 -> 100.
+      const discountedGame = await gameModel.update(game.id, { price: 50 });
+
+      const resolved = await pricing.priceFor(discountedGame, "BRL");
+      const displayed = (
+        await pricing.displayPricesFor([discountedGame], "BRL")
+      ).get(game.id);
+
+      expect(discountedGame.discount_label).toBe("-50%");
+      expect(resolved?.source).toBe("OVERRIDE");
+      expect(resolved?.amount.toFixed(2)).toBe("100.00");
+      expect(displayed).toEqual({
+        amount: "100.00",
+        base_amount: "200.00",
+        currency: "BRL",
+        symbol: "R$",
+      });
     });
 
     test("returns null when there is no rate and no override", async () => {

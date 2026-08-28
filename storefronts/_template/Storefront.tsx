@@ -2,7 +2,8 @@ import Form from "next/form";
 import Link from "next/link";
 
 import type { StorefrontViewProps } from "components/storefront/types";
-import { formatCatalogPrice } from "lib/price";
+import { formatCatalogPrice, isCatalogFree } from "lib/price";
+import { useI18n } from "lib/i18n";
 
 /**
  * Starting point for a bespoke outlet storefront.
@@ -29,6 +30,7 @@ import { formatCatalogPrice } from "lib/price";
  */
 export function TemplateStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -39,15 +41,21 @@ export function TemplateStorefront({
   browseHref,
   searchAction,
 }: StorefrontViewProps) {
+  const { t } = useI18n();
   return (
     <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] px-6 md:px-10 max-w-7xl mx-auto flex flex-col gap-10">
-      <header className="flex flex-col gap-4">
-        <h1 className="text-5xl md:text-7xl font-black tracking-tighter">
-          {store.name}
-        </h1>
-        {store.description && (
-          <p className="text-sf-muted max-w-2xl text-lg">{store.description}</p>
-        )}
+      <header className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter">
+            {store.name}
+          </h1>
+          {store.description && (
+            <p className="text-sf-muted max-w-2xl text-lg">
+              {store.description}
+            </p>
+          )}
+        </div>
+        {followControl}
       </header>
 
       {featured.length > 0 && (
@@ -60,8 +68,13 @@ export function TemplateStorefront({
               className="rounded-3xl border border-sf-border bg-sf-surface p-6 min-h-40 flex flex-col justify-end"
             >
               <h2 className="text-2xl font-black">{game.title}</h2>
+              {game.recommendation_reason && (
+                <p className="line-clamp-2 text-sm text-sf-muted">
+                  {game.recommendation_reason}
+                </p>
+              )}
               <span className="text-sf-accent font-black uppercase">
-                {formatCatalogPrice(game)}
+                {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
               </span>
             </Link>
           ))}
@@ -75,7 +88,7 @@ export function TemplateStorefront({
           name="q"
           data-storefront="search"
           defaultValue={q}
-          placeholder="Search games..."
+          placeholder={t("Search games...")}
           className="w-full rounded-2xl border border-sf-border bg-sf-surface px-5 py-4 text-sf-fg placeholder:text-sf-muted outline-none"
         />
         {activeCategory && (
@@ -101,7 +114,7 @@ export function TemplateStorefront({
                   : "bg-sf-surface border border-sf-border text-sf-muted"
               }`}
             >
-              {category}
+              {t(category)}
             </Link>
           );
         })}
@@ -110,7 +123,9 @@ export function TemplateStorefront({
       {/* Required: the catalogue. */}
       <section data-storefront="game-list" className="flex flex-col gap-4">
         {isLoading ? (
-          <p className="py-20 text-center text-sf-muted font-bold">Loading…</p>
+          <p className="py-20 text-center text-sf-muted font-bold">
+            {t("Loading…")}
+          </p>
         ) : games.length > 0 ? (
           games.map((game) => (
             <Link
@@ -126,13 +141,13 @@ export function TemplateStorefront({
                 </p>
               </div>
               <span className="text-sf-accent font-black uppercase shrink-0">
-                {formatCatalogPrice(game)}
+                {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
               </span>
             </Link>
           ))
         ) : (
           <p className="py-20 text-center text-sf-muted font-bold">
-            Nothing here yet.
+            {t("Nothing here yet.")}
           </p>
         )}
       </section>

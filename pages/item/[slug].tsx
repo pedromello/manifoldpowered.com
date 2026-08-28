@@ -1,14 +1,19 @@
 import { GetServerSideProps } from "next";
 
 import webserver from "infra/webserver";
-import { StoreLayout } from "components/store/StoreLayout";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultItemPage } from "components/storefront/default/item/DefaultItemPage";
 import { useItemController } from "components/storefront/useItemController";
-import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
 import type { GameDetailApi, StoreApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
+import { headersForInternalFetch } from "lib/internal-fetch";
+import { gameJsonLd, gameMetadata, socialImageUrl } from "lib/seo";
+import { fetchPageData } from "lib/page-data";
 
 type ItemPageProps = {
   game: GameDetailApi;
@@ -23,26 +28,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // Forwarded because the price shown here is regional (models/region.ts).
   // Without it a Brazilian visitor saw BRL on the storefront list and USD on
   // this page for the same game.
-  const headers: HeadersInit = {};
-  if (context.req.headers.cookie) {
-    headers.cookie = context.req.headers.cookie;
-  }
-  const country = context.req.headers["x-vercel-ip-country"];
-  if (typeof country === "string") {
-    headers["x-vercel-ip-country"] = country;
-  }
+  const headers = headersForInternalFetch(context.req.headers);
 
   try {
-    const response = await fetch(
+    const game = await fetchPageData<GameDetailApi>(
       `${webserver.getOrigin()}/api/v1/items/games/${slug}`,
       { headers },
     );
 
-    if (!response.ok) {
-      return { notFound: true };
-    }
-
-    const game = await response.json();
+    if (!game) return { notFound: true };
 
     // `?store=` is visitor-supplied, so an unknown or malformed value must
     // degrade to an unattributed page rather than 404 a game that exists.
@@ -64,11 +58,13 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { props: { game, store } };
   } catch (error) {
     console.error("Error fetching game via API:", error);
-    return { notFound: true };
+    throw error;
   }
 };
 
 export default function GameDetailsPage({ game, store }: ItemPageProps) {
+  const { locale } = useI18n();
+  const metadata = gameMetadata(game, locale);
   const controller = useItemController({
     gameSlug: game.slug,
     storeSlug: store?.slug,
@@ -77,25 +73,32 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
   // An outlet with a bespoke storefront but no bespoke product page still gets
   // its palette here, so the click from its catalogue does not jump back to
   // Manifold's colours mid-journey.
-  const custom = store ? resolveStorefront(store) : null;
+  const resolution = store ? resolveStorefront(store) : null;
+  const custom = resolution?.kind === "custom" ? resolution.storefront : null;
   const ItemView = custom?.ItemPage ?? DefaultItemPage;
 
-  return (
-    <StoreLayout
-      store={
-        store
-          ? { slug: store.slug, name: store.name, logo_url: store.logo_url }
-          : undefined
+  const page = (
+    <StorefrontShell
+      store={store}
+      palette={custom?.palette ?? PLATFORM_PALETTE}
+      title={metadata.title}
+      description={metadata.description}
+      canonicalPath={`/item/${game.slug}`}
+      socialImage={socialImageUrl("game", locale, game.slug)}
+      socialImageAlt={
+        locale === "pt-BR"
+          ? `Arte de ${game.title}, de ${game.developer_name}, com a marca Manifold`
+          : `${game.title} artwork by ${game.developer_name} with Manifold branding`
       }
+      jsonLd={gameJsonLd(game, locale)}
     >
-      <StorefrontShell
-        store={store}
-        palette={custom?.palette ?? DEFAULT_PALETTE}
-        title={`${game.title} | Manifold Outlets`}
-        description={game.description}
-      >
-        <ItemView {...controller} game={game} store={store} />
-      </StorefrontShell>
-    </StoreLayout>
+      <ItemView {...controller} game={game} store={store} />
+    </StorefrontShell>
   );
+
+  if (!store) {
+    return <StoreHomeLayout>{page}</StoreHomeLayout>;
+  }
+
+  return <StorefrontRouteLayout store={store}>{page}</StorefrontRouteLayout>;
 }

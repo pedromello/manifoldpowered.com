@@ -14,49 +14,63 @@ import { DiscountBadge } from "components/store/DiscountBadge";
 import { MetaTag } from "components/store/MetaTag";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
-import { formatBasePrice, formatExternalPrice, formatPrice } from "lib/price";
+import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
+import { useI18n } from "lib/i18n";
 
 export function PurchaseCard({
   game,
-  isDemo,
+  isFreeGame,
   isInLibrary,
+  isCheckingLibrary,
   isRedeeming,
+  acquisitionError,
   onRedeem,
   wishlist,
 }: {
   game: GameDetailApi;
-  isDemo: boolean;
+  isFreeGame: boolean;
   isInLibrary: boolean;
+  isCheckingLibrary: boolean;
   isRedeeming: boolean;
+  acquisitionError: string | null;
   onRedeem: () => void;
   wishlist: ItemWishlist;
 }) {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const isPlatformPurchase = game.purchase_mode === "PLATFORM";
+  const free = isCatalogFree(game);
+  const basePrice = formatCatalogBasePrice(game);
+  const discountLabel = catalogDiscountLabel(game);
+  const hasDisplayedPrice =
+    isPlatformPurchase || game.external_offer?.amount !== null;
 
   return (
-    <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-xl sticky top-28 shadow-2xl">
+    <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
       <div className="flex flex-col gap-6">
-        {isPlatformPurchase && (
+        {hasDisplayedPrice && (
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              {!isDemo && formatBasePrice(game) && (
-                <span className="text-xl font-bold text-white/30 line-through">
-                  {formatBasePrice(game)}
+              {!free && basePrice && (
+                <span className="text-sm font-semibold text-white/35 line-through">
+                  {basePrice}
                 </span>
               )}
               <span
-                className="text-4xl md:text-5xl font-black uppercase"
+                className="text-3xl font-black uppercase tracking-tight"
                 style={{ color: discountBadgeColor }}
               >
-                {isDemo ? "Free" : formatPrice(game)}
+                {free ? t("Free") : formatCatalogPrice(game)}
               </span>
             </div>
-            {!isDemo && game.discount_label && (
-              <DiscountBadge label={game.discount_label} />
-            )}
+            {!free && discountLabel && <DiscountBadge label={discountLabel} />}
           </div>
         )}
 
@@ -64,52 +78,61 @@ export function PurchaseCard({
           (isInLibrary ? (
             <button
               onClick={() => router.push("/library")}
-              className="w-full py-5 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xl font-black uppercase tracking-wider hover:bg-indigo-500/30 cursor-pointer transition-all shadow-[0_20px_40px_rgba(99,102,241,0.1)]"
+              className="w-full rounded-lg border border-violet-400/30 bg-violet-500/15 px-5 py-3.5 text-sm font-bold text-violet-200 transition-colors hover:bg-violet-500/25"
             >
-              In Library
+              {t("In Library")}
             </button>
           ) : (
             <button
               onClick={onRedeem}
-              disabled={isRedeeming}
-              className="w-full py-5 rounded-2xl bg-white text-black text-xl font-black uppercase tracking-wider hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] disabled:opacity-70 disabled:hover:scale-100"
+              disabled={isCheckingLibrary || isRedeeming}
+              className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isRedeeming ? "Redeeming..." : isDemo ? "Redeem Demo" : "Redeem"}
+              {isCheckingLibrary
+                ? t("Checking library...")
+                : isRedeeming
+                  ? isFreeGame
+                    ? t("Adding...")
+                    : t("Processing...")
+                  : isFreeGame
+                    ? t("Add to Library")
+                    : t("Buy now · {price}", {
+                        price: formatCatalogPrice(game),
+                      })}
             </button>
           ))}
 
+        {isPlatformPurchase && acquisitionError && (
+          <p
+            role="alert"
+            className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-5 text-rose-200"
+          >
+            {acquisitionError}
+          </p>
+        )}
+
         {game.social_links.steam_page ? (
-          <div className="flex flex-col gap-3">
-            {!isPlatformPurchase && formatExternalPrice(game) && (
-              <p className="text-center text-xl font-black text-white">
-                {formatExternalPrice(game)}
-              </p>
-            )}
-            <a
-              href={game.social_links.steam_page}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 border border-[#3b5e78]/50 bg-gradient-to-r from-[#2a475e] to-[#171d24] text-white hover:from-[#3b5e78] hover:to-[#1b2838] hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all duration-300 font-bold uppercase tracking-wider group shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
-            >
-              <IconBrandSteam
-                size={24}
-                className="group-hover:scale-110 transition-transform"
-              />
-              <span>Add to Wishlist on Steam</span>
-              <ExternalLink
-                size={16}
-                className="opacity-60 group-hover:opacity-100 transition-opacity"
-              />
-            </a>
-          </div>
-        ) : isPlatformPurchase ? (
+          <a
+            href={game.social_links.steam_page}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+          >
+            <IconBrandSteam size={24} className="text-white/65" />
+            <span>{t("View on Steam")}</span>
+            <ExternalLink
+              size={16}
+              className="opacity-60 group-hover:opacity-100 transition-opacity"
+            />
+          </a>
+        ) : (
           <button
             onClick={wishlist.toggle}
             disabled={wishlist.isToggling}
-            className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border transition-all duration-300 font-bold uppercase tracking-wider cursor-pointer disabled:cursor-not-allowed ${
+            className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
               wishlist.isWishlisted
-                ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
-                : "bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
+                : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
             }`}
           >
             <Heart
@@ -117,25 +140,27 @@ export function PurchaseCard({
               fill={wishlist.isWishlisted ? "currentColor" : "none"}
               className={wishlist.isToggling ? "opacity-50" : ""}
             />
-            {wishlist.isWishlisted ? "On Wishlist" : "Add to Wishlist"}
+            {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
           </button>
-        ) : null}
+        )}
 
         <div className="h-px bg-white/10" />
 
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-white/40 font-bold uppercase tracking-widest">
-              Developer
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">
+              {t("Developer")}
             </span>
-            <span className="text-white font-black">{game.developer_name}</span>
+            <span className="text-right text-sm font-semibold text-white/80">
+              {game.developer_name}
+            </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-white/40 font-bold uppercase tracking-widest">
-              Release Date
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">
+              {t("Release Date")}
             </span>
-            <span className="text-white font-black">
-              {new Date(game.launch_date).toLocaleDateString("en-US", {
+            <span className="text-sm font-semibold text-white/80">
+              {new Date(game.launch_date).toLocaleDateString(locale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -145,22 +170,26 @@ export function PurchaseCard({
         </div>
 
         <div className="flex flex-col gap-3">
-          <h4 className="text-xs font-black uppercase tracking-widest text-white/30 mb-1">
-            Features
+          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
+            {t("Features")}
           </h4>
           <div className="grid grid-cols-1 gap-2">
             {/* TODO: these three are hardcoded rather than read from
                 game.meta_tags. Left as-is here because changing them changes
                 what customers see, which does not belong in a refactor. */}
-            <MetaTag icon={User} label="Single Player" active={true} />
-            <MetaTag icon={Users} label="Multiplayer" active={false} />
-            <MetaTag icon={Gamepad2} label="Controller Support" active={true} />
+            <MetaTag icon={User} label={t("Single Player")} active={true} />
+            <MetaTag icon={Users} label={t("Multiplayer")} active={false} />
+            <MetaTag
+              icon={Gamepad2}
+              label={t("Controller Support")}
+              active={true}
+            />
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
-          <h4 className="text-xs font-black uppercase tracking-widest text-white/30 mb-1">
-            Stay Connected
+          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
+            {t("Stay Connected")}
           </h4>
           <div className="grid grid-cols-2 gap-2">
             <SocialLink
@@ -181,7 +210,7 @@ export function PurchaseCard({
             <SocialLink
               icon={Globe}
               href={game.social_links.website}
-              label="Website"
+              label={t("Website")}
             />
           </div>
         </div>

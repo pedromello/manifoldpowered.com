@@ -15,9 +15,16 @@ import {
   ExchangeRate,
   SupplierTerms,
   PayoutAccount,
+  GameArtifact,
+  GameRelease,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
+import {
+  downloadAuthorizationSchema,
+  installManifestSchema,
+  releaseSummarySchema,
+} from "contracts/desktop/v1";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -86,6 +93,12 @@ const AVAILABLE_FEATURES = [
   "read:wishlist",
   "delete:wishlist",
 
+  // Outlet follows
+  "create:store_follow",
+  "read:store_follow",
+  "delete:store_follow",
+  "read:store_follow_status",
+
   // Reviews
   "create:review",
   "read:review",
@@ -96,6 +109,10 @@ const AVAILABLE_FEATURES = [
   "read:game_file",
   "delete:game_file",
 
+  // Immutable release artifacts
+  "create:game_release",
+  "create:game_artifact",
+
   // Library
   "read:library",
   "create:library",
@@ -105,6 +122,7 @@ const AVAILABLE_FEATURES = [
   "read:public_store",
   "update:store",
   "update:store:any",
+  "manage:store_featured_games",
   "manage:store_members",
   "manage:store_members:any",
   "read:store_tag_filter",
@@ -186,6 +204,10 @@ const ACTIVATED_USER_FEATURES = [
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
+  "create:store_follow",
+  "read:store_follow",
+  "delete:store_follow",
+  "read:store_follow_status",
   "create:review",
   "read:review",
   "delete:review",
@@ -247,6 +269,7 @@ const ANONYMOUS_USER_FEATURES = [
   "create:user",
   "read:public_game",
   "read:wishlist",
+  "read:store_follow_status",
   "read:review",
   "read:public_store",
   "read:public_studio",
@@ -292,6 +315,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     (feature === "update:game" ||
       feature === "create:game_file" ||
       feature === "delete:game_file" ||
+      feature === "create:game_release" ||
+      feature === "create:game_artifact" ||
       feature === "read:game_price" ||
       feature === "update:game_price") &&
     resource
@@ -331,6 +356,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 
   if (
     (feature === "update:store" ||
+      feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
       feature === "read:store_statement") &&
     resource
@@ -343,7 +369,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       "update:store": "update:store:any",
       "manage:store_members": "manage:store_members:any",
       "read:store_statement": "read:store_statement:any",
-    }[feature] as string;
+    }[feature] as string | undefined;
 
     const isOwner = user.id === storeResource.owner_id;
     const isPermittedMember = storeResource.members?.some(
@@ -351,7 +377,11 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
         member.user_id === user.id && member.permissions.includes(feature),
     );
 
-    if (isOwner || isPermittedMember || can(user, anyFeature)) {
+    if (
+      isOwner ||
+      isPermittedMember ||
+      (anyFeature !== undefined && can(user, anyFeature))
+    ) {
       authorized = true;
     }
   }
@@ -597,6 +627,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
           ? {
               provider: "STEAM",
               amount: gameOutput.steam_price?.toFixed(2) ?? null,
+              original_amount:
+                gameOutput.steam_original_price?.toFixed(2) ?? null,
+              discount_percent: gameOutput.steam_discount_percent,
               currency: gameOutput.steam_price_currency,
               url: steamPage,
               captured_at:
@@ -613,8 +646,6 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     const reviewOutput = resource as Review & { user: { username: string } };
     return {
       id: reviewOutput.id,
-      game_id: reviewOutput.game_id,
-      user_id: reviewOutput.user_id,
       message: reviewOutput.message,
       recommended: reviewOutput.recommended,
       created_at: reviewOutput.created_at,
@@ -649,6 +680,111 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     };
   }
 
+  if (feature === "create:game_release") {
+    const release = resource as GameRelease;
+    return {
+      id: release.id,
+      game_id: release.game_id,
+      version: release.version,
+      release_number: release.release_number,
+      status: release.status,
+      release_notes: release.release_notes,
+      published_at: release.published_at,
+      created_at: release.created_at,
+      updated_at: release.updated_at,
+    };
+  }
+
+  if (feature === "create:game_artifact") {
+    interface GameArtifactUploadOutput {
+      id: string;
+      release_id: string;
+      platform: string;
+      architecture: string;
+      archive_format: string;
+      compressed_size_bytes: string | bigint | null;
+      installed_size_bytes: string | bigint | null;
+      sha256: string | null;
+      manifest: unknown;
+      status: string;
+      created_at: Date;
+      updated_at: Date;
+    }
+    const artifact = resource as GameArtifactUploadOutput;
+    return {
+      id: artifact.id,
+      release_id: artifact.release_id,
+      platform: artifact.platform,
+      architecture: artifact.architecture,
+      archive_format: artifact.archive_format,
+      compressed_size_bytes: artifact.compressed_size_bytes?.toString() ?? null,
+      installed_size_bytes: artifact.installed_size_bytes?.toString() ?? null,
+      sha256: artifact.sha256,
+      manifest: artifact.manifest,
+      status: artifact.status,
+      created_at: artifact.created_at,
+      updated_at: artifact.updated_at,
+    };
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "release" in resource &&
+    "artifact" in resource
+  ) {
+    const result = resource as {
+      release: GameRelease;
+      artifact: Omit<
+        GameArtifact,
+        "compressed_size_bytes" | "installed_size_bytes"
+      > & {
+        compressed_size_bytes: string | bigint;
+        installed_size_bytes: string | bigint;
+      };
+    };
+
+    return releaseSummarySchema.parse({
+      id: result.release.id,
+      version: result.release.version,
+      release_number: result.release.release_number,
+      published_at: result.release.published_at?.toISOString(),
+      artifact_id: result.artifact.id,
+      target: {
+        platform: result.artifact.platform,
+        architecture: result.artifact.architecture,
+      },
+      compressed_size_bytes: result.artifact.compressed_size_bytes.toString(),
+      installed_size_bytes: result.artifact.installed_size_bytes.toString(),
+      sha256: result.artifact.sha256,
+      manifest_schema_version: result.artifact.manifest_schema_version,
+    });
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "schema_version" in resource &&
+    "release_id" in resource &&
+    "artifact_id" in resource
+  ) {
+    return installManifestSchema.parse(resource);
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "artifact_id" in resource &&
+    "url" in resource &&
+    "expires_at" in resource &&
+    "total_size_bytes" in resource
+  ) {
+    return downloadAuthorizationSchema.parse(resource);
+  }
+
   if (
     feature === "create:store" ||
     feature === "read:public_store" ||
@@ -665,6 +801,16 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };
+  }
+
+  if (
+    feature === "create:store_follow" ||
+    feature === "read:store_follow" ||
+    feature === "delete:store_follow" ||
+    feature === "read:store_follow_status"
+  ) {
+    const statusOutput = resource as { is_followed: boolean };
+    return { is_followed: statusOutput.is_followed };
   }
 
   // The admin view of a store, kept separate from the branch above because that

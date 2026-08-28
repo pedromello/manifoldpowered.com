@@ -6,12 +6,14 @@ import useSWR from "swr";
 import { Search, SlidersHorizontal, ArrowUpDown, Tag } from "lucide-react";
 
 import { CATEGORIES } from "lib/categories";
-import { StoreLayout } from "components/store/StoreLayout";
+import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { GameListItem } from "components/store/GameListItem";
 import { type GameApi } from "components/store/types";
+import { useI18n } from "lib/i18n";
 
 export default function SearchPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
   const order = searchParams.get("order") || "newest";
@@ -51,31 +53,30 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1D0F3B] text-white pb-24 overflow-x-hidden selection:bg-white selection:text-black">
+    <div className="min-h-screen overflow-x-hidden bg-[#0b0812] pb-24 text-white selection:bg-white selection:text-black">
       <Head>
-        <title>Search Results | Manifold Outlets</title>
-        <meta name="theme-color" content="#1D0F3B" />
+        <title>{t("Search Results | Manifold Outlets")}</title>
+        <meta name="theme-color" content="#0b0812" />
       </Head>
 
       <style jsx global>{`
         html,
         body {
-          background-color: #1d0f3b !important;
+          background-color: #0b0812 !important;
         }
       `}</style>
 
-      <main className="w-full pt-[calc(env(safe-area-inset-top)+7rem)] lg:pt-[calc(env(safe-area-inset-top)+8rem)] flex flex-col items-center">
+      <main className="flex w-full flex-col items-center py-10 lg:py-14">
         <div className="max-w-7xl mx-auto w-full px-4 md:px-10 flex flex-col lg:flex-row gap-8">
           {/* Main Column - Search Results */}
           <div className="flex-1 flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <h1 className="text-3xl font-black md:text-5xl text-white drop-shadow-sm">
-                Search Results
+                {t("Search Results")}
               </h1>
               {q && (
                 <p className="text-white/60 font-bold">
-                  Showing results for &quot;
-                  <span className="text-white">{q}</span>&quot;
+                  {t("Showing results for {query}", { query: `“${q}”` })}
                 </p>
               )}
             </div>
@@ -89,7 +90,7 @@ export default function SearchPage() {
                 type="text"
                 name="q"
                 defaultValue={q}
-                placeholder="Search games..."
+                placeholder={t("Search games...")}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:bg-white/10 transition-all shadow-inner font-bold"
               />
               {/* Keep other params hidden so they persist on simple text search via form */}
@@ -114,10 +115,10 @@ export default function SearchPage() {
                 <div className="py-20 text-center flex flex-col items-center gap-4 border border-white/5 bg-white/5 rounded-[2rem]">
                   <Search size={48} className="text-white/10" />
                   <div className="text-white/20 font-black italic text-3xl uppercase tracking-tighter">
-                    No matching games
+                    {t("No matching games")}
                   </div>
                   <p className="text-white/40 font-bold">
-                    Try adjusting your filters or search terms.
+                    {t("Try adjusting your filters or search terms.")}
                   </p>
                 </div>
               )}
@@ -130,7 +131,7 @@ export default function SearchPage() {
               <div className="flex items-center gap-2 mb-6 text-white/80 border-b border-white/10 pb-4">
                 <SlidersHorizontal size={20} />
                 <h2 className="text-xl font-black uppercase tracking-wider">
-                  Filters
+                  {t("Filters")}
                 </h2>
               </div>
 
@@ -139,7 +140,7 @@ export default function SearchPage() {
                 <div className="flex items-center gap-2 text-white/60 mb-2">
                   <ArrowUpDown size={16} />
                   <h3 className="font-bold uppercase tracking-widest text-sm">
-                    Sort By
+                    {t("Sort By")}
                   </h3>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -166,7 +167,9 @@ export default function SearchPage() {
                         onChange={() => handleOrderChange(option.value)}
                         className="w-4 h-4 accent-indigo-500"
                       />
-                      <span className="font-bold text-sm">{option.label}</span>
+                      <span className="font-bold text-sm">
+                        {t(option.label)}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -177,7 +180,7 @@ export default function SearchPage() {
                 <div className="flex items-center gap-2 text-white/60 mb-2">
                   <Tag size={16} />
                   <h3 className="font-bold uppercase tracking-widest text-sm">
-                    Categories
+                    {t("Categories")}
                   </h3>
                 </div>
                 <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
@@ -196,7 +199,7 @@ export default function SearchPage() {
                         onChange={() => handleTagToggle(cat)}
                         className="w-4 h-4 accent-indigo-500 rounded"
                       />
-                      <span className="font-bold text-sm">{cat}</span>
+                      <span className="font-bold text-sm">{t(cat)}</span>
                     </label>
                   ))}
                 </div>
@@ -227,5 +230,5 @@ export default function SearchPage() {
 }
 
 SearchPage.getLayout = function getLayout(page: React.ReactElement) {
-  return <StoreLayout>{page}</StoreLayout>;
+  return <StoreHomeLayout>{page}</StoreHomeLayout>;
 };

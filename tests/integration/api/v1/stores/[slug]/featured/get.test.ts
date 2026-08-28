@@ -22,11 +22,18 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
       await orchestrator.activateUser(owner.id);
       const createdStore = await orchestrator.createStore(owner.id);
 
-      const allowedGame = await orchestrator.createGame(owner.id, {
-        title: "Featured Allowed",
-        tags: ["rpg"],
-      });
-      await gameModel.makePublic(allowedGame.id);
+      const allowedGames = await Promise.all(
+        ["Featured Allowed", "Second Allowed", "Third Allowed"].map(
+          async (title) => {
+            const allowedGame = await orchestrator.createGame(owner.id, {
+              title,
+              tags: ["rpg"],
+            });
+            await gameModel.makePublic(allowedGame.id);
+            return allowedGame;
+          },
+        ),
+      );
 
       const bannedGame = await orchestrator.createGame(owner.id, {
         title: "Featured Banned",
@@ -46,8 +53,23 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
+      expect(body.mode).toBe("AUTOMATIC");
+      expect(body.games).toHaveLength(3);
+      expect(
+        body.games.every(
+          (game: { featured_source: string }) =>
+            game.featured_source === "AUTOMATIC",
+        ),
+      ).toBe(true);
+      expect(
+        body.games.every(
+          (game: Record<string, unknown>) => !("recommendation_reason" in game),
+        ),
+      ).toBe(true);
       const titles = body.games.map((g: { title: string }) => g.title);
-      expect(titles).toContain("Featured Allowed");
+      allowedGames.forEach((allowedGame) =>
+        expect(titles).toContain(allowedGame.title),
+      );
       expect(titles).not.toContain("Featured Banned");
     });
   });

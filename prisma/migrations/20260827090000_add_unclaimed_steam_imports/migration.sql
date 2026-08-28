@@ -4,6 +4,8 @@ ALTER TABLE "games" ALTER COLUMN "studio_id" DROP NOT NULL;
 
 ALTER TABLE "games"
   ADD COLUMN "steam_price" DECIMAL(19,4),
+  ADD COLUMN "steam_original_price" DECIMAL(19,4),
+  ADD COLUMN "steam_discount_percent" INTEGER,
   ADD COLUMN "steam_price_currency" VARCHAR(3),
   ADD COLUMN "steam_price_captured_at" TIMESTAMP(3);
 

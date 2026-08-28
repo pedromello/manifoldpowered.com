@@ -1,4 +1,6 @@
 import {
+  catalogDiscountLabel,
+  formatCatalogBasePrice,
   formatCatalogPrice,
   formatExternalPrice,
   isFree,
@@ -22,7 +24,7 @@ describe("catalog price formatting", () => {
       },
     };
 
-    const expected = `${currencySymbol("USD")}19.99 on Steam`;
+    const expected = `${currencySymbol("USD")}19.99`;
     expect(formatExternalPrice(game)).toBe(expected);
     expect(formatCatalogPrice(game)).toBe(expected);
   });
@@ -38,7 +40,25 @@ describe("catalog price formatting", () => {
           currency: null,
         },
       }),
-    ).toBe("Free on Steam");
+    ).toBe("Free");
+  });
+
+  test("Should render a Steam promotion with original price and discount", () => {
+    const game = {
+      purchase_mode: "STEAM_ONLY",
+      price: null,
+      external_offer: {
+        provider: "STEAM" as const,
+        amount: "19.99",
+        original_amount: "29.99",
+        discount_percent: 33,
+        currency: "USD",
+      },
+    };
+
+    expect(formatCatalogPrice(game)).toBe(`${currencySymbol("USD")}19.99`);
+    expect(formatCatalogBasePrice(game)).toBe(`${currencySymbol("USD")}29.99`);
+    expect(catalogDiscountLabel(game)).toBe("-33%");
   });
 
   test("Should keep unavailable catalog entries distinct from free games", () => {

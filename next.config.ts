@@ -1,4 +1,23 @@
+import { defaultLocale, locales } from "./lib/locale";
+
 module.exports = {
+  async redirects() {
+    return [
+      {
+        source: "/favicon.ico",
+        destination: "/images/brand/manifold-ico.ico",
+        permanent: true,
+        locale: false,
+      },
+    ];
+  },
+  i18n: {
+    locales: [...locales],
+    defaultLocale,
+    // Country-aware routing lives in proxy.ts. Disabling the built-in
+    // Accept-Language redirect prevents it from racing with geolocation.
+    localeDetection: false,
+  },
   images: {
     remotePatterns: [
       {

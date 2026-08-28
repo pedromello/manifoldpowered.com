@@ -1,4 +1,5 @@
 import { ThumbsUp } from "lucide-react";
+import { useI18n } from "lib/i18n";
 
 const SCORE_LABELS: Record<string, { label: string; color: string }> = {
   OVERWHELMINGLY_POSITIVE: {
@@ -27,6 +28,7 @@ export function ReviewSummary({
   negative: number;
   reviewScore: string | null;
 }) {
+  const { locale, t } = useI18n();
   const total = positive + negative;
   const ratio = total > 0 ? (positive / total) * 100 : 0;
 
@@ -44,10 +46,15 @@ export function ReviewSummary({
     <div className="flex flex-wrap items-center gap-4 py-2">
       <div className="flex flex-col">
         <span className={`text-sm font-black uppercase tracking-wide ${color}`}>
-          {label}
+          {t(label)}
         </span>
         <span className="text-[10px] font-bold text-white/30 truncate">
-          Based on {total.toLocaleString()} community reviews
+          {t(
+            total === 1
+              ? "Based on {total} community review"
+              : "Based on {total} community reviews",
+            { total: total.toLocaleString(locale) },
+          )}
         </span>
       </div>
       {total > 0 && (

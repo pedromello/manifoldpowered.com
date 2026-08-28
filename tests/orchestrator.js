@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import retry from "async-retry";
 import * as database from "infra/database";
 import storage from "infra/storage";
@@ -39,6 +39,15 @@ const DO_NOT_FAKE_TIMERS_FOR_PRISMA = [
   "setTimeout",
   "clearTimeout",
 ];
+
+const createTestClientAddress = (suiteId) => {
+  const digest = createHash("sha256").update(suiteId).digest("hex");
+  const groups = [0, 4, 8, 12].map((offset) =>
+    digest.slice(offset, offset + 4),
+  );
+
+  return `2001:db8:${groups.join(":")}`;
+};
 
 const waitForAllServices = async () => {
   await waitForWebServer();
@@ -155,6 +164,12 @@ const extractOtpCode = (text) => {
   return match ? match[0] : null;
 };
 
+// faker.commerce.productName() draws from a finite set, and game slugs must be
+// globally unique across the full integration suite. Keep generated titles
+// readable while making the fixture identity collision-resistant.
+const uniqueFakerGameTitle = () =>
+  `${faker.commerce.productName()} ${faker.string.alphanumeric(8)}`;
+
 // Games
 const createGame = async (userId, gameData = {}) => {
   let studioId = gameData.studio_id;
@@ -167,12 +182,12 @@ const createGame = async (userId, gameData = {}) => {
   return game.create({
     studio_id: studioId,
     publisher_id: gameData.publisher_id || undefined,
-    title: gameData.title || faker.commerce.productName(),
+    title: gameData.title || uniqueFakerGameTitle(),
     description: gameData.description || faker.lorem.sentence(),
     detailed_description:
       gameData.detailed_description || faker.lorem.paragraph(),
     launch_date: gameData.launch_date || faker.date.past(),
-    price: gameData.price || faker.number.float(),
+    price: gameData.price === undefined ? faker.number.float() : gameData.price,
     tags: gameData.tags || [faker.lorem.word()],
     meta_tags: gameData.meta_tags || {},
     media: gameData.media || { screenshots: [], videos: [] },
@@ -382,6 +397,7 @@ const recordLedgerSale = async (saleData = {}) => {
 };
 
 const orchestrator = {
+  createTestClientAddress,
   waitForAllServices,
   clearDatabase,
   clearDatabaseRows,

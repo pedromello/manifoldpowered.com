@@ -3,6 +3,7 @@ import Head from "next/head";
 import useSWR, { mutate } from "swr";
 import { CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { useI18n } from "lib/i18n";
 
 interface BackofficeGame {
   id: string;
@@ -28,6 +29,7 @@ const STATUS_TABS = [
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BackofficeGamesPage() {
+  const { locale, t, translateError } = useI18n();
   const [status, setStatus] = useState<string>("PRIVATE");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -74,7 +76,7 @@ export default function BackofficeGamesPage() {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to approve game.");
+      setActionError(translateError(body?.message, "Failed to approve game."));
       return;
     }
     mutate(key);
@@ -96,7 +98,7 @@ export default function BackofficeGamesPage() {
     );
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to reject game.");
+      setActionError(translateError(body?.message, "Failed to reject game."));
       return;
     }
     setRejectTarget(null);
@@ -110,7 +112,12 @@ export default function BackofficeGamesPage() {
       .filter((game) => selected.has(game.id))
       .map((game) => game.slug);
     const confirmed = window.confirm(
-      `Approve ${slugs.length} game${slugs.length === 1 ? "" : "s"}?\n\n${slugs.join(", ")}`,
+      `${t(
+        slugs.length === 1 ? "Approve {count} game?" : "Approve {count} games?",
+        {
+          count: slugs.length,
+        },
+      )}\n\n${slugs.join(", ")}`,
     );
     if (!confirmed) return;
 
@@ -122,7 +129,9 @@ export default function BackofficeGamesPage() {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      setActionError(body?.message || "Failed to approve selected games.");
+      setActionError(
+        translateError(body?.message, "Failed to approve selected games."),
+      );
       return;
     }
     setSelected(new Set());
@@ -132,18 +141,18 @@ export default function BackofficeGamesPage() {
   return (
     <>
       <Head>
-        <title>Games | Manifold Admin</title>
+        <title>{t("Games | Manifold Admin")}</title>
       </Head>
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-black">Games</h1>
+          <h1 className="text-3xl font-black">{t("Games")}</h1>
           {selected.size > 0 && (
             <button
               onClick={bulkApprove}
-              className="px-4 py-2 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors"
+              className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110"
             >
-              Approve Selected ({selected.size})
+              {t("Approve Selected ({count})", { count: selected.size })}
             </button>
           )}
         </div>
@@ -170,7 +179,7 @@ export default function BackofficeGamesPage() {
                     : "text-white/60 hover:text-white"
                 }`}
               >
-                {tab.label}
+                {t(tab.label)}
               </button>
             ))}
           </div>
@@ -182,7 +191,7 @@ export default function BackofficeGamesPage() {
             />
             <input
               type="text"
-              placeholder="Search by title..."
+              placeholder={t("Search by title...")}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -193,7 +202,7 @@ export default function BackofficeGamesPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/50 text-xs uppercase tracking-wider">
               <tr>
@@ -202,14 +211,14 @@ export default function BackofficeGamesPage() {
                     type="checkbox"
                     checked={games.length > 0 && selected.size === games.length}
                     onChange={toggleSelectAll}
-                    aria-label="Select all games"
+                    aria-label={t("Select all games")}
                   />
                 </th>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-4 py-3 text-left">Studio</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Submitted</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-left">{t("Title")}</th>
+                <th className="px-4 py-3 text-left">{t("Studio")}</th>
+                <th className="px-4 py-3 text-left">{t("Status")}</th>
+                <th className="px-4 py-3 text-left">{t("Submitted")}</th>
+                <th className="px-4 py-3 text-right">{t("Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -225,7 +234,7 @@ export default function BackofficeGamesPage() {
                     colSpan={6}
                     className="px-4 py-12 text-center text-rose-300 font-bold"
                   >
-                    Failed to load games.
+                    {t("Failed to load games.")}
                   </td>
                 </tr>
               ) : games.length === 0 ? (
@@ -234,7 +243,7 @@ export default function BackofficeGamesPage() {
                     colSpan={6}
                     className="px-4 py-12 text-center text-white/40 font-bold"
                   >
-                    No games found.
+                    {t("No games found.")}
                   </td>
                 </tr>
               ) : (
@@ -245,7 +254,7 @@ export default function BackofficeGamesPage() {
                         type="checkbox"
                         checked={selected.has(game.id)}
                         onChange={() => toggleSelected(game.id)}
-                        aria-label={`Select ${game.title}`}
+                        aria-label={t("Select {title}", { title: game.title })}
                       />
                     </td>
                     <td className="px-4 py-3 font-bold text-white">
@@ -264,11 +273,11 @@ export default function BackofficeGamesPage() {
                               : "bg-white/10 text-white/50"
                         }`}
                       >
-                        {game.status}
+                        {t(game.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-white/40">
-                      {new Date(game.created_at).toLocaleDateString()}
+                      {new Date(game.created_at).toLocaleDateString(locale)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
@@ -278,7 +287,7 @@ export default function BackofficeGamesPage() {
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                           >
                             <CheckCircle2 size={14} />
-                            Approve
+                            {t("Approve")}
                           </button>
                         )}
                         <button
@@ -286,7 +295,7 @@ export default function BackofficeGamesPage() {
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-black uppercase tracking-wider transition-colors"
                         >
                           <XCircle size={14} />
-                          Reject
+                          {t("Reject")}
                         </button>
                       </div>
                     </td>
@@ -304,17 +313,20 @@ export default function BackofficeGamesPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Previous
+              {t("Previous")}
             </button>
             <span className="text-sm font-bold text-white/50">
-              Page {pagination.page} of {pagination.pages}
+              {t("Page {current} of {total}", {
+                current: pagination.page,
+                total: pagination.pages,
+              })}
             </span>
             <button
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
               className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm font-bold text-white/70 disabled:opacity-30"
             >
-              Next
+              {t("Next")}
             </button>
           </div>
         )}
@@ -322,18 +334,19 @@ export default function BackofficeGamesPage() {
 
       {rejectTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1D0F3B] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#14101c] p-6 shadow-2xl">
             <h2 className="text-xl font-black mb-1">
-              Reject &quot;{rejectTarget.title}&quot;
+              {t("Reject {title}", { title: `“${rejectTarget.title}”` })}
             </h2>
             <p className="text-sm text-white/50 font-bold mb-4">
-              This makes the game private again. The studio will see this
-              reason.
+              {t(
+                "This makes the game private again. The Studio will see this reason.",
+              )}
             </p>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Why is this game being rejected?"
+              placeholder={t("Why is this game being rejected?")}
               rows={4}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20 resize-none"
             />
@@ -345,14 +358,14 @@ export default function BackofficeGamesPage() {
                 }}
                 className="px-4 py-2 rounded-xl text-white/60 hover:text-white font-bold text-sm"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 onClick={submitReject}
                 disabled={!rejectReason.trim()}
                 className="px-4 py-2 rounded-xl bg-rose-500 text-black font-black text-sm uppercase tracking-wider hover:bg-rose-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Reject Game
+                {t("Reject Game")}
               </button>
             </div>
           </div>

@@ -3,6 +3,8 @@ import { DisplayPrice } from "lib/price";
 export type ExternalOffer = {
   provider: "STEAM";
   amount: string | null;
+  original_amount: string | null;
+  discount_percent: number | null;
   currency: string | null;
   url: string;
   captured_at: string | null;
@@ -44,6 +46,10 @@ export type GameApi = {
   positive_reviews?: number;
   negative_reviews?: number;
   review_score?: string | null;
+  /** Outlet-authored editorial copy; present only in editorial Featured feeds. */
+  recommendation_reason?: string | null;
+  /** Distinguishes Outlet picks from automatic carousel fillers. */
+  featured_source?: "EDITORIAL" | "AUTOMATIC";
 };
 
 /**

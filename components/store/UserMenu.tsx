@@ -12,9 +12,15 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
+import { useI18n } from "lib/i18n";
 
-export function UserMenu() {
+export function UserMenu({
+  variant = "default",
+}: {
+  variant?: "default" | "store-home";
+}) {
   const router = useRouter();
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -53,10 +59,13 @@ export function UserMenu() {
   };
 
   const isLoggedOut = !!error;
+  const isStoreHome = variant === "store-home";
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/50 animate-pulse">
+      <div
+        className={`flex h-10 w-10 animate-pulse items-center justify-center border border-white/10 bg-white/5 text-white/50 ${isStoreHome ? "rounded-lg" : "rounded-full"}`}
+      >
         <Loader2 className="w-5 h-5 animate-spin" />
       </div>
     );
@@ -66,10 +75,14 @@ export function UserMenu() {
     return (
       <Link
         href="/login"
-        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-black uppercase text-xs tracking-wider hover:bg-white/90 transition-colors shrink-0"
+        className={
+          isStoreHome
+            ? "flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/70 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+            : "flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black transition-colors hover:bg-white/90"
+        }
       >
         <User size={16} />
-        <span className="hidden sm:inline">Log In</span>
+        <span className="hidden sm:inline">{t("Log in")}</span>
       </Link>
     );
   }
@@ -79,7 +92,7 @@ export function UserMenu() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-colors"
-        aria-label="User menu"
+        aria-label={t("User menu")}
       >
         <span className="font-black text-sm uppercase">
           {user?.username?.charAt(0) || <User size={16} />}
@@ -101,7 +114,7 @@ export function UserMenu() {
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Library size={16} className="text-indigo-400" />
-              My Library
+              {t("My Library")}
             </Link>
 
             <Link
@@ -119,7 +132,7 @@ export function UserMenu() {
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Building2 size={16} className="text-indigo-400" />
-              My Studios
+              {t("My Studios")}
             </Link>
 
             <Link
@@ -128,7 +141,7 @@ export function UserMenu() {
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Store size={16} className="text-indigo-400" />
-              My Outlets
+              {t("My Outlets")}
             </Link>
 
             {user?.username === "pedromello" && (
@@ -138,7 +151,7 @@ export function UserMenu() {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <Shield size={16} className="text-indigo-400" />
-                Backoffice
+                {t("Backoffice")}
               </Link>
             )}
 
@@ -147,7 +160,7 @@ export function UserMenu() {
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-rose-400 hover:bg-rose-500/10 transition-colors w-full text-left"
             >
               <LogOut size={16} />
-              Sign Out
+              {t("Sign Out")}
             </button>
           </div>
         </div>

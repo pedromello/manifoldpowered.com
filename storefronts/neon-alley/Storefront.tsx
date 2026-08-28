@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useStorefrontTrending } from "components/storefront/useStorefrontExtras";
 import type { StorefrontViewProps } from "components/storefront/types";
 import type { GameApi } from "components/store/types";
-import { formatBasePrice, formatCatalogPrice, isFree } from "lib/price";
+import {
+  formatCatalogBasePrice,
+  formatCatalogPrice,
+  isCatalogFree,
+} from "lib/price";
+import { useI18n } from "lib/i18n";
 
 /**
  * Neon Alley — the pilot bespoke storefront.
@@ -19,14 +24,14 @@ import { formatBasePrice, formatCatalogPrice, isFree } from "lib/price";
  */
 
 function Price({ game }: { game: GameApi }) {
-  const isPlatformPurchase = game.purchase_mode === "PLATFORM";
-  const free = isPlatformPurchase && isFree(game);
-  const was = isPlatformPurchase ? formatBasePrice(game) : null;
+  const { t } = useI18n();
+  const free = isCatalogFree(game);
+  const was = formatCatalogBasePrice(game);
 
   return (
     <span className="flex items-baseline gap-2">
       <span className="text-sf-accent font-black uppercase tracking-tight">
-        {formatCatalogPrice(game)}
+        {free ? t("Free") : formatCatalogPrice(game)}
       </span>
       {!free && was && (
         <span className="text-sf-muted text-xs line-through">{was}</span>
@@ -73,6 +78,11 @@ function Tile({
         >
           {game.title}
         </h3>
+        {game.recommendation_reason && (
+          <p className="line-clamp-2 text-sm font-semibold leading-relaxed text-sf-fg/80">
+            {game.recommendation_reason}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-3">
           <Price game={game} />
           <span className="text-[10px] uppercase tracking-[0.25em] text-sf-muted truncate">
@@ -86,6 +96,7 @@ function Tile({
 
 export function NeonAlleyStorefront({
   store,
+  followControl,
   featured,
   games,
   isLoading,
@@ -96,6 +107,7 @@ export function NeonAlleyStorefront({
   browseHref,
   searchAction,
 }: StorefrontViewProps) {
+  const { t } = useI18n();
   const trending = useStorefrontTrending(store.slug, 4);
   const [marquee, ...rest] = featured;
 
@@ -106,12 +118,15 @@ export function NeonAlleyStorefront({
         <div className="max-w-7xl mx-auto">
           {/* The outlet name is the page's h1 even though it is styled as a
               rule-and-label. Every storefront needs one top-level heading. */}
-          <div className="flex items-center gap-3 mb-6">
-            <span className="h-px flex-1 bg-sf-border" />
-            <h1 className="text-[10px] md:text-xs uppercase tracking-[0.5em] text-sf-accent font-black">
-              {store.name}
-            </h1>
-            <span className="h-px flex-1 bg-sf-border" />
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="h-px flex-1 bg-sf-border" />
+              <h1 className="truncate text-[10px] font-black uppercase tracking-[0.5em] text-sf-accent md:text-xs">
+                {store.name}
+              </h1>
+              <span className="h-px flex-1 bg-sf-border" />
+            </div>
+            {followControl}
           </div>
 
           {marquee ? (
@@ -127,7 +142,7 @@ export function NeonAlleyStorefront({
             </div>
           ) : (
             <p className="border border-sf-border bg-sf-surface p-10 text-center text-sf-muted font-bold uppercase tracking-widest">
-              The shelf is still being stocked.
+              {t("The shelf is still being stocked.")}
             </p>
           )}
 
@@ -147,7 +162,7 @@ export function NeonAlleyStorefront({
               htmlFor="neon-search"
               className="text-[10px] uppercase tracking-[0.35em] text-sf-accent font-black"
             >
-              Find
+              {t("Find")}
             </label>
             <input
               id="neon-search"
@@ -155,7 +170,7 @@ export function NeonAlleyStorefront({
               name="q"
               data-storefront="search"
               defaultValue={q}
-              placeholder="search the alley"
+              placeholder={t("Search the alley")}
               className="w-full bg-transparent border-b-2 border-sf-border focus:border-sf-accent px-1 py-3 text-sf-fg placeholder:text-sf-muted outline-none transition-colors font-bold"
             />
             {activeCategory && (
@@ -165,7 +180,7 @@ export function NeonAlleyStorefront({
 
           <nav data-storefront="filters" className="flex flex-col">
             <span className="text-[10px] uppercase tracking-[0.35em] text-sf-accent font-black mb-3">
-              Channels
+              {t("Channels")}
             </span>
             {categories.map((category) => {
               const isActive =
@@ -183,7 +198,7 @@ export function NeonAlleyStorefront({
                       : "border-transparent text-sf-muted hover:text-sf-fg hover:border-sf-border"
                   }`}
                 >
-                  {category}
+                  {t(category)}
                 </Link>
               );
             })}
@@ -192,7 +207,7 @@ export function NeonAlleyStorefront({
           {trending.games.length > 0 && (
             <div className="flex flex-col gap-3">
               <span className="text-[10px] uppercase tracking-[0.35em] text-sf-accent font-black">
-                Hot right now
+                {t("Hot right now")}
               </span>
               {trending.games.map((game) => (
                 <Link
@@ -203,7 +218,7 @@ export function NeonAlleyStorefront({
                 >
                   <span className="truncate">{game.title}</span>
                   <span className="text-sf-accent shrink-0 text-xs">
-                    {formatCatalogPrice(game)}
+                    {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
                   </span>
                 </Link>
               ))}
@@ -217,7 +232,7 @@ export function NeonAlleyStorefront({
         >
           {isLoading ? (
             <p className="col-span-full py-24 text-center text-sf-muted font-black uppercase tracking-[0.3em]">
-              Loading…
+              {t("Loading…")}
             </p>
           ) : games.length > 0 ? (
             games.map((game) => (
@@ -225,7 +240,7 @@ export function NeonAlleyStorefront({
             ))
           ) : (
             <p className="col-span-full py-24 text-center text-sf-muted font-black uppercase tracking-[0.3em]">
-              Nothing on this channel
+              {t("Nothing on this channel")}
             </p>
           )}
         </div>

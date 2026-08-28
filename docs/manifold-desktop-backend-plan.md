@@ -14,7 +14,7 @@ defined in `docs/manifold-desktop-app-plan.md`.
 The repository already provides several primitives needed by the desktop app:
 
 - A public, paginated game catalog at `GET /api/v1/games`.
-- Cookie-based password and OTP sessions.
+- Cookie-based passwordless OTP sessions.
 - A centralized, authenticated library at `GET /api/v1/library`.
 - Per-platform game-file records containing a version and size.
 - Entitlement checks and short-lived signed download URLs.
@@ -25,16 +25,17 @@ The repository already provides several primitives needed by the desktop app:
 These are web-oriented primitives rather than a desktop distribution contract.
 In particular, the current model does not identify an immutable release, CPU
 architecture, archive format, entrypoint, or content hash. Downloads are not
-yet designed for URL refresh and resume, and authentication depends on a
-browser cookie.
+yet designed for URL refresh and resume. Desktop authentication will reuse the
+same passwordless OTP flow and server-side cookie sessions through a native
+Tauri HTTP client and cookie jar.
 
 ## Guiding decisions
 
 1. The website and desktop application share the backend, entitlements, and
    catalog but remain separate client projects.
-2. Existing web endpoints should be reused where their contracts are suitable.
-   Desktop-specific orchestration endpoints should live under
-   `/api/v1/desktop`.
+2. The backend is API-first: resources and business rules are client-neutral.
+   Existing `/api/v1` endpoints are reused where suitable, and new release and
+   artifact resources are not placed under a client-specific namespace.
 3. Published releases and artifacts are immutable. A correction creates a new
    release.
 4. Full artifact downloads are the required fallback for every update path.
@@ -45,7 +46,7 @@ browser cookie.
 7. The repository's existing security, authorization, output-filtering, money,
    migration, and test conventions continue to apply.
 
-## Phase 1 — Specify the desktop API contract
+## Phase 1 — Specify the distribution API contract
 
 ### Work
 
@@ -56,7 +57,7 @@ browser cookie.
   32-bit targets.
 - Define the API error envelope, retryable error codes, pagination, timestamps,
   and size representations.
-- Establish a compatibility policy between desktop app versions, API versions,
+- Establish a compatibility policy between consuming clients, API versions,
   and manifest schema versions.
 - Publish an OpenAPI document or equivalent machine-readable schema from which
   the desktop repository can generate or validate types.
@@ -67,37 +68,54 @@ browser cookie.
 
 - The complete login-to-download sequence is expressible using documented
   request and response schemas.
-- Desktop types can be produced without importing application-internal model
+- Client types can be produced without importing application-internal model
   types.
 - Unknown manifest and API versions fail explicitly rather than being silently
   accepted.
 
-## Phase 2 — Add desktop-compatible authentication
+## Phase 2 — Integrate cookie sessions with the desktop client
 
 ### Work
 
-- Extend authentication middleware to accept
-  `Authorization: Bearer <session-token>` while preserving cookie sessions for
-  the website.
-- Reuse the existing password and OTP authentication flows.
-- Define logout, token expiration, revocation, and disabled-user behavior.
-- Add rate limiting and abuse controls to password and OTP endpoints.
-- Prevent session tokens, OTPs, signed URLs, and authorization headers from
-  appearing in logs.
-- Decide whether desktop network calls use native HTTP exclusively. If WebView
-  requests remain possible, define a narrow origin/CORS policy rather than a
-  wildcard policy.
+- Reuse the existing passwordless OTP request, verification, session creation,
+  renewal, and revocation behavior.
+- Authenticate API requests with the existing secure, HTTP-only
+  `session_id` cookie; do not add a bearer-token transport.
+- Have narrow Tauri Rust commands own HTTP requests and the cookie jar so the
+  session credential is never exposed to the WebView.
+- Define logout, session expiration, revocation, and disabled-user behavior.
+- Define secure cookie persistence and deletion behavior across application
+  restarts and logout.
+- Add rate limiting and abuse controls to OTP endpoints.
+- Prevent session cookies, OTPs, and signed URLs from appearing in logs.
+- Keep authenticated desktop network calls in native Rust. If WebView requests
+  are introduced later, require a separate security review and a narrow
+  origin/CORS policy.
 - Add integration tests for valid, missing, expired, revoked, and malformed
-  bearer tokens.
+  session cookies.
 
 ### Acceptance criteria
 
-- A command-line client can authenticate, call `GET /api/v1/library`, and obtain
-  download authorization without browser cookie handling.
+- A Tauri-native HTTP client can request and verify an OTP, retain the issued
+  cookie, call the desktop library, and obtain download authorization.
 - Existing website login and session tests continue to pass unchanged.
-- Logging out invalidates the token server-side.
+- Logging out clears the cookie and invalidates the session server-side.
 
 ## Phase 3 — Model immutable releases, artifacts, and manifests
+
+### Implementation status (started 2026-08-19)
+
+- Added the additive `GameRelease` and `GameArtifact` schema and migration;
+  legacy `GameFile` remains unchanged.
+- Embedded the versioned install manifest in its one-to-one artifact rather
+  than adding a third table that would only duplicate the artifact lifecycle.
+- Added model-layer logical-reference validation, publication guards,
+  immutable published data, retirement, and exact platform/architecture
+  resolution.
+- Added stable fixtures for all six supported platform/architecture targets
+  and focused integration coverage.
+- API authorization and output filtering remain part of Phase 5, when these
+  models are exposed as resources.
 
 ### Proposed concepts
 
@@ -156,6 +174,20 @@ browser cookie.
 
 ## Phase 4 — Implement a transactional publication workflow
 
+### Publisher API surface
+
+- `POST /api/v1/games/:slug/releases` creates the next immutable draft release
+  for a game controlled by the authenticated studio owner or permitted member.
+- `POST /api/v1/releases/:release_id/artifacts/upload-url` declares an artifact
+  and returns its signed direct-upload authorization.
+- `POST /api/v1/artifacts/:artifact_id/confirm` verifies storage metadata and
+  publishes the ready release idempotently.
+
+Deployment must run the idempotent feature reconciliation after introducing
+`create:game_release`. This grants the new coarse route feature to eligible
+existing studio owners and only to members whose stored permissions explicitly
+include release creation.
+
 ### Workflow
 
 1. Create a draft release.
@@ -185,26 +217,28 @@ browser cookie.
 - Repeating a confirmation or publication request does not create duplicates.
 - A published artifact's storage object and hash remain stable.
 
-## Phase 5 — Expose desktop orchestration endpoints
+## Phase 5 — Expose client-neutral distribution resources
 
 ### Recommended surface
 
-- `GET /api/v1/desktop/config`
-- `POST /api/v1/desktop/sessions`
-- `DELETE /api/v1/desktop/sessions/current`
-- `GET /api/v1/desktop/catalog`
-- `GET /api/v1/desktop/library`
-- `GET /api/v1/desktop/games/:slug/releases/latest?platform=&arch=`
-- `GET /api/v1/desktop/releases/:release_id/manifest`
-- `POST /api/v1/desktop/artifacts/:artifact_id/download`
+- `POST /api/v1/otp` (existing)
+- `POST /api/v1/otp/sessions` (existing)
+- `DELETE /api/v1/sessions` (existing)
+- `GET /api/v1/games` (existing)
+- `GET /api/v1/library?platform=&arch=`
+- `GET /api/v1/games/:slug/releases/latest?platform=&arch=`
+- `GET /api/v1/releases/:release_id/manifest`
+- `POST /api/v1/artifacts/:artifact_id/download`
 
-The desktop library response should include a latest-compatible-release
-summary so the client does not make one release request for every library item.
+When both target parameters are supplied, the library response should include a
+latest-compatible-release summary so clients do not make one release request
+for every library item. Calls without a target retain the existing library
+response for backward compatibility.
 
 ### Work
 
 - Reuse catalog, pricing, entitlement, and authorization models rather than
-  duplicating their rules in desktop controllers.
+  duplicating their rules in distribution controllers.
 - Return only published artifacts compatible with the requested target.
 - Ensure download authorization checks entitlement immediately before signing.
 - Include stable IDs, hashes, sizes, and manifest versions in responses.
@@ -213,7 +247,8 @@ summary so the client does not make one release request for every library item.
 
 ### Acceptance criteria
 
-- The entire first-run desktop flow can be completed using the desktop API.
+- The entire first-run desktop flow can be completed using API v1 without
+  client-specific endpoints.
 - An unentitled user cannot list private artifact data or obtain a signed URL.
 - A client receives a clear `NO_COMPATIBLE_RELEASE` result when appropriate.
 
@@ -319,7 +354,7 @@ patching begins.
 - Add staging smoke tests for every supported platform/architecture target.
 - Add compatibility tests against the machine-readable desktop contract.
 - Define incident procedures for a compromised signing key, corrupted artifact,
-  broken release, or leaked session token.
+  broken release, or leaked session cookie.
 
 ### Acceptance criteria
 
@@ -333,7 +368,7 @@ patching begins.
 Each numbered item should be a small, independently testable delivery slice:
 
 1. Contract and target vocabulary.
-2. Bearer-token authentication.
+2. Passwordless cookie-session integration.
 3. Release/artifact schema and models.
 4. Publication state machine.
 5. Compatible-release and manifest reads.

@@ -27,6 +27,17 @@ export type CustomStorefront = {
   palette: StorefrontPalette;
 };
 
+export type StorefrontResolution =
+  | {
+      kind: "standard";
+      themeKey: "platform";
+    }
+  | {
+      kind: "custom";
+      themeKey: string;
+      storefront: CustomStorefront;
+    };
+
 /**
  * Every outlet with a hand-built storefront, keyed by slug.
  *
@@ -67,14 +78,24 @@ const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
  * Takes the store object rather than a bare slug so moving this mapping into
  * the database later is a one-line change to this function body —
  * `CUSTOM_STOREFRONTS[store.theme_key ?? store.slug]` — with no call sites
- * touched. Anything unrecognised returns null, which means the default: a
- * stale or misspelled key degrades to Manifold's own design rather than
- * erroring, which is the right failure for a storefront that has to stay open.
+ * touched. Anything unrecognised resolves explicitly to `standard`: a stale
+ * or misspelled key degrades to Manifold's own design rather than erroring,
+ * which is the right failure for a storefront that has to stay open.
  */
 export function resolveStorefront(store: {
   slug: string;
-}): CustomStorefront | null {
-  return CUSTOM_STOREFRONTS[store.slug] ?? null;
+}): StorefrontResolution {
+  const storefront = CUSTOM_STOREFRONTS[store.slug];
+
+  if (!storefront) {
+    return { kind: "standard", themeKey: "platform" };
+  }
+
+  return {
+    kind: "custom",
+    themeKey: store.slug,
+    storefront,
+  };
 }
 
 /** Registered slugs, for the conformance checklist in docs. */

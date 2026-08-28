@@ -1,9 +1,11 @@
 import { useStorefrontController } from "components/storefront/useStorefrontController";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
 import { DefaultStorefront } from "components/storefront/default/DefaultStorefront";
-import { DEFAULT_PALETTE } from "components/storefront/palette";
+import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
+import type { JsonLd } from "lib/seo";
+import { FollowOutletButton } from "components/store/FollowOutletButton";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -16,7 +18,10 @@ export type StorefrontProps = {
   searchPagePath: string;
   pageTitle: string;
   metaDescription: string;
-  heading?: string;
+  canonicalPath: string;
+  socialImage: string;
+  socialImageAlt: string;
+  jsonLd?: JsonLd;
   /** The outlet being rendered. Absent on the platform-wide storefront. */
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
@@ -39,7 +44,10 @@ export function Storefront({
   searchPagePath,
   pageTitle,
   metaDescription,
-  heading,
+  canonicalPath,
+  socialImage,
+  socialImageAlt,
+  jsonLd,
   store = null,
   showDiscover = false,
 }: StorefrontProps) {
@@ -51,25 +59,41 @@ export function Storefront({
     storeSlug: store?.slug,
   });
 
-  const custom = store ? resolveStorefront(store) : null;
+  const resolution = store ? resolveStorefront(store) : null;
+  const custom = resolution?.kind === "custom" ? resolution.storefront : null;
+  const followControl = store ? (
+    <FollowOutletButton
+      storeSlug={store.slug}
+      storeName={store.name}
+      variant={custom ? "theme" : "platform"}
+    />
+  ) : null;
 
   return (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? DEFAULT_PALETTE}
+      palette={custom?.palette ?? PLATFORM_PALETTE}
       title={pageTitle}
       description={metaDescription}
-      themeKey={custom && store ? store.slug : "default"}
+      canonicalPath={canonicalPath}
+      socialImage={socialImage}
+      socialImageAlt={socialImageAlt}
+      jsonLd={jsonLd}
+      themeKey={resolution?.themeKey ?? "platform"}
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
     >
       {custom && store ? (
-        <custom.Storefront {...controller} store={store} />
+        <custom.Storefront
+          {...controller}
+          store={store}
+          followControl={followControl}
+        />
       ) : (
         <DefaultStorefront
           {...controller}
           store={store}
-          heading={heading}
+          followControl={followControl}
           showDiscover={showDiscover}
         />
       )}
