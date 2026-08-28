@@ -95,7 +95,15 @@ describe("POST /api/v1/items/games/steam-import", () => {
 
       const detailResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/items/games/${seededImport.game.slug}`,
-        { headers: { "x-vercel-ip-country": "BR" } },
+        {
+          headers: {
+            // Reproduces the second Vercel hop made by getServerSideProps:
+            // Vercel recalculates its header as US, while the SSR-specific
+            // header preserves the original Brazilian visitor.
+            "x-vercel-ip-country": "US",
+            "x-manifold-visitor-country": "BR",
+          },
+        },
       );
       expect(detailResponse.status).toBe(200);
       expect(await detailResponse.json()).toMatchObject({

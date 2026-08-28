@@ -2,6 +2,9 @@
 // language detection deliberately share this source so they cannot disagree
 // about whether a visitor is in Brazil.
 export const COUNTRY_HEADER = "x-vercel-ip-country";
+// Preserves the visitor country across an SSR page's second request through
+// Vercel. It is intentionally used only for non-transactional external offers.
+export const SSR_COUNTRY_HEADER = "x-manifold-visitor-country";
 
 type CountryHeaderValue = string | string[] | null | undefined;
 

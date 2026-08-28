@@ -1,6 +1,10 @@
 import type { IncomingHttpHeaders } from "node:http";
 
-import { COUNTRY_HEADER, countryCodeFromHeader } from "lib/country";
+import {
+  COUNTRY_HEADER,
+  SSR_COUNTRY_HEADER,
+  countryCodeFromHeader,
+} from "lib/country";
 
 /**
  * Headers an SSR page must preserve when it calls Manifold's own API.
@@ -21,6 +25,7 @@ export function headersForInternalFetch(
   const country = countryCodeFromHeader(incomingHeaders[COUNTRY_HEADER]);
   if (country) {
     forwarded[COUNTRY_HEADER] = country;
+    forwarded[SSR_COUNTRY_HEADER] = country;
   }
 
   return forwarded;
