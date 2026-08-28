@@ -9,6 +9,7 @@ import {
 import steam, { SteamAppDetailsResult } from "infra/steam";
 import game, {
   mapSteamAppToGameData,
+  SteamExternalOfferInput,
   steamImportedGameSchema,
 } from "models/game";
 
@@ -17,8 +18,16 @@ const MAX_LOOKUPS_PER_WINDOW = 20;
 const LOOKUP_WINDOW_MS = 60 * 60 * 1000;
 
 export interface SteamDetailsGateway {
-  fetchAppDetails(appId: string): Promise<SteamAppDetailsResult>;
+  fetchAppDetails(
+    appId: string,
+    countryCode?: string,
+  ): Promise<SteamAppDetailsResult>;
 }
+
+const STEAM_REGIONS = [
+  { country: "US", countryCode: "us" },
+  { country: "BR", countryCode: "br" },
+] as const;
 
 interface ImportSteamGameOptions {
   userId: string;
@@ -42,15 +51,15 @@ async function importGame({
   gateway = steam,
 }: ImportSteamGameOptions) {
   const existingGame = await game.findOneBySteamAppId(steamAppId);
-  if (existingGame) {
+  if (existingGame && existingGame.status !== "ONLY_DISPLAY") {
     return { game: existingGame, created: false };
   }
 
   const attempt = await reserveAttempt(userId, steamAppId, isAdmin);
 
-  let result: SteamAppDetailsResult;
+  let regionalResults: Awaited<ReturnType<typeof fetchRegionalDetails>>;
   try {
-    result = await gateway.fetchAppDetails(steamAppId);
+    regionalResults = await fetchRegionalDetails(gateway, steamAppId);
   } catch (error) {
     await finishAttempt(attempt.id, "SERVICE_ERROR");
     if (error instanceof ServiceError) throw error;
@@ -61,13 +70,28 @@ async function importGame({
     });
   }
 
-  const descriptorIds = result.data?.content_descriptors?.ids ?? [];
+  const successfulResults = regionalResults.filter(
+    (entry) => entry.result.success && entry.result.data,
+  );
+  const primaryResult =
+    successfulResults.find((entry) => entry.country === "US") ??
+    successfulResults[0];
+
+  const descriptorIds = Array.from(
+    new Set(
+      successfulResults.flatMap(
+        (entry) => entry.result.data?.content_descriptors?.ids ?? [],
+      ),
+    ),
+  );
   const descriptorMetadata = {
     content_descriptor_ids: descriptorIds,
-    content_descriptors_present: Boolean(result.data?.content_descriptors),
+    content_descriptors_present: successfulResults.some((entry) =>
+      Boolean(entry.result.data?.content_descriptors),
+    ),
   };
 
-  if (!result?.success || !result.data) {
+  if (!primaryResult?.result.data) {
     await finishAttempt(attempt.id, "NOT_FOUND", descriptorMetadata);
     throw new NotFoundError({
       message: `Steam app with id "${steamAppId}" was not found or is not available.`,
@@ -75,7 +99,7 @@ async function importGame({
     });
   }
 
-  if (isAdultOnlySteamGame(result)) {
+  if (successfulResults.some((entry) => isAdultOnlySteamGame(entry.result))) {
     await finishAttempt(attempt.id, "BLOCKED_ADULT", descriptorMetadata);
     throw new UnsupportedContentError({
       message:
@@ -84,7 +108,10 @@ async function importGame({
     });
   }
 
-  const mappedData = mapSteamAppToGameData(result.data, steamAppId);
+  const mappedData = mapSteamAppToGameData(
+    primaryResult.result.data,
+    steamAppId,
+  );
   const parsedData = steamImportedGameSchema.safeParse(mappedData);
 
   if (!parsedData.success) {
@@ -97,14 +124,80 @@ async function importGame({
     });
   }
 
+  const externalOffers = successfulResults.map((entry) =>
+    mapSteamOffer(entry.result.data!, steamAppId, entry.country),
+  );
+
   try {
-    const createdGame = await game.createUnclaimedSteamGame(parsedData.data);
+    const importedGame = existingGame
+      ? await game.refreshUnclaimedSteamGame(
+          existingGame.id,
+          parsedData.data,
+          externalOffers,
+        )
+      : await game.createUnclaimedSteamGame(parsedData.data, externalOffers);
     await finishAttempt(attempt.id, "SUCCESS", descriptorMetadata);
-    return { game: createdGame, created: true };
+    return { game: importedGame, created: !existingGame };
   } catch (error) {
     await finishAttempt(attempt.id, "INVALID_DATA", descriptorMetadata);
     throw error;
   }
+}
+
+async function fetchRegionalDetails(
+  gateway: SteamDetailsGateway,
+  steamAppId: string,
+) {
+  const settled = await Promise.allSettled(
+    STEAM_REGIONS.map(async ({ country, countryCode }) => ({
+      country,
+      result: await gateway.fetchAppDetails(steamAppId, countryCode),
+    })),
+  );
+
+  const fulfilled = settled
+    .filter(
+      (
+        entry,
+      ): entry is PromiseFulfilledResult<{
+        country: (typeof STEAM_REGIONS)[number]["country"];
+        result: SteamAppDetailsResult;
+      }> => entry.status === "fulfilled",
+    )
+    .map((entry) => entry.value);
+
+  const rejected = settled.find(
+    (entry): entry is PromiseRejectedResult => entry.status === "rejected",
+  );
+  const hasUsableResult = fulfilled.some(
+    (entry) => entry.result.success && entry.result.data,
+  );
+
+  if (fulfilled.length > 0 && (hasUsableResult || !rejected)) return fulfilled;
+
+  throw rejected?.reason;
+}
+
+function mapSteamOffer(
+  data: NonNullable<SteamAppDetailsResult["data"]>,
+  steamAppId: string,
+  country: SteamExternalOfferInput["country"],
+): SteamExternalOfferInput {
+  const amountCents = data.is_free ? 0 : data.price_overview?.final;
+  const originalAmountCents = data.is_free ? 0 : data.price_overview?.initial;
+
+  return {
+    provider: "STEAM",
+    country,
+    currency:
+      data.price_overview?.currency ?? (country === "BR" ? "BRL" : "USD"),
+    amount: amountCents === undefined ? null : amountCents / 100,
+    original_amount:
+      originalAmountCents === undefined ? null : originalAmountCents / 100,
+    discount_percent: data.price_overview?.discount_percent ?? 0,
+    captured_at: new Date(),
+    url: `https://store.steampowered.com/app/${steamAppId}/`,
+  };
 }
 
 async function reserveAttempt(

@@ -85,7 +85,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     const combinedGames = [...editorialResult.games, ...automaticGames];
-    const context = await storefrontPricing.contextFor(currency, combinedGames);
+    const context = await storefrontPricing.contextFor(
+      currency,
+      combinedGames,
+      req,
+    );
     const reasonByGameId = new Map(
       editorialResult.games.map((editorialGame) => [
         editorialGame.id,
@@ -124,7 +128,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     curationWhere,
   });
 
-  const context = await storefrontPricing.contextFor(currency, games);
+  const context = await storefrontPricing.contextFor(currency, games, req);
 
   return res.status(200).json({
     games: storefrontPricing

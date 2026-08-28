@@ -153,6 +153,8 @@ model Game {
   steam_price_currency    String?   @db.VarChar(3)
   steam_price_captured_at DateTime?
 
+  external_offers GameExternalOffer[]
+
   // Flexibility (JSONB) to facilitate expansion
   meta_tags    Json @default("{}")
   media        Json @default("{}")
@@ -172,6 +174,27 @@ model Game {
   @@index([slug])
   @@index([title])
   @@map("games")
+}
+
+model GameExternalOffer {
+  id               String   @id @default(uuid())
+  game_id          String
+  provider         String   @db.VarChar(20)
+  country          String   @db.VarChar(2)
+  currency         String   @db.VarChar(3)
+  amount           Decimal? @db.Decimal(19, 4)
+  original_amount  Decimal? @db.Decimal(19, 4)
+  discount_percent Int?
+  captured_at      DateTime
+  url              String   @db.Text
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  game Game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@unique([game_id, provider, country])
+  @@index([game_id])
+  @@map("game_external_offers")
 }
 
 // Stateful record used both for abuse prevention and for content-policy audit.

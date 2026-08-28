@@ -81,6 +81,8 @@ export const steamImportedGameSchema = gameSchema
     publisher_id: true,
   })
   .extend({
+    developer_name: z.string().trim().min(1).max(255),
+    publisher_name: z.string().trim().min(1).max(255).nullable(),
     steam_price: z.coerce.number().min(0).max(1000000).nullable(),
     steam_original_price: z.coerce.number().min(0).max(1000000).nullable(),
     steam_discount_percent: z.coerce.number().int().min(0).max(100).nullable(),
@@ -88,6 +90,17 @@ export const steamImportedGameSchema = gameSchema
     steam_price_captured_at: z.date(),
   });
 export type SteamImportedGameData = z.infer<typeof steamImportedGameSchema>;
+
+export interface SteamExternalOfferInput {
+  provider: "STEAM";
+  country: "US" | "BR";
+  currency: string;
+  amount: number | null;
+  original_amount: number | null;
+  discount_percent: number | null;
+  captured_at: Date;
+  url: string;
+}
 
 export const gameOrderValues = [
   "newest",
@@ -196,7 +209,10 @@ async function create(gameData: GameCreateDto) {
   });
 }
 
-async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
+async function createUnclaimedSteamGame(
+  gameData: SteamImportedGameData,
+  externalOffers: SteamExternalOfferInput[] = [],
+) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
 
@@ -209,10 +225,9 @@ async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
       ...gameData,
       studio_id: null,
       publisher_id: null,
-      developer_name: "Unclaimed",
-      publisher_name: null,
       slug,
       status: "ONLY_DISPLAY",
+      external_offers: { create: externalOffers },
       // `price` is a local platform price. A community import has no local
       // offer, so the Steam amount is persisted only in the steam_* fields.
       price: 0,
@@ -223,6 +238,50 @@ async function createUnclaimedSteamGame(gameData: SteamImportedGameData) {
       social_links: gameData.social_links || {},
       requirements: gameData.requirements || {},
     },
+  });
+}
+
+async function refreshUnclaimedSteamGame(
+  id: string,
+  gameData: SteamImportedGameData,
+  externalOffers: SteamExternalOfferInput[],
+) {
+  if (gameData.media.videos.length > 0) {
+    await validateVideoUrls(gameData.media.videos);
+  }
+
+  const refreshData = steamImportedGameSchema
+    .omit({ steam_app_id: true, price: true, base_price: true })
+    .parse(gameData);
+
+  return prisma.$transaction(async (tx) => {
+    const updatedGame = await tx.game.update({
+      where: { id, status: "ONLY_DISPLAY" },
+      data: {
+        ...refreshData,
+        launch_date: new Date(refreshData.launch_date),
+        meta_tags: refreshData.meta_tags || {},
+        media: refreshData.media || {},
+        social_links: refreshData.social_links || {},
+        requirements: refreshData.requirements || {},
+      },
+    });
+
+    for (const offer of externalOffers) {
+      await tx.gameExternalOffer.upsert({
+        where: {
+          game_id_provider_country: {
+            game_id: id,
+            provider: offer.provider,
+            country: offer.country,
+          },
+        },
+        create: { ...offer, game_id: id },
+        update: offer,
+      });
+    }
+
+    return updatedGame;
   });
 }
 
@@ -355,6 +414,12 @@ export function mapSteamAppToGameData(
 
   const languages = parseSupportedLanguages(steamGame.supported_languages);
   const website = isValidUrl(steamGame.website) ? steamGame.website : undefined;
+  const developers = normalizeSteamNames(steamGame.developers);
+  const publishers = normalizeSteamNames(steamGame.publishers);
+  const developerName =
+    (developers.length ? developers : publishers).join(", ").slice(0, 255) ||
+    "Unknown developer";
+  const publisherName = publishers.join(", ").slice(0, 255) || null;
 
   return {
     title: steamGame.name,
@@ -363,6 +428,8 @@ export function mapSteamAppToGameData(
       steamGame.detailed_description ||
       steamGame.about_the_game ||
       steamGame.name,
+    developer_name: developerName,
+    publisher_name: publisherName,
     launch_date: parseSteamReleaseDate(steamGame.release_date),
     // Required legacy local-price column. createUnclaimedSteamGame overrides
     // this to zero; the external amount below is the value exposed to users.
@@ -391,6 +458,12 @@ export function mapSteamAppToGameData(
     },
     steam_app_id: steamAppId,
   };
+}
+
+function normalizeSteamNames(names?: string[]): string[] {
+  return Array.from(
+    new Set((names ?? []).map((name) => name.trim()).filter(Boolean)),
+  );
 }
 
 function extractSteamTrailerUrls(
@@ -846,6 +919,7 @@ function ensurePurchasable(gameResource: { status: GameStatus }) {
 const game = {
   create,
   createUnclaimedSteamGame,
+  refreshUnclaimedSteamGame,
   update,
   findOneById,
   findOneByIdWithStudio,

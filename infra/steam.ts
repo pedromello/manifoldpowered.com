@@ -5,6 +5,8 @@ const REQUEST_TIMEOUT_MS = 8000;
 
 export interface SteamAppDetailsData {
   name: string;
+  developers?: string[];
+  publishers?: string[];
   short_description?: string;
   detailed_description?: string;
   about_the_game?: string;
@@ -56,8 +58,9 @@ type SteamAppDetailsApiResponse = Record<string, SteamAppDetailsResult>;
 
 export async function fetchAppDetails(
   appId: string,
+  countryCode = "us",
 ): Promise<SteamAppDetailsResult> {
-  const url = `${STEAM_APPDETAILS_URL}?appids=${encodeURIComponent(appId)}&cc=us&l=en`;
+  const url = `${STEAM_APPDETAILS_URL}?appids=${encodeURIComponent(appId)}&cc=${encodeURIComponent(countryCode.toLowerCase())}&l=en`;
 
   let response: Response;
   try {
