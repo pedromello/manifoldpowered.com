@@ -610,9 +610,12 @@ export default async function handler(request: NextRequest) {
       />
     );
   } else if (kind === "game" && slug) {
-    const game = await fetchPublicJson<GameDetailApi>(
-      new URL(`/api/v1/items/games/${encodeURIComponent(slug)}`, url.origin),
+    const gameUrl = new URL(
+      `/api/v1/items/games/${encodeURIComponent(slug)}`,
+      url.origin,
     );
+    gameUrl.searchParams.set("locale", locale);
+    const game = await fetchPublicJson<GameDetailApi>(gameUrl);
     if (!game) return new Response("Game not found", { status: 404 });
 
     const artwork = await loadImageData(

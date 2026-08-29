@@ -13,6 +13,7 @@ import type {
   StorefrontQuery,
 } from "components/storefront/types";
 import { STOREFRONT_ORDERS } from "components/storefront/types";
+import { withLocale } from "lib/localized-api";
 
 type ListResponse = {
   games: GameApi[];
@@ -59,6 +60,7 @@ export function useStorefrontController({
   storeSlug,
 }: StorefrontControllerOptions): StorefrontControllerResult {
   const router = useRouter();
+  const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
   const searchParams = useSearchParams();
 
   const q = searchParams.get("q") || "";
@@ -85,11 +87,12 @@ export function useStorefrontController({
     if (effectiveTags.length > 0) params.set("tags", effectiveTags.join(","));
     if (order !== "newest") params.set("order", order);
     if (page > 1) params.set("page", String(page));
+    params.set("locale", locale);
     return `${listEndpoint}?${params.toString()}`;
-  }, [listEndpoint, q, effectiveTags, order, page]);
+  }, [listEndpoint, q, effectiveTags, order, page, locale]);
 
   const { data: featuredData, isLoading: isFeaturedLoading } =
-    useSWR<ListResponse>(featuredEndpoint, fetcher);
+    useSWR<ListResponse>(withLocale(featuredEndpoint, locale), fetcher);
 
   const { data, isLoading } = useSWR<ListResponse>(listUrl, fetcher);
 

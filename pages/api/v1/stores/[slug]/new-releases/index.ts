@@ -36,11 +36,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
   );
 
-  const { currency, gameIds } =
+  const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
 
   const { games, pagination } = await game.findAllPaginated({
     priceableGameIds: gameIds,
+    locale,
     ...result.data,
     order: "new_releases",
     curationWhere,

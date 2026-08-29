@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { Search, Loader2 } from "lucide-react";
 import { type GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { withLocale } from "lib/localized-api";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -15,12 +16,14 @@ export function GameAutocomplete({
   placeholder?: string;
   endpoint?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    query.trim() ? `${endpoint}?q=${encodeURIComponent(query)}&limit=5` : null,
+    query.trim()
+      ? withLocale(`${endpoint}?q=${encodeURIComponent(query)}&limit=5`, locale)
+      : null,
     fetcher,
   );
 
