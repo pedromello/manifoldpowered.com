@@ -209,29 +209,110 @@ paths:
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
-  /releases/{release_id}/patches:
-    get:
-      summary: List compatible patches for a release
-      operationId: listReleasePatches
+  /releases/{target_release_id}/patches/upload-url:
+    post:
+      summary: Declare a Wharf patch and authorize its two uploads
+      operationId: createReleasePatchUpload
       security:
         - cookieAuth: []
       parameters:
-        - $ref: "#/components/parameters/ReleaseId"
-        - $ref: "#/components/parameters/Platform"
-        - $ref: "#/components/parameters/Architecture"
+        - name: target_release_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleasePatchUploadRequest"
+      responses:
+        "201":
+          description: New pending patch and independent upload authorizations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleasePatchUploadResponse"
+        "200":
+          description: Idempotent retry. `uploads` is null once the patch is READY.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleasePatchUploadResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /patches/{patch_id}/confirm:
+    post:
+      summary: Verify patch and signature metadata with HEAD and mark the patch READY
+      operationId: confirmReleasePatch
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatchId"
       responses:
         "200":
-          description: Published patches targeting the release.
+          description: Confirmed immutable patch.
           content:
             application/json:
               schema:
                 type: object
-                required: [patches]
+                additionalProperties: false
+                required: [patch]
                 properties:
-                  patches:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ReleasePatch"
+                  patch:
+                    $ref: "#/components/schemas/ReleasePatch"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /games/{slug}/updates/latest:
+    get:
+      summary: Resolve PATCH or FULL from the installed release to the latest compatible release
+      operationId: resolveLatestGameUpdate
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: source_release_id
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - $ref: "#/components/parameters/Platform"
+        - $ref: "#/components/parameters/Architecture"
+      responses:
+        "200":
+          description: URL-free update plan with a mandatory full artifact fallback.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatePlan"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /patches/{patch_id}/download:
+    post:
+      summary: Authorize independent patch and signature downloads
+      operationId: authorizeReleasePatchDownload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PatchId"
+      responses:
+        "200":
+          description: Refreshable download authorizations for `.pwr` and `.pwr.sig`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchDownloadAuthorizations"
         "400":
           $ref: "#/components/responses/Error"
         default:
@@ -272,6 +353,12 @@ components:
         $ref: "#/components/schemas/Architecture"
     ReleaseId:
       name: release_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    PatchId:
+      name: patch_id
       in: path
       required: true
       schema:
@@ -484,6 +571,7 @@ components:
           type: string
     ReleasePatch:
       type: object
+      additionalProperties: false
       required:
         [
           id,
@@ -492,10 +580,13 @@ components:
           target,
           algorithm,
           format_version,
-          size_bytes,
-          sha256,
+          status,
+          patch,
+          signature,
           expected_installation_sha256,
-          published_at,
+          generation_duration_ms,
+          created_at,
+          updated_at,
         ]
       properties:
         id:
@@ -507,17 +598,192 @@ components:
         target:
           $ref: "#/components/schemas/Target"
         algorithm:
-          type: string
+          const: WHARF
         format_version:
+          const: "1"
+        status:
           type: string
+          enum: [PENDING, READY, FAILED]
+        patch:
+          $ref: "#/components/schemas/PatchFileDeclaration"
+        signature:
+          $ref: "#/components/schemas/PatchFileDeclaration"
+        expected_installation_sha256:
+          $ref: "#/components/schemas/Sha256"
+          description: SHA-256 of the canonical target `.pwr.sig`; equal to `signature.sha256` in format 1.
+        generation_duration_ms:
+          $ref: "#/components/schemas/ByteSize"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    PatchFileDeclaration:
+      type: object
+      additionalProperties: false
+      required: [size_bytes, sha256]
+      properties:
         size_bytes:
+          allOf:
+            - $ref: "#/components/schemas/ByteSize"
+          pattern: "^[1-9][0-9]*$"
+        sha256:
+          $ref: "#/components/schemas/Sha256"
+    ReleasePatchUploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          source_release_id,
+          platform,
+          architecture,
+          algorithm,
+          format_version,
+          patch,
+          signature,
+          expected_installation_sha256,
+          generation_duration_ms,
+        ]
+      properties:
+        source_release_id:
+          $ref: "#/components/schemas/Identifier"
+        platform:
+          $ref: "#/components/schemas/Platform"
+        architecture:
+          $ref: "#/components/schemas/Architecture"
+        algorithm:
+          const: WHARF
+        format_version:
+          const: "1"
+        patch:
+          $ref: "#/components/schemas/PatchFileDeclaration"
+        signature:
+          $ref: "#/components/schemas/PatchFileDeclaration"
+        expected_installation_sha256:
+          $ref: "#/components/schemas/Sha256"
+        generation_duration_ms:
+          $ref: "#/components/schemas/ByteSize"
+    UploadAuthorization:
+      type: object
+      additionalProperties: false
+      required: [url, expires_at, required_headers]
+      properties:
+        url:
+          type: string
+          format: uri
+        expires_at:
+          $ref: "#/components/schemas/Timestamp"
+        required_headers:
+          type: object
+          additionalProperties:
+            type: string
+    ReleasePatchUploadResponse:
+      type: object
+      additionalProperties: false
+      required: [patch, uploads]
+      properties:
+        patch:
+          $ref: "#/components/schemas/ReleasePatch"
+        uploads:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [patch, signature]
+              properties:
+                patch:
+                  $ref: "#/components/schemas/UploadAuthorization"
+                signature:
+                  $ref: "#/components/schemas/UploadAuthorization"
+            - type: "null"
+    UpdateReleaseIdentity:
+      type: object
+      additionalProperties: false
+      required: [id, version, release_number]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        version:
+          type: string
+        release_number:
+          type: integer
+          minimum: 1
+    UpdatePlan:
+      oneOf:
+        - $ref: "#/components/schemas/PatchUpdatePlan"
+        - $ref: "#/components/schemas/FullUpdatePlan"
+      discriminator:
+        propertyName: strategy
+    PatchUpdatePlan:
+      type: object
+      additionalProperties: false
+      required: [strategy, source, target, patch, fallback_artifact_id]
+      properties:
+        strategy:
+          const: PATCH
+        source:
+          $ref: "#/components/schemas/UpdateReleaseIdentity"
+        target:
+          $ref: "#/components/schemas/ReleaseSummary"
+        patch:
+          $ref: "#/components/schemas/ReleasePatch"
+        fallback_artifact_id:
+          $ref: "#/components/schemas/Identifier"
+    FullUpdatePlan:
+      type: object
+      additionalProperties: false
+      required: [strategy, source, target, fallback_artifact_id, reason]
+      properties:
+        strategy:
+          const: FULL
+        source:
+          $ref: "#/components/schemas/UpdateReleaseIdentity"
+        target:
+          $ref: "#/components/schemas/ReleaseSummary"
+        fallback_artifact_id:
+          $ref: "#/components/schemas/Identifier"
+        reason:
+          type: string
+          enum:
+            [
+              NO_PATCH,
+              SOURCE_NOT_PREDECESSOR,
+              SOURCE_UNAVAILABLE,
+              PATCH_NOT_READY,
+              PATCH_EXCEEDS_SIZE_LIMIT,
+            ]
+    PatchFileDownloadAuthorization:
+      type: object
+      additionalProperties: false
+      required: [patch_id, file, url, expires_at, total_size_bytes, sha256]
+      properties:
+        patch_id:
+          $ref: "#/components/schemas/Identifier"
+        file:
+          type: string
+          enum: [PATCH, SIGNATURE]
+        url:
+          type: string
+          format: uri
+        expires_at:
+          $ref: "#/components/schemas/Timestamp"
+        total_size_bytes:
           $ref: "#/components/schemas/ByteSize"
         sha256:
           $ref: "#/components/schemas/Sha256"
-        expected_installation_sha256:
-          $ref: "#/components/schemas/Sha256"
-        published_at:
-          $ref: "#/components/schemas/Timestamp"
+        etag:
+          type: string
+    PatchDownloadAuthorizations:
+      type: object
+      additionalProperties: false
+      required: [patch, signature]
+      properties:
+        patch:
+          allOf:
+            - $ref: "#/components/schemas/PatchFileDownloadAuthorization"
+          description: "`file` is always `PATCH`."
+        signature:
+          allOf:
+            - $ref: "#/components/schemas/PatchFileDownloadAuthorization"
+          description: "`file` is always `SIGNATURE`."
     Pagination:
       type: object
       required: [page, limit, total, pages]
