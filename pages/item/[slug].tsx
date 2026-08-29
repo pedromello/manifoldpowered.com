@@ -24,6 +24,7 @@ type ItemPageProps = {
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
   const storeSlug = storeSlugFromQuery(context.query);
+  const locale = context.locale === "pt-BR" ? "pt-BR" : "en";
 
   // Forwarded because the price shown here is regional (models/region.ts).
   // Without it a Brazilian visitor saw BRL on the storefront list and USD on
@@ -32,7 +33,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     const game = await fetchPageData<GameDetailApi>(
-      `${webserver.getOrigin()}/api/v1/items/games/${slug}`,
+      `${webserver.getOrigin()}/api/v1/items/games/${slug}?locale=${locale}`,
       { headers },
     );
 

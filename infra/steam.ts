@@ -59,8 +59,9 @@ type SteamAppDetailsApiResponse = Record<string, SteamAppDetailsResult>;
 export async function fetchAppDetails(
   appId: string,
   countryCode = "us",
+  language = "english",
 ): Promise<SteamAppDetailsResult> {
-  const url = `${STEAM_APPDETAILS_URL}?appids=${encodeURIComponent(appId)}&cc=${encodeURIComponent(countryCode.toLowerCase())}&l=en`;
+  const url = `${STEAM_APPDETAILS_URL}?appids=${encodeURIComponent(appId)}&cc=${encodeURIComponent(countryCode.toLowerCase())}&l=${encodeURIComponent(language.toLowerCase())}`;
 
   let response: Response;
   try {

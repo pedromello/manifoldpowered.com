@@ -15,6 +15,13 @@ export function isAppLocale(value: string | undefined): value is AppLocale {
   return locales.some((locale) => locale === value);
 }
 
+export function appLocaleFromQuery(
+  value: string | string[] | undefined,
+): AppLocale {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return isAppLocale(candidate) ? candidate : defaultLocale;
+}
+
 export function localeForCountry(
   countryHeader: string | string[] | null | undefined,
 ): AppLocale {

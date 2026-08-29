@@ -5,6 +5,9 @@ import pricing, { DisplayPrice } from "models/pricing";
 import region from "models/region";
 import externalOffer from "models/external_offer";
 import type { GameExternalOffer } from "generated/prisma/client";
+import type { GameLocalization } from "generated/prisma/client";
+import gameLocalization from "models/game_localization";
+import type { AppLocale } from "lib/locale";
 
 // Everything a storefront read needs to price its results for the visitor,
 // resolved once per request. Kept in one place because seven read endpoints
@@ -16,15 +19,19 @@ export interface StorefrontPricingContext {
   currency: string;
   displayPrices: Map<string, DisplayPrice>;
   externalOffers: Map<string, GameExternalOffer>;
+  localizations: Map<string, GameLocalization>;
+  locale: AppLocale;
 }
 
 // The id constraint to apply to the query, so unpriceable games never enter the
 // result set and pagination stays honest. Null means "no constraint needed".
 async function idConstraintForRequest(req: NextApiRequest) {
   const currency = await region.currencyForRequest(req);
+  const locale = gameLocalization.localeForRequest(req);
 
   return {
     currency,
+    locale,
     gameIds: await pricing.priceableGameIdConstraint(currency),
   };
 }
@@ -37,6 +44,7 @@ async function contextFor(
   const externalOfferCurrency = req
     ? region.currencyCodeForCountry(region.externalOfferCountryFromRequest(req))
     : currency;
+  const locale = req ? gameLocalization.localeForRequest(req) : "en";
 
   return {
     currency,
@@ -45,6 +53,11 @@ async function contextFor(
       games.map((game) => game.id),
       externalOfferCurrency,
     ),
+    localizations: await gameLocalization.forGames(
+      games.map((game) => game.id),
+      locale,
+    ),
+    locale,
   };
 }
 
@@ -69,17 +82,21 @@ function filterAndPrice<T extends Game>(
         game.status === "ONLY_DISPLAY" || context.displayPrices.has(game.id),
     )
     .map((game) => {
+      const localizedGame = gameLocalization.apply(
+        game,
+        context.localizations.get(game.id),
+      );
       const regionalOffer = context.externalOffers.get(game.id);
       const gameWithRegionalOffer = regionalOffer
         ? {
-            ...game,
+            ...localizedGame,
             steam_price: regionalOffer.amount,
             steam_original_price: regionalOffer.original_amount,
             steam_discount_percent: regionalOffer.discount_percent,
             steam_price_currency: regionalOffer.currency,
             steam_price_captured_at: regionalOffer.captured_at,
           }
-        : game;
+        : localizedGame;
 
       return {
         ...authorization.filterOutput(

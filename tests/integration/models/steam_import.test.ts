@@ -5,7 +5,7 @@ import {
   UnsupportedContentError,
 } from "infra/errors";
 import type { SteamAppDetailsResult } from "infra/steam";
-import { mapSteamAppToGameData } from "models/game";
+import gameModel, { mapSteamAppToGameData } from "models/game";
 import externalOffer from "models/external_offer";
 import steamImport from "models/steam_import";
 import library from "models/library";
@@ -76,8 +76,16 @@ describe("Steam community import", () => {
     }
 
     expect(gateway.fetchAppDetails).toHaveBeenCalledTimes(2);
-    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(steamAppId, "us");
-    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(steamAppId, "br");
+    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(
+      steamAppId,
+      "us",
+      "english",
+    );
+    expect(gateway.fetchAppDetails).toHaveBeenCalledWith(
+      steamAppId,
+      "br",
+      "brazilian",
+    );
     expect(caughtError).toBeInstanceOf(UnsupportedContentError);
     expect(caughtError?.toJSON()).toEqual({
       name: "UnsupportedContentError",
@@ -164,11 +172,25 @@ describe("Steam community import", () => {
       userId: user.id,
       steamAppId,
       gateway: {
-        fetchAppDetails: async (_appId: string, countryCode?: string) => ({
+        fetchAppDetails: async (
+          _appId: string,
+          countryCode?: string,
+          language?: string,
+        ) => ({
           success: true,
           data: {
-            name: "Allowed Unclaimed Fixture",
-            short_description: "Catalog-only fixture",
+            name:
+              language === "brazilian"
+                ? "Jogo de Catálogo Permitido"
+                : "Allowed Unclaimed Fixture",
+            short_description:
+              language === "brazilian"
+                ? "Descrição curta em português"
+                : "Catalog-only fixture",
+            detailed_description:
+              language === "brazilian"
+                ? "Descrição longa em português"
+                : "Long English description",
             developers: ["Crystal Dynamics", "Crystal Dynamics", "  "],
             publishers: ["Square Enix"],
             price_overview: {
@@ -195,6 +217,16 @@ describe("Steam community import", () => {
     expect(result.game.steam_price?.toFixed(2)).toBe("19.99");
     expect(result.game.steam_original_price?.toFixed(2)).toBe("29.99");
     expect(result.game.steam_price_captured_at).toBeInstanceOf(Date);
+    expect(
+      await prisma.gameLocalization.findUnique({
+        where: { game_id_locale: { game_id: result.game.id, locale: "pt-BR" } },
+      }),
+    ).toMatchObject({
+      title: "Jogo de Catálogo Permitido",
+      description: "Descrição curta em português",
+      detailed_description: "Descrição longa em português",
+      source: "STEAM",
+    });
     const offers = await prisma.gameExternalOffer.findMany({
       where: { game_id: result.game.id },
       orderBy: { country: "asc" },
@@ -242,10 +274,13 @@ describe("Steam community import", () => {
       userId: user.id,
       steamAppId,
       gateway: {
-        fetchAppDetails: async (_appId, countryCode) => ({
+        fetchAppDetails: async (_appId, countryCode, language) => ({
           success: true,
           data: {
-            name: "Stable Catalog Identity",
+            name:
+              language === "brazilian"
+                ? "Identidade Estável do Catálogo"
+                : "Stable Catalog Identity",
             developers: ["Original Developer"],
             price_overview: {
               currency: countryCode === "br" ? "BRL" : "USD",
@@ -261,10 +296,21 @@ describe("Steam community import", () => {
       userId: user.id,
       steamAppId,
       gateway: {
-        fetchAppDetails: async (_appId, countryCode) => ({
+        fetchAppDetails: async (_appId, countryCode, language) => ({
           success: true,
           data: {
-            name: "Changed Steam Title",
+            name:
+              language === "brazilian"
+                ? "Título Steam Atualizado"
+                : "Changed Steam Title",
+            short_description:
+              language === "brazilian"
+                ? "Resumo atualizado"
+                : "Updated summary",
+            detailed_description:
+              language === "brazilian"
+                ? "Descrição completa atualizada"
+                : "Updated full description",
             developers: ["Updated Developer"],
             publishers: ["Updated Publisher"],
             price_overview: {
@@ -291,6 +337,16 @@ describe("Steam community import", () => {
     });
     expect(refreshed.game.steam_price?.toFixed(2)).toBe("29.99");
     expect(refreshed.game.steam_original_price?.toFixed(2)).toBe("39.99");
+    expect(
+      await prisma.gameLocalization.findUnique({
+        where: { game_id_locale: { game_id: first.game.id, locale: "pt-BR" } },
+      }),
+    ).toMatchObject({
+      title: "Título Steam Atualizado",
+      description: "Resumo atualizado",
+      detailed_description: "Descrição completa atualizada",
+      source: "STEAM",
+    });
     const offers = await prisma.gameExternalOffer.findMany({
       where: { game_id: first.game.id },
       orderBy: { country: "asc" },
@@ -333,6 +389,16 @@ describe("Steam community import", () => {
       },
     });
     expect(preservedBrlOffer?.amount?.toFixed(2)).toBe("69.90");
+    expect(
+      await prisma.gameLocalization.findUnique({
+        where: { game_id_locale: { game_id: first.game.id, locale: "pt-BR" } },
+      }),
+    ).toMatchObject({
+      title: "Título Steam Atualizado",
+      description: "Resumo atualizado",
+      detailed_description: "Descrição completa atualizada",
+      source: "STEAM",
+    });
   });
 
   test("Should report a service failure when no region returns usable data", async () => {
@@ -350,5 +416,74 @@ describe("Steam community import", () => {
         },
       }),
     ).rejects.toBeInstanceOf(ServiceError);
+  });
+
+  test("Should create an English fallback when Brazilian content is unavailable", async () => {
+    const user = await orchestrator.createUser();
+    await orchestrator.activateUser(user.id);
+    const imported = await steamImport.importGame({
+      userId: user.id,
+      steamAppId: "920000004",
+      gateway: {
+        fetchAppDetails: async (_appId, countryCode) => {
+          if (countryCode === "br") throw new Error("regional timeout");
+          return {
+            success: true,
+            data: {
+              name: "English Fallback Title",
+              short_description: "English fallback summary",
+              detailed_description: "English fallback details",
+            },
+          };
+        },
+      },
+    });
+
+    expect(
+      await prisma.gameLocalization.findUnique({
+        where: {
+          game_id_locale: { game_id: imported.game.id, locale: "pt-BR" },
+        },
+      }),
+    ).toMatchObject({
+      title: "English Fallback Title",
+      description: "English fallback summary",
+      detailed_description: "English fallback details",
+      source: "FALLBACK",
+    });
+  });
+
+  test("Should order the catalog by the localized Portuguese title", async () => {
+    const user = await orchestrator.createUser();
+    await orchestrator.activateUser(user.id);
+    const englishFirst = await orchestrator.createGame(user.id, {
+      title: "Alpha English Localized Order",
+    });
+    const englishLast = await orchestrator.createGame(user.id, {
+      title: "Zulu English Localized Order",
+    });
+    await prisma.game.updateMany({
+      where: { id: { in: [englishFirst.id, englishLast.id] } },
+      data: { status: "ONLY_DISPLAY" },
+    });
+    await prisma.gameLocalization.update({
+      where: { game_id_locale: { game_id: englishFirst.id, locale: "pt-BR" } },
+      data: { title: "Zulu Português" },
+    });
+    await prisma.gameLocalization.update({
+      where: { game_id_locale: { game_id: englishLast.id, locale: "pt-BR" } },
+      data: { title: "Alpha Português" },
+    });
+
+    const { games } = await gameModel.findAllPaginated({
+      locale: "pt-BR",
+      order: "title_asc",
+      limit: 100,
+    });
+    const ids = games.map((game) => game.id);
+
+    expect(ids.indexOf(englishLast.id)).toBeLessThan(
+      ids.indexOf(englishFirst.id),
+    );
   });
 });

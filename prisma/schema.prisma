@@ -100,6 +100,11 @@ enum SteamImportAttemptOutcome {
   BLOCKED_ADULT
 }
 
+enum GameLocalizationSource {
+  STEAM
+  FALLBACK
+}
+
 enum ReviewScore {
   OVERWHELMINGLY_POSITIVE
   VERY_POSITIVE
@@ -154,6 +159,7 @@ model Game {
   steam_price_captured_at DateTime?
 
   external_offers GameExternalOffer[]
+  localizations   GameLocalization[]
 
   // Flexibility (JSONB) to facilitate expansion
   meta_tags    Json @default("{}")
@@ -195,6 +201,24 @@ model GameExternalOffer {
   @@unique([game_id, provider, country])
   @@index([game_id])
   @@map("game_external_offers")
+}
+
+model GameLocalization {
+  id                   String                 @id @default(uuid())
+  game_id              String
+  locale               String                 @db.VarChar(10)
+  title                String                 @db.VarChar(255)
+  description          String                 @db.Text
+  detailed_description String                 @db.Text
+  source               GameLocalizationSource
+  created_at           DateTime               @default(now())
+  updated_at           DateTime               @updatedAt
+
+  game Game @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@unique([game_id, locale])
+  @@index([locale, title])
+  @@map("game_localizations")
 }
 
 // Stateful record used both for abuse prevention and for content-policy audit.

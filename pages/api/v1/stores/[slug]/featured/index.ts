@@ -47,7 +47,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
   );
 
-  const { currency, gameIds } =
+  const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
 
   const editorialResult = await storeFeaturedGame.findAvailableEditorialGames({
@@ -72,6 +72,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     if (missingSlots > 0) {
       const automaticResult = await game.findAllPaginated({
         priceableGameIds: gameIds,
+        locale,
         page: 1,
         // Fetch enough candidates to discard any editorial games that also
         // rank naturally without leaving a hole in the three-slide carousel.
@@ -123,6 +124,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { games, pagination } = await game.findAllPaginated({
     priceableGameIds: gameIds,
+    locale,
     ...result.data,
     order: "featured",
     curationWhere,

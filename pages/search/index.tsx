@@ -13,7 +13,7 @@ import { useI18n } from "lib/i18n";
 
 export default function SearchPage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
   const order = searchParams.get("order") || "newest";
@@ -23,6 +23,7 @@ export default function SearchPage() {
   if (q) queryUrl.set("q", q);
   if (order) queryUrl.set("order", order);
   if (selectedTags.length > 0) queryUrl.set("tags", selectedTags.join(","));
+  queryUrl.set("locale", locale);
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     `/api/v1/games?${queryUrl.toString()}`,

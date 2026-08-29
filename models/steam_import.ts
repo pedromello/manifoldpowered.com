@@ -9,6 +9,7 @@ import {
 import steam, { SteamAppDetailsResult } from "infra/steam";
 import game, {
   mapSteamAppToGameData,
+  mapSteamAppToLocalization,
   SteamExternalOfferInput,
   steamImportedGameSchema,
 } from "models/game";
@@ -21,12 +22,13 @@ export interface SteamDetailsGateway {
   fetchAppDetails(
     appId: string,
     countryCode?: string,
+    language?: string,
   ): Promise<SteamAppDetailsResult>;
 }
 
 const STEAM_REGIONS = [
-  { country: "US", countryCode: "us" },
-  { country: "BR", countryCode: "br" },
+  { country: "US", countryCode: "us", language: "english" },
+  { country: "BR", countryCode: "br", language: "brazilian" },
 ] as const;
 
 interface ImportSteamGameOptions {
@@ -73,9 +75,12 @@ async function importGame({
   const successfulResults = regionalResults.filter(
     (entry) => entry.result.success && entry.result.data,
   );
-  const primaryResult =
-    successfulResults.find((entry) => entry.country === "US") ??
-    successfulResults[0];
+  const primaryResult = successfulResults.find(
+    (entry) => entry.country === "US",
+  );
+  const brazilianResult = successfulResults.find(
+    (entry) => entry.country === "BR",
+  );
 
   const descriptorIds = Array.from(
     new Set(
@@ -90,6 +95,14 @@ async function importGame({
       Boolean(entry.result.data?.content_descriptors),
     ),
   };
+
+  if (!primaryResult?.result.data && successfulResults.length > 0) {
+    await finishAttempt(attempt.id, "SERVICE_ERROR", descriptorMetadata);
+    throw new ServiceError({
+      message: `Steam did not return the English catalog data for app id "${steamAppId}".`,
+      action: "Try again later.",
+    });
+  }
 
   if (!primaryResult?.result.data) {
     await finishAttempt(attempt.id, "NOT_FOUND", descriptorMetadata);
@@ -127,6 +140,9 @@ async function importGame({
   const externalOffers = successfulResults.map((entry) =>
     mapSteamOffer(entry.result.data!, steamAppId, entry.country),
   );
+  const localization = brazilianResult?.result.data
+    ? mapSteamAppToLocalization(brazilianResult.result.data)
+    : undefined;
 
   try {
     const importedGame = existingGame
@@ -134,8 +150,13 @@ async function importGame({
           existingGame.id,
           parsedData.data,
           externalOffers,
+          localization,
         )
-      : await game.createUnclaimedSteamGame(parsedData.data, externalOffers);
+      : await game.createUnclaimedSteamGame(
+          parsedData.data,
+          externalOffers,
+          localization,
+        );
     await finishAttempt(attempt.id, "SUCCESS", descriptorMetadata);
     return { game: importedGame, created: !existingGame };
   } catch (error) {
@@ -149,9 +170,9 @@ async function fetchRegionalDetails(
   steamAppId: string,
 ) {
   const settled = await Promise.allSettled(
-    STEAM_REGIONS.map(async ({ country, countryCode }) => ({
+    STEAM_REGIONS.map(async ({ country, countryCode, language }) => ({
       country,
-      result: await gateway.fetchAppDetails(steamAppId, countryCode),
+      result: await gateway.fetchAppDetails(steamAppId, countryCode, language),
     })),
   );
 
