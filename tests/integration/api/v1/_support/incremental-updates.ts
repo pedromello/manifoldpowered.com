@@ -146,16 +146,19 @@ export async function uploadPatchFiles(
     fetch(initiated.uploads.patch.url, {
       method: "PUT",
       headers: initiated.uploads.patch.required_headers,
-      body: patch,
+      body: Uint8Array.from(patch).buffer,
     }),
     fetch(initiated.uploads.signature.url, {
       method: "PUT",
       headers: initiated.uploads.signature.required_headers,
-      body: signature,
+      body: Uint8Array.from(signature).buffer,
     }),
   ]);
-  expect(patchResponse.status).toBe(200);
-  expect(signatureResponse.status).toBe(200);
+  if (patchResponse.status !== 200 || signatureResponse.status !== 200) {
+    throw new Error(
+      `Patch upload failed: patch=${patchResponse.status} signature=${signatureResponse.status}`,
+    );
+  }
 }
 
 export function requestPatchConfirmation(
@@ -215,14 +218,22 @@ export async function createReadyPatch({
     sessionToken,
     patchDeclaration(source.id, patchFile, signature),
   );
-  expect(response.status).toBe(201);
+  if (response.status !== 201) {
+    throw new Error(
+      `Patch declaration failed: ${response.status} ${await response.text()}`,
+    );
+  }
   const initiated = await response.json();
   await uploadPatchFiles(initiated, patchFile, signature);
   const confirmation = await requestPatchConfirmation(
     initiated.patch.id,
     sessionToken,
   );
-  expect(confirmation.status).toBe(200);
+  if (confirmation.status !== 200) {
+    throw new Error(
+      `Patch confirmation failed: ${confirmation.status} ${await confirmation.text()}`,
+    );
+  }
   return { owner, patch: initiated.patch, patchFile, signature };
 }
 
@@ -240,7 +251,7 @@ export function hasInternalStorageField(value: unknown): boolean {
 
 export function manifest() {
   return {
-    schema_version: "1",
+    schema_version: "1" as const,
     entrypoint: "game.exe",
     launch_arguments: [],
     executables: ["game.exe"],

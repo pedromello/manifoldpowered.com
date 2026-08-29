@@ -129,7 +129,7 @@ describe("POST /api/v1/patches/[patch_id]/download", () => {
       headers: {
         "Content-Type": "application/vnd.manifold.wharf-patch",
       },
-      body: Buffer.from("corrupted"),
+      body: Uint8Array.from(Buffer.from("corrupted")).buffer,
     });
     expect(overwrite.status).toBe(200);
 
