@@ -17,13 +17,17 @@ import {
   PayoutAccount,
   GameArtifact,
   GameRelease,
+  GameReleasePatch,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
 import {
   downloadAuthorizationSchema,
   installManifestSchema,
+  patchDownloadAuthorizationsSchema,
+  releasePatchSchema,
   releaseSummarySchema,
+  updatePlanSchema,
 } from "contracts/desktop/v1";
 
 type SaleWithGame = Sale & {
@@ -696,6 +700,46 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   }
 
   if (feature === "create:game_artifact") {
+    if (
+      typeof resource === "object" &&
+      resource !== null &&
+      "source_release_id" in resource &&
+      "patch_size_bytes" in resource
+    ) {
+      const patch = resource as Omit<
+        GameReleasePatch,
+        "patch_size_bytes" | "signature_size_bytes" | "generation_duration_ms"
+      > & {
+        patch_size_bytes: string | bigint;
+        signature_size_bytes: string | bigint;
+        generation_duration_ms: string | bigint;
+      };
+      return releasePatchSchema.parse({
+        id: patch.id,
+        source_release_id: patch.source_release_id,
+        target_release_id: patch.target_release_id,
+        target: {
+          platform: patch.platform,
+          architecture: patch.architecture,
+        },
+        algorithm: patch.algorithm,
+        format_version: patch.format_version,
+        status: patch.status,
+        patch: {
+          size_bytes: patch.patch_size_bytes.toString(),
+          sha256: patch.patch_sha256,
+        },
+        signature: {
+          size_bytes: patch.signature_size_bytes.toString(),
+          sha256: patch.signature_sha256,
+        },
+        expected_installation_sha256: patch.expected_installation_sha256,
+        generation_duration_ms: patch.generation_duration_ms.toString(),
+        created_at: patch.created_at.toISOString(),
+        updated_at: patch.updated_at.toISOString(),
+      });
+    }
+
     interface GameArtifactUploadOutput {
       id: string;
       release_id: string;
@@ -725,6 +769,29 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       created_at: artifact.created_at,
       updated_at: artifact.updated_at,
     };
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "strategy" in resource &&
+    "fallback_artifact_id" in resource
+  ) {
+    return updatePlanSchema.parse(resource);
+  }
+
+  if (
+    feature === "read:library" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "patch" in resource &&
+    "signature" in resource &&
+    typeof resource.patch === "object" &&
+    resource.patch !== null &&
+    "url" in resource.patch
+  ) {
+    return patchDownloadAuthorizationsSchema.parse(resource);
   }
 
   if (

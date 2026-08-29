@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const DESKTOP_API_VERSION = "1" as const;
 export const INSTALL_MANIFEST_SCHEMA_VERSION = "1" as const;
+export const RELEASE_PATCH_ALGORITHM = "WHARF" as const;
+export const RELEASE_PATCH_FORMAT_VERSION = "1" as const;
+export const PATCH_MAX_FULL_SIZE_PERCENT = 80 as const;
 
 export const desktopPlatformSchema = z.enum(["WINDOWS", "MAC", "LINUX"]);
 export const desktopArchitectureSchema = z.enum(["X86_64", "AARCH64"]);
@@ -157,18 +160,139 @@ export const downloadAuthorizationSchema = z.object({
   etag: z.string().min(1).optional(),
 });
 
-export const releasePatchSchema = z.object({
-  id: identifierSchema,
-  source_release_id: identifierSchema,
-  target_release_id: identifierSchema,
-  target: targetSchema,
-  algorithm: z.string().min(1),
-  format_version: z.string().min(1),
-  size_bytes: byteSizeSchema,
-  sha256: sha256Schema,
-  expected_installation_sha256: sha256Schema,
-  published_at: timestampSchema,
+export const uploadAuthorizationSchema = z
+  .object({
+    url: z.url(),
+    expires_at: timestampSchema,
+    required_headers: z.record(z.string(), z.string()),
+  })
+  .strict();
+
+export const patchFileDeclarationSchema = z
+  .object({
+    size_bytes: byteSizeSchema.refine((value) => BigInt(value) > BigInt(0), {
+      message: "Size must be greater than zero",
+    }),
+    sha256: sha256Schema,
+  })
+  .strict();
+
+export const releasePatchUploadRequestSchema = z
+  .object({
+    source_release_id: identifierSchema,
+    platform: desktopPlatformSchema,
+    architecture: desktopArchitectureSchema,
+    algorithm: z.literal(RELEASE_PATCH_ALGORITHM),
+    format_version: z.literal(RELEASE_PATCH_FORMAT_VERSION),
+    patch: patchFileDeclarationSchema,
+    signature: patchFileDeclarationSchema,
+    expected_installation_sha256: sha256Schema,
+    generation_duration_ms: byteSizeSchema,
+  })
+  .strict()
+  .refine(
+    (value) => value.expected_installation_sha256 === value.signature.sha256,
+    {
+      message:
+        "Expected installation SHA-256 must identify the canonical target signature",
+      path: ["expected_installation_sha256"],
+    },
+  );
+
+export const releasePatchStatusSchema = z.enum(["PENDING", "READY", "FAILED"]);
+
+export const releasePatchSchema = z
+  .object({
+    id: identifierSchema,
+    source_release_id: identifierSchema,
+    target_release_id: identifierSchema,
+    target: targetSchema,
+    algorithm: z.literal(RELEASE_PATCH_ALGORITHM),
+    format_version: z.literal(RELEASE_PATCH_FORMAT_VERSION),
+    status: releasePatchStatusSchema,
+    patch: patchFileDeclarationSchema,
+    signature: patchFileDeclarationSchema,
+    expected_installation_sha256: sha256Schema,
+    generation_duration_ms: byteSizeSchema,
+    created_at: timestampSchema,
+    updated_at: timestampSchema,
+  })
+  .strict();
+
+export const releasePatchUploadResponseSchema = z
+  .object({
+    patch: releasePatchSchema,
+    uploads: z
+      .object({
+        patch: uploadAuthorizationSchema,
+        signature: uploadAuthorizationSchema,
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+
+export const patchFileKindSchema = z.enum(["PATCH", "SIGNATURE"]);
+
+export const patchFileDownloadAuthorizationSchema = z
+  .object({
+    patch_id: identifierSchema,
+    file: patchFileKindSchema,
+    url: z.url(),
+    expires_at: timestampSchema,
+    total_size_bytes: byteSizeSchema,
+    sha256: sha256Schema,
+    etag: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const patchDownloadAuthorizationsSchema = z
+  .object({
+    patch: patchFileDownloadAuthorizationSchema,
+    signature: patchFileDownloadAuthorizationSchema,
+  })
+  .strict();
+
+export const updateReleaseIdentitySchema = z
+  .object({
+    id: identifierSchema,
+    version: z.string().min(1),
+    release_number: z.number().int().positive(),
+  })
+  .strict();
+
+export const fullUpdateReasonSchema = z.enum([
+  "NO_PATCH",
+  "SOURCE_NOT_PREDECESSOR",
+  "SOURCE_UNAVAILABLE",
+  "PATCH_NOT_READY",
+  "PATCH_EXCEEDS_SIZE_LIMIT",
+]);
+
+const updatePlanBaseSchema = z.object({
+  source: updateReleaseIdentitySchema,
+  target: releaseSummarySchema,
+  fallback_artifact_id: identifierSchema,
 });
+
+export const patchUpdatePlanSchema = updatePlanBaseSchema
+  .extend({
+    strategy: z.literal("PATCH"),
+    patch: releasePatchSchema,
+  })
+  .strict();
+
+export const fullUpdatePlanSchema = updatePlanBaseSchema
+  .extend({
+    strategy: z.literal("FULL"),
+    reason: fullUpdateReasonSchema,
+  })
+  .strict();
+
+export const updatePlanSchema = z.discriminatedUnion("strategy", [
+  patchUpdatePlanSchema,
+  fullUpdatePlanSchema,
+]);
 
 export type DesktopPlatform = z.infer<typeof desktopPlatformSchema>;
 export type DesktopArchitecture = z.infer<typeof desktopArchitectureSchema>;
@@ -182,3 +306,10 @@ export type ReleaseSummary = z.infer<typeof releaseSummarySchema>;
 export type InstallManifest = z.infer<typeof installManifestSchema>;
 export type DownloadAuthorization = z.infer<typeof downloadAuthorizationSchema>;
 export type ReleasePatch = z.infer<typeof releasePatchSchema>;
+export type ReleasePatchUploadRequest = z.infer<
+  typeof releasePatchUploadRequestSchema
+>;
+export type PatchDownloadAuthorizations = z.infer<
+  typeof patchDownloadAuthorizationsSchema
+>;
+export type UpdatePlan = z.infer<typeof updatePlanSchema>;

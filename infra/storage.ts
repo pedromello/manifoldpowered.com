@@ -105,6 +105,26 @@ export interface ArtifactDownloadAuthorization {
   expires_at: string;
 }
 
+export type PatchFileKind = "PATCH" | "SIGNATURE";
+
+export interface PatchUploadAuthorization {
+  url: string;
+  expires_at: string;
+  required_headers: Record<string, string>;
+}
+
+export type PatchObjectMetadata = ArtifactObjectMetadata;
+
+export interface PatchDownloadAuthorization {
+  url: string;
+  expires_at: string;
+}
+
+const PATCH_CONTENT_TYPES: Record<PatchFileKind, string> = {
+  PATCH: "application/vnd.manifold.wharf-patch",
+  SIGNATURE: "application/vnd.manifold.wharf-signature",
+};
+
 export async function getArtifactUploadAuthorization({
   key,
   artifactId,
@@ -159,6 +179,70 @@ export async function getArtifactUploadAuthorization({
 export async function getArtifactObjectMetadata(
   key: string,
 ): Promise<ArtifactObjectMetadata | null> {
+  return getObjectMetadata(key, "artifact");
+}
+
+export async function getPatchUploadAuthorization({
+  key,
+  patchId,
+  file,
+  sizeBytes,
+  sha256,
+}: {
+  key: string;
+  patchId: string;
+  file: PatchFileKind;
+  sizeBytes: string;
+  sha256: string;
+}): Promise<PatchUploadAuthorization> {
+  const contentType = PATCH_CONTENT_TYPES[file];
+  const checksum = Buffer.from(sha256, "hex").toString("base64");
+  const requiredHeaders = {
+    "content-type": contentType,
+    "x-amz-checksum-sha256": checksum,
+    "x-amz-meta-patch-id": patchId,
+    "x-amz-meta-patch-file": file,
+    "x-amz-meta-declared-size-bytes": sizeBytes,
+    "x-amz-meta-sha256": sha256,
+  };
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+    ChecksumSHA256: checksum,
+    Metadata: {
+      "patch-id": patchId,
+      "patch-file": file,
+      "declared-size-bytes": sizeBytes,
+      sha256,
+    },
+  });
+
+  const url = await getSignedUrl(s3Client, command, {
+    expiresIn: UPLOAD_EXPIRES_IN_SECONDS,
+    unhoistableHeaders: new Set(Object.keys(requiredHeaders).slice(1)),
+    signableHeaders: new Set(["content-type"]),
+  });
+
+  return {
+    url,
+    expires_at: new Date(
+      Date.now() + UPLOAD_EXPIRES_IN_SECONDS * 1000,
+    ).toISOString(),
+    required_headers: requiredHeaders,
+  };
+}
+
+export async function getPatchObjectMetadata(
+  key: string,
+): Promise<PatchObjectMetadata | null> {
+  return getObjectMetadata(key, "patch file");
+}
+
+async function getObjectMetadata(
+  key: string,
+  subject: string,
+): Promise<ArtifactObjectMetadata | null> {
   try {
     const object = await s3Client.send(
       new HeadObjectCommand({
@@ -170,8 +254,8 @@ export async function getArtifactObjectMetadata(
 
     if (object.ContentLength === undefined) {
       throw new ServiceError({
-        message: "Storage returned artifact metadata without a content length",
-        action: "Retry upload confirmation",
+        message: `Storage returned ${subject} metadata without a content length`,
+        action: "Retry the upload confirmation",
       });
     }
 
@@ -187,9 +271,9 @@ export async function getArtifactObjectMetadata(
     if (error instanceof ServiceError) throw error;
 
     throw new ServiceError({
-      message: "Artifact metadata could not be read from storage",
+      message: `${subject[0].toUpperCase()}${subject.slice(1)} metadata could not be read from storage`,
       cause: error,
-      action: "Retry upload confirmation",
+      action: "Retry the upload confirmation",
     });
   }
 }
@@ -223,6 +307,19 @@ export async function getDownloadUrl(key: string): Promise<string> {
 export async function getArtifactDownloadAuthorization(
   key: string,
 ): Promise<ArtifactDownloadAuthorization> {
+  const issuedAt = Date.now();
+  const url = await getDownloadUrl(key);
+  return {
+    url,
+    expires_at: new Date(
+      issuedAt + DOWNLOAD_EXPIRES_IN_SECONDS * 1000,
+    ).toISOString(),
+  };
+}
+
+export async function getPatchDownloadAuthorization(
+  key: string,
+): Promise<PatchDownloadAuthorization> {
   const issuedAt = Date.now();
   const url = await getDownloadUrl(key);
   return {
@@ -302,6 +399,9 @@ const storage = {
   getArtifactUploadAuthorization,
   getArtifactObjectMetadata,
   getArtifactDownloadAuthorization,
+  getPatchUploadAuthorization,
+  getPatchObjectMetadata,
+  getPatchDownloadAuthorization,
   getDownloadUrl,
   deleteFile,
   clearAllBuckets,
