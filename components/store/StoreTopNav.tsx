@@ -16,6 +16,7 @@ import {
 } from "lib/price";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
+import { withLocale } from "lib/localized-api";
 
 export type StoreNavContext = {
   slug: string;
@@ -27,7 +28,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const storeHref = store ? `/store/${store.slug}` : "/store";
   const searchEndpoint = store
@@ -37,7 +38,10 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     searchQuery.trim()
-      ? `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`
+      ? withLocale(
+          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`,
+          locale,
+        )
       : null,
     (url) => fetch(url).then((res) => res.json()),
   );

@@ -23,13 +23,14 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { order, sort_by, ...rest } = result.data;
 
-  const { currency, gameIds } =
+  const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
 
   const { games, pagination } = await game.findAllPaginated({
     ...rest,
     order: sort_by ?? order ?? "newest",
     priceableGameIds: gameIds,
+    locale,
   });
 
   const context = await storefrontPricing.contextFor(currency, games, req);

@@ -17,11 +17,21 @@ describe("POST /api/v1/items/games/steam-import", () => {
         userId: user.id,
         steamAppId,
         gateway: {
-          fetchAppDetails: async (_appId, countryCode) => ({
+          fetchAppDetails: async (_appId, countryCode, language) => ({
             success: true,
             data: {
-              name: "Community Catalog Fixture",
-              short_description: "A deterministic Steam import fixture",
+              name:
+                language === "brazilian"
+                  ? "Jogo Comunitário de Catálogo"
+                  : "Community Catalog Fixture",
+              short_description:
+                language === "brazilian"
+                  ? "Resumo determinístico em português"
+                  : "A deterministic Steam import fixture",
+              detailed_description:
+                language === "brazilian"
+                  ? "Descrição detalhada em português"
+                  : "Detailed English description",
               developers: ["Crystal Dynamics"],
               publishers: ["Square Enix"],
               price_overview: {
@@ -58,6 +68,9 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(usdBody.games).toContainEqual(
         expect.objectContaining({
           id: seededImport.game.id,
+          title: "Community Catalog Fixture",
+          description: "A deterministic Steam import fixture",
+          detailed_description: "Detailed English description",
           developer_name: "Crystal Dynamics",
           publisher_name: "Square Enix",
           status: "ONLY_DISPLAY",
@@ -76,7 +89,7 @@ describe("POST /api/v1/items/games/steam-import", () => {
       );
 
       const brlResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent(seededImport.game.title)}`,
+        `${webserver.getOrigin()}/api/v1/games?q=${encodeURIComponent("Jogo Comunitário")}&locale=pt-BR`,
         { headers: { "x-vercel-ip-country": "BR" } },
       );
       expect(brlResponse.status).toBe(200);
@@ -84,6 +97,8 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(brlBody.games).toContainEqual(
         expect.objectContaining({
           id: seededImport.game.id,
+          title: "Jogo Comunitário de Catálogo",
+          description: "Resumo determinístico em português",
           external_offer: expect.objectContaining({
             amount: "49.90",
             original_amount: "59.90",
@@ -94,7 +109,7 @@ describe("POST /api/v1/items/games/steam-import", () => {
       );
 
       const detailResponse = await fetch(
-        `${webserver.getOrigin()}/api/v1/items/games/${seededImport.game.slug}`,
+        `${webserver.getOrigin()}/api/v1/items/games/${seededImport.game.slug}?locale=pt-BR`,
         {
           headers: {
             // Reproduces the second Vercel hop made by getServerSideProps:
@@ -108,6 +123,9 @@ describe("POST /api/v1/items/games/steam-import", () => {
       expect(detailResponse.status).toBe(200);
       expect(await detailResponse.json()).toMatchObject({
         id: seededImport.game.id,
+        title: "Jogo Comunitário de Catálogo",
+        description: "Resumo determinístico em português",
+        detailed_description: "Descrição detalhada em português",
         developer_name: "Crystal Dynamics",
         external_offer: {
           provider: "STEAM",
@@ -119,6 +137,29 @@ describe("POST /api/v1/items/games/steam-import", () => {
           captured_at: expect.any(String),
         },
       });
+
+      const portuguesePage = await fetch(
+        `${webserver.getOrigin()}/pt-BR/item/${seededImport.game.slug}`,
+      );
+      expect(portuguesePage.status).toBe(200);
+      const portugueseHtml = await portuguesePage.text();
+      expect(portugueseHtml).toContain("Jogo Comunitário de Catálogo");
+      expect(portugueseHtml).toContain("Descrição detalhada em português");
+      expect(portugueseHtml).toContain(
+        '<meta name="description" content="Resumo determinístico em português"',
+      );
+      expect(portugueseHtml).toContain(
+        '<meta property="og:title" content="Jogo Comunitário de Catálogo',
+      );
+      expect(portugueseHtml).toContain('"name":"Jogo Comunitário de Catálogo"');
+
+      const englishPage = await fetch(
+        `${webserver.getOrigin()}/item/${seededImport.game.slug}`,
+      );
+      expect(englishPage.status).toBe(200);
+      const englishHtml = await englishPage.text();
+      expect(englishHtml).toContain("Community Catalog Fixture");
+      expect(englishHtml).toContain("Detailed English description");
     });
 
     test("With an invalid steam_app_id format should return 400", async () => {

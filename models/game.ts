@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
 import steamInfra, { SteamAppDetailsData } from "infra/steam";
+import type { AppLocale } from "lib/locale";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -102,6 +103,14 @@ export interface SteamExternalOfferInput {
   url: string;
 }
 
+export interface SteamLocalizationInput {
+  locale: "pt-BR";
+  title: string;
+  description: string;
+  detailed_description: string;
+  source: "STEAM";
+}
+
 export const gameOrderValues = [
   "newest",
   "oldest",
@@ -123,6 +132,7 @@ export const gameQuerySchema = z
       .transform((s) => s.split(","))
       .optional(),
     q: z.string().optional(),
+    locale: z.enum(["en", "pt-BR"]).default("en"),
     min_price: z.coerce.number().min(0).optional(),
     max_price: z.coerce.number().min(0).optional(),
   })
@@ -198,6 +208,15 @@ async function create(gameData: GameCreateDto) {
       developer_name: developerStudio.name,
       publisher_name: publisherStudio.name,
       slug,
+      localizations: {
+        create: {
+          locale: "pt-BR",
+          title: gameData.title,
+          description: gameData.description,
+          detailed_description: gameData.detailed_description,
+          source: "FALLBACK",
+        },
+      },
       // A new game has no prior price, so base_price starts equal to price.
       base_price: gameData.price,
       launch_date: new Date(gameData.launch_date),
@@ -212,6 +231,7 @@ async function create(gameData: GameCreateDto) {
 async function createUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[] = [],
+  localization?: SteamLocalizationInput,
 ) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
@@ -228,6 +248,15 @@ async function createUnclaimedSteamGame(
       slug,
       status: "ONLY_DISPLAY",
       external_offers: { create: externalOffers },
+      localizations: {
+        create: localization ?? {
+          locale: "pt-BR",
+          title: gameData.title,
+          description: gameData.description,
+          detailed_description: gameData.detailed_description,
+          source: "FALLBACK",
+        },
+      },
       // `price` is a local platform price. A community import has no local
       // offer, so the Steam amount is persisted only in the steam_* fields.
       price: 0,
@@ -245,6 +274,7 @@ async function refreshUnclaimedSteamGame(
   id: string,
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[],
+  localization?: SteamLocalizationInput,
 ) {
   if (gameData.media.videos.length > 0) {
     await validateVideoUrls(gameData.media.videos);
@@ -278,6 +308,14 @@ async function refreshUnclaimedSteamGame(
         },
         create: { ...offer, game_id: id },
         update: offer,
+      });
+    }
+
+    if (localization) {
+      await tx.gameLocalization.upsert({
+        where: { game_id_locale: { game_id: id, locale: localization.locale } },
+        create: { ...localization, game_id: id },
+        update: localization,
       });
     }
 
@@ -457,6 +495,22 @@ export function mapSteamAppToGameData(
       steam_page: `https://store.steampowered.com/app/${steamAppId}/`,
     },
     steam_app_id: steamAppId,
+  };
+}
+
+export function mapSteamAppToLocalization(
+  steamGame: SteamAppDetailsData,
+): SteamLocalizationInput {
+  return {
+    locale: "pt-BR",
+    title: steamGame.name.slice(0, 255),
+    description: (steamGame.short_description || steamGame.name).slice(0, 300),
+    detailed_description:
+      steamGame.detailed_description ||
+      steamGame.about_the_game ||
+      steamGame.short_description ||
+      steamGame.name,
+    source: "STEAM",
   };
 }
 
@@ -681,30 +735,49 @@ async function update(
     validatedData.base_price ?? existingGame.base_price?.toNumber() ?? 0,
   );
 
-  return await prisma.game.update({
-    where: {
-      id,
-    },
-    data: {
-      ...validatedData,
-      slug: newSlug,
-      discount_label: discountLabel,
-      launch_date: validatedData.launch_date
-        ? new Date(validatedData.launch_date)
-        : undefined,
-      meta_tags: validatedData.meta_tags
-        ? deepMerge(existingGame.meta_tags, validatedData.meta_tags)
-        : undefined,
-      media: validatedData.media
-        ? deepMerge(existingGame.media, validatedData.media)
-        : undefined,
-      social_links: validatedData.social_links
-        ? deepMerge(existingGame.social_links, validatedData.social_links)
-        : undefined,
-      requirements: validatedData.requirements
-        ? deepMerge(existingGame.requirements, validatedData.requirements)
-        : undefined,
-    },
+  return await prisma.$transaction(async (tx) => {
+    const updatedGame = await tx.game.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        slug: newSlug,
+        discount_label: discountLabel,
+        launch_date: validatedData.launch_date
+          ? new Date(validatedData.launch_date)
+          : undefined,
+        meta_tags: validatedData.meta_tags
+          ? deepMerge(existingGame.meta_tags, validatedData.meta_tags)
+          : undefined,
+        media: validatedData.media
+          ? deepMerge(existingGame.media, validatedData.media)
+          : undefined,
+        social_links: validatedData.social_links
+          ? deepMerge(existingGame.social_links, validatedData.social_links)
+          : undefined,
+        requirements: validatedData.requirements
+          ? deepMerge(existingGame.requirements, validatedData.requirements)
+          : undefined,
+      },
+    });
+
+    if (
+      validatedData.title ||
+      validatedData.description ||
+      validatedData.detailed_description
+    ) {
+      await tx.gameLocalization.updateMany({
+        where: { game_id: id, locale: "pt-BR", source: "FALLBACK" },
+        data: {
+          title: validatedData.title ?? existingGame.title,
+          description: validatedData.description ?? existingGame.description,
+          detailed_description:
+            validatedData.detailed_description ??
+            existingGame.detailed_description,
+        },
+      });
+    }
+
+    return updatedGame;
   });
 }
 
@@ -738,6 +811,7 @@ async function findAllPaginated({
   max_price,
   curationWhere,
   priceableGameIds,
+  locale = "en",
 }: {
   page?: number;
   limit?: number;
@@ -752,6 +826,7 @@ async function findAllPaginated({
   // stay honest — post-filtering a page of 20 could render 15. Null or
   // undefined means every game is priceable, which is the common case.
   priceableGameIds?: string[] | null;
+  locale?: AppLocale;
 }) {
   const where: Prisma.GameWhereInput = {
     status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
@@ -767,6 +842,26 @@ async function findAllPaginated({
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
+      ...(locale === "pt-BR"
+        ? [
+            {
+              localizations: {
+                some: {
+                  locale,
+                  OR: [
+                    { title: { contains: q, mode: "insensitive" as const } },
+                    {
+                      description: {
+                        contains: q,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ]
+        : []),
     ];
   }
 
@@ -806,6 +901,31 @@ async function findAllPaginated({
     trending: [{ updated_at: "desc" }, { positive_reviews: "desc" }],
     new_releases: [{ launch_date: "desc" }],
   };
+
+  if (order === "title_asc" && locale === "pt-BR") {
+    const [localizedRows, total] = await Promise.all([
+      prisma.gameLocalization.findMany({
+        where: { locale, game: { is: where } },
+        include: { game: true },
+        orderBy: { title: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.gameLocalization.count({
+        where: { locale, game: { is: where } },
+      }),
+    ]);
+
+    return {
+      games: localizedRows.map((row) => row.game),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
 
   const [games, total] = await Promise.all([
     prisma.game.findMany({

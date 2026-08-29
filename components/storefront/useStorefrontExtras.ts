@@ -1,6 +1,8 @@
 import useSWR from "swr";
 
 import type { GameApi } from "components/store/types";
+import { useRouter } from "next/router";
+import { withLocale } from "lib/localized-api";
 
 type ListResponse = { games: GameApi[] };
 
@@ -22,8 +24,10 @@ const fetcher = (url: string): Promise<ListResponse> =>
  * so these are free material.
  */
 export function useStorefrontTrending(storeSlug: string, limit = 8) {
+  const router = useRouter();
+  const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
   const { data, isLoading } = useSWR<ListResponse>(
-    `/api/v1/stores/${storeSlug}/trending?limit=${limit}`,
+    withLocale(`/api/v1/stores/${storeSlug}/trending?limit=${limit}`, locale),
     fetcher,
   );
 
@@ -31,8 +35,13 @@ export function useStorefrontTrending(storeSlug: string, limit = 8) {
 }
 
 export function useStorefrontNewReleases(storeSlug: string, limit = 8) {
+  const router = useRouter();
+  const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
   const { data, isLoading } = useSWR<ListResponse>(
-    `/api/v1/stores/${storeSlug}/new-releases?limit=${limit}`,
+    withLocale(
+      `/api/v1/stores/${storeSlug}/new-releases?limit=${limit}`,
+      locale,
+    ),
     fetcher,
   );
 
