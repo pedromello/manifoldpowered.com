@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
 import steamInfra, { SteamAppDetailsData } from "infra/steam";
+import { highResolutionSteamHeaderImage } from "lib/steam";
 
 export const gameSchema = z.object({
   title: z.string().min(1).max(255),
@@ -447,7 +448,7 @@ export function mapSteamAppToGameData(
       platforms,
     },
     media: {
-      banner: steamGame.header_image,
+      banner: highResolutionSteamHeaderImage(steamGame.header_image),
       screenshots: (steamGame.screenshots ?? []).map((s) => s.path_full),
       icon: steamGame.capsule_image,
       videos: extractSteamTrailerUrls(steamGame.movies),
