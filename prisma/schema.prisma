@@ -314,6 +314,16 @@ enum GameArtifactStatus {
   FAILED
 }
 
+enum GameReleasePatchAlgorithm {
+  WHARF
+}
+
+enum GameReleasePatchStatus {
+  PENDING
+  READY
+  FAILED
+}
+
 model GameFile {
   id           String       @id @default(uuid())
   game_id      String // Logical reference to Game.id
@@ -371,6 +381,36 @@ model GameArtifact {
   @@unique([release_id, platform, architecture])
   @@index([release_id, status])
   @@map("game_artifacts")
+}
+
+// Immutable incremental path between two compatible release artifacts. All
+// references are logical: the model layer validates releases, artifacts and
+// the publisher before a row is written or promoted to READY.
+model GameReleasePatch {
+  id                           String                    @id @default(uuid())
+  source_release_id            String // Logical reference to GameRelease.id
+  target_release_id            String // Logical reference to GameRelease.id
+  platform                     GamePlatform
+  architecture                 GameArchitecture
+  algorithm                    GameReleasePatchAlgorithm @default(WHARF)
+  format_version               String                    @default("1") @db.VarChar(10)
+  status                       GameReleasePatchStatus    @default(PENDING)
+  patch_storage_object_key     String                    @unique @db.VarChar(1024)
+  patch_size_bytes             BigInt
+  patch_sha256                 String                    @db.Char(64)
+  signature_storage_object_key String                    @unique @db.VarChar(1024)
+  signature_size_bytes         BigInt
+  signature_sha256             String                    @db.Char(64)
+  expected_installation_sha256 String                    @db.Char(64)
+  created_by_user_id           String // Logical reference to the publisher User
+  generation_duration_ms       BigInt
+  created_at                   DateTime                  @default(now())
+  updated_at                   DateTime                  @updatedAt
+
+  @@unique([source_release_id, target_release_id, platform, architecture])
+  @@index([target_release_id, status])
+  @@index([source_release_id, target_release_id])
+  @@map("game_release_patches")
 }
 
 enum ItemType {
