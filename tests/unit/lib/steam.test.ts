@@ -38,14 +38,12 @@ describe("resolveSteamHeaderImage", () => {
   });
 
   test("uses the 2x header when Steam serves it as an image", async () => {
-    const fetchMock = jest
-      .spyOn(global, "fetch")
-      .mockResolvedValue(
-        new Response(null, {
-          status: 200,
-          headers: { "content-type": "image/jpeg" },
-        }),
-      );
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
 
     await expect(resolveSteamHeaderImage(standardHeader)).resolves.toBe(
       highResolutionHeader,
