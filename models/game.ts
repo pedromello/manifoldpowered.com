@@ -4,7 +4,10 @@ import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
 import studioModel from "models/studio";
 import steamInfra, { SteamAppDetailsData } from "infra/steam";
-import { highResolutionSteamHeaderImage } from "lib/steam";
+import {
+  highResolutionSteamHeaderImage,
+  resolveSteamHeaderImage,
+} from "lib/steam";
 import type { AppLocale } from "lib/locale";
 
 export const gameSchema = z.object({
@@ -412,7 +415,11 @@ async function buildGameDataFromSteam(
     });
   }
 
-  return mapSteamAppToGameData(result.data, steamAppId);
+  const gameData = mapSteamAppToGameData(result.data, steamAppId);
+  gameData.media.banner = await resolveSteamHeaderImage(
+    result.data.header_image,
+  );
+  return gameData;
 }
 
 export function mapSteamAppToGameData(

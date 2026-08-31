@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from "infra/errors";
 import steam, { SteamAppDetailsResult } from "infra/steam";
+import { resolveSteamHeaderImage } from "lib/steam";
 import game, {
   mapSteamAppToGameData,
   mapSteamAppToLocalization,
@@ -124,6 +125,9 @@ async function importGame({
   const mappedData = mapSteamAppToGameData(
     primaryResult.result.data,
     steamAppId,
+  );
+  mappedData.media.banner = await resolveSteamHeaderImage(
+    primaryResult.result.data.header_image,
   );
   const parsedData = steamImportedGameSchema.safeParse(mappedData);
 
