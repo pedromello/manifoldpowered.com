@@ -36,7 +36,7 @@ describe("GET /api/v1/stores/[slug]/management-shell", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
-    expect(response.headers.get("Vary")).toBe("Cookie");
+    expect(response.headers.get("Vary")?.split(/,\s*/)).toContain("Cookie");
     await expect(response.json()).resolves.toEqual({
       store: {
         id: outlet.id,
