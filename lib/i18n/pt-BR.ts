@@ -1046,6 +1046,125 @@ export const ptBR: Record<string, string> = {
     "Esta alteração não pode mais ser desfeita com segurança.",
   "The catalog strategy could not be saved.":
     "Não foi possível salvar a estratégia do catálogo.",
+  // Outlet lifecycle, draft preview, and publication readiness
+  Published: "Publicada",
+  Draft: "Rascunho",
+  "After creating your Outlet, choose explicitly whether to show the full catalog or a selected catalog before publishing.":
+    "Depois de criar sua Outlet, escolha explicitamente entre exibir o catálogo completo ou um catálogo selecionado antes de publicar.",
+  "Add a description and logo.": "Adicione uma descrição e um logotipo.",
+  "Choose Full catalog or Selected catalog.":
+    "Escolha Catálogo completo ou Catálogo selecionado.",
+  "Add at least one whitelist filter or shown game to the Selected catalog.":
+    "Adicione ao catálogo selecionado pelo menos uma regra para mostrar jogos ou um jogo marcado como visível.",
+  "Add more eligible games to the catalog ({actual} of {minimum} minimum).":
+    "Adicione mais jogos elegíveis ao catálogo ({actual} de no mínimo {minimum}).",
+  "Choose between {minimum} and {maximum} Featured games ({actual} selected).":
+    "Escolha entre {minimum} e {maximum} jogos em Destaque ({actual} selecionados).",
+  "Move every Featured game into the selected draft catalog.":
+    "Inclua todos os jogos em Destaque no catálogo selecionado do rascunho.",
+  "Add a recommendation reason to every Featured game.":
+    "Adicione um motivo de recomendação a cada jogo em Destaque.",
+  "Review this draft before publishing.":
+    "Revise este rascunho antes de publicar.",
+  "The draft revision is unavailable. Refresh before publishing.":
+    "A revisão do rascunho não está disponível. Atualize antes de publicar.",
+  "Readiness is out of date. Refresh before publishing.":
+    "Os requisitos estão desatualizados. Atualize antes de publicar.",
+  "Unpublish this Outlet? Its public page will become unavailable until you publish it again.":
+    "Despublicar esta Outlet? A página pública ficará indisponível até que você a publique novamente.",
+  "This draft changed in another session. We refreshed its readiness; review the latest version before publishing again.":
+    "Este rascunho foi alterado em outra sessão. Atualizamos os requisitos; revise a versão mais recente antes de publicar novamente.",
+  "This draft changed in another session. We refreshed to revision {revision}; review it before publishing again.":
+    "Este rascunho foi alterado em outra sessão. Atualizamos para a revisão {revision}; revise-a antes de publicar novamente.",
+  "Your Outlet is published and available to players.":
+    "Sua Outlet está publicada e disponível para os jogadores.",
+  "Your latest changes are now published.":
+    "Suas alterações mais recentes agora estão publicadas.",
+  "Your Outlet is now private and back in draft.":
+    "Sua Outlet agora está privada e voltou a ser um rascunho.",
+  "Public Outlet link copied.": "Link público da Outlet copiado.",
+  "We could not copy the link. Copy it from the preview instead.":
+    "Não foi possível copiar o link. Copie-o pela prévia.",
+  "Publication status": "Status de publicação",
+  "Publication status unavailable": "Status de publicação indisponível",
+  "We could not load readiness. Publishing remains disabled until it is refreshed.":
+    "Não foi possível carregar os requisitos. A publicação continuará desativada até a atualização.",
+  "Refreshing readiness...": "Atualizando requisitos...",
+  "Your Outlet is live": "Sua Outlet está no ar",
+  "Changes ready to publish": "Alterações prontas para publicar",
+  "Finish your changes before publishing":
+    "Conclua suas alterações antes de publicar",
+  "Ready to publish": "Pronta para publicar",
+  "Finish your Outlet before publishing":
+    "Conclua sua Outlet antes de publicar",
+  "Players see the latest published snapshot while your preview shows the working draft.":
+    "Os jogadores veem a última versão publicada, enquanto sua prévia mostra o rascunho em edição.",
+  "Preview the working draft at any time. Publishing creates the stable version players will see.":
+    "Veja a prévia do rascunho em edição a qualquer momento. A publicação cria a versão estável que os jogadores verão.",
+  "Published {date}": "Publicada em {date}",
+  "Preview draft": "Ver prévia do rascunho",
+  "Copy public link": "Copiar link público",
+  Unpublish: "Despublicar",
+  "Publish Outlet": "Publicar Outlet",
+  "Publish changes": "Publicar alterações",
+  "Publication readiness": "Requisitos de publicação",
+  "Every publication requirement is complete.":
+    "Todos os requisitos de publicação foram concluídos.",
+  "Add a recommendation reason for every Featured game.":
+    "Adicione um motivo de recomendação para cada jogo em Destaque.",
+  "Catalog scope": "Escopo do catálogo",
+  "Choose how this draft starts its catalog. This explicit choice is required before publication.":
+    "Escolha como o catálogo deste rascunho começa. Essa decisão explícita é obrigatória antes da publicação.",
+  "Choose a catalog scope to continue publication readiness.":
+    "Escolha um escopo de catálogo para avançar nos requisitos de publicação.",
+  "Full catalog": "Catálogo completo",
+  "Selected catalog": "Catálogo selecionado",
+  "Include every eligible game. A per-game Hide always excludes; a per-game Show wins a hide-by-tag rule.":
+    "Inclua todos os jogos elegíveis. Ocultar por jogo sempre exclui; Mostrar por jogo vence uma regra de ocultação por tag.",
+  "Start empty. Show-tag rules and per-game Show add games; a per-game Hide always excludes.":
+    "Comece vazio. Regras Mostrar por tag e Mostrar por jogo adicionam jogos; Ocultar por jogo sempre exclui.",
+  "Catalog rules": "Regras do catálogo",
+  "The full catalog is included. Hide by tag or game; Show a game to override a hide-by-tag rule.":
+    "O catálogo completo está incluído. Oculte por tag ou por jogo; mostre um jogo para substituir uma regra de ocultação por tag.",
+  "The selected catalog starts empty. Show tags or games to add them; a per-game Hide always excludes.":
+    "O catálogo selecionado começa vazio. Mostre tags ou jogos para adicioná-los; Ocultar por jogo sempre exclui.",
+  "Choose a catalog scope above, then use rules to show or hide games.":
+    "Escolha um escopo de catálogo acima e use regras para mostrar ou ocultar jogos.",
+  "Show matching games": "Mostrar jogos correspondentes",
+  "Hide matching games": "Ocultar jogos correspondentes",
+  "No tag rules yet — the full catalog is included.":
+    "Ainda não há regras de tags — o catálogo completo está incluído.",
+  "No tag rules yet — add a Show rule to include games.":
+    "Ainda não há regras de tags — adicione uma regra Mostrar para incluir jogos.",
+  "No tag rules yet.": "Ainda não há regras de tags.",
+  "Switch between showing and hiding matches":
+    "Alternar entre mostrar e ocultar correspondências",
+  "Advanced: Per-game choices": "Avançado: escolhas por jogo",
+  "Show or hide a specific game. Hide always excludes; Show overrides a hide-by-tag rule.":
+    "Mostre ou oculte um jogo específico. Ocultar sempre exclui; Mostrar substitui uma regra de ocultação por tag.",
+  "Show game": "Mostrar jogo",
+  "Hide game": "Ocultar jogo",
+  "Failed to update publication status.":
+    "Não foi possível atualizar o status de publicação.",
+  "Failed to save catalog choice.":
+    "Não foi possível salvar a escolha de catálogo.",
+  "Failed to update tag filter.": "Não foi possível atualizar a regra de tag.",
+  "Failed to remove tag filter.": "Não foi possível remover a regra de tag.",
+  "Failed to remove game override.":
+    "Não foi possível remover a escolha por jogo.",
+  "Purchasing is disabled in preview": "As compras estão desativadas na prévia",
+  "Open the published Outlet to test acquisition and attribution.":
+    "Abra a Outlet publicada para testar a aquisição e a atribuição.",
+  "Private draft preview": "Prévia privada do rascunho",
+  "Only authorized collaborators can see this preview. Publish the Outlet when it is ready for players.":
+    "Somente colaboradores autorizados podem ver esta prévia. Publique a Outlet quando ela estiver pronta para os jogadores.",
+  "Back to management": "Voltar ao gerenciamento",
+  "Preview is read-only. Reviews and wishlists cannot be changed.":
+    "A prévia é somente para leitura. Avaliações e listas de desejos não podem ser alteradas.",
+  "{count} eligible game in the draft catalog":
+    "{count} jogo elegível no catálogo do rascunho",
+  "{count} eligible games in the draft catalog":
+    "{count} jogos elegíveis no catálogo do rascunho",
 
   // Error pages
   "Page not found": "Página não encontrada",

@@ -399,6 +399,7 @@ export function PlatformStorefrontHome({
   itemHref,
   browseHref,
   searchAction,
+  searchHiddenFields,
   showDiscover,
 }: DefaultStorefrontProps) {
   const { t } = useI18n();
@@ -416,6 +417,19 @@ export function PlatformStorefrontHome({
     <main className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
       <section className="mx-auto max-w-[1500px] px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9">
         <PreviewNotice />
+
+        {store?.presentation?.cover_image_url && (
+          <div className="mb-6 aspect-[3/1] min-h-36 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+            {/* Presentation URLs are selected by the server's versioned read
+                model and may still be hosted outside Next's allowlist. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={store.presentation.cover_image_url}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
 
         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {store ? (
@@ -437,7 +451,8 @@ export function PlatformStorefrontHome({
                   {store.name}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
-                  {store.description ||
+                  {store.presentation?.tagline ||
+                    store.description ||
                     t("Explore {name}'s curated catalog on Manifold.", {
                       name: store.name,
                     })}
@@ -498,6 +513,9 @@ export function PlatformStorefrontHome({
 
           <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
             <Form action={searchAction} className="relative sm:w-72">
+              {Object.entries(searchHiddenFields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))}
               <Search
                 size={17}
                 className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35"

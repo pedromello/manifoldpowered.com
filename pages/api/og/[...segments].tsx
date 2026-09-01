@@ -639,7 +639,9 @@ export default async function handler(request: NextRequest) {
     height: SOCIAL_IMAGE_HEIGHT,
     headers: {
       "Cache-Control":
-        "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+        kind === "outlet"
+          ? "no-store, must-revalidate"
+          : "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
       "Content-Disposition": "inline",
     },
   });

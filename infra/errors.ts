@@ -144,22 +144,25 @@ export class ValidationError extends Error {
 }
 
 export class ConflictError extends Error {
-  public statusCode = 409;
+  public statusCode: number;
   public action: string;
   public context: unknown;
 
   constructor({
-    message = "The resource changed while you were editing it",
-    action = "Refresh and try again",
+    message,
+    cause,
+    action,
     context,
   }: {
     message?: string;
+    cause?: unknown;
     action?: string;
     context?: unknown;
-  } = {}) {
-    super(message);
+  }) {
+    super(message || "Conflict", { cause });
     this.name = "ConflictError";
-    this.action = action;
+    this.statusCode = 409;
+    this.action = action || "Refresh the resource and try again";
     this.context = context;
   }
 

@@ -7,6 +7,17 @@ import { withLocale } from "lib/localized-api";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+function autocompleteUrl(
+  endpoint: string,
+  query: string,
+  locale: "en" | "pt-BR",
+) {
+  const url = new URL(endpoint, "http://manifold.local");
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "5");
+  return withLocale(`${url.pathname}${url.search}`, locale);
+}
+
 export function GameAutocomplete({
   onSelect,
   placeholder = "Search games...",
@@ -21,9 +32,7 @@ export function GameAutocomplete({
   const [isFocused, setIsFocused] = useState(false);
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
-    query.trim()
-      ? withLocale(`${endpoint}?q=${encodeURIComponent(query)}&limit=5`, locale)
-      : null,
+    query.trim() ? autocompleteUrl(endpoint, query, locale) : null,
     fetcher,
   );
 

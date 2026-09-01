@@ -24,13 +24,23 @@ export type StoreNavContext = {
   logo_url?: string | null;
 };
 
+function searchHref(path: string, query: string, isPreview: boolean) {
+  const url = new URL(path, "http://manifold.local");
+  url.searchParams.set("q", query);
+  if (isPreview) url.searchParams.set("preview", "1");
+  return `${url.pathname}${url.search}`;
+}
+
 export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const { t, locale } = useI18n();
+  const isPreview = router.query.preview === "1";
 
-  const storeHref = store ? `/store/${store.slug}` : "/store";
+  const storeHref = store
+    ? `/store/${store.slug}${isPreview ? "?preview=1" : ""}`
+    : "/store";
   const searchEndpoint = store
     ? `/api/v1/stores/${store.slug}/search`
     : "/api/v1/games";
@@ -39,7 +49,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     searchQuery.trim()
       ? withLocale(
-          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`,
+          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5${
+            isPreview ? "&preview=1" : ""
+          }`,
           locale,
         )
       : null,
@@ -51,9 +63,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       setIsFocused(false);
-      router.push(
-        `${searchResultsHref}?q=${encodeURIComponent(searchQuery.trim())}`,
-      );
+      router.push(searchHref(searchResultsHref, searchQuery.trim(), isPreview));
     }
   };
 
@@ -151,7 +161,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                       return (
                         <Link
                           key={game.id}
-                          href={itemHref(game.slug, store?.slug)}
+                          href={itemHref(game.slug, store?.slug, isPreview)}
                           data-storefront="game-link"
                           className="flex items-center gap-4 px-4 py-2 transition-colors hover:bg-white/5"
                         >
@@ -199,7 +209,11 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                     })}
                     <div className="px-4 py-2 mt-1 border-t border-white/5">
                       <Link
-                        href={`${searchResultsHref}?q=${encodeURIComponent(searchQuery)}`}
+                        href={searchHref(
+                          searchResultsHref,
+                          searchQuery,
+                          isPreview,
+                        )}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
                         {t("View all results")}

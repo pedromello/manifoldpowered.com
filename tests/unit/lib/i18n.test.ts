@@ -159,11 +159,10 @@ describe("i18n catalog", () => {
     },
   );
 
-  test("uses Manifold as a masculine name in Brazilian Portuguese", () => {
+  test("uses masculine articles for Manifold in pt-BR copy", () => {
+    const feminineArticle = /\b(?:a|à|da|na|pela|uma)\s+Manifold\b/i;
     const invalid = Object.entries(ptBR)
-      .filter(([, translation]) =>
-        /\b(?:a|à|da|na|pela)\s+Manifold\b/i.test(translation),
-      )
+      .filter(([, translation]) => feminineArticle.test(translation))
       .map(([source]) => source);
 
     expect(invalid).toEqual([]);

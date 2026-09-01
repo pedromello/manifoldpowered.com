@@ -8,6 +8,7 @@ import type {
   ItemViewProps,
   StorefrontViewProps,
 } from "components/storefront/types";
+import { STOREFRONT_THEME } from "lib/storefront-theme-contract";
 
 /**
  * One bespoke outlet.
@@ -48,7 +49,7 @@ export type StorefrontResolution =
  * An outlet that is not listed here falls through to Manifold's own design.
  */
 const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
-  "neon-alley": {
+  [STOREFRONT_THEME.NEON_ALLEY]: {
     Storefront: dynamic(
       () =>
         import("storefronts/neon-alley/Storefront").then(
@@ -60,7 +61,7 @@ const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
     ),
     palette: neonAlleyPalette,
   },
-  "strategos-void": {
+  [STOREFRONT_THEME.STRATEGOS_VOID]: {
     Storefront: dynamic(
       () =>
         import("storefronts/strategos-void/Storefront").then(
@@ -84,8 +85,10 @@ const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
  */
 export function resolveStorefront(store: {
   slug: string;
+  presentation?: { theme_key?: string | null } | null;
 }): StorefrontResolution {
-  const storefront = CUSTOM_STOREFRONTS[store.slug];
+  const themeKey = store.presentation?.theme_key || store.slug;
+  const storefront = CUSTOM_STOREFRONTS[themeKey];
 
   if (!storefront) {
     return { kind: "standard", themeKey: "platform" };
@@ -93,7 +96,7 @@ export function resolveStorefront(store: {
 
   return {
     kind: "custom",
-    themeKey: store.slug,
+    themeKey,
     storefront,
   };
 }

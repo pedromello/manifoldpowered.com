@@ -20,7 +20,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("With no curation rules should return every active game", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const rpgGame = await orchestrator.createGame(owner.id, {
         title: "Search RPG",
@@ -33,6 +35,8 @@ describe("GET /api/v1/stores/[slug]/search", () => {
         tags: ["horror"],
       });
       await gameModel.makePublic(horrorGame.id);
+
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search`,
@@ -48,7 +52,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("A blacklisted tag excludes matching games from the results", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const allowedGame = await orchestrator.createGame(owner.id, {
         title: "Blacklist Search Allowed",
@@ -67,6 +73,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
         "horror",
         "BLACKLIST",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search`,
@@ -82,7 +89,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("A whitelisted tag only includes matching games in the results", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "SELECTED",
+      });
 
       const rpgGame = await orchestrator.createGame(owner.id, {
         title: "Whitelist Search RPG",
@@ -97,6 +106,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
       await gameModel.makePublic(horrorGame.id);
 
       await orchestrator.addStoreTagFilter(createdStore.id, "rpg", "WHITELIST");
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search`,
@@ -112,7 +122,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("A force-show override always includes the game, even with a blacklisted tag", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const bannedButForced = await orchestrator.createGame(owner.id, {
         title: "Force Show Search Horror",
@@ -130,6 +142,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
         bannedButForced.slug,
         "SHOW",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search`,
@@ -144,7 +157,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("A force-hide override always excludes the game, even with a whitelisted tag", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "SELECTED",
+      });
 
       const allowedButHidden = await orchestrator.createGame(owner.id, {
         title: "Force Hide Search RPG",
@@ -164,6 +179,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
         allowedButHidden.slug,
         "HIDE",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search`,
@@ -179,7 +195,9 @@ describe("GET /api/v1/stores/[slug]/search", () => {
     test("Should combine curation with the q search parameter", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const matchingGame = await orchestrator.createGame(owner.id, {
         title: "Combined Query Dragon Quest",
@@ -198,6 +216,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
         "horror",
         "BLACKLIST",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search?q=dragon`,

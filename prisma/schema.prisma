@@ -436,11 +436,12 @@ model LibraryItem {
 // store_id is nullable: null means the acquisition happened through the
 // global storefront (no store attribution), not through a specific store.
 model Sale {
-  id            String  @id @default(uuid())
-  user_id       String // Logical reference to User.id (who acquired)
-  game_id       String // Logical reference to Game.id (what was acquired)
-  store_id      String? // Logical reference to Store.id; null = platform/global acquisition
-  price_at_sale Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
+  id                String  @id @default(uuid())
+  user_id           String // Logical reference to User.id (who acquired)
+  game_id           String // Logical reference to Game.id (what was acquired)
+  store_id          String? // Logical reference to Store.id; null = platform/global acquisition
+  store_revision_id String? // Logical StoreRevision snapshot used for attribution
+  price_at_sale     Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
 
   // The currency the buyer was charged in, and the rate that produced the
   // amount when it came from converting the USD base price. Without these a
@@ -453,22 +454,51 @@ model Sale {
   created_at DateTime @default(now())
 
   @@index([store_id, created_at])
+  @@index([store_revision_id])
   @@index([user_id])
   @@index([game_id])
   @@map("sales")
 }
 
+enum StoreStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum StoreLifecycleAction {
+  PUBLISH
+  UNPUBLISH
+}
+
+enum StoreCatalogMode {
+  // A new Outlet must make an explicit catalog decision before publication.
+  UNDECIDED
+  ALL
+  SELECTED
+}
+
+enum StoreRevisionCatalogMode {
+  // Backfilled snapshots preserve the pre-lifecycle behavior. New snapshots
+  // can only be ALL or SELECTED; LEGACY_ALL is migration-only.
+  LEGACY_ALL
+  ALL
+  SELECTED
+}
+
 model Store {
-  id             String           @id @default(uuid())
-  name           String           @db.VarChar(255)
-  slug           String           @unique @db.VarChar(255)
-  description    String?          @db.Text
-  logo_url       String?          @db.VarChar(2048)
-  owner_id       String // Logical reference to User.id (creator/owner)
-  // Added by Sprint 0. Sprint 2 consumes this lifecycle state and must not
-  // create or migrate it independently.
-  catalog_mode   StoreCatalogMode @default(UNDECIDED)
-  draft_revision Int              @default(1)
+  id                         String           @id @default(uuid())
+  name                       String           @db.VarChar(255)
+  slug                       String           @unique @db.VarChar(255)
+  description                String?          @db.Text
+  logo_url                   String?          @db.VarChar(2048)
+  owner_id                   String // Logical reference to User.id (creator/owner)
+  status                     StoreStatus      @default(DRAFT)
+  catalog_mode               StoreCatalogMode @default(UNDECIDED)
+  draft_revision             Int              @default(1)
+  published_revision_id      String? // Logical reference to StoreRevision.id
+  last_published_revision_id String? // Preserved after unpublish
+  published_at               DateTime?
+  last_published_at          DateTime?
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
   // Null means the platform default applies — most outlets never get a bespoke
@@ -486,13 +516,52 @@ model Store {
 
   @@index([owner_id])
   @@index([slug])
+  @@index([status, updated_at])
+  @@index([published_revision_id])
   @@map("stores")
 }
 
-enum StoreCatalogMode {
-  UNDECIDED
-  ALL
-  SELECTED
+// Immutable storefront snapshot. Public reads resolve this row through
+// Store.published_revision_id and never read mutable draft identity/curation.
+model StoreRevision {
+  id                    String                   @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  revision              Int
+  source_draft_revision Int
+  actor_user_id         String // Logical reference to User.id
+  catalog_mode          StoreRevisionCatalogMode
+  name                  String                   @db.VarChar(255)
+  description           String?                  @db.Text
+  logo_url              String?                  @db.VarChar(2048)
+  tag_filters           Json
+  game_overrides        Json
+  featured_games        Json
+  presentation          Json
+  // No updated_at: a published snapshot is immutable.
+  created_at            DateTime                 @default(now())
+
+  @@unique([store_id, revision])
+  @@index([store_id, created_at])
+  @@map("store_revisions")
+}
+
+// Append-only lifecycle audit history. Store/revision/user ids are logical
+// references: this schema deliberately carries no foreign keys.
+model StoreLifecycleEvent {
+  id                String               @id @default(uuid())
+  store_id          String
+  store_revision_id String?
+  draft_revision    Int
+  actor_user_id     String
+  action            StoreLifecycleAction
+  from_status       StoreStatus
+  to_status         StoreStatus
+  // No updated_at: lifecycle events are immutable audit records.
+  created_at        DateTime             @default(now())
+
+  @@index([store_id, created_at])
+  @@index([actor_user_id, created_at])
+  @@map("store_lifecycle_events")
 }
 
 model StoreMember {

@@ -46,6 +46,7 @@ function props(
 
   return {
     store,
+    isPreview: false,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
@@ -74,6 +75,7 @@ function props(
     itemHref: (slug) => `/item/${slug}${storeQuery}`,
     browseHref: () => (store ? `/store/${store.slug}` : "/store"),
     searchAction: store ? `/store/${store.slug}` : "/search",
+    searchHiddenFields: {},
     showDiscover: !store,
   };
 }

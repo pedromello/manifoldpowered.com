@@ -15,11 +15,13 @@ export function ReviewsSection({
   onWriteReview,
   onEditReview,
   onDeleteReview,
+  readOnly = false,
 }: {
   reviews: ItemReviews;
   onWriteReview: () => void;
   onEditReview: () => void;
   onDeleteReview: () => void;
+  readOnly?: boolean;
 }) {
   const { locale, t } = useI18n();
   const hasAny = reviews.list.length > 0 || !!reviews.userReview;
@@ -45,7 +47,15 @@ export function ReviewsSection({
             </p>
           </div>
 
-          {reviews.canReview && !reviews.userReview && (
+          {readOnly && (
+            <p className="max-w-md rounded-lg border border-violet-300/20 bg-violet-400/[0.07] px-4 py-2.5 text-xs font-bold leading-5 text-violet-100/70">
+              {t(
+                "Preview is read-only. Reviews and wishlists cannot be changed.",
+              )}
+            </p>
+          )}
+
+          {!readOnly && reviews.canReview && !reviews.userReview && (
             <button
               onClick={onWriteReview}
               className="group flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
@@ -58,7 +68,7 @@ export function ReviewsSection({
             </button>
           )}
 
-          {reviews.canReview && reviews.userReview && (
+          {!readOnly && reviews.canReview && reviews.userReview && (
             <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-white/40">
               <CheckCircle2 size={18} className="text-emerald-500/50" />
               {t("Reviewed")}
@@ -76,7 +86,7 @@ export function ReviewsSection({
               <ReviewCard
                 key={reviews.userReview.id}
                 review={reviews.userReview}
-                isOwn={true}
+                isOwn={!readOnly}
                 onEdit={onEditReview}
                 onDelete={onDeleteReview}
               />

@@ -4,6 +4,7 @@ import webserver from "infra/webserver";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { StorefrontShell } from "components/storefront/StorefrontShell";
+import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { DefaultItemPage } from "components/storefront/default/item/DefaultItemPage";
 import { useItemController } from "components/storefront/useItemController";
 import { PLATFORM_PALETTE } from "components/storefront/palette";
@@ -19,12 +20,33 @@ type ItemPageProps = {
   game: GameDetailApi;
   /** The outlet this visit came through, or null for a direct visit. */
   store: StoreApi | null;
+  /** Authorized working-draft context; never inferred from store status. */
+  isPreview: boolean;
+  /** Original attribution candidate, kept separate from public Store display. */
+  requestedStoreSlug: string | null;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { slug } = context.query;
+  const slug = Array.isArray(context.query.slug)
+    ? context.query.slug[0]
+    : context.query.slug;
   const storeSlug = storeSlugFromQuery(context.query);
+  const isPreview = context.query.preview === "1";
   const locale = context.locale === "pt-BR" ? "pt-BR" : "en";
+
+  if (isPreview) {
+    context.res.setHeader("Cache-Control", "private, no-store");
+    context.res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    const vary = String(context.res.getHeader("Vary") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (!vary.some((value) => value.toLowerCase() === "cookie")) {
+      vary.push("Cookie");
+    }
+    context.res.setHeader("Vary", vary.join(", "));
+  }
+  if (!slug || (isPreview && !storeSlug)) return { notFound: true };
 
   // Forwarded because the price shown here is regional (models/region.ts).
   // Without it a Brazilian visitor saw BRL on the storefront list and USD on
@@ -44,31 +66,50 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     let store: StoreApi | null = null;
     if (storeSlug) {
       try {
-        const storeResponse = await fetch(
-          `${webserver.getOrigin()}/api/v1/stores/${storeSlug}`,
-          { headers },
+        const storeUrl = new URL(
+          `/api/v1/stores/${encodeURIComponent(storeSlug)}`,
+          webserver.getOrigin(),
         );
+        if (isPreview) storeUrl.searchParams.set("preview", "1");
+        const storeResponse = await fetch(storeUrl, { headers });
         if (storeResponse.ok) {
           store = await storeResponse.json();
+        } else if (isPreview) {
+          return { notFound: true };
         }
       } catch {
+        if (isPreview) return { notFound: true };
         store = null;
       }
     }
 
-    return { props: { game, store } };
+    return {
+      props: {
+        game,
+        store,
+        isPreview,
+        requestedStoreSlug: storeSlug ?? null,
+      },
+    };
   } catch (error) {
     console.error("Error fetching game via API:", error);
     throw error;
   }
 };
 
-export default function GameDetailsPage({ game, store }: ItemPageProps) {
+export default function GameDetailsPage({
+  game,
+  store,
+  isPreview,
+  requestedStoreSlug,
+}: ItemPageProps) {
   const { locale } = useI18n();
   const metadata = gameMetadata(game, locale);
   const controller = useItemController({
     gameSlug: game.slug,
     storeSlug: store?.slug,
+    attributionStoreSlug: requestedStoreSlug ?? undefined,
+    isPreview,
   });
 
   // An outlet with a bespoke storefront but no bespoke product page still gets
@@ -85,14 +126,20 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
       title={metadata.title}
       description={metadata.description}
       canonicalPath={`/item/${game.slug}`}
-      socialImage={socialImageUrl("game", locale, game.slug)}
-      socialImageAlt={
-        locale === "pt-BR"
-          ? `Arte de ${game.title}, de ${game.developer_name}, com a marca Manifold`
-          : `${game.title} artwork by ${game.developer_name} with Manifold branding`
+      socialImage={
+        isPreview ? undefined : socialImageUrl("game", locale, game.slug)
       }
-      jsonLd={gameJsonLd(game, locale)}
+      socialImageAlt={
+        isPreview
+          ? undefined
+          : locale === "pt-BR"
+            ? `Arte de ${game.title}, de ${game.developer_name}, com a marca Manifold`
+            : `${game.title} artwork by ${game.developer_name} with Manifold branding`
+      }
+      jsonLd={isPreview ? undefined : gameJsonLd(game, locale)}
+      noIndex={isPreview}
     >
+      {isPreview && store && <OutletPreviewBanner storeSlug={store.slug} />}
       <ItemView {...controller} game={game} store={store} />
     </StorefrontShell>
   );
