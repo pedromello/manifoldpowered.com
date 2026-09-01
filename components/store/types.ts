@@ -74,6 +74,22 @@ export type GameDetailApi = GameApi & {
 };
 
 /**
+ * Versioned visual configuration selected by the Store read model. Public
+ * reads receive the published revision and preview reads the working draft.
+ */
+export type StorePresentation = {
+  version: number;
+  layout_preset: string;
+  palette_id: string;
+  typography_id: string;
+  shape_id: string;
+  tagline: string | null;
+  cover_image_url: string | null;
+  social_links: Record<string, string>;
+  theme_key: string | null;
+};
+
+/**
  * The wire shape of a store as it leaves the
  * `create:store | read:public_store | update:store` branch of `filterOutput`.
  *
@@ -87,6 +103,12 @@ export type StoreApi = {
   description: string | null;
   logo_url: string | null;
   owner_id: string;
+  /** Present on creator/private reads and safe to ignore on older public payloads. */
+  status?: "DRAFT" | "PUBLISHED";
+  published_at?: string | null;
+  catalog_mode?: "UNDECIDED" | "ALL" | "SELECTED" | "LEGACY_ALL";
+  storefront_source?: "DRAFT" | "REVISION";
+  presentation?: StorePresentation | null;
   created_at: string;
   updated_at: string;
 };

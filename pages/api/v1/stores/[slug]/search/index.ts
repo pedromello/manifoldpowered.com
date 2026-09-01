@@ -3,9 +3,9 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
 import game, { gameQuerySchema } from "models/game";
-import storeCuration from "models/store_curation";
 import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
+import { prepareStorefrontPreview } from "lib/storefront-preview";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -14,6 +14,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
+  const preview = prepareStorefrontPreview(req, res);
 
   const result = gameQuerySchema.safeParse(req.query);
 
@@ -27,10 +28,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { order, sort_by, ...rest } = result.data;
 
-  const foundStore = await store.findOneBySlug(slug as string);
-  const curationWhere = await storeCuration.getCurationWhereClause(
-    foundStore.id,
-  );
+  const foundStore = await store.findOneForStorefront(slug as string, {
+    preview,
+    user: req.context.user,
+  });
+  const curationWhere =
+    await store.getStorefrontCurationWhereClause(foundStore);
 
   const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);

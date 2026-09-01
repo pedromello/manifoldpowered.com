@@ -29,6 +29,8 @@ import {
   releaseSummarySchema,
   updatePlanSchema,
 } from "contracts/desktop/v1";
+import type { StorefrontStore, StorePublicationView } from "models/store";
+import { resolveDraftPresentation } from "models/store_presentation";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -125,6 +127,7 @@ const AVAILABLE_FEATURES = [
   "create:store",
   "read:public_store",
   "update:store",
+  "publish:store",
   "update:store:any",
   "manage:store_featured_games",
   "manage:store_members",
@@ -221,6 +224,7 @@ const ACTIVATED_USER_FEATURES = [
   "create:store",
   "read:public_store",
   "update:store",
+  "publish:store",
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",
@@ -360,6 +364,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 
   if (
     (feature === "update:store" ||
+      feature === "publish:store" ||
       feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
       feature === "read:store_statement") &&
@@ -852,12 +857,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     return downloadAuthorizationSchema.parse(resource);
   }
 
-  if (
-    feature === "create:store" ||
-    feature === "read:public_store" ||
-    feature === "update:store"
-  ) {
-    const storeOutput = resource as Store;
+  if (feature === "read:public_store") {
+    const storeOutput = resource as Store & Partial<StorefrontStore>;
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
@@ -865,8 +866,67 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
+      presentation:
+        storeOutput.presentation ??
+        resolveDraftPresentation({ slug: storeOutput.slug }),
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (feature === "create:store" || feature === "update:store") {
+    const storeOutput = resource as Store & Partial<StorefrontStore>;
+    return {
+      id: storeOutput.id,
+      slug: storeOutput.slug,
+      name: storeOutput.name,
+      description: storeOutput.description,
+      logo_url: storeOutput.logo_url,
+      owner_id: storeOutput.owner_id,
+      status: storeOutput.status,
+      catalog_mode: storeOutput.catalog_mode,
+      draft_revision: storeOutput.draft_revision,
+      published_at: storeOutput.published_at,
+      last_published_at: storeOutput.last_published_at,
+      published_revision: storeOutput.published_revision ?? null,
+      presentation:
+        storeOutput.presentation ??
+        resolveDraftPresentation({ slug: storeOutput.slug }),
+      storefront_source: storeOutput.storefront_source ?? "DRAFT",
+      created_at: storeOutput.created_at,
+      updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (feature === "publish:store") {
+    const publicationOutput = resource as StorePublicationView;
+
+    return {
+      status: publicationOutput.status,
+      catalog_mode: publicationOutput.catalog_mode,
+      draft_revision: publicationOutput.draft_revision,
+      published_at: publicationOutput.published_at,
+      last_published_at: publicationOutput.last_published_at,
+      published_revision: publicationOutput.published_revision,
+      readiness: {
+        version: 2,
+        ready: publicationOutput.readiness.ready,
+        catalog_game_count: publicationOutput.readiness.catalog_game_count,
+        checks: {
+          brand_complete: publicationOutput.readiness.checks.brand_complete,
+          catalog_intentional:
+            publicationOutput.readiness.checks.catalog_intentional,
+          catalog_has_games:
+            publicationOutput.readiness.checks.catalog_has_games,
+          editorial_highlight:
+            publicationOutput.readiness.checks.editorial_highlight,
+        },
+        blockers: publicationOutput.readiness.blockers.map((blocker) => ({
+          code: blocker.code,
+          message: blocker.message,
+          ...(blocker.details && { details: blocker.details }),
+        })),
+      },
     };
   }
 
@@ -896,6 +956,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
+      status: storeOutput.status,
+      published_at: storeOutput.published_at,
       // Null means no bespoke rate, so the platform default applies. Serialised
       // at full scale for the same reason exchange rates are: the wire format
       // should not depend on how the driver stringifies a Decimal.

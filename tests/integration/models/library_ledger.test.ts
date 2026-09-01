@@ -4,6 +4,7 @@ import ledger from "models/ledger";
 import commercialTerms from "models/commercial_terms";
 import { prisma } from "infra/database";
 import { Prisma } from "generated/prisma/client";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -18,7 +19,7 @@ beforeEach(async () => {
 async function seedGame(price = 100) {
   const developer = await orchestrator.createUser();
   const game = await orchestrator.createGame(developer.id, { price });
-  return game;
+  return gameModel.makePublic(game.id);
 }
 
 async function seedOutlet() {
@@ -107,6 +108,7 @@ describe("library.acquireGame() ledger entries", () => {
   test("uses the supplier's own cost rate when terms exist", async () => {
     const developer = await orchestrator.createUser();
     const game = await orchestrator.createGame(developer.id, { price: 100 });
+    await gameModel.makePublic(game.id);
     const buyer = await orchestrator.createUser();
     const { store } = await seedOutlet();
 
@@ -298,6 +300,7 @@ describe("library.acquireGame() ledger entries", () => {
     test("records a negative platform revenue rather than hiding it", async () => {
       const developer = await orchestrator.createUser();
       const game = await orchestrator.createGame(developer.id, { price: 100 });
+      await gameModel.makePublic(game.id);
       const buyer = await orchestrator.createUser();
       const { store } = await seedOutlet();
 

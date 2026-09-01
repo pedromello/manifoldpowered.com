@@ -200,14 +200,16 @@ describe("models/commercial_terms.ts", () => {
       const store = await orchestrator.createStore(owner.id);
       const storeModel = (await import("models/store")).default;
 
-      await storeModel.update(store.id, {
-        name: "Renamed Outlet",
-        // @ts-expect-error deliberately outside the owner-facing schema
-        commission_rate: new Prisma.Decimal("0.99"),
-      });
+      await expect(
+        storeModel.update(store.id, {
+          name: "Renamed Outlet",
+          // @ts-expect-error deliberately outside the owner-facing schema
+          commission_rate: new Prisma.Decimal("0.99"),
+        }),
+      ).rejects.toMatchObject({ name: "ValidationError", statusCode: 400 });
 
-      const reloaded = await storeModel.findOneBySlug("renamed-outlet");
-
+      const reloaded = await storeModel.findOneBySlug(store.slug);
+      expect(reloaded.name).toBe(store.name);
       expect(reloaded.commission_rate).toBeNull();
     });
   });

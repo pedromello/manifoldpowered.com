@@ -4,8 +4,15 @@ import Head from "next/head";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  Copy,
+  Eye,
+  Globe2,
   Loader2,
-  ExternalLink,
+  LockKeyhole,
+  Rocket,
   X,
   ChevronDown,
   ArrowUp,
@@ -19,6 +26,10 @@ import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney } from "lib/price";
 import { useI18n } from "lib/i18n";
+import {
+  CREATOR_OUTLET_FUNNEL_VERSION,
+  creatorFunnelAnalytics,
+} from "lib/creator-funnel-analytics";
 
 interface StoreApi {
   id: string;
@@ -27,7 +38,59 @@ interface StoreApi {
   description: string | null;
   logo_url: string | null;
   owner_id: string;
+  status?: "DRAFT" | "PUBLISHED";
+  published_at?: string | null;
+  catalog_mode?: "UNDECIDED" | "ALL" | "SELECTED";
 }
+
+type PublicationCheck =
+  | "brand_complete"
+  | "catalog_intentional"
+  | "catalog_has_games"
+  | "editorial_highlight";
+
+type PublicationBlockerCode =
+  | "BRAND_INCOMPLETE"
+  | "CATALOG_MODE_UNDECIDED"
+  | "SELECTED_CATALOG_WITHOUT_INCLUSIONS"
+  | "CATALOG_TOO_SMALL"
+  | "FEATURED_COUNT_INVALID"
+  | "FEATURED_OUTSIDE_CATALOG"
+  | "FEATURED_REASON_MISSING";
+
+interface PublicationBlocker {
+  code: PublicationBlockerCode;
+  message: string;
+  details?: {
+    minimum?: number;
+    maximum?: number;
+    actual?: number;
+    game_ids?: string[];
+  };
+}
+
+interface PublicationApi {
+  status: "DRAFT" | "PUBLISHED";
+  published_at: string | null;
+  last_published_at: string | null;
+  draft_revision: number;
+  catalog_mode: "UNDECIDED" | "ALL" | "SELECTED";
+  published_revision: {
+    id: string;
+    revision: number;
+    source_draft_revision: number;
+  } | null;
+  readiness: {
+    version: 2;
+    ready: boolean;
+    catalog_game_count: number;
+    checks: Record<PublicationCheck, boolean>;
+    blockers: PublicationBlocker[];
+  };
+}
+
+const publicationEndpoint = (storeSlug: string) =>
+  `/api/v1/stores/${storeSlug}/publication`;
 
 interface TagFilterApi {
   id: string;
@@ -78,6 +141,7 @@ const fetcher = (url: string) =>
   });
 
 type Tab = "featured" | "curation" | "settings" | "sales" | "earnings";
+type CatalogMode = "UNDECIDED" | "ALL" | "SELECTED";
 
 export default function StoreManagePage() {
   const router = useRouter();
@@ -89,7 +153,10 @@ export default function StoreManagePage() {
     data: storeData,
     isLoading: isStoreLoading,
     error: storeError,
-  } = useSWR<StoreApi>(slug ? `/api/v1/stores/${slug}` : null, fetcher);
+  } = useSWR<StoreApi>(
+    slug ? `/api/v1/stores/${slug}?preview=1` : null,
+    fetcher,
+  );
 
   const {
     data: tagFilters,
@@ -132,14 +199,9 @@ export default function StoreManagePage() {
               {t("Curate your Outlet and track your sales.")}
             </p>
           </div>
-          <Link
-            href={`/store/${storeData.slug}`}
-            className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
-          >
-            {t("View my Outlet")}
-            <ExternalLink size={14} />
-          </Link>
         </div>
+
+        <LifecyclePanel store={storeData} />
 
         {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
             Four tabs do not fit a 390px viewport: without this the row pushes
@@ -182,6 +244,7 @@ export default function StoreManagePage() {
           ) : (
             <CurationTab
               storeSlug={storeData.slug}
+              catalogMode={storeData.catalog_mode ?? "UNDECIDED"}
               tagFilters={tagFilters ?? []}
               isTagFiltersLoading={isTagFiltersLoading}
             />
@@ -197,6 +260,459 @@ export default function StoreManagePage() {
 StoreManagePage.getLayout = function getLayout(page: React.ReactElement) {
   return <CreatorWorkspaceLayout>{page}</CreatorWorkspaceLayout>;
 };
+
+function publicationCheckReady(value: boolean | undefined) {
+  return value === true;
+}
+
+function publicationBlockerCopy(
+  blocker: PublicationBlocker,
+  t: ReturnType<typeof useI18n>["t"],
+) {
+  switch (blocker.code) {
+    case "BRAND_INCOMPLETE":
+      return t("Add a description and logo.");
+    case "CATALOG_MODE_UNDECIDED":
+      return t("Choose Full catalog or Selected catalog.");
+    case "SELECTED_CATALOG_WITHOUT_INCLUSIONS":
+      return t(
+        "Add at least one whitelist filter or shown game to the Selected catalog.",
+      );
+    case "CATALOG_TOO_SMALL":
+      return t(
+        "Add more eligible games to the catalog ({actual} of {minimum} minimum).",
+        {
+          actual: blocker.details?.actual ?? 0,
+          minimum: blocker.details?.minimum ?? 5,
+        },
+      );
+    case "FEATURED_COUNT_INVALID":
+      return t(
+        "Choose between {minimum} and {maximum} Featured games ({actual} selected).",
+        {
+          minimum: blocker.details?.minimum ?? 1,
+          maximum: blocker.details?.maximum ?? 3,
+          actual: blocker.details?.actual ?? 0,
+        },
+      );
+    case "FEATURED_OUTSIDE_CATALOG":
+      return t("Move every Featured game into the selected draft catalog.");
+    case "FEATURED_REASON_MISSING":
+      return t("Add a recommendation reason to every Featured game.");
+    default:
+      return t("Review this draft before publishing.");
+  }
+}
+
+function currentConflictRevision(body: unknown): number | null {
+  if (!body || typeof body !== "object") return null;
+  const record = body as Record<string, unknown>;
+  const context =
+    record.context && typeof record.context === "object"
+      ? (record.context as Record<string, unknown>)
+      : null;
+  const candidates = [
+    record.current_draft_revision,
+    record.actual_draft_revision,
+    record.draft_revision,
+    context?.current_draft_revision,
+    context?.actual_draft_revision,
+    context?.draft_revision,
+  ];
+  const revision = candidates.find(
+    (value) =>
+      typeof value === "number" && Number.isSafeInteger(value) && value >= 0,
+  );
+  return typeof revision === "number" ? revision : null;
+}
+
+function LifecyclePanel({ store }: { store: StoreApi }) {
+  const { t, locale, translateError } = useI18n();
+  const { mutate: mutateGlobal } = useSWRConfig();
+  const endpoint = publicationEndpoint(store.slug);
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<PublicationApi>(endpoint, fetcher);
+  const [pendingAction, setPendingAction] = useState<
+    "publish" | "unpublish" | "copy" | null
+  >(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [justPublished, setJustPublished] = useState(false);
+
+  useEffect(() => {
+    setJustPublished(false);
+  }, [data?.draft_revision]);
+
+  const status = data?.status ?? store.status ?? "DRAFT";
+  const isPublished = status === "PUBLISHED";
+  const revisionIsValid =
+    typeof data?.draft_revision === "number" &&
+    Number.isSafeInteger(data.draft_revision) &&
+    data.draft_revision >= 0;
+  const readinessVersionIsValid = data?.readiness.version === 2;
+  const hasPendingChanges =
+    isPublished &&
+    data?.published_revision !== null &&
+    typeof data?.published_revision?.source_draft_revision === "number" &&
+    data.draft_revision > data.published_revision.source_draft_revision;
+  const canPublish =
+    (!isPublished || hasPendingChanges) &&
+    readinessVersionIsValid &&
+    data?.readiness.ready === true &&
+    revisionIsValid;
+
+  async function transition(action: "publish" | "unpublish") {
+    if (!data || pendingAction) return;
+    if (!revisionIsValid) {
+      setActionError(
+        t("The draft revision is unavailable. Refresh before publishing."),
+      );
+      return;
+    }
+    if (
+      action === "unpublish" &&
+      !window.confirm(
+        t(
+          "Unpublish this Outlet? Its public page will become unavailable until you publish it again.",
+        ),
+      )
+    ) {
+      return;
+    }
+    if (action === "publish" && !canPublish) return;
+
+    setPendingAction(action);
+    setMessage(null);
+    setActionError(null);
+    try {
+      const payload: {
+        action: "publish" | "unpublish";
+        expected_draft_revision: number;
+      } = {
+        action,
+        // Guarded above: echo the exact safe integer received from GET.
+        expected_draft_revision: data.draft_revision,
+      };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => null);
+
+      if (response.status === 409) {
+        const revision = currentConflictRevision(body);
+        await mutate();
+        setActionError(
+          revision === null
+            ? t(
+                "This draft changed in another session. We refreshed its readiness; review the latest version before publishing again.",
+              )
+            : t(
+                "This draft changed in another session. We refreshed to revision {revision}; review it before publishing again.",
+                { revision },
+              ),
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        setActionError(
+          translateError(body?.message, "Failed to update publication status."),
+        );
+        return;
+      }
+
+      const publication = body as PublicationApi;
+      await mutate(publication, { revalidate: false });
+      void Promise.all([
+        mutateGlobal(`/api/v1/stores/${store.slug}?preview=1`),
+        mutateGlobal("/api/v1/stores"),
+      ]).catch(() => undefined);
+
+      if (
+        action === "publish" &&
+        publication.status === "PUBLISHED" &&
+        !isPublished
+      ) {
+        setJustPublished(true);
+        setMessage(t("Your Outlet is published and available to players."));
+        creatorFunnelAnalytics.published({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+        });
+      } else if (action === "publish" && publication.status === "PUBLISHED") {
+        setJustPublished(true);
+        setMessage(t("Your latest changes are now published."));
+      } else if (action === "unpublish" && publication.status === "DRAFT") {
+        setJustPublished(false);
+        setMessage(t("Your Outlet is now private and back in draft."));
+      }
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function openPreview() {
+    const opened = window.open(`/store/${store.slug}?preview=1`, "_blank");
+    if (!opened) return;
+    opened.opener = null;
+    creatorFunnelAnalytics.previewed({
+      funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+      entrySurface: "manage_outlet",
+      outletState: isPublished ? "published" : "draft",
+    });
+  }
+
+  async function copyPublicLink() {
+    if (!isPublished || pendingAction) return;
+    setPendingAction("copy");
+    setActionError(null);
+    try {
+      await navigator.clipboard.writeText(
+        new URL(`/store/${store.slug}`, window.location.origin).toString(),
+      );
+      setMessage(t("Public Outlet link copied."));
+      creatorFunnelAnalytics.linkCopied({
+        funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+        entrySurface: "manage_outlet",
+        copyContext: justPublished ? "publish_success" : "manage",
+      });
+    } catch {
+      setActionError(
+        t("We could not copy the link. Copy it from the preview instead."),
+      );
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <section
+        aria-label={t("Publication status")}
+        className="flex min-h-48 items-center justify-center rounded-2xl border border-white/10 bg-[#14101c]"
+      >
+        <Loader2 className="animate-spin text-white/30" size={24} />
+      </section>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <section className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 shrink-0 text-rose-300" size={20} />
+          <div>
+            <h2 className="font-black">
+              {t("Publication status unavailable")}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-white/50">
+              {t(
+                "We could not load readiness. Publishing remains disabled until it is refreshed.",
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => void mutate()}
+              className="mt-4 rounded-lg border border-white/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-white/70 hover:bg-white/5 hover:text-white"
+            >
+              {t("Try again")}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#14101c] shadow-[0_20px_70px_rgba(0,0,0,0.2)]">
+      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.7fr)] lg:p-7">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${
+                isPublished
+                  ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-200"
+                  : "border-violet-300/25 bg-violet-400/10 text-violet-200"
+              }`}
+            >
+              {isPublished ? <Globe2 size={13} /> : <LockKeyhole size={13} />}
+              {isPublished ? t("Published") : t("Draft")}
+            </span>
+            {isValidating && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white/35">
+                <Loader2 className="animate-spin" size={13} />
+                {t("Refreshing readiness...")}
+              </span>
+            )}
+          </div>
+
+          <h2 className="mt-4 text-xl font-black sm:text-2xl">
+            {isPublished
+              ? hasPendingChanges
+                ? data.readiness.ready
+                  ? t("Changes ready to publish")
+                  : t("Finish your changes before publishing")
+                : t("Your Outlet is live")
+              : data.readiness.ready
+                ? t("Ready to publish")
+                : t("Finish your Outlet before publishing")}
+          </h2>
+          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/50">
+            {isPublished
+              ? t(
+                  "Players see the latest published snapshot while your preview shows the working draft.",
+                )
+              : t(
+                  "Preview the working draft at any time. Publishing creates the stable version players will see.",
+                )}
+          </p>
+          {isPublished && data.published_at && (
+            <p className="mt-3 text-xs font-bold text-white/35">
+              {t("Published {date}", {
+                date: new Date(data.published_at).toLocaleString(locale),
+              })}
+            </p>
+          )}
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button
+              type="button"
+              onClick={openPreview}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+            >
+              <Eye size={16} />
+              {t("Preview draft")}
+            </button>
+            {isPublished && (
+              <button
+                type="button"
+                onClick={() => void copyPublicLink()}
+                disabled={pendingAction !== null}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-white/80 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-40"
+              >
+                {pendingAction === "copy" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Copy size={16} />
+                )}
+                {t("Copy public link")}
+              </button>
+            )}
+            {(!isPublished || hasPendingChanges) && (
+              <button
+                type="button"
+                onClick={() => void transition("publish")}
+                disabled={pendingAction !== null || !canPublish}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {pendingAction === "publish" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Rocket size={16} />
+                )}
+                {isPublished ? t("Publish changes") : t("Publish Outlet")}
+              </button>
+            )}
+            {isPublished && (
+              <button
+                type="button"
+                onClick={() => void transition("unpublish")}
+                disabled={pendingAction !== null || !revisionIsValid}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-400/10 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-rose-200 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {pendingAction === "unpublish" ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <LockKeyhole size={16} />
+                )}
+                {t("Unpublish")}
+              </button>
+            )}
+          </div>
+
+          {actionError && (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200"
+            >
+              {actionError}
+            </p>
+          )}
+          {message && (
+            <p
+              role="status"
+              aria-live="polite"
+              className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-4 py-3 text-sm font-bold text-emerald-200"
+            >
+              {message}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-white/[0.08] bg-black/15 p-4 sm:p-5">
+          <h3 className="text-xs font-black uppercase tracking-[0.16em] text-white/45">
+            {t("Publication readiness")}
+          </h3>
+          <p className="mt-3 text-sm font-bold text-white/60">
+            {t(
+              data.readiness.catalog_game_count === 1
+                ? "{count} eligible game in the draft catalog"
+                : "{count} eligible games in the draft catalog",
+              { count: data.readiness.catalog_game_count },
+            )}
+          </p>
+          {data.readiness.ready ? (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-emerald-300/15 bg-emerald-400/[0.07] p-3 text-sm font-bold text-emerald-100/80">
+              <CheckCircle2
+                className="mt-0.5 shrink-0 text-emerald-300"
+                size={18}
+              />
+              <span>{t("Every publication requirement is complete.")}</span>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {(data.readiness.blockers ?? []).map((blocker) => (
+                <li
+                  key={blocker.code}
+                  className="flex items-start gap-3 text-sm font-bold"
+                >
+                  <Circle
+                    className="mt-0.5 shrink-0 text-amber-200/45"
+                    size={18}
+                  />
+                  <span className="leading-5 text-white/55">
+                    {publicationBlockerCopy(blocker, t)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!revisionIsValid && (
+            <p
+              role="alert"
+              className="mt-4 text-xs font-bold leading-5 text-amber-200/80"
+            >
+              {t(
+                "The draft revision is unavailable. Refresh before publishing.",
+              )}
+            </p>
+          )}
+          {!readinessVersionIsValid && (
+            <p
+              role="alert"
+              className="mt-4 text-xs font-bold leading-5 text-amber-200/80"
+            >
+              {t("Readiness is out of date. Refresh before publishing.")}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 type FeaturedRecommendationDraft = {
   game: GameApi;
@@ -216,7 +732,9 @@ function FeaturedTab({
   storeName: string;
 }) {
   const { t, translateError } = useI18n();
-  const featuredKey = `/api/v1/stores/${storeSlug}/featured`;
+  const { mutate: mutateGlobal } = useSWRConfig();
+  const featuredEndpoint = `/api/v1/stores/${storeSlug}/featured`;
+  const featuredKey = `${featuredEndpoint}?preview=1`;
   const { data, isLoading, error, mutate } = useSWR<FeaturedResponse>(
     featuredKey,
     fetcher,
@@ -295,18 +813,29 @@ function FeaturedTab({
 
   async function handleSave() {
     if (recommendations.length === 0) return;
+    if (
+      recommendations.some(
+        ({ recommendationReason }) => !recommendationReason.trim(),
+      )
+    ) {
+      setFormError(t("Add a recommendation reason for every Featured game."));
+      return;
+    }
+    const hadEditorialSelection =
+      data?.games.some((game) => game.featured_source === "EDITORIAL") ||
+      data?.mode === "EDITORIAL";
     setIsSubmitting(true);
     setFormError(null);
     setSuccess(null);
     try {
-      const response = await fetch(featuredKey, {
+      const response = await fetch(featuredEndpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recommendations: recommendations.map(
             ({ game, recommendationReason }) => ({
               game_slug: game.slug,
-              recommendation_reason: recommendationReason,
+              recommendation_reason: recommendationReason.trim(),
             }),
           ),
         }),
@@ -319,7 +848,17 @@ function FeaturedTab({
         return;
       }
       setSuccess(t("Featured recommendations saved."));
-      await mutate();
+      await Promise.all([
+        mutate(),
+        mutateGlobal(publicationEndpoint(storeSlug)),
+      ]);
+      if (!hadEditorialSelection) {
+        creatorFunnelAnalytics.firstGameAdded({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+          selectionSurface: "featured",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -330,7 +869,7 @@ function FeaturedTab({
     setFormError(null);
     setSuccess(null);
     try {
-      const response = await fetch(featuredKey, { method: "DELETE" });
+      const response = await fetch(featuredEndpoint, { method: "DELETE" });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         setFormError(
@@ -343,7 +882,10 @@ function FeaturedTab({
       }
       setRecommendations([]);
       setSuccess(t("Automatic Featured restored."));
-      await mutate();
+      await Promise.all([
+        mutate(),
+        mutateGlobal(publicationEndpoint(storeSlug)),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -378,7 +920,7 @@ function FeaturedTab({
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
         {recommendations.length < 3 ? (
           <GameAutocomplete
-            endpoint={`/api/v1/stores/${storeSlug}/search`}
+            endpoint={`/api/v1/stores/${storeSlug}/search?preview=1`}
             onSelect={addGame}
             placeholder={t("Search games in this Outlet...")}
           />
@@ -479,8 +1021,7 @@ function FeaturedTab({
 
                   <label className="mt-4 block">
                     <span className="text-xs font-black uppercase tracking-wider text-white/45">
-                      {t("Why do you recommend it?")}{" "}
-                      <span className="normal-case">({t("optional")})</span>
+                      {t("Why do you recommend it?")}
                     </span>
                     <textarea
                       value={entry.recommendationReason}
@@ -488,6 +1029,7 @@ function FeaturedTab({
                         updateReason(index, event.target.value)
                       }
                       maxLength={240}
+                      required
                       rows={2}
                       placeholder={t(
                         "A short, personal reason this game is worth their time.",
@@ -529,7 +1071,13 @@ function FeaturedTab({
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSubmitting || recommendations.length === 0}
+          disabled={
+            isSubmitting ||
+            recommendations.length === 0 ||
+            recommendations.some(
+              ({ recommendationReason }) => !recommendationReason.trim(),
+            )
+          }
           className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isSubmitting ? t("Saving...") : t("Save Featured")}
@@ -541,10 +1089,12 @@ function FeaturedTab({
 
 function CurationTab({
   storeSlug,
+  catalogMode,
   tagFilters,
   isTagFiltersLoading,
 }: {
   storeSlug: string;
+  catalogMode: CatalogMode;
   tagFilters: TagFilterApi[];
   isTagFiltersLoading?: boolean;
 }) {
@@ -554,9 +1104,43 @@ function CurationTab({
   const [mode, setMode] = useState<"WHITELIST" | "BLACKLIST">("WHITELIST");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModeSubmitting, setIsModeSubmitting] = useState(false);
   const [isOverridesOpen, setIsOverridesOpen] = useState(false);
 
   const tagFiltersKey = `/api/v1/stores/${storeSlug}/tag-filters`;
+
+  useEffect(() => {
+    if (catalogMode === "ALL") setMode("BLACKLIST");
+  }, [catalogMode]);
+
+  async function handleCatalogMode(
+    nextMode: Exclude<CatalogMode, "UNDECIDED">,
+  ) {
+    if (nextMode === catalogMode || isModeSubmitting) return;
+    setError(null);
+    setIsModeSubmitting(true);
+    try {
+      const response = await fetch(`/api/v1/stores/${storeSlug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ catalog_mode: nextMode }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(
+          translateError(body?.message, "Failed to save catalog choice."),
+        );
+        return;
+      }
+      await Promise.all([
+        mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+        mutate("/api/v1/stores"),
+        mutate(publicationEndpoint(storeSlug)),
+      ]);
+    } finally {
+      setIsModeSubmitting(false);
+    }
+  }
 
   async function handleAddTag(event: React.FormEvent) {
     event.preventDefault();
@@ -575,38 +1159,138 @@ function CurationTab({
         return;
       }
       setTag("");
-      mutate(tagFiltersKey);
+      await Promise.all([
+        mutate(tagFiltersKey),
+        mutate(publicationEndpoint(storeSlug)),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleToggleMode(filter: TagFilterApi) {
+    setError(null);
     const newMode = filter.mode === "WHITELIST" ? "BLACKLIST" : "WHITELIST";
-    await fetch(`${tagFiltersKey}/${encodeURIComponent(filter.tag)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: newMode }),
-    });
-    mutate(tagFiltersKey);
+    const response = await fetch(
+      `${tagFiltersKey}/${encodeURIComponent(filter.tag)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: newMode }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(translateError(body?.message, "Failed to update tag filter."));
+      return;
+    }
+    await Promise.all([
+      mutate(tagFiltersKey),
+      mutate(publicationEndpoint(storeSlug)),
+    ]);
   }
 
   async function handleRemoveTag(filter: TagFilterApi) {
-    await fetch(`${tagFiltersKey}/${encodeURIComponent(filter.tag)}`, {
-      method: "DELETE",
-    });
-    mutate(tagFiltersKey);
+    setError(null);
+    const response = await fetch(
+      `${tagFiltersKey}/${encodeURIComponent(filter.tag)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(translateError(body?.message, "Failed to remove tag filter."));
+      return;
+    }
+    await Promise.all([
+      mutate(tagFiltersKey),
+      mutate(publicationEndpoint(storeSlug)),
+    ]);
   }
 
   return (
     <div className="flex flex-col gap-8">
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+        <div>
+          <h2 className="text-lg font-black">{t("Catalog scope")}</h2>
+          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-white/50">
+            {t(
+              "Choose how this draft starts its catalog. This explicit choice is required before publication.",
+            )}
+          </p>
+        </div>
+        {catalogMode === "UNDECIDED" && (
+          <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-400/[0.08] px-4 py-3 text-sm font-bold text-amber-100/80">
+            {t("Choose a catalog scope to continue publication readiness.")}
+          </p>
+        )}
+        <div
+          role="radiogroup"
+          aria-label={t("Catalog scope")}
+          className="mt-4 grid gap-3 sm:grid-cols-2"
+        >
+          {(
+            [
+              {
+                value: "ALL",
+                title: "Full catalog",
+                description:
+                  "Include every eligible game. A per-game Hide always excludes; a per-game Show wins a hide-by-tag rule.",
+              },
+              {
+                value: "SELECTED",
+                title: "Selected catalog",
+                description:
+                  "Start empty. Show-tag rules and per-game Show add games; a per-game Hide always excludes.",
+              },
+            ] as const
+          ).map((option) => {
+            const selected = catalogMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={isModeSubmitting}
+                onClick={() => void handleCatalogMode(option.value)}
+                className={`min-h-28 rounded-xl border p-4 text-left transition disabled:cursor-wait disabled:opacity-50 ${
+                  selected
+                    ? "border-violet-300/45 bg-violet-400/10 ring-2 ring-violet-400/10"
+                    : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/[0.04]"
+                }`}
+              >
+                <span className="flex items-center gap-2 font-black">
+                  {selected ? (
+                    <CheckCircle2 size={17} className="text-violet-300" />
+                  ) : (
+                    <Circle size={17} className="text-white/25" />
+                  )}
+                  {t(option.title)}
+                </span>
+                <span className="mt-2 block text-xs font-semibold leading-5 text-white/45">
+                  {t(option.description)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-black">{t("Tag Filters")}</h2>
+          <h2 className="text-lg font-black">{t("Catalog rules")}</h2>
           <p className="text-white/50 text-sm font-bold mt-1">
-            {t(
-              "Whitelist tags to show only matching games, or blacklist tags to hide them. With no filters, your Outlet shows the full catalog.",
-            )}
+            {catalogMode === "ALL"
+              ? t(
+                  "The full catalog is included. Hide by tag or game; Show a game to override a hide-by-tag rule.",
+                )
+              : catalogMode === "SELECTED"
+                ? t(
+                    "The selected catalog starts empty. Show tags or games to add them; a per-game Hide always excludes.",
+                  )
+                : t(
+                    "Choose a catalog scope above, then use rules to show or hide games.",
+                  )}
           </p>
         </div>
 
@@ -625,12 +1309,16 @@ function CurationTab({
             }
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
           >
-            <option value="WHITELIST">{t("Whitelist")}</option>
-            <option value="BLACKLIST">{t("Blacklist")}</option>
+            {catalogMode !== "ALL" && (
+              <option value="WHITELIST">{t("Show matching games")}</option>
+            )}
+            <option value="BLACKLIST">{t("Hide matching games")}</option>
           </select>
           <button
             type="submit"
-            disabled={isSubmitting || !tag.trim()}
+            disabled={
+              isSubmitting || catalogMode === "UNDECIDED" || !tag.trim()
+            }
             className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {t("Add")}
@@ -648,7 +1336,11 @@ function CurationTab({
             <Loader2 className="animate-spin text-white/30" size={20} />
           ) : tagFilters.length === 0 ? (
             <p className="text-white/30 text-sm font-bold italic">
-              {t("No tag filters yet — showing the full catalog.")}
+              {catalogMode === "ALL"
+                ? t("No tag rules yet — the full catalog is included.")
+                : catalogMode === "SELECTED"
+                  ? t("No tag rules yet — add a Show rule to include games.")
+                  : t("No tag rules yet.")}
             </p>
           ) : (
             tagFilters.map((filter) => (
@@ -662,8 +1354,11 @@ function CurationTab({
               >
                 <button
                   onClick={() => handleToggleMode(filter)}
-                  className="hover:underline"
-                  title={t("Toggle whitelist/blacklist")}
+                  disabled={
+                    catalogMode === "ALL" && filter.mode === "BLACKLIST"
+                  }
+                  className="hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+                  title={t("Switch between showing and hiding matches")}
                 >
                   {filter.mode === "WHITELIST" ? "✓" : "✕"} {filter.tag}
                 </button>
@@ -689,7 +1384,7 @@ function CurationTab({
             size={16}
             className={`transition-transform ${isOverridesOpen ? "rotate-180" : ""}`}
           />
-          {t("Advanced: Per-Game Overrides")}
+          {t("Advanced: Per-game choices")}
         </button>
 
         {isOverridesOpen && <GameOverridesPanel storeSlug={storeSlug} />}
@@ -730,24 +1425,38 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
         return;
       }
       setSelectedGame(null);
-      mutate(overridesKey);
+      await Promise.all([
+        mutate(overridesKey),
+        mutate(publicationEndpoint(storeSlug)),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleRemoveOverride(override: GameOverrideApi) {
-    await fetch(`${overridesKey}/${encodeURIComponent(override.game_slug)}`, {
-      method: "DELETE",
-    });
-    mutate(overridesKey);
+    const response = await fetch(
+      `${overridesKey}/${encodeURIComponent(override.game_slug)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(
+        translateError(body?.message, "Failed to remove game override."),
+      );
+      return;
+    }
+    await Promise.all([
+      mutate(overridesKey),
+      mutate(publicationEndpoint(storeSlug)),
+    ]);
   }
 
   return (
     <div className="mt-4 pl-6 border-l border-white/10 flex flex-col gap-4">
       <p className="text-white/50 text-sm font-bold">
         {t(
-          "Force-show or force-hide a specific game, regardless of tag filters.",
+          "Show or hide a specific game. Hide always excludes; Show overrides a hide-by-tag rule.",
         )}
       </p>
 
@@ -776,6 +1485,7 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           </div>
         ) : (
           <GameAutocomplete
+            endpoint={`/api/v1/stores/${storeSlug}/search?preview=1`}
             onSelect={(game) => setSelectedGame(game)}
             placeholder={t("Search games...")}
           />
@@ -785,8 +1495,8 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           onChange={(e) => setVisibility(e.target.value as "SHOW" | "HIDE")}
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
         >
-          <option value="SHOW">{t("Force show")}</option>
-          <option value="HIDE">{t("Force hide")}</option>
+          <option value="SHOW">{t("Show game")}</option>
+          <option value="HIDE">{t("Hide game")}</option>
         </select>
         <button
           type="submit"
@@ -879,12 +1589,18 @@ function SettingsTab({ store }: { store: StoreApi }) {
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { mutate } = useSWRConfig();
+  const publicationKey = publicationEndpoint(store.slug);
+  const { data: publication, mutate: mutatePublication } =
+    useSWR<PublicationApi>(publicationKey, fetcher);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     setSuccess(false);
     setIsSubmitting(true);
+    const wasBrandComplete = publicationCheckReady(
+      publication?.readiness.checks.brand_complete,
+    );
     try {
       const response = await fetch(`/api/v1/stores/${store.slug}`, {
         method: "PATCH",
@@ -901,7 +1617,23 @@ function SettingsTab({ store }: { store: StoreApi }) {
         return;
       }
       setSuccess(true);
-      mutate(`/api/v1/stores/${store.slug}`);
+      const refreshedPublication = await mutatePublication();
+      await Promise.all([
+        mutate(`/api/v1/stores/${store.slug}?preview=1`),
+        mutate("/api/v1/stores"),
+      ]);
+      if (
+        publication &&
+        !wasBrandComplete &&
+        publicationCheckReady(
+          refreshedPublication?.readiness.checks.brand_complete,
+        )
+      ) {
+        creatorFunnelAnalytics.brandComplete({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -69,6 +69,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
         { game_slug: first.slug, recommendation_reason: null },
       ],
     });
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -110,6 +111,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
         { game_slug: second.slug, recommendation_reason: null },
       ],
     });
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -149,6 +151,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       },
     ]);
     expect(putResponse.status).toBe(200);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -209,6 +212,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       ],
     );
     expect(invalidResponse.status).toBe(400);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -363,6 +367,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     expect(
       (await putSelection(store.slug, session.token, ["missing-game"])).status,
     ).toBe(400);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -389,6 +394,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     expect(
       (await putSelection(store.slug, session.token, [game.slug])).status,
     ).toBe(200);
+    await orchestrator.publishStore(store.id);
     await gameModel.setStatus(game.id, "PRIVATE");
 
     const publicResponse = await fetch(
