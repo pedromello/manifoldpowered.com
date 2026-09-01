@@ -1,6 +1,11 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
-import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "infra/errors";
 import {
   Prisma,
   type Store,
@@ -503,7 +508,7 @@ async function findOneForStorefront(
     const members = await prisma.storeMember.findMany({
       where: { store_id: foundStore.id },
     });
-    if (!authorization.can(user, "update:store", { ...foundStore, members })) {
+    if (!authorization.canReadStoreDraft(user, { ...foundStore, members })) {
       throw storeNotFound(slug);
     }
 
@@ -662,6 +667,30 @@ async function changePublication(
           throw new NotFoundError({
             message: "Store not found.",
             action: "Check the store ID and try again.",
+          });
+        }
+
+        // Re-read both the coarse grant and the resource membership inside the
+        // serialized transition. The endpoint check is only an early reject;
+        // without this check a member revoked between authorization and the row
+        // lock could still publish with stale authority.
+        const [actor, currentMembers] = await Promise.all([
+          transaction.user.findUnique({ where: { id: actorUserId } }),
+          transaction.storeMember.findMany({
+            where: { store_id: existingStore.id },
+          }),
+        ]);
+        if (
+          !actor ||
+          !authorization.can(actor, "publish:store", {
+            ...existingStore,
+            members: currentMembers,
+          })
+        ) {
+          throw new ForbiddenError({
+            message:
+              "You no longer have permission to publish or unpublish this Outlet.",
+            action: "Ask the Outlet owner to review your permissions.",
           });
         }
 
@@ -902,56 +931,60 @@ async function addMember(
   return createdMember;
 }
 
-async function findOneMemberByUsername(storeId: string, username: string) {
-  const targetUser = await userModel.findOneByUsername(username);
-
-  const member = await prisma.storeMember.findUnique({
-    where: {
-      store_id_user_id: {
-        store_id: storeId,
-        user_id: targetUser.id,
-      },
-    },
-  });
-
-  if (!member) {
-    throw new NotFoundError({
-      message: `User "${username}" is not a member of this store.`,
-      action: "Check the username and try again.",
-    });
-  }
-
-  return member;
-}
-
 async function updateMemberPermissions(
   storeId: string,
   username: string,
   permissions: string[],
 ) {
-  const member = await findOneMemberByUsername(storeId, username);
+  const targetUser = await userModel.findOneByUsername(username);
+  const updatedMember = await prisma.$transaction(async (transaction) => {
+    // Serialize permission revocation with lifecycle transitions. Whichever
+    // transaction acquires the Store lock first defines the authorization
+    // order; a completed revocation can never be bypassed by a stale request.
+    await transaction.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "stores" WHERE "id" = ${storeId} FOR UPDATE`,
+    );
+    const member = await transaction.storeMember.findUnique({
+      where: {
+        store_id_user_id: { store_id: storeId, user_id: targetUser.id },
+      },
+    });
+    if (!member) {
+      throw new NotFoundError({
+        message: `User "${username}" is not a member of this store.`,
+        action: "Check the username and try again.",
+      });
+    }
 
-  const updatedMember = await prisma.storeMember.update({
-    where: {
-      id: member.id,
-    },
-    data: {
-      permissions,
-    },
+    return transaction.storeMember.update({
+      where: { id: member.id },
+      data: { permissions },
+    });
   });
 
-  await userModel.addFeatures(member.user_id, permissions);
+  await userModel.addFeatures(targetUser.id, permissions);
 
   return updatedMember;
 }
 
 async function removeMember(storeId: string, username: string) {
-  const member = await findOneMemberByUsername(storeId, username);
-
-  await prisma.storeMember.delete({
-    where: {
-      id: member.id,
-    },
+  const targetUser = await userModel.findOneByUsername(username);
+  await prisma.$transaction(async (transaction) => {
+    await transaction.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "stores" WHERE "id" = ${storeId} FOR UPDATE`,
+    );
+    const member = await transaction.storeMember.findUnique({
+      where: {
+        store_id_user_id: { store_id: storeId, user_id: targetUser.id },
+      },
+    });
+    if (!member) {
+      throw new NotFoundError({
+        message: `User "${username}" is not a member of this store.`,
+        action: "Check the username and try again.",
+      });
+    }
+    await transaction.storeMember.delete({ where: { id: member.id } });
   });
 }
 

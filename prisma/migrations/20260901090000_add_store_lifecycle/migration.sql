@@ -124,6 +124,21 @@ SET
     "published_at" = "updated_at",
     "last_published_at" = "updated_at";
 
+-- Route middleware checks the coarse feature before resource ownership. New
+-- activations receive publish:store from code, but existing activated owners
+-- must receive it in the same atomic rollout as the lifecycle columns or they
+-- cannot manage the Outlet that this migration just marked PUBLISHED.
+-- `update:user` is the established marker for activated, non-disabled users;
+-- disabled owners deliberately keep their revoked feature set.
+UPDATE "users"
+SET
+    "features" = array_append("features", 'publish:store'),
+    "updated_at" = CURRENT_TIMESTAMP
+WHERE
+    "id" IN (SELECT "owner_id" FROM "stores")
+    AND "features" @> ARRAY['update:user']::TEXT[]
+    AND NOT "features" @> ARRAY['publish:store']::TEXT[];
+
 ALTER TABLE "stores"
 ADD CONSTRAINT "stores_draft_revision_positive" CHECK ("draft_revision" > 0),
 ADD CONSTRAINT "stores_publication_pointer_consistent" CHECK (

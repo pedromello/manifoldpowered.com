@@ -557,7 +557,6 @@ function GameCard({
 
 export default async function handler(request: NextRequest) {
   const url = new URL(request.url);
-  const isPrivatePreview = url.searchParams.get("preview") === "1";
   const locale = requestLocale(request);
   const segments = url.pathname.split("/").filter(Boolean).slice(2);
   const [kind, encodedSlug] = segments;
@@ -640,7 +639,7 @@ export default async function handler(request: NextRequest) {
     height: SOCIAL_IMAGE_HEIGHT,
     headers: {
       "Cache-Control":
-        kind === "outlet" && isPrivatePreview
+        kind === "outlet"
           ? "no-store, must-revalidate"
           : "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
       "Content-Disposition": "inline",

@@ -59,6 +59,12 @@ type StoreWithMembers = Store & { members: StoreMember[] };
 type StudioWithMembers = Studio & { members: StudioMember[] };
 type GameWithStudio = Game & { studio: StudioWithMembers | null };
 
+const STORE_DRAFT_READER_FEATURES = [
+  "update:store",
+  "manage:store_featured_games",
+  "publish:store",
+] as const;
+
 const AVAILABLE_FEATURES = [
   // User
   "create:user",
@@ -476,6 +482,18 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   }
 
   return authorized;
+}
+
+/**
+ * Draft visibility follows the capabilities that can change or promote public
+ * creator content. Financial/member-only delegates do not gain draft access,
+ * while an editor or publish-only approver can inspect exactly what their
+ * delegated action affects.
+ */
+function canReadStoreDraft(user: Partial<User>, resource: StoreWithMembers) {
+  return STORE_DRAFT_READER_FEATURES.some((feature) =>
+    can(user, feature, resource),
+  );
 }
 
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
@@ -1346,6 +1364,7 @@ function validateFeature(feature: string) {
 
 const authorization = {
   can,
+  canReadStoreDraft,
   filterOutput,
   ACTIVATED_USER_FEATURES,
   ADMIN_ONLY_FEATURES,

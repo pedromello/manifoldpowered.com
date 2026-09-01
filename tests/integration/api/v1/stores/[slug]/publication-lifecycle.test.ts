@@ -1,6 +1,7 @@
 import { prisma } from "infra/database";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
+import storeModel from "models/store";
 import orchestrator from "tests/orchestrator";
 import {
   authenticatedJsonHeaders,
@@ -132,6 +133,67 @@ describe("Outlet publication lifecycle", () => {
       { headers: { Cookie: `session_id=${owner.sessionToken}` } },
     );
     expect(ownerWithoutPreview.status).toBe(404);
+  });
+
+  test("draft readers follow content capabilities without granting financial delegates access", async () => {
+    const owner = await createLifecycleActor();
+    const draft = await orchestrator.createStore(owner.user.id, {
+      status: "DRAFT",
+      name: "Capability Aligned Draft",
+    });
+    const editor = await createLifecycleActor();
+    const publisher = await createLifecycleActor();
+    const featuredEditor = await createLifecycleActor();
+    const financialDelegate = await createLifecycleActor();
+    await orchestrator.addStoreMember(draft.id, editor.user.username, [
+      "update:store",
+    ]);
+    await orchestrator.addStoreMember(draft.id, publisher.user.username, [
+      "publish:store",
+    ]);
+    await orchestrator.addStoreMember(draft.id, featuredEditor.user.username, [
+      "manage:store_featured_games",
+    ]);
+    await orchestrator.addStoreMember(
+      draft.id,
+      financialDelegate.user.username,
+      ["read:store_statement"],
+    );
+
+    const previewUrl = `${webserver.getOrigin()}/api/v1/stores/${draft.slug}?preview=1`;
+    const publicationUrl = `${webserver.getOrigin()}/api/v1/stores/${draft.slug}/publication`;
+    for (const actor of [owner, editor, publisher, featuredEditor]) {
+      const [preview, readiness] = await Promise.all([
+        fetch(previewUrl, {
+          headers: { Cookie: `session_id=${actor.sessionToken}` },
+        }),
+        fetch(publicationUrl, {
+          headers: { Cookie: `session_id=${actor.sessionToken}` },
+        }),
+      ]);
+      expect(preview.status).toBe(200);
+      expect(readiness.status).toBe(200);
+      expectPrivatePreviewHeaders(preview);
+      expectPrivatePreviewHeaders(readiness);
+    }
+
+    const [financialPreview, financialReadiness, anonymousReadiness] =
+      await Promise.all([
+        fetch(previewUrl, {
+          headers: {
+            Cookie: `session_id=${financialDelegate.sessionToken}`,
+          },
+        }),
+        fetch(publicationUrl, {
+          headers: {
+            Cookie: `session_id=${financialDelegate.sessionToken}`,
+          },
+        }),
+        fetch(publicationUrl),
+      ]);
+    expect(financialPreview.status).toBe(404);
+    expect(financialReadiness.status).toBe(403);
+    expect(anonymousReadiness.status).toBe(401);
   });
 
   test("readiness v2 returns structured blockers without publishing partial work", async () => {
@@ -487,6 +549,44 @@ describe("Outlet publication lifecycle", () => {
     });
     expect(stored.status).toBe("PUBLISHED");
     expect(stored.published_revision_id).not.toBeNull();
+  });
+
+  test("revalidates a publisher inside the lifecycle transaction after revocation", async () => {
+    const fixture = await createReadyDraft("Revoked Publisher");
+    const publisher = await createLifecycleActor();
+    await orchestrator.addStoreMember(
+      fixture.store.id,
+      publisher.user.username,
+      ["publish:store"],
+    );
+    await prisma.storeMember.delete({
+      where: {
+        store_id_user_id: {
+          store_id: fixture.store.id,
+          user_id: publisher.user.id,
+        },
+      },
+    });
+
+    await expect(
+      storeModel.changePublication(
+        fixture.store.id,
+        publisher.user.id,
+        "publish",
+        fixture.store.draft_revision,
+      ),
+    ).rejects.toMatchObject({ name: "ForbiddenError", statusCode: 403 });
+    await expect(
+      prisma.store.findUniqueOrThrow({ where: { id: fixture.store.id } }),
+    ).resolves.toEqual(expect.objectContaining({ status: "DRAFT" }));
+    await expect(
+      prisma.storeRevision.count({ where: { store_id: fixture.store.id } }),
+    ).resolves.toBe(0);
+    await expect(
+      prisma.storeLifecycleEvent.count({
+        where: { store_id: fixture.store.id },
+      }),
+    ).resolves.toBe(0);
   });
 
   test("unpublish preserves followers, attribution history and last publication while every public surface fails closed", async () => {

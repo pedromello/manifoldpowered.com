@@ -42,6 +42,11 @@ new snapshot. Unpublish removes public visibility but preserves all revisions,
 lifecycle audit events, followers, and `last_published_at`.
 
 Existing Outlets receive an initial revision during migration and remain live.
+The same transaction grants `publish:store` to every existing activated Outlet
+owner, while disabled owners remain disabled. Vercel preview deployments only
+compile the application; `prisma migrate deploy` runs exclusively in the
+production build, preventing parallel sprint previews from racing migrations
+against a shared homologation database.
 Their initial catalog snapshot may use `LEGACY_ALL` to record the old implicit
 full-catalog behavior without treating it as a new creator decision.
 
