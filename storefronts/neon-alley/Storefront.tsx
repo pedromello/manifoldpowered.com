@@ -106,6 +106,7 @@ export function NeonAlleyStorefront({
   itemHref,
   browseHref,
   searchAction,
+  searchHiddenFields,
 }: StorefrontViewProps) {
   const { t } = useI18n();
   const trending = useStorefrontTrending(store.slug, 4);
@@ -146,9 +147,9 @@ export function NeonAlleyStorefront({
             </p>
           )}
 
-          {store.description && (
+          {(store.presentation?.tagline || store.description) && (
             <p className="mt-6 max-w-2xl text-sf-muted text-base md:text-lg">
-              {store.description}
+              {store.presentation?.tagline || store.description}
             </p>
           )}
         </div>
@@ -158,6 +159,9 @@ export function NeonAlleyStorefront({
       <section className="max-w-7xl mx-auto px-5 md:px-10 py-14 flex flex-col lg:flex-row gap-10">
         <aside className="w-full lg:w-64 shrink-0 flex flex-col gap-8 lg:sticky lg:top-28 lg:self-start">
           <Form action={searchAction} className="flex flex-col gap-2">
+            {Object.entries(searchHiddenFields).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))}
             <label
               htmlFor="neon-search"
               className="text-[10px] uppercase tracking-[0.35em] text-sf-accent font-black"

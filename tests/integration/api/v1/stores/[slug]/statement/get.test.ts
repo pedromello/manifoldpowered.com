@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import library from "models/library";
 import { prisma } from "infra/database";
+import gameModel from "models/game";
 
 const BASE_URL = "http://localhost:3000/api/v1/stores";
 
@@ -21,6 +22,7 @@ async function getStatement(slug: string, sessionToken?: string) {
 async function seedOutletWithSale({ price = 100 } = {}) {
   const developer = await orchestrator.createUser();
   const game = await orchestrator.createGame(developer.id, { price });
+  await gameModel.makePublic(game.id);
 
   const owner = await orchestrator.createUser();
   await orchestrator.activateUser(owner.id);
@@ -117,6 +119,7 @@ describe("GET /api/v1/stores/[slug]/statement", () => {
 
       const developer = await orchestrator.createUser();
       const game = await orchestrator.createGame(developer.id, { price: 100 });
+      await gameModel.makePublic(game.id);
 
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
@@ -153,6 +156,7 @@ describe("GET /api/v1/stores/[slug]/statement", () => {
     test("should report each of an owner's outlets separately", async () => {
       const developer = await orchestrator.createUser();
       const game = await orchestrator.createGame(developer.id, { price: 100 });
+      await gameModel.makePublic(game.id);
 
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);

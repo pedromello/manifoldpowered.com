@@ -21,6 +21,10 @@ import { GameAutocomplete } from "components/store/GameAutocomplete";
 import type { GameApi } from "components/store/types";
 import { CATEGORIES } from "lib/categories";
 import {
+  CREATOR_OUTLET_FUNNEL_VERSION,
+  creatorFunnelAnalytics,
+} from "lib/creator-funnel-analytics";
+import {
   CreatorOutletRequestError,
   fetchOutletPublication,
   saveExplicitOutletSelection,
@@ -54,6 +58,7 @@ interface CurrentUser {
 
 interface StoreCreateResponse {
   slug: string;
+  draft_revision: number;
 }
 
 type AutosaveState = "idle" | "saving" | "saved" | "error";
@@ -68,22 +73,39 @@ const stepLabels: Record<CreatorOnboardingStep, string> = {
 
 const readinessLabels: Record<OutletReadinessKey, string> = {
   brand_complete: "Your Outlet has a clear identity",
-  catalog_curated: "You chose what your audience will see",
+  catalog_intentional: "You chose what your audience will see",
   catalog_has_games: "Your selection has games",
   editorial_highlight: "Your Featured pick has a personal reason",
 };
 
 const userFetcher = async (url: string) => {
   const response = await fetch(url);
-  if (!response.ok) throw new Error("Not logged in");
+  if (!response.ok) {
+    throw new UserRequestError(
+      response.status === 401 ? "Not logged in" : "Could not load your account",
+      response.status,
+    );
+  }
   return (await response.json()) as CurrentUser;
 };
+
+class UserRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "UserRequestError";
+  }
+}
 
 export function CreatorOutletOnboarding() {
   const router = useRouter();
   const { t, translateError } = useI18n();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const handledNewRequestRef = useRef<string | null>(null);
+  const createStartedRef = useRef(false);
+  const firstSelectionTrackedRef = useRef(false);
   const [draft, setDraft] = useState<CreatorOutletDraft | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
@@ -99,7 +121,12 @@ export function CreatorOutletOnboarding() {
   });
 
   useEffect(() => {
-    if (isUserLoading || !userError) return;
+    if (
+      isUserLoading ||
+      !(userError instanceof UserRequestError) ||
+      userError.status !== 401
+    )
+      return;
     router.replace(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
   }, [isUserLoading, router, userError]);
 
@@ -128,10 +155,22 @@ export function CreatorOutletOnboarding() {
     if (handledNewRequestRef.current === newRequest) return;
 
     handledNewRequestRef.current = newRequest;
-    setDraft(startNewCreatorOutletDraft(localStorage, currentUser.id));
+    const active = loadCreatorOutletDraft(localStorage, currentUser.id);
+    const startNew =
+      !active ||
+      window.confirm(
+        t(
+          "Start a new Outlet? Your current setup will be archived so you can resume it later.",
+        ),
+      );
+    setDraft(
+      startNew
+        ? startNewCreatorOutletDraft(localStorage, currentUser.id)
+        : active,
+    );
     setIsHydrated(true);
     void router.replace("/store/new", undefined, { shallow: true });
-  }, [currentUser, router, router.isReady, router.query.new]);
+  }, [currentUser, router, router.isReady, router.query.new, t]);
 
   useEffect(() => {
     if (!draft || !isHydrated) return;
@@ -167,6 +206,26 @@ export function CreatorOutletOnboarding() {
     updateDraft((current) => ({ ...current, currentStep: step }));
   }
 
+  if (
+    userError &&
+    (!(userError instanceof UserRequestError) || userError.status !== 401)
+  ) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 bg-[#0b0812] px-5 text-center text-white">
+        <p role="alert" className="font-bold text-rose-200">
+          {t("We couldn't load your creator workspace.")}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className={secondaryButtonClassName}
+        >
+          <RefreshCw size={16} /> {t("Try again")}
+        </button>
+      </div>
+    );
+  }
+
   if (isUserLoading || !isHydrated || !draft) {
     return (
       <div
@@ -188,15 +247,21 @@ export function CreatorOutletOnboarding() {
 
     try {
       let activeSlug = draft.storeSlug;
+      let expectedDraftRevision: number;
       const storePayload = {
         name: draft.identity.name.trim(),
         description: creatorDescription(draft),
-        ...(draft.identity.logoUrl.trim() && {
-          logo_url: draft.identity.logoUrl.trim(),
-        }),
+        logo_url: draft.identity.logoUrl.trim(),
       };
 
       if (!activeSlug) {
+        if (!createStartedRef.current) {
+          creatorFunnelAnalytics.createStarted({
+            funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+            entrySurface: "create_outlet",
+          });
+          createStartedRef.current = true;
+        }
         const response = await fetch("/api/v1/stores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -207,6 +272,17 @@ export function CreatorOutletOnboarding() {
           throw new Error(responseMessage(body, "Failed to create Outlet."));
         }
         activeSlug = body.slug;
+        expectedDraftRevision = body.draft_revision;
+        creatorFunnelAnalytics.draftCreated({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "create_outlet",
+          hasDescription: true,
+          hasLogo: true,
+        });
+        creatorFunnelAnalytics.brandComplete({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "create_outlet",
+        });
         updateDraft((current) => ({ ...current, storeSlug: body.slug }));
       } else {
         const response = await fetch(
@@ -218,16 +294,26 @@ export function CreatorOutletOnboarding() {
           },
         );
         const body: unknown = await response.json().catch(() => null);
-        if (!response.ok) {
+        if (!response.ok || !isStoreCreateResponse(body)) {
           throw new Error(responseMessage(body, "Failed to update Outlet."));
         }
+        expectedDraftRevision = body.draft_revision;
       }
 
       await saveExplicitOutletSelection(activeSlug, {
         strategy: draft.selection.strategy as CreatorSelectionStrategy,
         tags: draft.selection.tags,
         gameSlugs: draft.selection.games.map((game) => game.slug),
+        expectedDraftRevision,
       });
+      if (!firstSelectionTrackedRef.current) {
+        creatorFunnelAnalytics.firstGameAdded({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+          selectionSurface: "curation",
+        });
+        firstSelectionTrackedRef.current = true;
+      }
 
       updateDraft((current) => ({
         ...current,
@@ -390,13 +476,18 @@ export function CreatorOutletOnboarding() {
           <PreviewStep
             draft={draft}
             onBack={() => goToStep("FEATURED")}
-            onContinue={() =>
+            onContinue={() => {
+              creatorFunnelAnalytics.previewed({
+                funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+                entrySurface: "outlet_preview",
+                outletState: "draft",
+              });
               updateDraft((current) => ({
                 ...current,
                 previewedAt: new Date().toISOString(),
                 currentStep: "PUBLISH",
-              }))
-            }
+              }));
+            }}
           />
         )}
         {draft.currentStep === "PUBLISH" && draft.storeSlug && (
@@ -422,7 +513,7 @@ function IdentityStep({
           eyebrow={t("Start with your point of view")}
           title={t("Tell people who this Outlet is for")}
           description={t(
-            "A clear name, a short promise, and your niche are enough to begin. You can polish the visual identity later.",
+            "Add a clear name, a short promise, your niche, and a logo. These are required before your Outlet can be published.",
           )}
         />
 
@@ -438,6 +529,7 @@ function IdentityStep({
                 }))
               }
               autoComplete="organization"
+              required
               maxLength={255}
               placeholder={t("e.g. Save Point Club")}
               className={inputClassName}
@@ -462,6 +554,8 @@ function IdentityStep({
                 }))
               }
               maxLength={120}
+              required
+              aria-describedby="outlet-niche-description"
               placeholder={t("Cozy indies for slow Sunday mornings")}
               className={inputClassName}
             />
@@ -488,6 +582,8 @@ function IdentityStep({
                 }))
               }
               maxLength={1000}
+              required
+              aria-describedby="outlet-description-description"
               rows={4}
               placeholder={t(
                 "Thoughtful recommendations for players who want memorable worlds without the rush.",
@@ -500,12 +596,15 @@ function IdentityStep({
             label={t("Logo URL")}
             htmlFor="outlet-logo"
             description={t(
-              "Optional. We'll use your Outlet's initials until you add one.",
+              "Required for publishing. Use a direct HTTPS image URL for your Outlet logo.",
             )}
+            required
           >
             <input
               id="outlet-logo"
               type="url"
+              required
+              aria-describedby="outlet-logo-description"
               value={draft.identity.logoUrl}
               onChange={(event) =>
                 updateDraft((current) => ({
@@ -960,6 +1059,31 @@ function PreviewStep({
   const { t } = useI18n();
   const previewHref = outletPreviewHref(draft.storeSlug as string);
   const [isPreviewLoaded, setIsPreviewLoaded] = useState(false);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const [previewError, setPreviewError] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setPreviewError(true), 10000);
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        event.origin === window.location.origin &&
+        event.source === iframeRef.current?.contentWindow &&
+        isRecord(event.data) &&
+        event.data.type === "manifold:outlet-preview-ready" &&
+        event.data.slug === draft.storeSlug
+      ) {
+        window.clearTimeout(timeout);
+        setPreviewError(false);
+        setIsPreviewLoaded(true);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [draft.storeSlug, previewAttempt]);
 
   return (
     <section>
@@ -992,12 +1116,33 @@ function PreviewStep({
           </span>
         </div>
         <iframe
+          key={previewAttempt}
+          ref={iframeRef}
           src={previewHref}
           title={t("Preview of {name}", { name: draft.identity.name })}
-          onLoad={() => setIsPreviewLoaded(true)}
           className="h-[34rem] w-full bg-[#0b0812] sm:h-[42rem]"
         />
       </div>
+
+      {previewError && (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200"
+        >
+          <span>{t("The preview did not confirm that it loaded.")}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsPreviewLoaded(false);
+              setPreviewError(false);
+              setPreviewAttempt((attempt) => attempt + 1);
+            }}
+            className={secondaryButtonClassName}
+          >
+            <RefreshCw size={16} /> {t("Try again")}
+          </button>
+        </div>
+      )}
 
       <StepActions onBack={onBack}>
         <PrimaryButton onClick={onContinue} disabled={!isPreviewLoaded}>
@@ -1037,8 +1182,18 @@ function PublishStep({
     setIsPublishing(true);
     setActionError(null);
     try {
-      const updated = await updateOutletPublication(slug, "publish");
+      const updated = await updateOutletPublication(
+        slug,
+        "publish",
+        publication.draftRevision,
+      );
       await mutate(updated, { revalidate: false });
+      if (publication.status === "DRAFT" && updated.status === "PUBLISHED") {
+        creatorFunnelAnalytics.published({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+        });
+      }
     } catch (publishError) {
       setActionError(
         translateError(
@@ -1058,6 +1213,11 @@ function PublishStep({
     try {
       const url = `${window.location.origin}/store/${encodeURIComponent(slug)}`;
       await navigator.clipboard.writeText(url);
+      creatorFunnelAnalytics.linkCopied({
+        funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+        entrySurface: "outlet_preview",
+        copyContext: "publish_success",
+      });
       setJustCopied(true);
       window.setTimeout(() => setJustCopied(false), 3000);
       const completedDraft = {
@@ -1343,7 +1503,10 @@ function Field({
         {required && <span className="ml-1 text-violet-300">*</span>}
       </label>
       {description && (
-        <p className="mt-1 text-xs font-semibold leading-5 text-white/35">
+        <p
+          id={`${htmlFor}-description`}
+          className="mt-1 text-xs font-semibold leading-5 text-white/35"
+        >
           {description}
         </p>
       )}
@@ -1521,7 +1684,13 @@ function isStepComplete(
 }
 
 function isStoreCreateResponse(value: unknown): value is StoreCreateResponse {
-  return isRecord(value) && typeof value.slug === "string";
+  return (
+    isRecord(value) &&
+    typeof value.slug === "string" &&
+    typeof value.draft_revision === "number" &&
+    Number.isSafeInteger(value.draft_revision) &&
+    value.draft_revision >= 1
+  );
 }
 
 function responseMessage(value: unknown, fallback: string) {

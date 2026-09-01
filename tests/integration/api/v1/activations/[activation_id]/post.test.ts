@@ -177,6 +177,7 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "create:store",
         "read:public_store",
         "update:store",
+        "publish:store",
         "manage:store_members",
         "read:store_statement",
         "read:payout_account",

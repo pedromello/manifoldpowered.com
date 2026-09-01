@@ -8,13 +8,11 @@ beforeAll(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
-async function expectPng(path: string) {
+async function expectPng(path: string, expectedCache: "public" | "no-store") {
   const response = await fetch(`${webserver.getOrigin()}${path}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toContain("image/png");
-  expect(response.headers.get("cache-control")).toContain(
-    "stale-while-revalidate",
-  );
+  expect(response.headers.get("cache-control")).toContain(expectedCache);
 
   const bytes = new Uint8Array(await response.arrayBuffer());
   expect(Array.from(bytes.slice(0, 8))).toEqual(PNG_SIGNATURE);
@@ -23,7 +21,7 @@ async function expectPng(path: string) {
 
 describe("GET /api/og/[...segments]", () => {
   test("renders the institutional home preview", async () => {
-    await expectPng("/api/og/home?locale=en");
+    await expectPng("/api/og/home?locale=en", "public");
   });
 
   test("renders an Outlet preview without a remote logo", async () => {
@@ -34,7 +32,7 @@ describe("GET /api/og/[...segments]", () => {
       description: "Games chosen with care.",
     });
 
-    await expectPng(`/api/og/outlet/${outlet.slug}?locale=pt-BR`);
+    await expectPng(`/api/og/outlet/${outlet.slug}?locale=pt-BR`, "no-store");
   });
 
   test("renders a game preview without remote artwork", async () => {
@@ -47,7 +45,7 @@ describe("GET /api/og/[...segments]", () => {
       media: { screenshots: [], videos: [] },
     });
 
-    await expectPng(`/api/og/game/${game.slug}?locale=en`);
+    await expectPng(`/api/og/game/${game.slug}?locale=en`, "public");
   });
 
   test("returns 404 for an unknown preview kind", async () => {

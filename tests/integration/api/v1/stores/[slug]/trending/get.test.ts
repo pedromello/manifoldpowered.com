@@ -20,7 +20,9 @@ describe("GET /api/v1/stores/[slug]/trending", () => {
     test("Should apply the store's curation rules", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const forcedGame = await orchestrator.createGame(owner.id, {
         title: "Trending Forced",
@@ -44,6 +46,7 @@ describe("GET /api/v1/stores/[slug]/trending", () => {
         forcedGame.slug,
         "SHOW",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/trending`,

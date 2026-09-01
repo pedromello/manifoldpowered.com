@@ -17,7 +17,12 @@ describe("creator Outlet client", () => {
     const request = mockFetch((url, init) => {
       expect(url).toBe("/api/v1/stores/save-point/publication");
       if (init?.method === "POST") {
-        expect(init.body).toBe(JSON.stringify({ action: "publish" }));
+        expect(init.body).toBe(
+          JSON.stringify({
+            action: "publish",
+            expected_draft_revision: 7,
+          }),
+        );
         return publicationResponse("PUBLISHED");
       }
       return publicationResponse("DRAFT");
@@ -29,20 +34,35 @@ describe("creator Outlet client", () => {
       status: "DRAFT",
     });
     await expect(
-      updateOutletPublication("save-point", "publish", request),
+      updateOutletPublication("save-point", "publish", 7, request),
     ).resolves.toMatchObject({ status: "PUBLISHED" });
+  });
+
+  test("surfaces a stale draft conflict instead of publishing another revision", async () => {
+    const request = mockFetch(() =>
+      jsonResponse({ message: "The Outlet draft changed." }, 409),
+    );
+
+    await expect(
+      updateOutletPublication("save-point", "publish", 6, request),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   test("persists a focused strategy as an explicit include rule", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const request = mockFetch((url, init) => {
       calls.push({ url, init });
-      return jsonResponse({});
+      return jsonResponse({ catalog_mode: "SELECTED", draft_revision: 8 });
     });
 
     await saveExplicitOutletSelection(
       "save-point",
-      { strategy: "FOCUSED", tags: ["Strategy"], gameSlugs: [] },
+      {
+        strategy: "FOCUSED",
+        tags: ["Strategy"],
+        gameSlugs: [],
+        expectedDraftRevision: 7,
+      },
       request,
     );
 
@@ -55,6 +75,7 @@ describe("creator Outlet client", () => {
       strategy: "FOCUSED",
       tags: ["Strategy"],
       game_slugs: [],
+      expected_draft_revision: 7,
     });
   });
 
@@ -62,7 +83,7 @@ describe("creator Outlet client", () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const request = mockFetch((url, init) => {
       calls.push({ url, init });
-      return jsonResponse({});
+      return jsonResponse({ catalog_mode: "SELECTED", draft_revision: 8 });
     });
 
     await saveExplicitOutletSelection(
@@ -71,6 +92,7 @@ describe("creator Outlet client", () => {
         strategy: "HANDPICKED",
         tags: [],
         gameSlugs: games.map((game) => game.slug),
+        expectedDraftRevision: 7,
       },
       request,
     );
@@ -80,6 +102,7 @@ describe("creator Outlet client", () => {
       strategy: "HANDPICKED",
       tags: [],
       game_slugs: games.map((game) => game.slug),
+      expected_draft_revision: 7,
     });
   });
 });
@@ -88,12 +111,22 @@ function publicationResponse(status: "DRAFT" | "PUBLISHED") {
   return jsonResponse({
     status,
     published_at: status === "PUBLISHED" ? "2026-09-01T12:00:00.000Z" : null,
+    last_published_at:
+      status === "PUBLISHED" ? "2026-09-01T12:00:00.000Z" : null,
+    draft_revision: 7,
+    catalog_mode: "SELECTED",
+    published_revision:
+      status === "PUBLISHED"
+        ? { id: "revision-1", revision: 1, source_draft_revision: 7 }
+        : null,
+    capabilities: { edit: true, publish: true, unpublish: true },
     readiness: {
-      version: 1,
+      version: 2,
       ready: true,
+      catalog_game_count: 8,
       checks: {
         brand_complete: true,
-        catalog_curated: true,
+        catalog_intentional: true,
         catalog_has_games: true,
         editorial_highlight: true,
       },

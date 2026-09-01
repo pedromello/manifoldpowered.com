@@ -24,7 +24,7 @@ export type OutletPublicationStatus = "DRAFT" | "PUBLISHED";
 
 export type OutletReadinessKey =
   | "brand_complete"
-  | "catalog_curated"
+  | "catalog_intentional"
   | "catalog_has_games"
   | "editorial_highlight";
 
@@ -69,10 +69,19 @@ export interface OutletReadinessCheck {
 export interface OutletPublicationContract {
   status: OutletPublicationStatus;
   publishedAt: string | null;
+  lastPublishedAt: string | null;
+  draftRevision: number;
+  catalogMode: "UNDECIDED" | "ALL" | "SELECTED";
+  publishedRevision: {
+    id: string;
+    revision: number;
+    sourceDraftRevision: number;
+  } | null;
   readinessVersion: number;
+  catalogGameCount: number;
   ready: boolean;
   checks: Record<OutletReadinessKey, boolean>;
-  capabilities?: {
+  capabilities: {
     edit: boolean;
     publish: boolean;
     unpublish: boolean;
@@ -87,7 +96,7 @@ export interface CreatorDraftStorage {
 
 const READINESS_KEYS: OutletReadinessKey[] = [
   "brand_complete",
-  "catalog_curated",
+  "catalog_intentional",
   "catalog_has_games",
   "editorial_highlight",
 ];
@@ -202,8 +211,8 @@ export function isCreatorIdentityComplete(draft: CreatorOutletDraft) {
   return (
     draft.identity.name.trim().length > 0 &&
     draft.identity.description.trim().length > 0 &&
-    (draft.identity.logoUrl.trim().length === 0 ||
-      isHttpUrl(draft.identity.logoUrl)) &&
+    draft.identity.logoUrl.trim().length > 0 &&
+    isHttpUrl(draft.identity.logoUrl) &&
     draft.identity.niche.trim().length > 0
   );
 }
@@ -262,7 +271,7 @@ export function normalizeOutletPublication(
     throw new Error("Invalid Outlet publication response");
   }
 
-  const rawStatus = value.status ?? value.publication_status;
+  const rawStatus = value.status;
   if (rawStatus !== "DRAFT" && rawStatus !== "PUBLISHED") {
     throw new Error("Invalid Outlet publication status");
   }
@@ -281,14 +290,23 @@ export function normalizeOutletPublication(
     },
     {
       brand_complete: false,
-      catalog_curated: false,
+      catalog_intentional: false,
       catalog_has_games: false,
       editorial_highlight: false,
     },
   );
 
   const publishedAt = value.published_at ?? value.publishedAt;
-  const readinessVersion = readiness.version ?? value.readiness_version ?? 1;
+  const lastPublishedAt = value.last_published_at ?? value.lastPublishedAt;
+  const draftRevision = value.draft_revision ?? value.draftRevision;
+  const catalogMode = value.catalog_mode ?? value.catalogMode;
+  const rawPublishedRevision = isRecord(value.published_revision)
+    ? value.published_revision
+    : isRecord(value.publishedRevision)
+      ? value.publishedRevision
+      : null;
+  const readinessVersion = readiness.version;
+  const catalogGameCount = readiness.catalog_game_count;
   const rawCapabilities = isRecord(value.capabilities)
     ? value.capabilities
     : null;
@@ -296,27 +314,48 @@ export function normalizeOutletPublication(
   return {
     status: rawStatus,
     publishedAt: typeof publishedAt === "string" ? publishedAt : null,
+    lastPublishedAt:
+      typeof lastPublishedAt === "string" ? lastPublishedAt : null,
+    draftRevision:
+      typeof draftRevision === "number" &&
+      Number.isInteger(draftRevision) &&
+      draftRevision > 0
+        ? draftRevision
+        : invalidPublicationField("draft_revision"),
+    catalogMode:
+      catalogMode === "UNDECIDED" ||
+      catalogMode === "ALL" ||
+      catalogMode === "SELECTED"
+        ? catalogMode
+        : invalidPublicationField("catalog_mode"),
+    publishedRevision: normalizePublishedRevision(rawPublishedRevision),
     readinessVersion:
-      typeof readinessVersion === "number" ? readinessVersion : 1,
+      readinessVersion === 2
+        ? readinessVersion
+        : invalidPublicationField("readiness.version"),
+    catalogGameCount:
+      typeof catalogGameCount === "number" &&
+      Number.isSafeInteger(catalogGameCount) &&
+      catalogGameCount >= 0
+        ? catalogGameCount
+        : invalidPublicationField("readiness.catalog_game_count"),
     ready:
       typeof readiness.ready === "boolean"
         ? readiness.ready
-        : READINESS_KEYS.every((key) => checks[key]),
+        : invalidPublicationField("readiness.ready"),
     checks,
-    ...(rawCapabilities && {
-      capabilities: {
-        edit: rawCapabilities.edit === true,
-        publish: rawCapabilities.publish === true,
-        unpublish: rawCapabilities.unpublish === true,
-      },
-    }),
+    capabilities: {
+      edit: rawCapabilities?.edit === true,
+      publish: rawCapabilities?.publish === true,
+      unpublish: rawCapabilities?.unpublish === true,
+    },
   };
 }
 
 export function nextReadinessAction(publication: OutletPublicationContract) {
   if (!publication.checks.brand_complete) return "IDENTITY" as const;
   if (
-    !publication.checks.catalog_curated ||
+    !publication.checks.catalog_intentional ||
     !publication.checks.catalog_has_games
   ) {
     return "SELECTION" as const;
@@ -326,6 +365,32 @@ export function nextReadinessAction(publication: OutletPublicationContract) {
   }
   if (publication.status === "DRAFT") return "PREVIEW" as const;
   return "SHARE" as const;
+}
+
+function invalidPublicationField(field: string): never {
+  throw new Error(`Invalid Outlet publication ${field}`);
+}
+
+function normalizePublishedRevision(
+  value: Record<string, unknown> | null,
+): OutletPublicationContract["publishedRevision"] {
+  if (!value) return null;
+  const sourceDraftRevision =
+    value.source_draft_revision ?? value.sourceDraftRevision;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.revision !== "number" ||
+    !Number.isSafeInteger(value.revision) ||
+    typeof sourceDraftRevision !== "number" ||
+    !Number.isSafeInteger(sourceDraftRevision)
+  ) {
+    throw new Error("Invalid Outlet published revision");
+  }
+  return {
+    id: value.id,
+    revision: value.revision,
+    sourceDraftRevision,
+  };
 }
 
 export function outletPreviewHref(slug: string) {

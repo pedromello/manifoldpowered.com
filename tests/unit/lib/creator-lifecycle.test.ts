@@ -33,10 +33,13 @@ describe("creator Outlet lifecycle", () => {
     expect(earliestIncompleteStep(draft)).toBe("SELECTION");
   });
 
-  test("accepts initials as the logo fallback instead of requiring a URL", () => {
+  test("requires a valid logo URL because publication readiness requires it", () => {
     const draft = completeIdentity(createCreatorOutletDraft("user-1"));
+    draft.identity.logoUrl = "";
 
     expect(draft.identity.logoUrl).toBe("");
+    expect(isCreatorIdentityComplete(draft)).toBe(false);
+    draft.identity.logoUrl = "https://cdn.example.com/logo.png";
     expect(isCreatorIdentityComplete(draft)).toBe(true);
   });
 
@@ -188,16 +191,22 @@ describe("creator Outlet lifecycle", () => {
     expect(secondLoad?.draftId).toBe(firstLoad?.draftId);
   });
 
-  test("normalizes the exact Sprint 0 publication contract", () => {
+  test("normalizes the exact canonical publication V2 contract", () => {
     const publication = normalizeOutletPublication({
       status: "DRAFT",
       published_at: null,
+      last_published_at: null,
+      draft_revision: 4,
+      catalog_mode: "SELECTED",
+      published_revision: null,
+      capabilities: { edit: true, publish: false, unpublish: false },
       readiness: {
-        version: 1,
+        version: 2,
         ready: false,
+        catalog_game_count: 8,
         checks: {
           brand_complete: true,
-          catalog_curated: true,
+          catalog_intentional: true,
           catalog_has_games: true,
           editorial_highlight: false,
         },
@@ -207,14 +216,20 @@ describe("creator Outlet lifecycle", () => {
     expect(publication).toEqual({
       status: "DRAFT",
       publishedAt: null,
-      readinessVersion: 1,
+      lastPublishedAt: null,
+      draftRevision: 4,
+      catalogMode: "SELECTED",
+      publishedRevision: null,
+      readinessVersion: 2,
+      catalogGameCount: 8,
       ready: false,
       checks: {
         brand_complete: true,
-        catalog_curated: true,
+        catalog_intentional: true,
         catalog_has_games: true,
         editorial_highlight: false,
       },
+      capabilities: { edit: true, publish: false, unpublish: false },
     });
     expect(nextReadinessAction(publication)).toBe("FEATURED");
   });
@@ -223,12 +238,22 @@ describe("creator Outlet lifecycle", () => {
     const published = normalizeOutletPublication({
       status: "PUBLISHED",
       published_at: "2026-09-01T12:00:00.000Z",
+      last_published_at: "2026-09-01T12:00:00.000Z",
+      draft_revision: 5,
+      catalog_mode: "SELECTED",
+      published_revision: {
+        id: "revision-1",
+        revision: 1,
+        source_draft_revision: 5,
+      },
+      capabilities: { edit: true, publish: true, unpublish: true },
       readiness: {
-        version: 1,
+        version: 2,
         ready: true,
+        catalog_game_count: 8,
         checks: {
           brand_complete: true,
-          catalog_curated: true,
+          catalog_intentional: true,
           catalog_has_games: true,
           editorial_highlight: true,
         },
@@ -240,13 +265,25 @@ describe("creator Outlet lifecycle", () => {
       "/store/save%20point?preview=1",
     );
   });
+
+  test("rejects obsolete or incomplete publication readiness contracts", () => {
+    expect(() =>
+      normalizeOutletPublication({
+        status: "DRAFT",
+        published_at: null,
+        draft_revision: 1,
+        catalog_mode: "UNDECIDED",
+        readiness: { version: 1, ready: false, checks: {} },
+      }),
+    ).toThrow("readiness.version");
+  });
 });
 
 function completeIdentity(draft: CreatorOutletDraft) {
   draft.identity = {
     name: "Save Point Club",
     description: "Patient recommendations for memorable games.",
-    logoUrl: "",
+    logoUrl: "https://cdn.example.com/save-point.png",
     niche: "Cozy indies for slow Sunday mornings",
   };
   return draft;

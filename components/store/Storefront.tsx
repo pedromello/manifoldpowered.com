@@ -5,7 +5,11 @@ import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
 import type { JsonLd } from "lib/seo";
+import { LockKeyhole } from "lucide-react";
+
 import { FollowOutletButton } from "components/store/FollowOutletButton";
+import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
+import { useI18n } from "lib/i18n";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -19,13 +23,15 @@ export type StorefrontProps = {
   pageTitle: string;
   metaDescription: string;
   canonicalPath: string;
-  socialImage: string;
-  socialImageAlt: string;
+  socialImage?: string;
+  socialImageAlt?: string;
   jsonLd?: JsonLd;
   /** The outlet being rendered. Absent on the platform-wide storefront. */
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
   showDiscover?: boolean;
+  /** A private, authenticated rendering of the working draft. */
+  isPreview?: boolean;
 };
 
 /**
@@ -50,24 +56,38 @@ export function Storefront({
   jsonLd,
   store = null,
   showDiscover = false,
+  isPreview = false,
 }: StorefrontProps) {
+  const { t } = useI18n();
   const controller = useStorefrontController({
     featuredEndpoint,
     listEndpoint,
     browsePath,
     searchPagePath,
     storeSlug: store?.slug,
+    isPreview,
   });
 
   const resolution = store ? resolveStorefront(store) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;
-  const followControl = store ? (
-    <FollowOutletButton
-      storeSlug={store.slug}
-      storeName={store.name}
-      variant={custom ? "theme" : "platform"}
-    />
-  ) : null;
+  const followControl =
+    store && isPreview ? (
+      <button
+        type="button"
+        data-storefront="follow-outlet"
+        disabled
+        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-sf-border bg-sf-surface px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-muted"
+      >
+        <LockKeyhole size={15} aria-hidden="true" />
+        {t("Draft")}
+      </button>
+    ) : store ? (
+      <FollowOutletButton
+        storeSlug={store.slug}
+        storeName={store.name}
+        variant={custom ? "theme" : "platform"}
+      />
+    ) : null;
 
   return (
     <StorefrontShell
@@ -82,7 +102,9 @@ export function Storefront({
       themeKey={resolution?.themeKey ?? "platform"}
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
+      noIndex={isPreview}
     >
+      {store && isPreview && <OutletPreviewBanner storeSlug={store.slug} />}
       {custom && store ? (
         <custom.Storefront
           {...controller}

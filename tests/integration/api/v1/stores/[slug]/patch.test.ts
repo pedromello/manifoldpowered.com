@@ -59,7 +59,7 @@ describe("PATCH /api/v1/stores/[slug]", () => {
 
       const responseBody = await response.json();
       expect(responseBody.name).toBe("New Name");
-      expect(responseBody.slug).toBe("new-name");
+      expect(responseBody.slug).toBe(createdStore.slug);
       expect(responseBody.owner_id).toBe(owner.id);
     });
   });

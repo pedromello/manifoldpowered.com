@@ -19,14 +19,15 @@ export type StorefrontShellProps = {
   title: string;
   description: string;
   canonicalPath: string;
-  socialImage: string;
-  socialImageAlt: string;
+  socialImage?: string;
+  socialImageAlt?: string;
   jsonLd?: JsonLd;
   /** Identifies the theme in contract-guard messages. */
   themeKey?: string;
   /** Skipped on product pages, which are not catalogue surfaces. */
   enforceContract?: boolean;
   hasGames?: boolean;
+  noIndex?: boolean;
   children: ReactNode;
 };
 
@@ -56,6 +57,7 @@ export function StorefrontShell({
   themeKey = "default",
   enforceContract = false,
   hasGames = false,
+  noIndex = false,
   children,
 }: StorefrontShellProps) {
   const { locale } = useI18n();
@@ -75,8 +77,10 @@ export function StorefrontShell({
         image={socialImage}
         imageAlt={socialImageAlt}
         jsonLd={jsonLd}
+        privatePage={noIndex}
       />
       <Head>
+        {noIndex && <meta name="robots" content="noindex, nofollow" />}
         {/* Overrides the global #fffbf6 in _app so the PWA status bar matches
             the outlet rather than the marketing site. */}
         <meta name="theme-color" content={palette.bg} />

@@ -26,8 +26,12 @@ const fetcher = (url: string): Promise<ListResponse> =>
 export function useStorefrontTrending(storeSlug: string, limit = 8) {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
+  const preview = router.query.preview === "1" ? "&preview=1" : "";
   const { data, isLoading } = useSWR<ListResponse>(
-    withLocale(`/api/v1/stores/${storeSlug}/trending?limit=${limit}`, locale),
+    withLocale(
+      `/api/v1/stores/${storeSlug}/trending?limit=${limit}${preview}`,
+      locale,
+    ),
     fetcher,
   );
 
@@ -37,9 +41,10 @@ export function useStorefrontTrending(storeSlug: string, limit = 8) {
 export function useStorefrontNewReleases(storeSlug: string, limit = 8) {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
+  const preview = router.query.preview === "1" ? "&preview=1" : "";
   const { data, isLoading } = useSWR<ListResponse>(
     withLocale(
-      `/api/v1/stores/${storeSlug}/new-releases?limit=${limit}`,
+      `/api/v1/stores/${storeSlug}/new-releases?limit=${limit}${preview}`,
       locale,
     ),
     fetcher,

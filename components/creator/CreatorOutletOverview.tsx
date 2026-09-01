@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 
 import { useI18n } from "lib/i18n";
+import {
+  CREATOR_OUTLET_FUNNEL_VERSION,
+  creatorFunnelAnalytics,
+} from "lib/creator-funnel-analytics";
+import type { OutletPublicationContract } from "lib/creator-lifecycle";
 
 export interface CreatorOutletOverviewStore {
   slug: string;
@@ -24,19 +29,9 @@ export interface CreatorOutletOverviewStore {
   status?: "DRAFT" | "PUBLISHED" | "draft" | "published";
 }
 
-export interface CreatorOutletReadinessChecks {
-  brand_complete: boolean;
-  catalog_curated: boolean;
-  catalog_has_games: boolean;
-  editorial_highlight: boolean;
-}
+export type CreatorOutletReadinessChecks = OutletPublicationContract["checks"];
 
-export interface CreatorOutletPublication {
-  status: "DRAFT" | "PUBLISHED" | "draft" | "published";
-  publishedAt: string | null;
-  ready: boolean;
-  checks: CreatorOutletReadinessChecks;
-}
+export type CreatorOutletPublication = OutletPublicationContract;
 
 export interface CreatorOutletOverviewProps {
   store: CreatorOutletOverviewStore;
@@ -108,12 +103,38 @@ export function CreatorOutletOverview({
   const { locale, t } = useI18n();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const [justCopied, setJustCopied] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const safeSlug = encodeURIComponent(store.slug);
   const manageHref = `/store/${safeSlug}/manage`;
   const previewHref = `/store/${safeSlug}?preview=1`;
   const liveHref = `/store/${safeSlug}`;
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    const timeout = window.setTimeout(() => setPreviewError(true), 10000);
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        event.origin === window.location.origin &&
+        event.source === previewFrameRef.current?.contentWindow &&
+        isRecord(event.data) &&
+        event.data.type === "manifold:outlet-preview-ready" &&
+        event.data.slug === store.slug
+      ) {
+        window.clearTimeout(timeout);
+        setPreviewLoaded(true);
+        setPreviewError(false);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [previewAttempt, previewOpen, store.slug]);
 
   if (loading) {
     return <OverviewLoading label={t("Loading your Outlet overview...")} />;
@@ -143,6 +164,11 @@ export function CreatorOutletOverview({
   }
 
   const isPublished = publication.status.toUpperCase() === "PUBLISHED";
+  const hasPendingChanges =
+    isPublished &&
+    publication.publishedRevision !== null &&
+    publication.draftRevision >
+      publication.publishedRevision.sourceDraftRevision;
   const checklist: ChecklistItem[] = [
     {
       key: "brand_complete",
@@ -154,7 +180,7 @@ export function CreatorOutletOverview({
       actionLabel: t("Edit identity"),
     },
     {
-      key: "catalog_curated",
+      key: "catalog_intentional",
       label: t("Choose a clear selection"),
       detail: t(
         "Pick a focus instead of showing the entire catalog by default.",
@@ -188,6 +214,7 @@ export function CreatorOutletOverview({
   const primaryAction = getPrimaryAction({
     firstIncomplete,
     isPublished,
+    hasPendingChanges,
     previewedAt,
     ready: publication.ready,
     t,
@@ -201,6 +228,11 @@ export function CreatorOutletOverview({
       await navigator.clipboard.writeText(
         `${window.location.origin}${liveHref}`,
       );
+      creatorFunnelAnalytics.linkCopied({
+        funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+        entrySurface: "manage_outlet",
+        copyContext: "manage",
+      });
       setJustCopied(true);
       window.setTimeout(() => setJustCopied(false), 3000);
     } catch {
@@ -294,7 +326,11 @@ export function CreatorOutletOverview({
                     : primaryAction
                 }
                 isPublishing={isPublishing}
-                onPreview={() => setPreviewOpen(true)}
+                onPreview={() => {
+                  setPreviewLoaded(false);
+                  setPreviewError(false);
+                  setPreviewOpen(true);
+                }}
                 onPublish={canPublish ? onPublish : undefined}
                 onShare={copyLiveLink}
                 retry={retry}
@@ -317,7 +353,7 @@ export function CreatorOutletOverview({
             ) : null}
           </article>
 
-          {!isPublished && previewOpen ? (
+          {previewOpen ? (
             <article className="overflow-hidden rounded-2xl border border-white/[0.09] bg-[#14101c]">
               <div className="flex flex-col gap-3 border-b border-white/[0.08] p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -349,11 +385,33 @@ export function CreatorOutletOverview({
                 </div>
               </div>
               <iframe
+                key={previewAttempt}
+                ref={previewFrameRef}
                 src={previewHref}
                 title={t("Preview of {name}", { name: store.name })}
-                onLoad={() => setPreviewLoaded(true)}
                 className="h-[34rem] w-full bg-[#0b0812]"
               />
+              {previewError ? (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center gap-3 border-t border-rose-400/20 bg-rose-400/[0.08] px-5 py-4 text-sm font-bold text-rose-200"
+                >
+                  <span>
+                    {t("The preview did not confirm that it loaded.")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewLoaded(false);
+                      setPreviewError(false);
+                      setPreviewAttempt((attempt) => attempt + 1);
+                    }}
+                    className={focusRing}
+                  >
+                    {t("Try again")}
+                  </button>
+                </div>
+              ) : null}
             </article>
           ) : null}
 
@@ -469,7 +527,7 @@ export function CreatorOutletOverview({
               aria-label={t("Outlet editing shortcuts")}
               className="mt-4 space-y-2"
             >
-              {!isPublished && canEdit ? (
+              {canEdit ? (
                 <>
                   <ShortcutLink
                     href={`${manageHref}?tab=settings`}
@@ -487,26 +545,6 @@ export function CreatorOutletOverview({
                     label={t("Featured recommendation")}
                   />
                 </>
-              ) : isPublished ? (
-                <div className="rounded-xl border border-white/[0.08] p-3 text-xs font-semibold leading-relaxed text-white/45">
-                  <p>
-                    {t(
-                      "Return this Outlet to draft before editing its live content.",
-                    )}
-                  </p>
-                  {canUnpublish && onUnpublish ? (
-                    <button
-                      type="button"
-                      onClick={onUnpublish}
-                      disabled={isUnpublishing}
-                      className="mt-3 min-h-10 font-black text-violet-200 disabled:opacity-40"
-                    >
-                      {isUnpublishing
-                        ? t("Returning to draft...")
-                        : t("Return to draft")}
-                    </button>
-                  ) : null}
-                </div>
               ) : (
                 <p className="text-xs font-semibold text-white/40">
                   {t(
@@ -514,6 +552,18 @@ export function CreatorOutletOverview({
                   )}
                 </p>
               )}
+              {isPublished && canUnpublish && onUnpublish ? (
+                <button
+                  type="button"
+                  onClick={onUnpublish}
+                  disabled={isUnpublishing}
+                  className="mt-3 min-h-11 w-full rounded-xl border border-white/10 px-3 text-xs font-black text-white/50 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
+                >
+                  {isUnpublishing
+                    ? t("Unpublishing...")
+                    : t("Unpublish Outlet")}
+                </button>
+              ) : null}
             </nav>
           </section>
 
@@ -594,12 +644,21 @@ function PrimaryActionControl({
 
   const isPublish = action.kind === "publish";
   const isShare = action.kind === "share";
-  const onClick = isPublish ? onPublish : isShare ? onShare : retry;
+  const isPreview = action.kind === "preview";
+  const onClick = isPublish
+    ? onPublish
+    : isShare
+      ? onShare
+      : isPreview
+        ? onPreview
+        : retry;
   const disabled = isPublish
     ? isPublishing || !onPublish
     : isShare
       ? !onShare
-      : !retry;
+      : isPreview
+        ? !onPreview
+        : !retry;
 
   return (
     <button
@@ -617,6 +676,8 @@ function PrimaryActionControl({
         <Rocket size={16} aria-hidden="true" />
       ) : isShare ? (
         <Copy size={16} aria-hidden="true" />
+      ) : isPreview ? (
+        <Eye size={16} aria-hidden="true" />
       ) : (
         <RefreshCw size={16} aria-hidden="true" />
       )}
@@ -708,28 +769,18 @@ function OverviewError({
 function getPrimaryAction({
   firstIncomplete,
   isPublished,
+  hasPendingChanges,
   previewedAt,
   ready,
   t,
 }: {
   firstIncomplete?: ChecklistItem;
   isPublished: boolean;
+  hasPendingChanges: boolean;
   previewedAt: string | null;
   ready: boolean;
   t: (message: string, values?: Record<string, string | number>) => string;
 }): PrimaryAction {
-  if (isPublished) {
-    return {
-      kind: "share",
-      eyebrow: t("Your next move"),
-      title: t("Share your Outlet with your audience"),
-      detail: t(
-        "Copy the live link and put your selection where your community already follows you.",
-      ),
-      label: t("Copy Outlet link"),
-    };
-  }
-
   if (firstIncomplete) {
     return {
       kind:
@@ -756,6 +807,18 @@ function getPrimaryAction({
     };
   }
 
+  if (isPublished && !hasPendingChanges) {
+    return {
+      kind: "share",
+      eyebrow: t("Your next move"),
+      title: t("Share your Outlet with your audience"),
+      detail: t(
+        "Copy the live link and put your selection where your community already follows you.",
+      ),
+      label: t("Copy Outlet link"),
+    };
+  }
+
   if (!previewedAt) {
     return {
       kind: "preview",
@@ -769,11 +832,15 @@ function getPrimaryAction({
   return {
     kind: "publish",
     eyebrow: t("Ready when you are"),
-    title: t("Bring your Outlet to your audience"),
+    title: isPublished
+      ? t("Publish your latest changes")
+      : t("Bring your Outlet to your audience"),
     detail: t(
-      "Publishing makes this page live. Nothing changes until you choose it.",
+      isPublished
+        ? "Players keep seeing the current live snapshot until you publish these changes."
+        : "Publishing makes this page live. Nothing changes until you choose it.",
     ),
-    label: t("Publish Outlet"),
+    label: isPublished ? t("Publish changes") : t("Publish Outlet"),
   };
 }
 
@@ -788,4 +855,8 @@ function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "M";
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

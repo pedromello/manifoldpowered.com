@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   CreatorOutletOverview,
   type CreatorOutletOverviewProps,
+  type CreatorOutletPublication,
 } from "components/creator/CreatorOutletOverview";
 
 jest.mock("next/link", () => ({
@@ -25,17 +26,31 @@ function props(
       logo_url: null,
       status: "DRAFT",
     },
-    publication: {
-      status: "DRAFT",
-      publishedAt: null,
-      ready: false,
-      checks: {
-        brand_complete: false,
-        catalog_curated: false,
-        catalog_has_games: false,
-        editorial_highlight: false,
-      },
+    publication: publication(),
+    ...overrides,
+  };
+}
+
+function publication(
+  overrides: Partial<CreatorOutletPublication> = {},
+): CreatorOutletPublication {
+  return {
+    status: "DRAFT",
+    publishedAt: null,
+    lastPublishedAt: null,
+    draftRevision: 1,
+    catalogMode: "UNDECIDED",
+    publishedRevision: null,
+    readinessVersion: 2,
+    catalogGameCount: 0,
+    ready: false,
+    checks: {
+      brand_complete: false,
+      catalog_intentional: false,
+      catalog_has_games: false,
+      editorial_highlight: false,
     },
+    capabilities: { edit: true, publish: true, unpublish: true },
     ...overrides,
   };
 }
@@ -48,7 +63,7 @@ describe("CreatorOutletOverview", () => {
     expect(markup).toContain('data-creator-primary-action="identity"');
     expect(markup.match(/data-readiness-check=/g)).toHaveLength(4);
     expect(markup).toContain('data-readiness-check="brand_complete"');
-    expect(markup).toContain('data-readiness-check="catalog_curated"');
+    expect(markup).toContain('data-readiness-check="catalog_intentional"');
     expect(markup).toContain('data-readiness-check="catalog_has_games"');
     expect(markup).toContain('data-readiness-check="editorial_highlight"');
     expect(markup).toContain("Continue building");
@@ -57,24 +72,25 @@ describe("CreatorOutletOverview", () => {
   });
 
   test("asks for a preview before offering publication", () => {
-    const publication = {
+    const readyPublication = publication({
       status: "DRAFT" as const,
-      publishedAt: null,
       ready: true,
+      catalogMode: "SELECTED",
+      catalogGameCount: 5,
       checks: {
         brand_complete: true,
-        catalog_curated: true,
+        catalog_intentional: true,
         catalog_has_games: true,
         editorial_highlight: true,
       },
-    };
+    });
     const beforePreview = renderToStaticMarkup(
-      <CreatorOutletOverview {...props({ publication })} />,
+      <CreatorOutletOverview {...props({ publication: readyPublication })} />,
     );
     const afterPreview = renderToStaticMarkup(
       <CreatorOutletOverview
         {...props({
-          publication,
+          publication: readyPublication,
           previewedAt: "2026-09-01T12:00:00.000Z",
           onPublish: jest.fn(),
         })}
@@ -96,17 +112,24 @@ describe("CreatorOutletOverview", () => {
             ...props().store,
             status: "PUBLISHED",
           },
-          publication: {
+          publication: publication({
             status: "PUBLISHED",
             publishedAt: "2026-09-01T12:00:00.000Z",
+            lastPublishedAt: "2026-09-01T12:00:00.000Z",
+            catalogMode: "SELECTED",
+            publishedRevision: {
+              id: "revision-1",
+              revision: 1,
+              sourceDraftRevision: 1,
+            },
             ready: true,
             checks: {
               brand_complete: true,
-              catalog_curated: true,
+              catalog_intentional: true,
               catalog_has_games: true,
               editorial_highlight: true,
             },
-          },
+          }),
         })}
       />,
     );
@@ -120,22 +143,58 @@ describe("CreatorOutletOverview", () => {
     expect(markup).not.toContain("Preview is private");
   });
 
+  test("keeps draft editing available while the published snapshot remains live", () => {
+    const markup = renderToStaticMarkup(
+      <CreatorOutletOverview
+        {...props({
+          publication: publication({
+            status: "PUBLISHED",
+            publishedAt: "2026-09-01T12:00:00.000Z",
+            draftRevision: 2,
+            catalogMode: "SELECTED",
+            publishedRevision: {
+              id: "revision-1",
+              revision: 1,
+              sourceDraftRevision: 1,
+            },
+            ready: true,
+            checks: {
+              brand_complete: true,
+              catalog_intentional: true,
+              catalog_has_games: true,
+              editorial_highlight: true,
+            },
+          }),
+          previewedAt: "2026-09-01T13:00:00.000Z",
+          onPublish: jest.fn(),
+          canEdit: true,
+          canPublish: true,
+        })}
+      />,
+    );
+
+    expect(markup).toContain("Publish changes");
+    expect(markup).toContain("Identity and story");
+    expect(markup).toContain("Your selection");
+    expect(markup).not.toContain(
+      "Return this Outlet to draft before editing its live content.",
+    );
+  });
+
   test("refreshes instead of publishing when the server has not marked a complete checklist ready", () => {
     const markup = renderToStaticMarkup(
       <CreatorOutletOverview
         {...props({
           retry: jest.fn(),
-          publication: {
-            status: "DRAFT",
-            publishedAt: null,
+          publication: publication({
             ready: false,
             checks: {
               brand_complete: true,
-              catalog_curated: true,
+              catalog_intentional: true,
               catalog_has_games: true,
               editorial_highlight: true,
             },
-          },
+          }),
         })}
       />,
     );
@@ -149,17 +208,16 @@ describe("CreatorOutletOverview", () => {
     const markup = renderToStaticMarkup(
       <CreatorOutletOverview
         {...props({
-          publication: {
-            status: "DRAFT",
-            publishedAt: null,
+          publication: publication({
             ready: true,
+            catalogMode: "SELECTED",
             checks: {
               brand_complete: true,
-              catalog_curated: true,
+              catalog_intentional: true,
               catalog_has_games: true,
               editorial_highlight: true,
             },
-          },
+          }),
           previewedAt: "2026-09-01T12:00:00.000Z",
           onPublish: jest.fn(),
           isPublishing: true,
