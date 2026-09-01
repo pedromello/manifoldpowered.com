@@ -119,4 +119,48 @@ describe("models/game_ownership_claim.ts", () => {
       message: "Only unclaimed catalog games can receive ownership claims.",
     });
   });
+
+  test("prevents one requester from flooding a game through multiple studios", async () => {
+    const requester = await orchestrator.createUser();
+    await orchestrator.activateUser(requester.id);
+    const firstStudio = await orchestrator.createStudio(requester.id, {
+      name: "Requester First Studio",
+    });
+    const secondStudio = await orchestrator.createStudio(requester.id, {
+      name: "Requester Second Studio",
+    });
+    const game = await createUnclaimedGame("Requester Flood Fixture");
+
+    await createClaimDirect({
+      gameId: game.id,
+      gameTitle: game.title,
+      studioId: firstStudio.id,
+      studioName: firstStudio.name,
+      userId: requester.id,
+    });
+
+    await expect(
+      createClaimDirect({
+        gameId: game.id,
+        gameTitle: game.title,
+        studioId: secondStudio.id,
+        studioName: secondStudio.name,
+        userId: requester.id,
+      }),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message:
+        "You or this studio already have a pending ownership claim for the game.",
+    });
+
+    await expect(
+      prisma.gameOwnershipClaim.count({
+        where: {
+          game_id: game.id,
+          requested_by_user_id: requester.id,
+          status: "PENDING",
+        },
+      }),
+    ).resolves.toBe(1);
+  });
 });

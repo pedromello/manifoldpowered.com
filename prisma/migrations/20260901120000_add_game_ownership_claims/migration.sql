@@ -36,6 +36,11 @@ CREATE UNIQUE INDEX "game_ownership_claims_one_pending_per_studio_game"
 ON "game_ownership_claims"("game_id", "studio_id")
 WHERE "status" = 'PENDING';
 
+-- A requester cannot bypass the per-studio limit by creating more Studios.
+CREATE UNIQUE INDEX "game_ownership_claims_one_pending_per_requester_game"
+ON "game_ownership_claims"("game_id", "requested_by_user_id")
+WHERE "status" = 'PENDING';
+
 -- At most one studio can ever be approved as the game's owner.
 CREATE UNIQUE INDEX "game_ownership_claims_one_approved_per_game"
 ON "game_ownership_claims"("game_id")

@@ -209,7 +209,7 @@ async function create({
     ) {
       throw new ValidationError({
         message:
-          "This studio already has a pending ownership claim for the game.",
+          "You or this studio already have a pending ownership claim for the game.",
         action:
           "Wait for the current request to be reviewed before trying again.",
         cause: error,
