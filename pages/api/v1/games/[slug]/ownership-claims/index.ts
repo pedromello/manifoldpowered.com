@@ -46,16 +46,20 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     parsed.data.slug,
     parsed.data.studio_id,
   );
-  const canReadClaims = authorization.can(
-    req.context.user,
-    "read:game_ownership_claim",
-    foundStudio,
-  );
-  const canCreateClaims = authorization.can(
-    req.context.user,
-    "create:game_ownership_claim",
-    foundStudio,
-  );
+  const canReadClaims =
+    authorization.can(req.context.user, "read:game_ownership_claim") &&
+    authorization.can(
+      req.context.user,
+      "read:game_ownership_claim",
+      foundStudio,
+    );
+  const canCreateClaims =
+    authorization.can(req.context.user, "create:game_ownership_claim") &&
+    authorization.can(
+      req.context.user,
+      "create:game_ownership_claim",
+      foundStudio,
+    );
   if (!canReadClaims && !canCreateClaims) {
     throw new ForbiddenError({
       message: "You cannot access ownership claims for this studio.",

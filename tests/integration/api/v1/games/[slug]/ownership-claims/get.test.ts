@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import { prisma } from "infra/database";
+import userModel from "models/user";
 import {
   createClaimDirect,
   createUnclaimedGame,
@@ -129,5 +130,24 @@ describe("GET /api/v1/games/[slug]/ownership-claims", () => {
       },
     });
     expect(membership.permissions).not.toContain("read:game_ownership_claim");
+  });
+
+  test("revokes claim access when an existing session belongs to a disabled user", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const studio = await orchestrator.createStudio(owner.id);
+    const game = await createUnclaimedGame("Disabled Claim Reader Game");
+    const session = await orchestrator.createSession(owner.id);
+    await userModel.disable(owner.id);
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/games/${game.slug}/ownership-claims?studio_id=${studio.id}&locale=en`,
+      { headers: { Cookie: `session_id=${session.token}` } },
+    );
+
+    expect(response.status).toBe(403);
+    expect((await response.json()).message).toBe(
+      "You cannot access ownership claims for this studio.",
+    );
   });
 });

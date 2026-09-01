@@ -291,7 +291,7 @@ async function refreshUnclaimedSteamGame(
 
   return prisma.$transaction(async (tx) => {
     const updatedGame = await tx.game.update({
-      where: { id, status: "ONLY_DISPLAY" },
+      where: { id, status: "ONLY_DISPLAY", studio_id: null },
       data: {
         ...refreshData,
         launch_date: new Date(refreshData.launch_date),

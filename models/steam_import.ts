@@ -54,7 +54,10 @@ async function importGame({
   gateway = steam,
 }: ImportSteamGameOptions) {
   const existingGame = await game.findOneBySteamAppId(steamAppId);
-  if (existingGame && existingGame.status !== "ONLY_DISPLAY") {
+  if (
+    existingGame &&
+    (existingGame.status !== "ONLY_DISPLAY" || existingGame.studio_id !== null)
+  ) {
     return { game: existingGame, created: false };
   }
 
