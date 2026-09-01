@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as mutateGlobal } from "swr";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +27,7 @@ import {
 import {
   CreatorOutletRequestError,
   fetchOutletPublication,
+  previewExplicitOutletSelection,
   saveExplicitOutletSelection,
   updateOutletPublication,
 } from "lib/creator-outlet-client";
@@ -39,8 +40,11 @@ import {
   isCreatorFeaturedComplete,
   isCreatorIdentityComplete,
   isCreatorSelectionComplete,
+  listCreatorOutletDraftArchives,
   loadCreatorOutletDraft,
   outletPreviewHref,
+  removeCreatorOutletDraftArchive,
+  restoreCreatorOutletDraft,
   saveCreatorOutletDraft,
   startNewCreatorOutletDraft,
   type CreatorGameSummary,
@@ -111,6 +115,9 @@ export function CreatorOutletOnboarding() {
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
   const [flowError, setFlowError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [archivedDrafts, setArchivedDrafts] = useState<CreatorOutletDraft[]>(
+    [],
+  );
 
   const {
     data: currentUser,
@@ -141,6 +148,9 @@ export function CreatorOutletOnboarding() {
     setDraft(
       currentIndex > earliestIndex ? { ...next, currentStep: earliest } : next,
     );
+    setArchivedDrafts(
+      listCreatorOutletDraftArchives(localStorage, currentUser.id),
+    );
     setIsHydrated(true);
   }, [currentUser, isHydrated, router.isReady, router.query.new]);
 
@@ -167,6 +177,9 @@ export function CreatorOutletOnboarding() {
       startNew
         ? startNewCreatorOutletDraft(localStorage, currentUser.id)
         : active,
+    );
+    setArchivedDrafts(
+      listCreatorOutletDraftArchives(localStorage, currentUser.id),
     );
     setIsHydrated(true);
     void router.replace("/store/new", undefined, { shallow: true });
@@ -240,14 +253,12 @@ export function CreatorOutletOnboarding() {
 
   const progress = getOnboardingProgress(draft);
 
-  async function saveSelection() {
-    if (!isCreatorSelectionComplete(draft)) return;
+  async function saveIdentity() {
+    if (!isCreatorIdentityComplete(draft)) return;
     setIsSubmitting(true);
     setFlowError(null);
-
     try {
       let activeSlug = draft.storeSlug;
-      let expectedDraftRevision: number;
       const storePayload = {
         name: draft.identity.name.trim(),
         description: creatorDescription(draft),
@@ -272,7 +283,6 @@ export function CreatorOutletOnboarding() {
           throw new Error(responseMessage(body, "Failed to create Outlet."));
         }
         activeSlug = body.slug;
-        expectedDraftRevision = body.draft_revision;
         creatorFunnelAnalytics.draftCreated({
           funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
           entrySurface: "create_outlet",
@@ -285,28 +295,77 @@ export function CreatorOutletOnboarding() {
         });
         updateDraft((current) => ({ ...current, storeSlug: body.slug }));
       } else {
+        const publication = await fetchOutletPublication(activeSlug);
         const response = await fetch(
           `/api/v1/stores/${encodeURIComponent(activeSlug)}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(storePayload),
+            body: JSON.stringify({
+              ...storePayload,
+              expected_draft_revision: publication.draftRevision,
+            }),
           },
         );
         const body: unknown = await response.json().catch(() => null);
         if (!response.ok || !isStoreCreateResponse(body)) {
-          throw new Error(responseMessage(body, "Failed to update Outlet."));
+          throw new Error(
+            response.status === 409
+              ? t(
+                  "This Outlet changed in another session. Review the latest identity and try again.",
+                )
+              : responseMessage(body, "Failed to update Outlet."),
+          );
         }
-        expectedDraftRevision = body.draft_revision;
       }
 
-      await saveExplicitOutletSelection(activeSlug, {
+      updateDraft((current) => ({
+        ...current,
+        storeSlug: activeSlug,
+        currentStep: "SELECTION",
+      }));
+      await mutateGlobal(
+        `/api/v1/stores/${encodeURIComponent(activeSlug)}/publication`,
+      );
+    } catch (error) {
+      setFlowError(
+        translateError(
+          error instanceof Error ? error.message : null,
+          "We couldn't save your Outlet identity. Try again.",
+        ),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function saveSelection() {
+    if (!draft.storeSlug || !isCreatorSelectionComplete(draft)) return;
+    setIsSubmitting(true);
+    setFlowError(null);
+
+    try {
+      const publication = await fetchOutletPublication(draft.storeSlug);
+      if (publication.catalogMode !== "UNDECIDED") {
+        await router.push(
+          `/store/${encodeURIComponent(draft.storeSlug)}/manage?tab=curation`,
+        );
+        return;
+      }
+
+      await saveExplicitOutletSelection(draft.storeSlug, {
         strategy: draft.selection.strategy as CreatorSelectionStrategy,
         tags: draft.selection.tags,
         gameSlugs: draft.selection.games.map((game) => game.slug),
-        expectedDraftRevision,
+        expectedDraftRevision: publication.draftRevision,
       });
-      if (!firstSelectionTrackedRef.current) {
+      await mutateGlobal(
+        `/api/v1/stores/${encodeURIComponent(draft.storeSlug)}/publication`,
+      );
+      if (
+        draft.selection.strategy === "HANDPICKED" &&
+        !firstSelectionTrackedRef.current
+      ) {
         creatorFunnelAnalytics.firstGameAdded({
           funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
           entrySurface: "manage_outlet",
@@ -317,7 +376,6 @@ export function CreatorOutletOnboarding() {
 
       updateDraft((current) => ({
         ...current,
-        storeSlug: activeSlug,
         currentStep: "FEATURED",
       }));
     } catch (error) {
@@ -337,12 +395,14 @@ export function CreatorOutletOnboarding() {
     setIsSubmitting(true);
     setFlowError(null);
     try {
+      const publication = await fetchOutletPublication(draft.storeSlug);
       const response = await fetch(
         `/api/v1/stores/${encodeURIComponent(draft.storeSlug)}/featured`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            expected_draft_revision: publication.draftRevision,
             recommendations: [
               {
                 game_slug: draft.featured.gameSlug,
@@ -356,8 +416,26 @@ export function CreatorOutletOnboarding() {
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(
-          responseMessage(body, "Failed to save your Featured pick."),
+          response.status === 409
+            ? t(
+                "This Outlet changed in another session. Review the latest Featured selection and try again.",
+              )
+            : responseMessage(body, "Failed to save your Featured pick."),
         );
+      }
+      await mutateGlobal(
+        `/api/v1/stores/${encodeURIComponent(draft.storeSlug)}/publication`,
+      );
+      if (
+        draft.selection.strategy === "FOCUSED" &&
+        !firstSelectionTrackedRef.current
+      ) {
+        creatorFunnelAnalytics.firstGameAdded({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "manage_outlet",
+          selectionSurface: "featured",
+        });
+        firstSelectionTrackedRef.current = true;
       }
       goToStep("PREVIEW");
     } catch (error) {
@@ -370,6 +448,34 @@ export function CreatorOutletOnboarding() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function restoreArchivedDraft(draftId: string) {
+    if (!currentUser) return;
+    const restored = restoreCreatorOutletDraft(
+      localStorage,
+      currentUser.id,
+      draftId,
+    );
+    if (!restored) return;
+    setDraft(restored);
+    setArchivedDrafts(
+      listCreatorOutletDraftArchives(localStorage, currentUser.id),
+    );
+    setFlowError(null);
+  }
+
+  function removeArchivedDraft(draftId: string) {
+    if (
+      !currentUser ||
+      !window.confirm(t("Remove this archived setup from this device?"))
+    ) {
+      return;
+    }
+    removeCreatorOutletDraftArchive(localStorage, currentUser.id, draftId);
+    setArchivedDrafts(
+      listCreatorOutletDraftArchives(localStorage, currentUser.id),
+    );
   }
 
   return (
@@ -438,6 +544,49 @@ export function CreatorOutletOnboarding() {
           </ol>
         </div>
 
+        {archivedDrafts.length > 0 && (
+          <details className="mb-6 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+            <summary className="min-h-11 cursor-pointer py-3 text-sm font-black text-white/70">
+              {t("Archived setups ({count})", { count: archivedDrafts.length })}
+            </summary>
+            <div className="mt-2 grid gap-2 border-t border-white/[0.08] pt-3">
+              {archivedDrafts.map((archived) => (
+                <div
+                  key={archived.draftId}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-black/20 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-black">
+                      {archived.identity.name || t("Untitled Outlet")}
+                    </p>
+                    <p className="text-xs font-semibold text-white/35">
+                      {t("Last saved {date}", {
+                        date: new Date(archived.updatedAt).toLocaleDateString(),
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => restoreArchivedDraft(archived.draftId)}
+                      className="min-h-11 rounded-lg border border-violet-300/25 px-3 text-xs font-black text-violet-200"
+                    >
+                      {t("Restore")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeArchivedDraft(archived.draftId)}
+                      className="min-h-11 rounded-lg px-3 text-xs font-black text-rose-200"
+                    >
+                      {t("Remove")}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+
         {flowError && (
           <div
             role="alert"
@@ -451,7 +600,8 @@ export function CreatorOutletOnboarding() {
           <IdentityStep
             draft={draft}
             updateDraft={updateDraft}
-            onContinue={() => goToStep("SELECTION")}
+            onContinue={saveIdentity}
+            isSubmitting={isSubmitting}
           />
         )}
         {draft.currentStep === "SELECTION" && (
@@ -467,7 +617,11 @@ export function CreatorOutletOnboarding() {
           <FeaturedStep
             draft={draft}
             updateDraft={updateDraft}
-            onBack={() => goToStep("SELECTION")}
+            onBack={() =>
+              void router.push(
+                `/store/${encodeURIComponent(draft.storeSlug as string)}/manage?tab=curation`,
+              )
+            }
             onContinue={saveFeatured}
             isSubmitting={isSubmitting}
           />
@@ -502,9 +656,11 @@ function IdentityStep({
   draft,
   updateDraft,
   onContinue,
-}: StepProps & { onContinue: () => void }) {
+  isSubmitting,
+}: StepProps & { onContinue: () => void; isSubmitting: boolean }) {
   const { t } = useI18n();
   const initials = outletInitials(draft.identity.name);
+  const combinedDescriptionLength = creatorDescription(draft).length;
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-12">
@@ -590,6 +746,18 @@ function IdentityStep({
               )}
               className={`${inputClassName} resize-y`}
             />
+            <p
+              role={combinedDescriptionLength > 1000 ? "alert" : "status"}
+              className={`mt-2 text-right text-xs font-bold ${
+                combinedDescriptionLength > 1000
+                  ? "text-rose-200"
+                  : "text-white/30"
+              }`}
+            >
+              {t("{count} / 1000 characters including niche", {
+                count: combinedDescriptionLength,
+              })}
+            </p>
           </Field>
 
           <Field
@@ -603,6 +771,8 @@ function IdentityStep({
             <input
               id="outlet-logo"
               type="url"
+              pattern="https://.*"
+              maxLength={2048}
               required
               aria-describedby="outlet-logo-description"
               value={draft.identity.logoUrl}
@@ -624,10 +794,19 @@ function IdentityStep({
         <div className="mt-8 flex justify-end">
           <PrimaryButton
             onClick={onContinue}
-            disabled={!isCreatorIdentityComplete(draft)}
+            disabled={!isCreatorIdentityComplete(draft) || isSubmitting}
           >
-            {t("Choose your games")}
-            <ArrowRight size={17} />
+            {isSubmitting ? (
+              <>
+                <Loader2 size={17} className="animate-spin" />
+                {t("Saving identity...")}
+              </>
+            ) : (
+              <>
+                {t("Choose your games")}
+                <ArrowRight size={17} />
+              </>
+            )}
           </PrimaryButton>
         </div>
       </section>
@@ -674,6 +853,83 @@ function SelectionStep({
   isSubmitting: boolean;
 }) {
   const { t } = useI18n();
+  const [selectionPreview, setSelectionPreview] = useState<{
+    count: number;
+    minimum: number;
+    canApply: boolean;
+  } | null>(null);
+  const [isPreviewingSelection, setIsPreviewingSelection] = useState(false);
+  const [selectionPreviewError, setSelectionPreviewError] = useState<
+    string | null
+  >(null);
+  const [existingCatalogMode, setExistingCatalogMode] = useState<
+    "ALL" | "SELECTED" | null
+  >(null);
+
+  useEffect(() => {
+    if (!draft.storeSlug || !isCreatorSelectionComplete(draft)) {
+      setSelectionPreview(null);
+      setSelectionPreviewError(null);
+      setExistingCatalogMode(null);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setIsPreviewingSelection(true);
+      setSelectionPreviewError(null);
+      try {
+        const publication = await fetchOutletPublication(
+          draft.storeSlug as string,
+        );
+        if (publication.catalogMode !== "UNDECIDED") {
+          if (!cancelled) {
+            setExistingCatalogMode(publication.catalogMode);
+            setSelectionPreview(null);
+            setSelectionPreviewError(null);
+          }
+          return;
+        }
+        if (!cancelled) setExistingCatalogMode(null);
+        const preview = await previewExplicitOutletSelection(
+          draft.storeSlug as string,
+          {
+            strategy: draft.selection.strategy as CreatorSelectionStrategy,
+            tags: draft.selection.tags,
+            gameSlugs: draft.selection.games.map((game) => game.slug),
+            expectedDraftRevision: publication.draftRevision,
+          },
+        );
+        if (!cancelled) {
+          setSelectionPreview({
+            count: preview.catalogGameCount,
+            minimum: preview.minimumGameCount,
+            canApply: preview.canApply,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSelectionPreview(null);
+          setSelectionPreviewError(
+            error instanceof Error
+              ? error.message
+              : "Could not preview selection.",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsPreviewingSelection(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [
+    draft,
+    draft.selection.games,
+    draft.selection.strategy,
+    draft.selection.tags,
+    draft.storeSlug,
+  ]);
 
   function chooseStrategy(strategy: CreatorSelectionStrategy) {
     updateDraft((current) => ({
@@ -725,7 +981,22 @@ function SelectionStep({
         )}
       />
 
-      <fieldset className="mt-8 grid gap-3 sm:grid-cols-2">
+      <fieldset
+        role="radiogroup"
+        onKeyDown={(event) => {
+          if (
+            !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+              event.key,
+            )
+          )
+            return;
+          event.preventDefault();
+          chooseStrategy(
+            draft.selection.strategy === "FOCUSED" ? "HANDPICKED" : "FOCUSED",
+          );
+        }}
+        className="mt-8 grid gap-3 sm:grid-cols-2"
+      >
         <legend className="sr-only">{t("Selection strategy")}</legend>
         <StrategyButton
           active={draft.selection.strategy === "FOCUSED"}
@@ -819,7 +1090,6 @@ function SelectionStep({
           </div>
           <div className="mt-5">
             <GameAutocomplete
-              endpoint="/api/v1/items/games"
               onSelect={addGame}
               placeholder={t("Search games on Manifold")}
             />
@@ -852,23 +1122,86 @@ function SelectionStep({
         </div>
       )}
 
-      <StepActions onBack={onBack}>
-        <PrimaryButton
-          onClick={onContinue}
-          disabled={!isCreatorSelectionComplete(draft) || isSubmitting}
+      {(isPreviewingSelection || selectionPreview || selectionPreviewError) && (
+        <div
+          role={selectionPreviewError ? "alert" : "status"}
+          aria-live="polite"
+          className={`mt-6 rounded-xl border px-4 py-3 text-sm font-bold ${
+            selectionPreviewError || selectionPreview?.canApply === false
+              ? "border-rose-400/25 bg-rose-400/10 text-rose-200"
+              : "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
+          }`}
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 size={17} className="animate-spin" />
-              {t("Saving selection...")}
-            </>
-          ) : (
-            <>
-              {t("Save selection")}
-              <ArrowRight size={17} />
-            </>
-          )}
-        </PrimaryButton>
+          {isPreviewingSelection
+            ? t("Calculating the real catalog impact...")
+            : selectionPreviewError
+              ? t(
+                  "We couldn't preview this selection. Review it and try again.",
+                )
+              : t(
+                  "This selection will include {count} eligible games (minimum {minimum}).",
+                  {
+                    count: selectionPreview?.count ?? 0,
+                    minimum: selectionPreview?.minimum ?? 5,
+                  },
+                )}
+        </div>
+      )}
+
+      {existingCatalogMode && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-6 rounded-xl border border-violet-300/25 bg-violet-300/10 px-4 py-4 text-sm font-bold text-violet-100"
+        >
+          <p>{t("This Outlet already has a saved game selection.")}</p>
+          <p className="mt-1 font-semibold text-white/55">
+            {t(
+              "Continue in the curation workspace to review or change it without replacing existing work.",
+            )}
+          </p>
+          <Link
+            href={`/store/${encodeURIComponent(draft.storeSlug as string)}/manage?tab=curation`}
+            className={`${secondaryButtonClassName} mt-4`}
+          >
+            {t("Open your game selection")}
+            <ArrowRight size={17} />
+          </Link>
+        </div>
+      )}
+
+      <StepActions onBack={onBack}>
+        {existingCatalogMode ? (
+          <Link
+            href={`/store/${encodeURIComponent(draft.storeSlug as string)}/manage?tab=curation`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            {t("Continue in Your games")}
+            <ArrowRight size={17} />
+          </Link>
+        ) : (
+          <PrimaryButton
+            onClick={onContinue}
+            disabled={
+              !isCreatorSelectionComplete(draft) ||
+              isSubmitting ||
+              isPreviewingSelection ||
+              !selectionPreview?.canApply
+            }
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={17} className="animate-spin" />
+                {t("Saving selection...")}
+              </>
+            ) : (
+              <>
+                {t("Save selection")}
+                <ArrowRight size={17} />
+              </>
+            )}
+          </PrimaryButton>
+        )}
       </StepActions>
     </section>
   );
@@ -1066,16 +1399,20 @@ function PreviewStep({
   useEffect(() => {
     const timeout = window.setTimeout(() => setPreviewError(true), 10000);
     const handleMessage = (event: MessageEvent) => {
-      if (
+      const isOwnPreview =
         event.origin === window.location.origin &&
         event.source === iframeRef.current?.contentWindow &&
         isRecord(event.data) &&
-        event.data.type === "manifold:outlet-preview-ready" &&
-        event.data.slug === draft.storeSlug
-      ) {
+        event.data.slug === draft.storeSlug;
+      if (!isOwnPreview) return;
+      if (event.data.type === "manifold:outlet-preview-ready") {
         window.clearTimeout(timeout);
         setPreviewError(false);
         setIsPreviewLoaded(true);
+      } else if (event.data.type === "manifold:outlet-preview-error") {
+        window.clearTimeout(timeout);
+        setIsPreviewLoaded(false);
+        setPreviewError(true);
       }
     };
     window.addEventListener("message", handleMessage);

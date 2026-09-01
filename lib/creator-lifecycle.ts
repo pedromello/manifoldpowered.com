@@ -82,6 +82,11 @@ export interface OutletPublicationContract {
   ready: boolean;
   checks: Record<OutletReadinessKey, boolean>;
   capabilities: {
+    identity: boolean;
+    curation: boolean;
+    featured: boolean;
+    sales: boolean;
+    earnings: boolean;
     edit: boolean;
     publish: boolean;
     unpublish: boolean;
@@ -89,7 +94,9 @@ export interface OutletPublicationContract {
 }
 
 export interface CreatorDraftStorage {
+  readonly length?: number;
   getItem(key: string): string | null;
+  key?(index: number): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
@@ -161,7 +168,9 @@ export function loadCreatorOutletDraft(
   try {
     const candidate: unknown = JSON.parse(serialized);
     const migrated = migrateCreatorOutletDraft(candidate);
-    return isCreatorOutletDraft(migrated) ? migrated : null;
+    return isCreatorOutletDraft(migrated) && migrated.ownerId === ownerId
+      ? migrated
+      : null;
   } catch {
     return null;
   }
@@ -193,6 +202,55 @@ export function archiveCreatorOutletDraft(
 
 export const completeCreatorOutletDraft = archiveCreatorOutletDraft;
 
+export function listCreatorOutletDraftArchives(
+  storage: CreatorDraftStorage,
+  ownerId: string,
+) {
+  const prefix = `${creatorDraftStorageKey(ownerId)}:archived:`;
+  if (typeof storage.length !== "number" || !storage.key) return [];
+  const drafts: CreatorOutletDraft[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key?.startsWith(prefix)) continue;
+    try {
+      const candidate: unknown = JSON.parse(storage.getItem(key) ?? "null");
+      const migrated = migrateCreatorOutletDraft(candidate);
+      if (isCreatorOutletDraft(migrated) && migrated.ownerId === ownerId) {
+        drafts.push(migrated);
+      }
+    } catch {
+      // Ignore corrupt browser entries without deleting recoverable drafts.
+    }
+  }
+  return drafts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export function restoreCreatorOutletDraft(
+  storage: CreatorDraftStorage,
+  ownerId: string,
+  draftId: string,
+) {
+  const archived = listCreatorOutletDraftArchives(storage, ownerId).find(
+    (draft) => draft.draftId === draftId,
+  );
+  if (!archived) return null;
+  const active = loadCreatorOutletDraft(storage, ownerId);
+  if (active && active.draftId !== archived.draftId) {
+    archiveCreatorOutletDraft(storage, active);
+  }
+  saveCreatorOutletDraft(storage, archived);
+  storage.removeItem(creatorDraftArchiveStorageKey(ownerId, draftId));
+  return archived;
+}
+
+export function removeCreatorOutletDraftArchive(
+  storage: CreatorDraftStorage,
+  ownerId: string,
+  draftId: string,
+) {
+  storage.removeItem(creatorDraftArchiveStorageKey(ownerId, draftId));
+}
+
 export function startNewCreatorOutletDraft(
   storage: CreatorDraftStorage,
   ownerId: string,
@@ -208,12 +266,20 @@ export function startNewCreatorOutletDraft(
 }
 
 export function isCreatorIdentityComplete(draft: CreatorOutletDraft) {
+  const combinedDescription = [
+    draft.identity.niche.trim(),
+    draft.identity.description.trim(),
+  ]
+    .filter((part, index, parts) => part && parts.indexOf(part) === index)
+    .join("\n\n");
   return (
     draft.identity.name.trim().length > 0 &&
     draft.identity.description.trim().length > 0 &&
     draft.identity.logoUrl.trim().length > 0 &&
-    isHttpUrl(draft.identity.logoUrl) &&
-    draft.identity.niche.trim().length > 0
+    isHttpsUrl(draft.identity.logoUrl) &&
+    draft.identity.logoUrl.trim().length <= 2048 &&
+    draft.identity.niche.trim().length > 0 &&
+    combinedDescription.length <= 1000
   );
 }
 
@@ -345,6 +411,11 @@ export function normalizeOutletPublication(
         : invalidPublicationField("readiness.ready"),
     checks,
     capabilities: {
+      identity: rawCapabilities?.identity === true,
+      curation: rawCapabilities?.curation === true,
+      featured: rawCapabilities?.featured === true,
+      sales: rawCapabilities?.sales === true,
+      earnings: rawCapabilities?.earnings === true,
       edit: rawCapabilities?.edit === true,
       publish: rawCapabilities?.publish === true,
       unpublish: rawCapabilities?.unpublish === true,
@@ -484,10 +555,10 @@ function isCreatorGameSummary(value: unknown): value is CreatorGameSummary {
   );
 }
 
-function isHttpUrl(value: string) {
+function isHttpsUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return url.protocol === "https:";
   } catch {
     return false;
   }

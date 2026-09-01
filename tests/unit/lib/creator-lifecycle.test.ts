@@ -199,7 +199,16 @@ describe("creator Outlet lifecycle", () => {
       draft_revision: 4,
       catalog_mode: "SELECTED",
       published_revision: null,
-      capabilities: { edit: true, publish: false, unpublish: false },
+      capabilities: {
+        identity: true,
+        curation: true,
+        featured: false,
+        sales: true,
+        earnings: false,
+        edit: true,
+        publish: false,
+        unpublish: false,
+      },
       readiness: {
         version: 2,
         ready: false,
@@ -229,7 +238,16 @@ describe("creator Outlet lifecycle", () => {
         catalog_has_games: true,
         editorial_highlight: false,
       },
-      capabilities: { edit: true, publish: false, unpublish: false },
+      capabilities: {
+        identity: true,
+        curation: true,
+        featured: false,
+        sales: true,
+        earnings: false,
+        edit: true,
+        publish: false,
+        unpublish: false,
+      },
     });
     expect(nextReadinessAction(publication)).toBe("FEATURED");
   });

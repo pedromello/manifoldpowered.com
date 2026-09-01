@@ -2,7 +2,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { GetServerSideProps } from "next";
 import { Settings } from "lucide-react";
-import { useEffect } from "react";
+import { useCallback } from "react";
 
 import webserver from "infra/webserver";
 import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
@@ -91,13 +91,22 @@ export default function StorePage({
   });
   const previewQuery = isPreview ? "?preview=1" : "";
 
-  useEffect(() => {
-    if (!isPreview || window.parent === window) return;
-    window.parent.postMessage(
-      { type: "manifold:outlet-preview-ready", slug: store.slug },
-      window.location.origin,
-    );
-  }, [isPreview, store.slug]);
+  const reportPreviewStatus = useCallback(
+    ({ ready, error }: { ready: boolean; error?: string }) => {
+      if (!isPreview || window.parent === window) return;
+      window.parent.postMessage(
+        {
+          type: ready
+            ? "manifold:outlet-preview-ready"
+            : "manifold:outlet-preview-error",
+          slug: store.slug,
+          ...(error && { message: error }),
+        },
+        window.location.origin,
+      );
+    },
+    [isPreview, store.slug],
+  );
 
   return (
     <StorefrontRouteLayout store={store}>
@@ -122,6 +131,7 @@ export default function StorePage({
         jsonLd={isPreview ? undefined : outletJsonLd(store, locale)}
         store={store}
         isPreview={isPreview}
+        onPreviewStatusChange={reportPreviewStatus}
       />
 
       {currentUser?.id === store.owner_id && (

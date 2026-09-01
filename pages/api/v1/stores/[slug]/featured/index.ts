@@ -8,6 +8,7 @@ import { ForbiddenError, ValidationError } from "infra/errors";
 import { z } from "zod";
 import authorization from "models/authorization";
 import storeFeaturedGame, {
+  featuredGameResetSchema,
   featuredGameSelectionSchema,
   MAX_FEATURED_GAMES,
 } from "models/store_featured_game";
@@ -190,6 +191,7 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
   const selection = await storeFeaturedGame.replaceSelection(
     foundStore.id,
     result.data.recommendations,
+    result.data.expected_draft_revision,
   );
 
   return res.status(200).json({
@@ -203,6 +205,14 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
+  const result = featuredGameResetSchema.safeParse(req.body);
+  if (!result.success) {
+    throw new ValidationError({
+      message: "The expected Outlet draft revision is required.",
+      action: "Refresh Featured and try again.",
+      context: result.error.issues,
+    });
+  }
   const foundStore = await store.findOneBySlugWithMembers(
     req.query.slug as string,
   );
@@ -221,6 +231,9 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  await storeFeaturedGame.resetSelection(foundStore.id);
+  await storeFeaturedGame.resetSelection(
+    foundStore.id,
+    result.data.expected_draft_revision,
+  );
   return res.status(204).end();
 }

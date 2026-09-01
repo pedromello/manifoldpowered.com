@@ -22,8 +22,21 @@ type ListResponse = {
   mode?: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
 };
 
-const fetcher = (url: string): Promise<ListResponse> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<ListResponse> => {
+  const response = await fetch(url);
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(
+      typeof body === "object" &&
+        body !== null &&
+        "message" in body &&
+        typeof body.message === "string"
+        ? body.message
+        : `Storefront request failed (${response.status}).`,
+    );
+  }
+  return body as ListResponse;
+};
 
 function localUrl(path: string) {
   return new URL(path, "http://manifold.local");
@@ -109,10 +122,17 @@ export function useStorefrontController({
     return relativeUrl(url);
   }, [listEndpoint, q, effectiveTags, order, page, locale]);
 
-  const { data: featuredData, isLoading: isFeaturedLoading } =
-    useSWR<ListResponse>(withLocale(featuredEndpoint, locale), fetcher);
+  const {
+    data: featuredData,
+    error: featuredError,
+    isLoading: isFeaturedLoading,
+  } = useSWR<ListResponse>(withLocale(featuredEndpoint, locale), fetcher);
 
-  const { data, isLoading } = useSWR<ListResponse>(listUrl, fetcher);
+  const {
+    data,
+    error: catalogError,
+    isLoading,
+  } = useSWR<ListResponse>(listUrl, fetcher);
 
   const browseHref = useCallback(
     (patch: Partial<StorefrontQuery>) => {
@@ -175,9 +195,18 @@ export function useStorefrontController({
     featured: featuredData?.games || [],
     featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
+    featuredError,
 
     games: data?.games || [],
     isLoading,
+    catalogError,
+    isPreviewReady:
+      featuredData !== undefined &&
+      data !== undefined &&
+      !isFeaturedLoading &&
+      !isLoading &&
+      !featuredError &&
+      !catalogError,
     pagination: data?.pagination,
     currency: data?.currency || "USD",
 

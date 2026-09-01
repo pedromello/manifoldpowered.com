@@ -16,6 +16,12 @@ export interface ExplicitSelectionResult {
   draftRevision: number;
 }
 
+export interface ExplicitSelectionPreview extends ExplicitSelectionResult {
+  catalogGameCount: number;
+  minimumGameCount: number;
+  canApply: boolean;
+}
+
 type Request = typeof fetch;
 
 export class CreatorOutletRequestError extends Error {
@@ -94,6 +100,48 @@ export async function saveExplicitOutletSelection(
   return {
     catalogMode: body.catalog_mode,
     draftRevision: body.draft_revision,
+  };
+}
+
+export async function previewExplicitOutletSelection(
+  slug: string,
+  selection: ExplicitSelectionInput,
+  request: Request = fetch,
+): Promise<ExplicitSelectionPreview> {
+  const response = await request(
+    `/api/v1/stores/${encodeURIComponent(slug)}/selection`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        strategy: selection.strategy,
+        tags: selection.tags,
+        game_slugs: selection.gameSlugs,
+        expected_draft_revision: selection.expectedDraftRevision,
+      }),
+    },
+  );
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw requestError(response.status, body);
+  if (
+    !isRecord(body) ||
+    body.catalog_mode !== "SELECTED" ||
+    typeof body.draft_revision !== "number" ||
+    typeof body.catalog_game_count !== "number" ||
+    typeof body.minimum_game_count !== "number" ||
+    typeof body.can_apply !== "boolean"
+  ) {
+    throw new CreatorOutletRequestError(
+      "The Outlet selection preview response was invalid.",
+      502,
+    );
+  }
+  return {
+    catalogMode: body.catalog_mode,
+    draftRevision: body.draft_revision,
+    catalogGameCount: body.catalog_game_count,
+    minimumGameCount: body.minimum_game_count,
+    canApply: body.can_apply,
   };
 }
 

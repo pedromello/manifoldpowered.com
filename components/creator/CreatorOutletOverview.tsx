@@ -45,6 +45,9 @@ export interface CreatorOutletOverviewProps {
   isPublishing?: boolean;
   publishError?: string | null;
   canEdit?: boolean;
+  canEditIdentity?: boolean;
+  canCurate?: boolean;
+  canManageFeatured?: boolean;
   canPublish?: boolean;
   canUnpublish?: boolean;
   onUnpublish?: () => void | Promise<void>;
@@ -57,6 +60,7 @@ type ChecklistItem = {
   detail: string;
   href: string;
   actionLabel: string;
+  canAct?: boolean;
 };
 
 type PrimaryAction = {
@@ -95,6 +99,9 @@ export function CreatorOutletOverview({
   isPublishing = false,
   publishError = null,
   canEdit = true,
+  canEditIdentity = canEdit,
+  canCurate = canEdit,
+  canManageFeatured = canEdit,
   canPublish = true,
   canUnpublish = false,
   onUnpublish,
@@ -117,16 +124,20 @@ export function CreatorOutletOverview({
     if (!previewOpen) return;
     const timeout = window.setTimeout(() => setPreviewError(true), 10000);
     const handleMessage = (event: MessageEvent) => {
-      if (
+      const isOwnPreview =
         event.origin === window.location.origin &&
         event.source === previewFrameRef.current?.contentWindow &&
         isRecord(event.data) &&
-        event.data.type === "manifold:outlet-preview-ready" &&
-        event.data.slug === store.slug
-      ) {
+        event.data.slug === store.slug;
+      if (!isOwnPreview) return;
+      if (event.data.type === "manifold:outlet-preview-ready") {
         window.clearTimeout(timeout);
         setPreviewLoaded(true);
         setPreviewError(false);
+      } else if (event.data.type === "manifold:outlet-preview-error") {
+        window.clearTimeout(timeout);
+        setPreviewLoaded(false);
+        setPreviewError(true);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -178,6 +189,7 @@ export function CreatorOutletOverview({
       ),
       href: `${manageHref}?tab=settings`,
       actionLabel: t("Edit identity"),
+      canAct: canEditIdentity,
     },
     {
       key: "catalog_intentional",
@@ -187,6 +199,7 @@ export function CreatorOutletOverview({
       ),
       href: `${manageHref}?tab=curation`,
       actionLabel: t("Choose selection"),
+      canAct: canCurate,
     },
     {
       key: "catalog_has_games",
@@ -196,6 +209,7 @@ export function CreatorOutletOverview({
       ),
       href: `${manageHref}?tab=curation`,
       actionLabel: t("Add games"),
+      canAct: canCurate,
     },
     {
       key: "editorial_highlight",
@@ -203,13 +217,14 @@ export function CreatorOutletOverview({
       detail: t("Feature a standout game and tell people why you chose it."),
       href: `${manageHref}?tab=featured`,
       actionLabel: t("Create Featured pick"),
+      canAct: canManageFeatured,
     },
   ];
   const completedCount = checklist.filter(
     (item) => publication.checks[item.key],
   ).length;
   const firstIncomplete = checklist.find(
-    (item) => !publication.checks[item.key],
+    (item) => !publication.checks[item.key] && item.canAct,
   );
   const primaryAction = getPrimaryAction({
     firstIncomplete,
@@ -491,7 +506,7 @@ export function CreatorOutletOverview({
                             {item.detail}
                           </p>
                         </div>
-                        {!complete ? (
+                        {!complete && item.canAct ? (
                           <Link
                             href={item.href}
                             className={`mt-1 inline-flex min-h-9 shrink-0 items-center gap-1 self-start rounded-lg px-2 text-xs font-black text-violet-200 transition-colors hover:bg-white/[0.06] hover:text-white sm:mt-0 ${focusRing}`}
@@ -527,23 +542,29 @@ export function CreatorOutletOverview({
               aria-label={t("Outlet editing shortcuts")}
               className="mt-4 space-y-2"
             >
-              {canEdit ? (
+              {canEditIdentity || canCurate || canManageFeatured ? (
                 <>
-                  <ShortcutLink
-                    href={`${manageHref}?tab=settings`}
-                    icon={<Palette size={17} aria-hidden="true" />}
-                    label={t("Identity and story")}
-                  />
-                  <ShortcutLink
-                    href={`${manageHref}?tab=curation`}
-                    icon={<Sparkles size={17} aria-hidden="true" />}
-                    label={t("Your selection")}
-                  />
-                  <ShortcutLink
-                    href={`${manageHref}?tab=featured`}
-                    icon={<Rocket size={17} aria-hidden="true" />}
-                    label={t("Featured recommendation")}
-                  />
+                  {canEditIdentity && (
+                    <ShortcutLink
+                      href={`${manageHref}?tab=settings`}
+                      icon={<Palette size={17} aria-hidden="true" />}
+                      label={t("Identity and story")}
+                    />
+                  )}
+                  {canCurate && (
+                    <ShortcutLink
+                      href={`${manageHref}?tab=curation`}
+                      icon={<Sparkles size={17} aria-hidden="true" />}
+                      label={t("Your selection")}
+                    />
+                  )}
+                  {canManageFeatured && (
+                    <ShortcutLink
+                      href={`${manageHref}?tab=featured`}
+                      icon={<Rocket size={17} aria-hidden="true" />}
+                      label={t("Featured recommendation")}
+                    />
+                  )}
                 </>
               ) : (
                 <p className="text-xs font-semibold text-white/40">

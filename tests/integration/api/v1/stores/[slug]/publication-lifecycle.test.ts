@@ -381,12 +381,19 @@ describe("Outlet publication lifecycle", () => {
       "lifecycle-blocked",
       "BLACKLIST",
     );
+    const featuredDraftRevision = (
+      await prisma.store.findUniqueOrThrow({
+        where: { id: fixture.store.id },
+        select: { draft_revision: true },
+      })
+    ).draft_revision;
     const replaceFeaturedResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}/featured`,
       {
         method: "PUT",
         headers: authenticatedJsonHeaders(fixture.sessionToken),
         body: JSON.stringify({
+          expected_draft_revision: featuredDraftRevision,
           recommendations: [
             {
               game_slug: fixture.games[1].slug,

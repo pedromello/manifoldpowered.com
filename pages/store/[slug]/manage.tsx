@@ -30,6 +30,7 @@ import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney } from "lib/price";
 import { useI18n } from "lib/i18n";
 import {
+  CreatorOutletRequestError,
   fetchOutletPublication,
   updateOutletPublication,
 } from "lib/creator-outlet-client";
@@ -53,6 +54,18 @@ interface StoreApi {
   status?: "DRAFT" | "PUBLISHED";
   published_at?: string | null;
   catalog_mode?: "UNDECIDED" | "ALL" | "SELECTED";
+}
+
+interface StoreManagementShellApi {
+  store: {
+    id: string;
+    slug: string;
+    name: string;
+    owner_id: string;
+    status: "DRAFT" | "PUBLISHED";
+    published_at: string | null;
+  };
+  capabilities: OutletPublicationContract["capabilities"];
 }
 
 type PublicationCheck =
@@ -99,10 +112,13 @@ interface PublicationApi {
     checks: Record<PublicationCheck, boolean>;
     blockers: PublicationBlocker[];
   };
+  capabilities: OutletPublicationContract["capabilities"];
 }
 
 const publicationEndpoint = (storeSlug: string) =>
   `/api/v1/stores/${storeSlug}/publication`;
+const managementShellEndpoint = (storeSlug: string) =>
+  `/api/v1/stores/${storeSlug}/management-shell`;
 
 interface TagFilterApi {
   id: string;
@@ -183,14 +199,29 @@ interface StatementApi {
   hold_days: number;
 }
 
-const fetcher = (url: string) =>
-  fetch(url).then(async (res) => {
+class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | null,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
+const fetcher = async (url: string) => {
+  try {
+    const res = await fetch(url);
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new Error(body?.message || "Request failed");
+      throw new ApiRequestError(body?.message || "Request failed", res.status);
     }
     return res.json();
-  });
+  } catch (error) {
+    if (error instanceof ApiRequestError) throw error;
+    throw new ApiRequestError("Network request failed", null);
+  }
+};
 
 type Tab =
   | "overview"
@@ -219,7 +250,30 @@ export default function StoreManagePage() {
   const slug = router.query.slug as string | undefined;
   const requestedTab =
     typeof router.query.tab === "string" ? router.query.tab : "overview";
-  const tab: Tab = isManageTab(requestedTab) ? requestedTab : "overview";
+  const requestedManageTab: Tab = isManageTab(requestedTab)
+    ? requestedTab
+    : "overview";
+
+  const {
+    data: managementShell,
+    isLoading: isManagementShellLoading,
+    error: managementShellError,
+    mutate: mutateManagementShell,
+  } = useSWR<StoreManagementShellApi>(
+    slug ? managementShellEndpoint(slug) : null,
+    fetcher,
+    { shouldRetryOnError: false },
+  );
+  const capabilities = managementShell?.capabilities;
+  const canAccessDraft = Boolean(
+    capabilities &&
+    (capabilities.identity ||
+      capabilities.curation ||
+      capabilities.featured ||
+      capabilities.edit ||
+      capabilities.publish ||
+      capabilities.unpublish),
+  );
 
   const {
     data: storeData,
@@ -227,9 +281,70 @@ export default function StoreManagePage() {
     error: storeError,
     mutate: mutateStore,
   } = useSWR<StoreApi>(
-    slug ? `/api/v1/stores/${slug}?preview=1` : null,
+    slug && managementShell && canAccessDraft
+      ? `/api/v1/stores/${slug}?preview=1`
+      : null,
     fetcher,
+    { shouldRetryOnError: false },
   );
+  const {
+    data: publication,
+    isLoading: isPublicationLoading,
+    error: publicationError,
+    mutate: mutatePublication,
+  } = useSWR<OutletPublicationContract>(
+    slug && managementShell && canAccessDraft
+      ? publicationEndpoint(slug)
+      : null,
+    () => fetchOutletPublication(slug as string),
+    { shouldRetryOnError: false },
+  );
+  const availableTabs = manageTabs.filter(([value]) => {
+    if (!capabilities) return false;
+    if (value === "overview") return canAccessDraft;
+    if (value === "featured") return capabilities.featured;
+    if (value === "curation") return capabilities.curation;
+    if (value === "settings") return capabilities.identity;
+    if (value === "sales") return capabilities.sales;
+    if (value === "earnings") return capabilities.earnings;
+    return true;
+  });
+  const tabIsAvailable = availableTabs.some(
+    ([value]) => value === requestedManageTab,
+  );
+  const tab = tabIsAvailable
+    ? requestedManageTab
+    : (availableTabs[0]?.[0] ?? "overview");
+
+  useEffect(() => {
+    const error = managementShellError ?? storeError ?? publicationError;
+    const status =
+      error instanceof ApiRequestError ||
+      error instanceof CreatorOutletRequestError
+        ? error.status
+        : error instanceof TypeError
+          ? null
+          : 500;
+    if (status === 401 && router.isReady) {
+      void router.replace(
+        `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+      );
+    }
+  }, [managementShellError, publicationError, router, storeError]);
+
+  useEffect(() => {
+    if (!managementShell || tabIsAvailable || availableTabs.length === 0) {
+      return;
+    }
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, tab },
+      },
+      undefined,
+      { shallow: true, scroll: false },
+    );
+  }, [availableTabs.length, managementShell, router, tab, tabIsAvailable]);
 
   function selectTab(nextTab: Tab) {
     void router.replace(
@@ -243,7 +358,7 @@ export default function StoreManagePage() {
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: Tab) {
-    const tabs = manageTabs.map(([value]) => value);
+    const tabs = availableTabs.map(([value]) => value);
     const currentIndex = tabs.indexOf(tab);
     const nextIndex =
       event.key === "Home"
@@ -267,11 +382,17 @@ export default function StoreManagePage() {
     isLoading: isTagFiltersLoading,
     error: tagFiltersError,
   } = useSWR<TagFilterApi[]>(
-    slug ? `/api/v1/stores/${slug}/tag-filters` : null,
+    slug && capabilities?.curation
+      ? `/api/v1/stores/${slug}/tag-filters`
+      : null,
     fetcher,
   );
 
-  if (isStoreLoading || !slug) {
+  if (
+    isManagementShellLoading ||
+    (canAccessDraft && (isStoreLoading || isPublicationLoading)) ||
+    !slug
+  ) {
     return (
       <div
         role="status"
@@ -283,16 +404,46 @@ export default function StoreManagePage() {
     );
   }
 
-  if (storeError || !storeData) {
+  if (
+    managementShellError ||
+    (canAccessDraft && (storeError || publicationError)) ||
+    !managementShell ||
+    (canAccessDraft && (!storeData || !publication))
+  ) {
+    const requestError = managementShellError ?? storeError ?? publicationError;
+    const status =
+      requestError instanceof ApiRequestError ||
+      requestError instanceof CreatorOutletRequestError
+        ? requestError.status
+        : requestError instanceof TypeError
+          ? null
+          : 500;
+    const message =
+      status === 403
+        ? t("You do not have permission to manage this Outlet.")
+        : status === 404
+          ? t("Outlet not found.")
+          : status === null
+            ? t(
+                "We couldn't reach Manifold. Check your connection and try again.",
+              )
+            : status >= 500
+              ? t("Manifold couldn't load this workspace right now.")
+              : t("We couldn't load this Outlet workspace.");
     return (
       <div
         role="alert"
         className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 bg-[#0b0812]"
       >
-        <p className="font-bold text-rose-300">{t("Outlet not found.")}</p>
+        <p className="font-bold text-rose-300">{message}</p>
         <button
           type="button"
-          onClick={() => void mutateStore()}
+          onClick={() =>
+            void Promise.all([
+              mutateManagementShell(),
+              ...(canAccessDraft ? [mutateStore(), mutatePublication()] : []),
+            ])
+          }
           className="rounded-lg border border-white/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-white/70 hover:bg-white/5 hover:text-white"
         >
           {t("Try again")}
@@ -301,17 +452,21 @@ export default function StoreManagePage() {
     );
   }
 
+  const shellStore = managementShell.store;
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#0b0812] pb-24 text-white">
       <Head>
-        <title>{t("Manage {name} | Manifold", { name: storeData.name })}</title>
+        <title>
+          {t("Manage {name} | Manifold", { name: shellStore.name })}
+        </title>
       </Head>
 
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pt-10 sm:px-6 lg:px-10 lg:pt-14">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black break-words">
-              {t("Manage {name}", { name: storeData.name })}
+              {t("Manage {name}", { name: shellStore.name })}
             </h1>
             <p className="text-white/50 text-sm font-bold mt-1">
               {t("Curate your Outlet and track your sales.")}
@@ -319,11 +474,11 @@ export default function StoreManagePage() {
           </div>
         </div>
 
-        {tab === "overview" ? (
+        {tab === "overview" && storeData ? (
           <CreatorOverviewPanel store={storeData} />
-        ) : (
+        ) : canAccessDraft && storeData ? (
           <LifecyclePanel store={storeData} />
-        )}
+        ) : null}
 
         {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
             Four tabs do not fit a 390px viewport: without this the row pushes
@@ -331,10 +486,10 @@ export default function StoreManagePage() {
             where it cannot be tapped at all. */}
         <div
           role="tablist"
-          aria-label={t("Manage {name}", { name: storeData.name })}
+          aria-label={t("Manage {name}", { name: shellStore.name })}
           className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {manageTabs.map(([value, label]) => (
+          {availableTabs.map(([value, label]) => (
             <button
               type="button"
               role="tab"
@@ -363,8 +518,8 @@ export default function StoreManagePage() {
         >
           {tab === "featured" && (
             <FeaturedTab
-              storeSlug={storeData.slug}
-              storeName={storeData.name}
+              storeSlug={shellStore.slug}
+              storeName={shellStore.name}
             />
           )}
           {tab === "curation" &&
@@ -376,14 +531,14 @@ export default function StoreManagePage() {
               </p>
             ) : (
               <CurationTab
-                storeSlug={storeData.slug}
+                storeSlug={shellStore.slug}
                 tagFilters={tagFilters ?? []}
                 isTagFiltersLoading={isTagFiltersLoading}
               />
             ))}
-          {tab === "settings" && <SettingsTab store={storeData} />}
-          {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
-          {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+          {tab === "settings" && storeData && <SettingsTab store={storeData} />}
+          {tab === "sales" && <SalesTab storeSlug={shellStore.slug} />}
+          {tab === "earnings" && <EarningsTab storeSlug={shellStore.slug} />}
         </div>
       </div>
     </div>
@@ -500,6 +655,9 @@ function CreatorOverviewPanel({ store }: { store: StoreApi }) {
       isUnpublishing={pendingAction === "unpublish"}
       publishError={actionError}
       canEdit={publication?.capabilities.edit === true}
+      canEditIdentity={publication?.capabilities.identity === true}
+      canCurate={publication?.capabilities.curation === true}
+      canManageFeatured={publication?.capabilities.featured === true}
       canPublish={publication?.capabilities.publish === true}
       canUnpublish={publication?.capabilities.unpublish === true}
     />
@@ -576,7 +734,9 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
   const { mutate: mutateGlobal } = useSWRConfig();
   const endpoint = publicationEndpoint(store.slug);
   const { data, error, isLoading, isValidating, mutate } =
-    useSWR<PublicationApi>(endpoint, fetcher);
+    useSWR<PublicationApi>([endpoint, "publication-raw"], ([url]) =>
+      fetcher(url),
+    );
   const [pendingAction, setPendingAction] = useState<
     "publish" | "unpublish" | "copy" | null
   >(null);
@@ -601,6 +761,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
     typeof data?.published_revision?.source_draft_revision === "number" &&
     data.draft_revision > data.published_revision.source_draft_revision;
   const canPublish =
+    data?.capabilities.publish === true &&
     (!isPublished || hasPendingChanges) &&
     readinessVersionIsValid &&
     data?.readiness.ready === true &&
@@ -608,6 +769,12 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
 
   async function transition(action: "publish" | "unpublish") {
     if (!data || pendingAction) return;
+    if (
+      (action === "publish" && !data.capabilities.publish) ||
+      (action === "unpublish" && !data.capabilities.unpublish)
+    ) {
+      return;
+    }
     if (!revisionIsValid) {
       setActionError(
         t("The draft revision is unavailable. Refresh before publishing."),
@@ -648,7 +815,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
 
       if (response.status === 409) {
         const revision = currentConflictRevision(body);
-        await mutate();
+        await Promise.all([mutate(), mutateGlobal(endpoint)]);
         setActionError(
           revision === null
             ? t(
@@ -672,6 +839,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
       const publication = body as PublicationApi;
       await mutate(publication, { revalidate: false });
       void Promise.all([
+        mutateGlobal(endpoint),
         mutateGlobal(`/api/v1/stores/${store.slug}?preview=1`),
         mutateGlobal("/api/v1/stores"),
       ]).catch(() => undefined);
@@ -694,6 +862,12 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
         setJustPublished(false);
         setMessage(t("Your Outlet is now private and back in draft."));
       }
+    } catch {
+      setActionError(
+        t(
+          "We couldn't reach Manifold. Check your connection and try the publication action again.",
+        ),
+      );
     } finally {
       setPendingAction(null);
     }
@@ -846,22 +1020,23 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
                 {t("Copy public link")}
               </button>
             )}
-            {(!isPublished || hasPendingChanges) && (
-              <button
-                type="button"
-                onClick={() => void transition("publish")}
-                disabled={pendingAction !== null || !canPublish}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                {pendingAction === "publish" ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <Rocket size={16} />
-                )}
-                {isPublished ? t("Publish changes") : t("Publish Outlet")}
-              </button>
-            )}
-            {isPublished && (
+            {data.capabilities.publish &&
+              (!isPublished || hasPendingChanges) && (
+                <button
+                  type="button"
+                  onClick={() => void transition("publish")}
+                  disabled={pendingAction !== null || !canPublish}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  {pendingAction === "publish" ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Rocket size={16} />
+                  )}
+                  {isPublished ? t("Publish changes") : t("Publish Outlet")}
+                </button>
+              )}
+            {isPublished && data.capabilities.unpublish && (
               <button
                 type="button"
                 onClick={() => void transition("unpublish")}
@@ -977,13 +1152,18 @@ function FeaturedTab({
   storeName: string;
 }) {
   const { t, translateError } = useI18n();
-  const { mutate: mutateGlobal } = useSWRConfig();
   const featuredEndpoint = `/api/v1/stores/${storeSlug}/featured`;
   const featuredKey = `${featuredEndpoint}?preview=1`;
   const { data, isLoading, error, mutate } = useSWR<FeaturedResponse>(
     featuredKey,
     fetcher,
   );
+  const { data: publication, mutate: mutatePublication } =
+    useSWR<OutletPublicationContract>(
+      publicationEndpoint(storeSlug),
+      () => fetchOutletPublication(storeSlug),
+      { shouldRetryOnError: false },
+    );
   const [recommendations, setRecommendations] = useState<
     FeaturedRecommendationDraft[]
   >([]);
@@ -1057,7 +1237,7 @@ function FeaturedTab({
   }
 
   async function handleSave() {
-    if (recommendations.length === 0) return;
+    if (recommendations.length === 0 || !publication) return;
     if (
       recommendations.some(
         ({ recommendationReason }) => !recommendationReason.trim(),
@@ -1077,6 +1257,7 @@ function FeaturedTab({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          expected_draft_revision: publication.draftRevision,
           recommendations: recommendations.map(
             ({ game, recommendationReason }) => ({
               game_slug: game.slug,
@@ -1093,10 +1274,7 @@ function FeaturedTab({
         return;
       }
       setSuccess(t("Featured recommendations saved."));
-      await Promise.all([
-        mutate(),
-        mutateGlobal(publicationEndpoint(storeSlug)),
-      ]);
+      await Promise.all([mutate(), mutatePublication()]);
       if (!hadEditorialSelection) {
         creatorFunnelAnalytics.firstGameAdded({
           funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
@@ -1104,17 +1282,39 @@ function FeaturedTab({
           selectionSurface: "featured",
         });
       }
+    } catch {
+      setFormError(t("We couldn't reach Manifold. Try saving Featured again."));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleReset() {
+    if (!publication) return;
+    const editorialCount = recommendations.length;
+    if (
+      !window.confirm(
+        t(
+          editorialCount === 1
+            ? "Remove your editorial Featured recommendation and return to automatic Featured?"
+            : "Remove all {count} editorial Featured recommendations and return to automatic Featured?",
+          { count: editorialCount },
+        ),
+      )
+    ) {
+      return;
+    }
     setIsSubmitting(true);
     setFormError(null);
     setSuccess(null);
     try {
-      const response = await fetch(featuredEndpoint, { method: "DELETE" });
+      const response = await fetch(featuredEndpoint, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expected_draft_revision: publication.draftRevision,
+        }),
+      });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         setFormError(
@@ -1127,10 +1327,11 @@ function FeaturedTab({
       }
       setRecommendations([]);
       setSuccess(t("Automatic Featured restored."));
-      await Promise.all([
-        mutate(),
-        mutateGlobal(publicationEndpoint(storeSlug)),
-      ]);
+      await Promise.all([mutate(), mutatePublication()]);
+    } catch {
+      setFormError(
+        t("We couldn't reach Manifold. Try restoring Featured again."),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1293,12 +1494,19 @@ function FeaturedTab({
       )}
 
       {formError && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300"
+        >
           {formError}
         </div>
       )}
       {success && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300"
+        >
           {success}
         </div>
       )}
@@ -1307,8 +1515,8 @@ function FeaturedTab({
         <button
           type="button"
           onClick={handleReset}
-          disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-white/55 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
+          disabled={isSubmitting || !publication}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-white/55 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           <RotateCcw size={15} />
           {t("Use automatic Featured")}
@@ -1318,12 +1526,13 @@ function FeaturedTab({
           onClick={handleSave}
           disabled={
             isSubmitting ||
+            !publication ||
             recommendations.length === 0 ||
             recommendations.some(
               ({ recommendationReason }) => !recommendationReason.trim(),
             )
           }
-          className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-11 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isSubmitting ? t("Saving...") : t("Save Featured")}
         </button>
@@ -1904,7 +2113,7 @@ function GameOverridesPanel({
             <button
               type="button"
               onClick={() => setSelectedGame(null)}
-              className="text-white/40 hover:text-white transition-colors shrink-0"
+              className="grid h-11 w-11 shrink-0 place-items-center text-white/40 transition-colors hover:text-white"
               aria-label={t("Clear selected game")}
             >
               <X size={14} />
@@ -1998,8 +2207,9 @@ function OverrideChip({
         {game?.title ?? override.game_slug}
       </span>
       <button
+        type="button"
         onClick={() => onRemove(override)}
-        className="text-white/40 hover:text-white transition-colors"
+        className="grid h-11 w-11 place-items-center text-white/40 transition-colors hover:text-white"
         aria-label={t("Remove override for {title}", {
           title: game?.title ?? override.game_slug,
         })}
@@ -2021,7 +2231,9 @@ function SettingsTab({ store }: { store: StoreApi }) {
   const { mutate } = useSWRConfig();
   const publicationKey = publicationEndpoint(store.slug);
   const { data: publication, mutate: mutatePublication } =
-    useSWR<PublicationApi>(publicationKey, fetcher);
+    useSWR<OutletPublicationContract>(publicationKey, () =>
+      fetchOutletPublication(store.slug),
+    );
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -2029,8 +2241,13 @@ function SettingsTab({ store }: { store: StoreApi }) {
     setSuccess(false);
     setIsSubmitting(true);
     const wasBrandComplete = publicationCheckReady(
-      publication?.readiness.checks.brand_complete,
+      publication?.checks.brand_complete,
     );
+    if (!publication) {
+      setError(t("Publication status is still loading. Try again."));
+      setIsSubmitting(false);
+      return;
+    }
     try {
       const response = await fetch(`/api/v1/stores/${store.slug}`, {
         method: "PATCH",
@@ -2039,6 +2256,7 @@ function SettingsTab({ store }: { store: StoreApi }) {
           name,
           description: description.trim() || undefined,
           logo_url: logoUrl.trim() || undefined,
+          expected_draft_revision: publication.draftRevision,
         }),
       });
       const body = await response.json().catch(() => null);
@@ -2055,15 +2273,15 @@ function SettingsTab({ store }: { store: StoreApi }) {
       if (
         publication &&
         !wasBrandComplete &&
-        publicationCheckReady(
-          refreshedPublication?.readiness.checks.brand_complete,
-        )
+        publicationCheckReady(refreshedPublication?.checks.brand_complete)
       ) {
         creatorFunnelAnalytics.brandComplete({
           funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
           entrySurface: "manage_outlet",
         });
       }
+    } catch {
+      setError(t("We couldn't reach Manifold. Try saving the identity again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -2091,6 +2309,7 @@ function SettingsTab({ store }: { store: StoreApi }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
+          maxLength={1000}
           className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20 resize-none"
         />
       </label>
@@ -2100,7 +2319,9 @@ function SettingsTab({ store }: { store: StoreApi }) {
           {t("Logo URL")}
         </span>
         <input
-          type="text"
+          type="url"
+          pattern="https://.*"
+          maxLength={2048}
           value={logoUrl}
           onChange={(e) => setLogoUrl(e.target.value)}
           placeholder="https://example.com/logo.png"
@@ -2109,20 +2330,27 @@ function SettingsTab({ store }: { store: StoreApi }) {
       </label>
 
       {error && (
-        <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
+        <div
+          role="alert"
+          className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold"
+        >
           {error}
         </div>
       )}
       {success && (
-        <div className="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold">
+        <div
+          role="status"
+          aria-live="polite"
+          className="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold"
+        >
           {t("Saved.")}
         </div>
       )}
 
       <button
         type="submit"
-        disabled={isSubmitting || !name.trim()}
-        className="w-fit rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={isSubmitting || !publication || !name.trim()}
+        className="min-h-11 w-fit rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isSubmitting ? t("Saving...") : t("Save Changes")}
       </button>

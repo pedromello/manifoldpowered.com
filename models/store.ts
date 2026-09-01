@@ -44,7 +44,10 @@ export const storeSchema = z.object({
 
 export const storeUpdateSchema = storeSchema
   .partial()
-  .extend({ catalog_mode: storeDraftCatalogModeSchema.optional() })
+  .extend({
+    catalog_mode: storeDraftCatalogModeSchema.optional(),
+    expected_draft_revision: z.number().int().min(1).optional(),
+  })
   .strict();
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
@@ -569,17 +572,50 @@ async function update(
     });
   }
 
-  return await prisma.store.update({
-    where: {
-      id,
-    },
-    // Slugs are immutable after creation. Renaming changes display identity,
-    // never the durable URL or attribution key.
-    data: {
-      ...result.data,
-      draft_revision: { increment: 1 },
-    },
-  });
+  const { expected_draft_revision, ...data } = result.data;
+  const expectedDraftRevision =
+    expected_draft_revision ?? existingStore.draft_revision;
+
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const updated = await transaction.store.updateMany({
+          where: { id, draft_revision: expectedDraftRevision },
+          // Slugs are immutable after creation. Renaming changes display
+          // identity, never the durable URL or attribution key.
+          data: { ...data, draft_revision: { increment: 1 } },
+        });
+        if (updated.count !== 1) {
+          const latest = await transaction.store.findUnique({
+            where: { id },
+            select: { draft_revision: true },
+          });
+          throw publicationConflict({
+            expectedDraftRevision,
+            actualDraftRevision:
+              latest?.draft_revision ?? expectedDraftRevision,
+          });
+        }
+        return transaction.store.findUniqueOrThrow({ where: { id } });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034")
+    ) {
+      const latest = await prisma.store.findUnique({
+        where: { id },
+        select: { draft_revision: true },
+      });
+      throw publicationConflict({
+        expectedDraftRevision,
+        actualDraftRevision: latest?.draft_revision ?? expectedDraftRevision,
+      });
+    }
+    throw error;
+  }
 }
 
 async function getPublicationState(

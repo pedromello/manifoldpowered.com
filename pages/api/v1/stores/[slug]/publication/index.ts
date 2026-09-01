@@ -57,18 +57,12 @@ function withCapabilities(
   foundStore: Awaited<ReturnType<typeof store.findOneBySlugWithMembers>>,
   output: Record<string, unknown>,
 ) {
-  const canPublish = authorization.can(
-    req.context.user,
-    "publish:store",
-    foundStore,
-  );
   return {
     ...output,
-    capabilities: {
-      edit: authorization.can(req.context.user, "update:store", foundStore),
-      publish: canPublish,
-      unpublish: canPublish,
-    },
+    capabilities: authorization.storeManagementCapabilities(
+      req.context.user,
+      foundStore,
+    ),
   };
 }
 

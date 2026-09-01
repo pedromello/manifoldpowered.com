@@ -1417,6 +1417,56 @@ export const ptBR: Record<string, string> = {
   "Unpublishing...": "Despublicando...",
   "Unpublish Outlet": "Despublicar Outlet",
   "Publish your latest changes": "Publique suas alterações mais recentes",
+  "You do not have permission to manage this Outlet.":
+    "Você não tem permissão para gerenciar esta Outlet.",
+  "We couldn't reach Manifold. Check your connection and try again.":
+    "Não foi possível conectar ao Manifold. Verifique sua conexão e tente novamente.",
+  "We couldn't reach Manifold. Check your connection and try the publication action again.":
+    "Não foi possível conectar ao Manifold. Verifique sua conexão e tente a ação de publicação novamente.",
+  "Manifold couldn't load this workspace right now.":
+    "O Manifold não conseguiu carregar este espaço de trabalho agora.",
+  "We couldn't load this Outlet workspace.":
+    "Não foi possível carregar o espaço de trabalho desta Outlet.",
+  "We couldn't reach Manifold. Try saving Featured again.":
+    "Não foi possível conectar ao Manifold. Tente salvar o Destaque novamente.",
+  "We couldn't reach Manifold. Try restoring Featured again.":
+    "Não foi possível conectar ao Manifold. Tente restaurar o Destaque novamente.",
+  "Publication status is still loading. Try again.":
+    "O status de publicação ainda está carregando. Tente novamente.",
+  "We couldn't reach Manifold. Try saving the identity again.":
+    "Não foi possível conectar ao Manifold. Tente salvar a identidade novamente.",
+  "Remove this archived setup from this device?":
+    "Remover esta configuração arquivada deste dispositivo?",
+  "Archived setups ({count})": "Configurações arquivadas ({count})",
+  "Untitled Outlet": "Outlet sem título",
+  "Last saved {date}": "Salvo pela última vez em {date}",
+  Restore: "Restaurar",
+  Remove: "Remover",
+  "{count} / 1000 characters including niche":
+    "{count} / 1000 caracteres incluindo o nicho",
+  "Saving identity...": "Salvando identidade...",
+  "Calculating the real catalog impact...":
+    "Calculando o impacto real no catálogo...",
+  "We couldn't preview this selection. Review it and try again.":
+    "Não foi possível visualizar o impacto desta seleção. Revise-a e tente novamente.",
+  "This selection will include {count} eligible games (minimum {minimum}).":
+    "Esta seleção incluirá {count} jogos elegíveis (mínimo de {minimum}).",
+  "This Outlet already has a saved game selection.":
+    "Esta Outlet já tem uma seleção de jogos salva.",
+  "Continue in the curation workspace to review or change it without replacing existing work.":
+    "Continue no espaço de curadoria para revisar ou alterar essa seleção sem substituir o trabalho existente.",
+  "Open your game selection": "Abrir sua seleção de jogos",
+  "Continue in Your games": "Continuar em Seus jogos",
+  "We couldn't save your Outlet identity. Try again.":
+    "Não foi possível salvar a identidade da sua Outlet. Tente novamente.",
+  "This Outlet changed in another session. Review the latest identity and try again.":
+    "Esta Outlet foi alterada em outra sessão. Revise a identidade mais recente e tente novamente.",
+  "This Outlet changed in another session. Review the latest Featured selection and try again.":
+    "Esta Outlet foi alterada em outra sessão. Revise a seleção em Destaque mais recente e tente novamente.",
+  "Remove your editorial Featured recommendation and return to automatic Featured?":
+    "Remover sua recomendação editorial em Destaque e voltar ao Destaque automático?",
+  "Remove all {count} editorial Featured recommendations and return to automatic Featured?":
+    "Remover todas as {count} recomendações editoriais em Destaque e voltar ao Destaque automático?",
 
   // Error pages
   "Page not found": "Página não encontrada",

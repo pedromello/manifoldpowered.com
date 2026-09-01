@@ -59,6 +59,17 @@ type StoreWithMembers = Store & { members: StoreMember[] };
 type StudioWithMembers = Studio & { members: StudioMember[] };
 type GameWithStudio = Game & { studio: StudioWithMembers | null };
 
+export interface StoreManagementCapabilities {
+  identity: boolean;
+  curation: boolean;
+  featured: boolean;
+  sales: boolean;
+  earnings: boolean;
+  edit: boolean;
+  publish: boolean;
+  unpublish: boolean;
+}
+
 const STORE_DRAFT_READER_FEATURES = [
   "update:store",
   "manage:store_featured_games",
@@ -496,6 +507,33 @@ function canReadStoreDraft(user: Partial<User>, resource: StoreWithMembers) {
   );
 }
 
+/**
+ * One resource-scoped capability contract for every private Outlet-management
+ * surface. Keep financial permissions separate from draft visibility: a
+ * statement-only delegate can enter the management shell without gaining any
+ * route that exposes unpublished creator content.
+ */
+function storeManagementCapabilities(
+  user: Partial<User>,
+  resource: StoreWithMembers,
+): StoreManagementCapabilities {
+  const canEdit = can(user, "update:store", resource);
+  const canPublish = can(user, "publish:store", resource);
+
+  return {
+    identity: canEdit,
+    curation: canEdit,
+    featured: can(user, "manage:store_featured_games", resource),
+    // Sales deliberately keeps the existing update:store contract. Changing
+    // it here would silently broaden who can inspect per-sale information.
+    sales: canEdit,
+    earnings: can(user, "read:store_statement", resource),
+    edit: canEdit,
+    publish: canPublish,
+    unpublish: canPublish,
+  };
+}
+
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
@@ -889,6 +927,39 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         resolveDraftPresentation({ slug: storeOutput.slug }),
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "update:store" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "strategy" in resource &&
+    "catalog_game_count" in resource
+  ) {
+    const selection = resource as {
+      strategy: unknown;
+      catalog_mode: unknown;
+      tags: unknown;
+      game_slugs: unknown;
+      catalog_game_count: unknown;
+      minimum_game_count?: unknown;
+      can_apply?: unknown;
+      draft_revision: unknown;
+    };
+    return {
+      strategy: selection.strategy,
+      catalog_mode: selection.catalog_mode,
+      tags: selection.tags,
+      game_slugs: selection.game_slugs,
+      catalog_game_count: selection.catalog_game_count,
+      ...(selection.minimum_game_count !== undefined && {
+        minimum_game_count: selection.minimum_game_count,
+      }),
+      ...(selection.can_apply !== undefined && {
+        can_apply: selection.can_apply,
+      }),
+      draft_revision: selection.draft_revision,
     };
   }
 
@@ -1365,6 +1436,7 @@ function validateFeature(feature: string) {
 const authorization = {
   can,
   canReadStoreDraft,
+  storeManagementCapabilities,
   filterOutput,
   ACTIVATED_USER_FEATURES,
   ADMIN_ONLY_FEATURES,
