@@ -181,7 +181,7 @@ describe("POST /api/v1/games/[slug]/ownership-claims", () => {
     expect(first.status).toBe(201);
     expect(duplicate.status).toBe(400);
     expect((await duplicate.json()).message).toBe(
-      "This studio already has a pending ownership claim for the game.",
+      "You or this studio already have a pending ownership claim for the game.",
     );
   });
 });
