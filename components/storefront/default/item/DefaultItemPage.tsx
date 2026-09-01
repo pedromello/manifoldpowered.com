@@ -33,6 +33,7 @@ export function DefaultItemPage({
   wishlist,
   reviews,
   backHref,
+  isPreview,
 }: ItemViewProps) {
   const { t } = useI18n();
   const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
@@ -75,6 +76,7 @@ export function DefaultItemPage({
               acquisitionError={acquisitionError}
               onRedeem={redeem}
               wishlist={wishlist}
+              isPreview={isPreview}
             />
           </aside>
         </div>
@@ -82,6 +84,7 @@ export function DefaultItemPage({
         <div className="border-t border-white/[0.08]">
           <ReviewsSection
             reviews={reviews}
+            readOnly={isPreview}
             onWriteReview={() => {
               reviews.clearError();
               setReviewMode("create");
@@ -98,7 +101,7 @@ export function DefaultItemPage({
         </div>
       </main>
 
-      {showSuccessModal && (
+      {!isPreview && showSuccessModal && (
         <RedeemSuccessModal
           gameTitle={game.title}
           continueHref={backHref}
@@ -106,7 +109,7 @@ export function DefaultItemPage({
         />
       )}
 
-      {reviewMode && (
+      {!isPreview && reviewMode && (
         <ReviewComposerModal
           gameTitle={game.title}
           mode={reviewMode}
@@ -134,7 +137,7 @@ export function DefaultItemPage({
         />
       )}
 
-      {showDeleteModal && (
+      {!isPreview && showDeleteModal && (
         <ConfirmDeleteReviewModal
           isDeleting={reviews.isDeleting}
           error={reviews.error}

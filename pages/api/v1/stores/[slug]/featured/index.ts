@@ -3,7 +3,6 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
 import game from "models/game";
-import storeCuration from "models/store_curation";
 import storefrontPricing from "models/storefront_pricing";
 import { ForbiddenError, ValidationError } from "infra/errors";
 import { z } from "zod";
@@ -12,6 +11,7 @@ import storeFeaturedGame, {
   featuredGameSelectionSchema,
   MAX_FEATURED_GAMES,
 } from "models/store_featured_game";
+import { prepareStorefrontPreview } from "lib/storefront-preview";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -31,6 +31,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
+  const preview = prepareStorefrontPreview(req, res);
 
   const result = listQuerySchema.safeParse(req.query);
 
@@ -42,20 +43,33 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const foundStore = await store.findOneBySlug(slug as string);
-  const curationWhere = await storeCuration.getCurationWhereClause(
-    foundStore.id,
-  );
+  const foundStore = await store.findOneForStorefront(slug as string, {
+    preview,
+    user: req.context.user,
+  });
+  const curationWhere =
+    await store.getStorefrontCurationWhereClause(foundStore);
 
   const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
 
-  const editorialResult = await storeFeaturedGame.findAvailableEditorialGames({
-    storeId: foundStore.id,
-    curationWhere,
-    priceableGameIds: gameIds,
-    ...result.data,
-  });
+  const editorialResult =
+    foundStore.storefront_source === "REVISION"
+      ? await storeFeaturedGame.findAvailableEditorialGamesFromSnapshot({
+          selection: foundStore.featured_games_snapshot.map((entry) => ({
+            ...entry,
+            recommendation_reason: entry.recommendation_reason ?? null,
+          })),
+          curationWhere,
+          priceableGameIds: gameIds,
+          ...result.data,
+        })
+      : await storeFeaturedGame.findAvailableEditorialGames({
+          storeId: foundStore.id,
+          curationWhere,
+          priceableGameIds: gameIds,
+          ...result.data,
+        });
 
   if (editorialResult) {
     const editorialIds = new Set(

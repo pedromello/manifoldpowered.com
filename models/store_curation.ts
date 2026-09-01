@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 import gameModel from "models/game";
+import { getCurationWhereClause } from "models/store_catalog";
 
 export const TAG_FILTER_MODES = ["WHITELIST", "BLACKLIST"] as const;
 
@@ -37,6 +38,16 @@ function normalizeTag(tag: string): string {
   return tag.trim().toLowerCase();
 }
 
+async function incrementDraftRevision(
+  storeId: string,
+  transaction: Prisma.TransactionClient,
+) {
+  await transaction.store.update({
+    where: { id: storeId },
+    data: { draft_revision: { increment: 1 } },
+  });
+}
+
 async function addTagFilter(
   storeId: string,
   tag: string,
@@ -45,13 +56,20 @@ async function addTagFilter(
   const normalizedTag = normalizeTag(tag);
 
   try {
-    return await prisma.storeTagFilter.create({
-      data: {
-        store_id: storeId,
-        tag: normalizedTag,
-        mode,
+    return await prisma.$transaction(
+      async (transaction) => {
+        const created = await transaction.storeTagFilter.create({
+          data: {
+            store_id: storeId,
+            tag: normalizedTag,
+            mode,
+          },
+        });
+        await incrementDraftRevision(storeId, transaction);
+        return created;
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -66,10 +84,14 @@ async function addTagFilter(
   }
 }
 
-async function findOneTagFilterByTag(storeId: string, tag: string) {
+async function findOneTagFilterByTag(
+  storeId: string,
+  tag: string,
+  client: Pick<Prisma.TransactionClient, "storeTagFilter"> = prisma,
+) {
   const normalizedTag = normalizeTag(tag);
 
-  const filter = await prisma.storeTagFilter.findUnique({
+  const filter = await client.storeTagFilter.findUnique({
     where: {
       store_id_tag: {
         store_id: storeId,
@@ -93,26 +115,37 @@ async function updateTagFilterMode(
   tag: string,
   mode: (typeof TAG_FILTER_MODES)[number],
 ) {
-  const filter = await findOneTagFilterByTag(storeId, tag);
-
-  return await prisma.storeTagFilter.update({
-    where: {
-      id: filter.id,
+  return prisma.$transaction(
+    async (transaction) => {
+      const filter = await findOneTagFilterByTag(storeId, tag, transaction);
+      const updated = await transaction.storeTagFilter.update({
+        where: {
+          id: filter.id,
+        },
+        data: {
+          mode,
+        },
+      });
+      await incrementDraftRevision(storeId, transaction);
+      return updated;
     },
-    data: {
-      mode,
-    },
-  });
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function removeTagFilter(storeId: string, tag: string) {
-  const filter = await findOneTagFilterByTag(storeId, tag);
-
-  await prisma.storeTagFilter.delete({
-    where: {
-      id: filter.id,
+  await prisma.$transaction(
+    async (transaction) => {
+      const filter = await findOneTagFilterByTag(storeId, tag, transaction);
+      await transaction.storeTagFilter.delete({
+        where: {
+          id: filter.id,
+        },
+      });
+      await incrementDraftRevision(storeId, transaction);
     },
-  });
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function listTagFilters(storeId: string) {
@@ -141,13 +174,20 @@ async function addGameOverride(
   }
 
   try {
-    return await prisma.storeGameOverride.create({
-      data: {
-        store_id: storeId,
-        game_id: targetGame.id,
-        visibility,
+    return await prisma.$transaction(
+      async (transaction) => {
+        const created = await transaction.storeGameOverride.create({
+          data: {
+            store_id: storeId,
+            game_id: targetGame.id,
+            visibility,
+          },
+        });
+        await incrementDraftRevision(storeId, transaction);
+        return created;
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -162,7 +202,11 @@ async function addGameOverride(
   }
 }
 
-async function findOneGameOverrideBySlug(storeId: string, gameSlug: string) {
+async function findOneGameOverrideBySlug(
+  storeId: string,
+  gameSlug: string,
+  client: Pick<Prisma.TransactionClient, "storeGameOverride"> = prisma,
+) {
   const targetGame = await gameModel.findOneBySlug(gameSlug);
 
   if (!targetGame) {
@@ -172,7 +216,7 @@ async function findOneGameOverrideBySlug(storeId: string, gameSlug: string) {
     });
   }
 
-  const override = await prisma.storeGameOverride.findUnique({
+  const override = await client.storeGameOverride.findUnique({
     where: {
       store_id_game_id: {
         store_id: storeId,
@@ -196,26 +240,45 @@ async function updateGameOverrideVisibility(
   gameSlug: string,
   visibility: (typeof GAME_OVERRIDE_VISIBILITIES)[number],
 ) {
-  const override = await findOneGameOverrideBySlug(storeId, gameSlug);
-
-  return await prisma.storeGameOverride.update({
-    where: {
-      id: override.id,
+  return prisma.$transaction(
+    async (transaction) => {
+      const override = await findOneGameOverrideBySlug(
+        storeId,
+        gameSlug,
+        transaction,
+      );
+      const updated = await transaction.storeGameOverride.update({
+        where: {
+          id: override.id,
+        },
+        data: {
+          visibility,
+        },
+      });
+      await incrementDraftRevision(storeId, transaction);
+      return updated;
     },
-    data: {
-      visibility,
-    },
-  });
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function removeGameOverride(storeId: string, gameSlug: string) {
-  const override = await findOneGameOverrideBySlug(storeId, gameSlug);
-
-  await prisma.storeGameOverride.delete({
-    where: {
-      id: override.id,
+  await prisma.$transaction(
+    async (transaction) => {
+      const override = await findOneGameOverrideBySlug(
+        storeId,
+        gameSlug,
+        transaction,
+      );
+      await transaction.storeGameOverride.delete({
+        where: {
+          id: override.id,
+        },
+      });
+      await incrementDraftRevision(storeId, transaction);
     },
-  });
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function listGameOverridesWithSlugs(storeId: string) {
@@ -251,90 +314,6 @@ async function listGameOverridesWithSlugs(storeId: string) {
     ...override,
     game_slug: slugByGameId[override.game_id] || "unknown",
   }));
-}
-
-async function getCurationWhereClause(
-  storeId: string,
-): Promise<Prisma.GameWhereInput> {
-  const [filters, overrides] = await Promise.all([
-    prisma.storeTagFilter.findMany({ where: { store_id: storeId } }),
-    prisma.storeGameOverride.findMany({ where: { store_id: storeId } }),
-  ]);
-
-  const whitelist = filters
-    .filter((filter) => filter.mode === "WHITELIST")
-    .map((filter) => filter.tag.toLowerCase());
-  const blacklist = filters
-    .filter((filter) => filter.mode === "BLACKLIST")
-    .map((filter) => filter.tag.toLowerCase());
-  const forceShowIds = overrides
-    .filter((override) => override.visibility === "SHOW")
-    .map((override) => override.game_id);
-  const forceHideIds = overrides
-    .filter((override) => override.visibility === "HIDE")
-    .map((override) => override.game_id);
-
-  if (
-    whitelist.length === 0 &&
-    blacklist.length === 0 &&
-    forceShowIds.length === 0 &&
-    forceHideIds.length === 0
-  ) {
-    return {};
-  }
-
-  // Overrides always win over tag-based rules: a force-hidden game is excluded
-  // even if it matches the whitelist, and a force-shown game is included even
-  // if it carries a blacklisted tag or doesn't match the whitelist.
-  const tagRuleWhere: Prisma.GameWhereInput = {};
-
-  if (whitelist.length > 0 || blacklist.length > 0) {
-    // Filter tags are stored lowercase, but game tags keep their original
-    // casing (e.g. "RPG", "Story-Rich"). Resolve each lowercase filter tag to
-    // the actual casing(s) present in the catalog so matching is
-    // case-insensitive without mutating how game tags are stored. This only
-    // runs when a store actually has tag filters configured.
-    const casingsByLowerTag = await getGameTagCasings();
-    const toGameTagCasings = (lowerTags: string[]) =>
-      lowerTags.flatMap((lowerTag) => casingsByLowerTag.get(lowerTag) ?? []);
-
-    if (whitelist.length > 0) {
-      // If the whitelist resolves to no catalog casing, hasSome:[] matches no
-      // games — the correct result for whitelisting a tag nothing carries.
-      tagRuleWhere.tags = { hasSome: toGameTagCasings(whitelist) };
-    }
-
-    const blacklistCasings = toGameTagCasings(blacklist);
-    if (blacklistCasings.length > 0) {
-      tagRuleWhere.NOT = { tags: { hasSome: blacklistCasings } };
-    }
-  }
-
-  return {
-    AND: [
-      { id: { notIn: forceHideIds } },
-      { OR: [{ id: { in: forceShowIds } }, tagRuleWhere] },
-    ],
-  };
-}
-
-// Returns a map of lowercased tag -> the actual casing(s) that tag appears
-// under across the games catalog, from a single DISTINCT unnest query so the
-// result stays small regardless of catalog size.
-async function getGameTagCasings(): Promise<Map<string, string[]>> {
-  const rows = await prisma.$queryRaw<{ tag: string }[]>`
-    SELECT DISTINCT unnest(tags) AS tag FROM games
-  `;
-
-  const casingsByLowerTag = new Map<string, string[]>();
-  for (const row of rows) {
-    const lowerTag = row.tag.toLowerCase();
-    const casings = casingsByLowerTag.get(lowerTag) ?? [];
-    casings.push(row.tag);
-    casingsByLowerTag.set(lowerTag, casings);
-  }
-
-  return casingsByLowerTag;
 }
 
 const storeCuration = {

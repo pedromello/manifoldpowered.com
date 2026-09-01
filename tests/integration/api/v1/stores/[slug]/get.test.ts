@@ -29,6 +29,17 @@ describe("GET /api/v1/stores/[slug]", () => {
         description: createdStore.description,
         logo_url: createdStore.logo_url,
         owner_id: owner.id,
+        presentation: {
+          version: 1,
+          layout_preset: "EDITORIAL",
+          palette_id: "MANIFOLD",
+          typography_id: "MANIFOLD",
+          shape_id: "MANIFOLD",
+          tagline: null,
+          cover_image_url: null,
+          social_links: {},
+          theme_key: null,
+        },
         created_at: createdStore.created_at.toISOString(),
         updated_at: responseBody.updated_at,
       });

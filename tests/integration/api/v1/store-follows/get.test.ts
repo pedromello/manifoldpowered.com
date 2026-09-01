@@ -9,6 +9,7 @@ const PUBLIC_STORE_FIELDS = [
   "description",
   "logo_url",
   "owner_id",
+  "presentation",
   "created_at",
   "updated_at",
 ].sort();

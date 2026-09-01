@@ -145,4 +145,13 @@ describe("i18n catalog", () => {
       expect(invalid).toEqual([]);
     },
   );
+
+  test("uses masculine articles for Manifold in pt-BR copy", () => {
+    const feminineArticle = /\b(?:a|à|da|na|pela|uma) Manifold\b/i;
+    const invalid = Object.entries(ptBR)
+      .filter(([, translation]) => feminineArticle.test(translation))
+      .map(([source]) => source);
+
+    expect(invalid).toEqual([]);
+  });
 });

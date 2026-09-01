@@ -4,6 +4,7 @@ import controller from "infra/controller";
 import store from "models/store";
 import authorization from "models/authorization";
 import { ForbiddenError } from "infra/errors";
+import { prepareStorefrontPreview } from "lib/storefront-preview";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -14,11 +15,15 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
 
-  const foundStore = await store.findOneBySlug(slug as string);
+  const preview = prepareStorefrontPreview(req, res);
+  const foundStore = await store.findOneForStorefront(slug as string, {
+    preview,
+    user: req.context.user,
+  });
 
   const secureOutputValues = authorization.filterOutput(
     req.context.user,
-    "read:public_store",
+    preview ? "update:store" : "read:public_store",
     foundStore,
   );
 

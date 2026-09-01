@@ -20,7 +20,9 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
     test("Should apply the store's curation rules", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const allowedGames = await Promise.all(
         ["Featured Allowed", "Second Allowed", "Third Allowed"].map(
@@ -46,6 +48,7 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
         "horror",
         "BLACKLIST",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/featured`,

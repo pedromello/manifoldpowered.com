@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import useSWR from "swr";
 import { Loader2 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { OutletValueProp } from "components/store/OutletValueProp";
+import { createOutletSubmissionController } from "lib/create-outlet-client";
 import { useI18n } from "lib/i18n";
+import {
+  CREATOR_OUTLET_FUNNEL_VERSION,
+  creatorFunnelAnalytics,
+} from "lib/creator-funnel-analytics";
 
 interface CurrentUser {
   id: string;
@@ -33,6 +38,10 @@ export default function StoreCreatePage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const [submissionController] = useState(() =>
+    createOutletSubmissionController(),
+  );
 
   const isLoggedOut = !!userError;
 
@@ -42,29 +51,35 @@ export default function StoreCreatePage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     setFormError(null);
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/v1/stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description: description.trim() || undefined,
-          logo_url: logoUrl.trim() || undefined,
-        }),
+      const { ok, body } = await submissionController.submit({
+        name,
+        description: description.trim() || undefined,
+        logoUrl: logoUrl.trim() || undefined,
       });
 
-      const body = await response.json().catch(() => null);
-
-      if (!response.ok) {
+      if (!ok) {
         setFormError(translateError(body?.message, "Failed to create Outlet."));
         return;
       }
 
-      router.push(`/store/${body.slug}/manage`);
+      const hasDescription = description.trim().length > 0;
+      const hasLogo = logoUrl.trim().length > 0;
+      if (hasDescription && hasLogo) {
+        creatorFunnelAnalytics.brandComplete({
+          funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
+          entrySurface: "create_outlet",
+        });
+      }
+      router.push(`/store/${body!.slug}/manage`);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -94,7 +109,11 @@ export default function StoreCreatePage() {
             {isUserLoading ? (
               <Loader2 className="animate-spin text-white/30" />
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <form
+                onSubmit={handleSubmit}
+                onChange={() => submissionController.start()}
+                className="flex flex-col gap-4"
+              >
                 <label className="flex flex-col gap-2">
                   <span className="text-xs font-black uppercase tracking-wider text-white/40">
                     {t("Outlet name")}
@@ -136,7 +155,7 @@ export default function StoreCreatePage() {
 
                 <p className="text-xs font-bold text-white/40">
                   {t(
-                    "Your Outlet shows the full Manifold catalog by default. You can curate what it shows after creating it.",
+                    "After creating your Outlet, choose explicitly whether to show the full catalog or a selected catalog before publishing.",
                   )}
                 </p>
 

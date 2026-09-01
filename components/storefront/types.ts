@@ -16,7 +16,7 @@ export type { GameApi, GameDetailApi, PaginationApi };
  */
 export type StoreContext = Pick<
   StoreApi,
-  "id" | "slug" | "name" | "description" | "logo_url"
+  "id" | "slug" | "name" | "description" | "logo_url" | "presentation"
 >;
 
 /**
@@ -58,6 +58,8 @@ export type StorefrontQuery = {
  */
 export type StorefrontViewProps = {
   store: StoreContext;
+  /** True only for the authenticated working-draft rendering. */
+  isPreview: boolean;
   /** Shared behavior; themes only decide where it belongs visually. */
   followControl: ReactNode;
 
@@ -100,6 +102,8 @@ export type StorefrontViewProps = {
   browseHref: (patch: Partial<StorefrontQuery>) => string;
   /** Target for a `<Form action=...>` so search still works without JS. */
   searchAction: string;
+  /** Query fields a GET search form must preserve, such as private preview. */
+  searchHiddenFields: Readonly<Record<string, string>>;
 };
 
 /**
