@@ -68,6 +68,8 @@ const SOCIAL_LABELS: Record<StoreSocialPlatform, string> = {
   instagram: "Instagram",
   tiktok: "TikTok",
   x: "X",
+  discord: "Discord",
+  bluesky: "Bluesky",
 };
 
 function SocialLinks({
@@ -257,7 +259,7 @@ function SearchAndFilters({
     categories,
     browseHref,
     searchAction,
-    persistentQuery,
+    searchHiddenFields,
   } = props;
   const row = direction === "row";
 
@@ -300,7 +302,7 @@ function SearchAndFilters({
         {order !== "newest" && (
           <input type="hidden" name="order" value={order} />
         )}
-        {Object.entries(persistentQuery).map(([name, value]) => (
+        {Object.entries(searchHiddenFields).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
       </Form>

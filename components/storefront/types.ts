@@ -1,8 +1,9 @@
-import type {
+import {
   GameApi,
   GameDetailApi,
   PaginationApi,
   StoreApi,
+  storeContextFromApi,
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
 import type { ReactNode } from "react";
@@ -14,20 +15,12 @@ export type { GameApi, GameDetailApi, PaginationApi };
  * narrower than `StoreApi`: a theme has no business reading `owner_id`, and
  * keeping it out means a theme can never accidentally leak it into markup.
  */
-export type StoreContext = Pick<
-  StoreApi,
-  | "id"
-  | "slug"
-  | "name"
-  | "description"
-  | "logo_url"
-  | "theme_key"
-  | "layout_preset"
-  | "tagline"
-  | "cover_url"
-  | "social_links"
-  | "brand_tokens"
->;
+export type StoreContext = Omit<
+  ReturnType<typeof storeContextFromApi>,
+  "presentation"
+> & {
+  presentation?: StoreApi["presentation"];
+};
 
 /**
  * The order values `gameQuerySchema` accepts on the public list endpoints.
@@ -68,6 +61,8 @@ export type StorefrontQuery = {
  */
 export type StorefrontViewProps = {
   store: StoreContext;
+  /** True only for the authenticated working-draft rendering. */
+  isPreview: boolean;
   /** Shared behavior; themes only decide where it belongs visually. */
   followControl: ReactNode;
 
@@ -114,8 +109,8 @@ export type StorefrontViewProps = {
   browseHref: (patch: Partial<StorefrontQuery>) => string;
   /** Target for a `<Form action=...>` so search still works without JS. */
   searchAction: string;
-  /** Query entries that must survive every browse/search navigation (preview). */
-  persistentQuery: Readonly<Record<string, string>>;
+  /** Query fields a GET search form must preserve, such as private preview. */
+  searchHiddenFields: Readonly<Record<string, string>>;
 };
 
 /**

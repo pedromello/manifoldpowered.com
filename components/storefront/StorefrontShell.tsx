@@ -19,8 +19,8 @@ export type StorefrontShellProps = {
   title: string;
   description: string;
   canonicalPath: string;
-  socialImage: string;
-  socialImageAlt: string;
+  socialImage?: string;
+  socialImageAlt?: string;
   jsonLd?: JsonLd;
   /** Draft previews must not emit public canonicals, OG metadata, or JSON-LD. */
   noIndex?: boolean;
@@ -78,9 +78,10 @@ export function StorefrontShell({
         image={socialImage}
         imageAlt={socialImageAlt}
         jsonLd={jsonLd}
-        noIndex={noIndex}
+        privatePage={noIndex}
       />
       <Head>
+        {noIndex && <meta name="robots" content="noindex, nofollow" />}
         {/* Overrides the global #fffbf6 in _app so the PWA status bar matches
             the outlet rather than the marketing site. */}
         <meta name="theme-color" content={palette.bg} />

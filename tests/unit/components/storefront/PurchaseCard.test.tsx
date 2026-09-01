@@ -43,7 +43,7 @@ describe("PurchaseCard draft preview", () => {
         isRedeeming={false}
         acquisitionError={null}
         onRedeem={jest.fn()}
-        visitorPreview
+        isPreview
         wishlist={{
           count: 4,
           isWishlisted: false,
@@ -55,8 +55,9 @@ describe("PurchaseCard draft preview", () => {
 
     expect(markup).toContain("$19.90");
     expect(markup).toContain("Lantern Studio");
+    expect(markup).toContain("Purchasing is disabled in preview");
     expect(markup).toContain(
-      "Purchases and account actions are disabled in preview.",
+      "Open the published Outlet to test acquisition and attribution.",
     );
     expect(markup).not.toContain("Buy now");
     expect(markup).not.toContain("Add to Library");

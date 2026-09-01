@@ -23,20 +23,24 @@ function publishedStore(overrides: Record<string, unknown> = {}) {
     name: "Published Outlet",
     description: "The public revision",
     logo_url: "https://images.unsplash.com/logo.png",
-    theme_key: null,
-    layout_preset: "channel",
-    tagline: null,
-    cover_url: "https://images.unsplash.com/cover.png",
-    social_links: {},
-    brand_tokens: {
-      palette: "manifold",
-      typography: "modern",
-      shape: "soft",
+    presentation: {
+      version: 1,
+      theme_key: null,
+      layout_preset: "channel",
+      tagline: null,
+      cover_image_url: "https://images.unsplash.com/cover.png",
+      social_links: {},
+      brand_tokens: {
+        palette: "manifold",
+        typography: "modern",
+        shape: "soft",
+      },
     },
     owner_id: "owner-1",
     created_at: "2026-09-01T12:00:00.000Z",
     updated_at: "2026-09-01T12:30:00.000Z",
-    publication_status: "PUBLISHED",
+    storefront_source: "REVISION",
+    status: "PUBLISHED",
     published_at: "2026-09-01T12:30:00.000Z",
     ...overrides,
   });
@@ -185,10 +189,13 @@ describe("published Outlet OG presentation", () => {
     const fetchMock = jest.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
-          publication_status: "DRAFT",
+          storefront_source: "DRAFT",
           published_at: null,
           name: "Private draft",
-          theme_key: "strategos-void",
+          presentation: {
+            version: 1,
+            theme_key: "strategos-void",
+          },
         }),
         { headers: { "content-type": "application/json" } },
       ),
@@ -215,29 +222,39 @@ describe("published Outlet OG presentation", () => {
   test("fails closed when the public payload is not a published revision", () => {
     expect(
       publishedStoreFromResponse({
-        publication_status: "DRAFT",
+        storefront_source: "DRAFT",
         published_at: "2026-09-01T12:30:00.000Z",
-        theme_key: "strategos-void",
+        presentation: { version: 1, theme_key: "strategos-void" },
       }),
     ).toBeNull();
     expect(
       publishedStoreFromResponse({
-        publication_status: "PUBLISHED",
+        storefront_source: "REVISION",
         published_at: null,
-        theme_key: "strategos-void",
+        presentation: { version: 1, theme_key: "strategos-void" },
       }),
     ).toBeNull();
     expect(
       publishedStoreFromResponse({
         ...publishedStore(),
-        cover_url: { draft: "https://images.unsplash.com/leak.png" },
+        presentation: {
+          ...publishedStore().presentation,
+          cover_image_url: { draft: "https://images.unsplash.com/leak.png" },
+        },
       }),
     ).toBeNull();
   });
 
   test("selects bespoke artwork only from a published registered theme key", () => {
     expect(
-      outletArtworkCandidates(publishedStore({ theme_key: "strategos-void" })),
+      outletArtworkCandidates(
+        publishedStore({
+          presentation: {
+            ...publishedStore().presentation,
+            theme_key: "strategos-void",
+          },
+        }),
+      ),
     ).toEqual([
       {
         url: "/storefronts/strategos-void/logo.jpg",
@@ -250,7 +267,13 @@ describe("published Outlet OG presentation", () => {
     // A creator cannot obtain bespoke presentation by choosing its public slug.
     expect(
       outletArtworkCandidates(
-        publishedStore({ slug: "strategos-void", theme_key: null }),
+        publishedStore({
+          slug: "strategos-void",
+          presentation: {
+            ...publishedStore().presentation,
+            theme_key: null,
+          },
+        }),
       ),
     ).toEqual([
       { url: "https://images.unsplash.com/cover.png" },

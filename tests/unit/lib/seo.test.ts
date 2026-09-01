@@ -29,7 +29,7 @@ const store: StoreApi = {
     shape: "crisp",
   },
   owner_id: "owner-1",
-  publication_status: "PUBLISHED",
+  status: "PUBLISHED",
   published_at: "2026-01-02T00:00:00.000Z",
   created_at: "2026-01-01T00:00:00.000Z",
   updated_at: "2026-01-02T00:00:00.000Z",
@@ -107,10 +107,19 @@ describe("SEO helpers", () => {
       description:
         "Explore Careful Curator's game selection in Manifold's shared catalog.",
     });
+    expect(outletMetadata({ ...store, description: "   " }, "pt-BR")).toEqual({
+      title: "Careful Curator — Jogos selecionados no Manifold",
+      description:
+        "Explore a seleção de jogos da Outlet Careful Curator no catálogo compartilhado do Manifold.",
+    });
     expect(
       gameMetadata({ ...game, description: "", display_price: null }, "en")
         .description,
     ).toContain("available on Manifold");
+    expect(
+      gameMetadata({ ...game, description: "", display_price: null }, "pt-BR")
+        .description,
+    ).toContain("disponível no Manifold");
     expect(
       gameMetadata(
         { ...game, display_price: { ...game.display_price!, amount: "0" } },

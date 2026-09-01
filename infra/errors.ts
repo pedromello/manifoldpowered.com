@@ -146,20 +146,24 @@ export class ValidationError extends Error {
 export class ConflictError extends Error {
   public statusCode: number;
   public action: string;
+  public context: unknown;
 
   constructor({
     message,
     cause,
     action,
+    context,
   }: {
     message?: string;
     cause?: unknown;
     action?: string;
-  } = {}) {
+    context?: unknown;
+  }) {
     super(message || "Conflict", { cause });
     this.name = "ConflictError";
     this.statusCode = 409;
-    this.action = action || "Reload the resource and try again";
+    this.action = action || "Refresh the resource and try again";
+    this.context = context;
   }
 
   toJSON() {
@@ -168,6 +172,7 @@ export class ConflictError extends Error {
       name: this.name,
       action: this.action,
       status_code: this.statusCode,
+      context: this.context,
     };
   }
 }

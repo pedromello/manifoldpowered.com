@@ -1,5 +1,5 @@
+import { DEFAULT_STORE_BRAND_TOKENS } from "contracts/store-presentation";
 import {
-  DEFAULT_STORE_BRAND_TOKENS,
   parseStoreDraftIfMatch,
   storeSchema,
   storeUpdateSchema,
@@ -30,6 +30,8 @@ describe("models/store presentation schemas", () => {
         instagram: "https://instagram.com/creator",
         tiktok: "https://tiktok.com/@creator",
         x: "https://x.com/creator",
+        discord: "https://discord.gg/creator",
+        bluesky: "https://bsky.app/profile/creator.example",
       },
       brand_tokens: {
         palette: "ember",

@@ -4,25 +4,25 @@
  *
  * This script never clears tables. Every row it owns has a deterministic UUID
  * and/or slug, and a collision preflight refuses to adopt unrelated data. Store
- * drafts are mutable, but publication still goes through models/store.publish
+ * drafts are mutable, but publication still goes through
+ * models/store.changePublication
  * so every changed public presentation is captured by a new immutable
  * StoreRevision. An identical rerun sees the matching published snapshot and
  * does not append another revision.
  *
  * Usage (the script is intentionally not wired into npm run dev):
- *   npx tsx --env-file=.env.development scripts/seed-outlet-preset-showcase.ts
- *   npx tsx --env-file=.env.development scripts/seed-outlet-preset-showcase.ts --origin=http://localhost:3001
+ *   npx tsx --env-file=.env.development scripts/seed-outlet-preset-showcase.ts --confirm-database=local_db
+ *   npx tsx --env-file=.env.development scripts/seed-outlet-preset-showcase.ts --confirm-database=local_db --origin=http://localhost:3001
  */
 
 import { isDeepStrictEqual } from "node:util";
 
 import type {
   StoreBrandTokens,
-  StoreCurationSnapshot,
   StoreLayoutPreset,
-  StorePresentationSnapshot,
   StoreSocialLinks,
 } from "contracts/store-presentation";
+import { STORE_PRESENTATION_VERSION } from "contracts/store-presentation";
 import {
   Prisma,
   type ReviewScore,
@@ -36,6 +36,11 @@ import storeModel, {
   STORE_OWNER_FEATURES,
   storeSchema,
 } from "models/store";
+import {
+  assertExactFixtureState,
+  assertLocalShowcaseSeedTarget,
+  readConfirmedDatabase,
+} from "scripts/seed-outlet-preset-showcase-policy";
 
 const FIXTURE_PREFIX = "7a310000-0000-4000-8000";
 const FIXTURE_TIMESTAMP = new Date("2026-08-01T12:00:00.000Z");
@@ -539,12 +544,26 @@ type FeaturedFixture = {
   readonly recommendationReason: string;
 };
 
-type OutletFixture = StorePresentationSnapshot & {
+type OutletFixture = {
   readonly id: string;
   readonly slug: string;
+  readonly name: string;
+  readonly description: string;
+  readonly logo_url: string;
+  readonly theme_key: null;
+  readonly layout_preset: StoreLayoutPreset;
+  readonly tagline: string;
+  readonly cover_url: string;
+  readonly social_links: StoreSocialLinks;
+  readonly brand_tokens: StoreBrandTokens;
   readonly filters: readonly OutletFilterFixture[];
   readonly featured: readonly FeaturedFixture[];
 };
+
+type OutletPresentationFixture = Omit<
+  OutletFixture,
+  "id" | "slug" | "filters" | "featured"
+>;
 
 function presentation(
   layoutPreset: StoreLayoutPreset,
@@ -557,7 +576,7 @@ function presentation(
     logoUrl: string;
     socialLinks: StoreSocialLinks;
   },
-): StorePresentationSnapshot {
+): OutletPresentationFixture {
   return {
     name: values.name,
     description: values.description,
@@ -725,7 +744,12 @@ const OUTLET_FIXTURES = [
 type PublicationResult = "created" | "published" | "unchanged";
 
 async function main(): Promise<void> {
-  refuseProduction();
+  assertLocalShowcaseSeedTarget({
+    nodeEnv: process.env.NODE_ENV,
+    postgresHost: process.env.POSTGRES_HOST,
+    postgresDatabase: process.env.POSTGRES_DB,
+    confirmedDatabase: readConfirmedDatabase(process.argv.slice(2)),
+  });
   validateFixtureContracts();
   await preflightCollisions();
 
@@ -748,14 +772,6 @@ async function main(): Promise<void> {
   }
 
   printSummary(publicationResults);
-}
-
-function refuseProduction(): void {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "Refusing to seed visual-QA fixtures while NODE_ENV=production.",
-    );
-  }
 }
 
 function validateFixtureContracts(): void {
@@ -1170,9 +1186,12 @@ async function ensureOutletDraft(outlet: OutletFixture): Promise<boolean> {
         slug: outlet.slug,
         owner_id: OWNER_FIXTURE.id,
         ...storePresentationData(outlet),
-        publication_status: "DRAFT",
+        status: "DRAFT",
+        catalog_mode: "SELECTED",
         published_revision_id: null,
+        last_published_revision_id: null,
         published_at: null,
+        last_published_at: null,
         draft_revision: 1,
         commission_rate: null,
         created_at: FIXTURE_TIMESTAMP,
@@ -1182,11 +1201,15 @@ async function ensureOutletDraft(outlet: OutletFixture): Promise<boolean> {
     return true;
   }
 
-  if (!presentationMatches(store, outlet)) {
+  if (
+    store.catalog_mode !== "SELECTED" ||
+    !presentationMatches(store, outlet)
+  ) {
     await prisma.store.update({
       where: { id: outlet.id },
       data: {
         ...storePresentationData(outlet),
+        catalog_mode: "SELECTED",
         draft_revision: { increment: 1 },
       },
     });
@@ -1204,6 +1227,7 @@ async function ensurePublishedOutlet(
   const store = await prisma.store.findUniqueOrThrow({
     where: { id: outlet.id },
   });
+  await assertExactOutletDraft(store, outlet);
 
   const publishedRevision = store.published_revision_id
     ? await prisma.storeRevision.findUnique({
@@ -1211,7 +1235,7 @@ async function ensurePublishedOutlet(
       })
     : null;
   const alreadyPublished =
-    store.publication_status === "PUBLISHED" &&
+    store.status === "PUBLISHED" &&
     store.published_at !== null &&
     publishedRevision !== null &&
     presentationMatches(publishedRevision, outlet) &&
@@ -1221,7 +1245,12 @@ async function ensurePublishedOutlet(
     return created ? "created" : "unchanged";
   }
 
-  await storeModel.publish(store.id, OWNER_FIXTURE.id, store.draft_revision);
+  await storeModel.changePublication(
+    store.id,
+    OWNER_FIXTURE.id,
+    "publish",
+    store.draft_revision,
+  );
   return created ? "created" : "published";
 }
 
@@ -1254,6 +1283,22 @@ function presentationMatches(
   row: Store | StoreRevision,
   outlet: OutletFixture,
 ): boolean {
+  if ("presentation" in row) {
+    const presentation = row.presentation as Record<string, unknown>;
+    return (
+      row.name === outlet.name &&
+      row.description === outlet.description &&
+      row.logo_url === outlet.logo_url &&
+      presentation.version === STORE_PRESENTATION_VERSION &&
+      presentation.theme_key === outlet.theme_key &&
+      presentation.layout_preset === outlet.layout_preset &&
+      presentation.tagline === outlet.tagline &&
+      presentation.cover_image_url === outlet.cover_url &&
+      isDeepStrictEqual(presentation.social_links, outlet.social_links) &&
+      isDeepStrictEqual(presentation.brand_tokens, outlet.brand_tokens)
+    );
+  }
+
   return (
     row.name === outlet.name &&
     row.description === outlet.description &&
@@ -1267,13 +1312,22 @@ function presentationMatches(
   );
 }
 
-function expectedCuration(outlet: OutletFixture): StoreCurationSnapshot {
+type ExpectedCuration = {
+  featured_games: Array<{
+    game_id: string;
+    position: number;
+    recommendation_reason: string;
+  }>;
+  tag_filters: Array<{ tag: string; mode: "WHITELIST" | "BLACKLIST" }>;
+  game_overrides: never[];
+};
+
+function expectedCuration(outlet: OutletFixture): ExpectedCuration {
   const gameIdBySlug = new Map(
     GAME_FIXTURES.map((game) => [game.slug, game.id]),
   );
 
   return {
-    curation_strategy: "RULES",
     featured_games: outlet.featured.map((featured) => {
       const gameId = gameIdBySlug.get(featured.gameSlug);
       if (!gameId) {
@@ -1292,13 +1346,65 @@ function expectedCuration(outlet: OutletFixture): StoreCurationSnapshot {
 
 function curationMatches(
   revision: StoreRevision,
-  expected: StoreCurationSnapshot,
+  expected: ExpectedCuration,
 ): boolean {
   return (
-    revision.curation_strategy === expected.curation_strategy &&
     isDeepStrictEqual(revision.featured_games, expected.featured_games) &&
     isDeepStrictEqual(revision.tag_filters, expected.tag_filters) &&
     isDeepStrictEqual(revision.game_overrides, expected.game_overrides)
+  );
+}
+
+async function assertExactOutletDraft(
+  store: Store,
+  outlet: OutletFixture,
+): Promise<void> {
+  if (
+    store.catalog_mode !== "SELECTED" ||
+    !presentationMatches(store, outlet)
+  ) {
+    throw new Error(
+      `Fixture Outlet ${outlet.slug} draft presentation or catalog mode changed; refusing to publish.`,
+    );
+  }
+
+  const [filters, featured, overrides] = await Promise.all([
+    prisma.storeTagFilter.findMany({ where: { store_id: outlet.id } }),
+    prisma.storeFeaturedGame.findMany({ where: { store_id: outlet.id } }),
+    prisma.storeGameOverride.findMany({ where: { store_id: outlet.id } }),
+  ]);
+  const expected = expectedCuration(outlet);
+  const actualFilters = filters
+    .map(({ tag, mode }) => ({ tag, mode }))
+    .sort((left, right) => left.tag.localeCompare(right.tag));
+  const expectedFilters = [...expected.tag_filters].sort((left, right) =>
+    left.tag.localeCompare(right.tag),
+  );
+  const actualFeatured = featured
+    .map(({ game_id, position, recommendation_reason }) => ({
+      game_id,
+      position,
+      recommendation_reason,
+    }))
+    .sort((left, right) => left.position - right.position);
+  const expectedFeatured = [...expected.featured_games].sort(
+    (left, right) => left.position - right.position,
+  );
+
+  assertExactFixtureState(
+    `${outlet.slug} tag filters`,
+    actualFilters,
+    expectedFilters,
+  );
+  assertExactFixtureState(
+    `${outlet.slug} featured games`,
+    actualFeatured,
+    expectedFeatured,
+  );
+  assertExactFixtureState(
+    `${outlet.slug} game overrides`,
+    overrides.map(({ id }) => id).sort(),
+    [],
   );
 }
 
@@ -1338,25 +1444,14 @@ async function ensureCuration(): Promise<void> {
       }),
     ]);
 
-  if (existingOverrides.length > 0) {
-    throw new Error(
-      "Fixture Outlets contain unexpected game overrides; remove them explicitly before reseeding.",
-    );
-  }
-
   const filterById = new Map(
     expectedFilters.map((filter) => [filter.id, filter]),
   );
-  const filterByStoreAndTag = new Map(
-    expectedFilters.map((filter) => [
-      `${filter.storeId}:${filter.tag}`,
-      filter,
-    ]),
-  );
   for (const filter of existingFilters) {
+    const expected = filterById.get(filter.id);
     if (
-      filterById.get(filter.id) !==
-      filterByStoreAndTag.get(`${filter.store_id}:${filter.tag}`)
+      expected &&
+      (filter.store_id !== expected.storeId || filter.tag !== expected.tag)
     ) {
       collision("Outlet tag filter", filter);
     }
@@ -1371,9 +1466,8 @@ async function ensureCuration(): Promise<void> {
       ? gameIdBySlug.get(expected.gameSlug)
       : undefined;
     if (
-      !expected ||
-      row.store_id !== expected.storeId ||
-      row.game_id !== expectedGameId
+      expected &&
+      (row.store_id !== expected.storeId || row.game_id !== expectedGameId)
     ) {
       collision("Outlet Featured row", row);
     }
@@ -1401,6 +1495,9 @@ async function ensureCuration(): Promise<void> {
     const currentFeatured = existingFeatured.filter(
       (featured) => featured.store_id === outlet.id,
     );
+    const currentOverrides = existingOverrides.filter(
+      (override) => override.store_id === outlet.id,
+    );
     const selectionMatches =
       currentFeatured.length === desiredFeatured.length &&
       desiredFeatured.every((featured) => {
@@ -1413,29 +1510,37 @@ async function ensureCuration(): Promise<void> {
         );
       });
 
-    if (filtersMatch && selectionMatches) continue;
+    if (filtersMatch && selectionMatches && currentOverrides.length === 0) {
+      continue;
+    }
 
     await prisma.$transaction(async (transaction) => {
       if (!filtersMatch) {
+        await transaction.storeTagFilter.deleteMany({
+          where:
+            desiredFilters.length > 0
+              ? {
+                  store_id: outlet.id,
+                  id: { notIn: desiredFilters.map((filter) => filter.id) },
+                }
+              : { store_id: outlet.id },
+        });
         for (const filter of desiredFilters) {
-          const existing = currentFilters.find((row) => row.id === filter.id);
-          if (!existing) {
-            await transaction.storeTagFilter.create({
-              data: {
-                id: filter.id,
-                store_id: outlet.id,
-                tag: filter.tag,
-                mode: filter.mode,
-                created_at: FIXTURE_TIMESTAMP,
-                updated_at: FIXTURE_TIMESTAMP,
-              },
-            });
-          } else if (existing.mode !== filter.mode) {
-            await transaction.storeTagFilter.update({
-              where: { id: filter.id },
-              data: { mode: filter.mode, updated_at: FIXTURE_TIMESTAMP },
-            });
-          }
+          const data = {
+            store_id: outlet.id,
+            tag: filter.tag,
+            mode: filter.mode,
+            updated_at: FIXTURE_TIMESTAMP,
+          };
+          await transaction.storeTagFilter.upsert({
+            where: { id: filter.id },
+            create: {
+              id: filter.id,
+              ...data,
+              created_at: FIXTURE_TIMESTAMP,
+            },
+            update: data,
+          });
         }
       }
 
@@ -1447,6 +1552,15 @@ async function ensureCuration(): Promise<void> {
       }
 
       if (!selectionMatches) {
+        await transaction.storeFeaturedGame.deleteMany({
+          where:
+            desiredFeatured.length > 0
+              ? {
+                  store_id: outlet.id,
+                  id: { notIn: desiredFeatured.map((row) => row.id) },
+                }
+              : { store_id: outlet.id },
+        });
         for (const featured of desiredFeatured) {
           const gameId = gameIdBySlug.get(featured.gameSlug);
           if (!gameId) {
@@ -1469,6 +1583,12 @@ async function ensureCuration(): Promise<void> {
             update: data,
           });
         }
+      }
+
+      if (currentOverrides.length > 0) {
+        await transaction.storeGameOverride.deleteMany({
+          where: { store_id: outlet.id },
+        });
       }
 
       // Curation is part of the draft and immutable published snapshot. Mirror

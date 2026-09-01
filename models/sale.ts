@@ -77,21 +77,42 @@ async function listWhere(
   ];
   const stores = await prisma.store.findMany({
     where: { id: { in: storeIds } },
-    select: { id: true, name: true, slug: true, logo_url: true },
+    select: { id: true, slug: true },
   });
   const storeById = new Map(stores.map((storeRow) => [storeRow.id, storeRow]));
+  const revisionIds = [
+    ...new Set(
+      sales
+        .map((saleItem) => saleItem.store_revision_id)
+        .filter((revisionId): revisionId is string => revisionId !== null),
+    ),
+  ];
+  const revisions = await prisma.storeRevision.findMany({
+    where: { id: { in: revisionIds } },
+    select: { id: true, store_id: true, name: true, logo_url: true },
+  });
+  const revisionById = new Map(
+    revisions.map((revision) => [revision.id, revision]),
+  );
 
   const salesWithGame = sales.map((saleItem) => {
     const saleStore = saleItem.store_id
       ? storeById.get(saleItem.store_id)
       : null;
+    const saleRevision = saleItem.store_revision_id
+      ? revisionById.get(saleItem.store_revision_id)
+      : null;
+    const validRevision =
+      saleRevision && saleRevision.store_id === saleItem.store_id
+        ? saleRevision
+        : null;
     return {
       ...saleItem,
       game_title: gameById.get(saleItem.game_id)?.title || "Unknown game",
       game_slug: gameById.get(saleItem.game_id)?.slug || null,
-      store_name: saleStore?.name || null,
+      store_name: validRevision?.name || null,
       store_slug: saleStore?.slug || null,
-      store_logo_url: saleStore?.logo_url || null,
+      store_logo_url: validRevision?.logo_url || null,
     };
   });
 

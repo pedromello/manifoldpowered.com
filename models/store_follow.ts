@@ -39,7 +39,7 @@ async function follow(userId: string, storeSlug: string) {
 }
 
 async function unfollow(userId: string, storeSlug: string) {
-  const store = await storeModel.findOneBySlug(storeSlug);
+  const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
   // deleteMany makes a repeated unfollow a successful no-op while keeping the
   // user id entirely server-derived.
@@ -82,9 +82,10 @@ async function listForUser(userId: string) {
     return [];
   }
 
-  const stores = await storeModel.findPublishedByIds(
-    relationships.map((relationship) => relationship.store_id),
-  );
+  const { stores } = await storeModel.findAllPublishedPaginated({
+    page: 1,
+    limit: 100_000,
+  });
   const storeById = new Map(stores.map((store) => [store.id, store]));
 
   // Logical references can outlive their target in a no-FK schema. Never leak

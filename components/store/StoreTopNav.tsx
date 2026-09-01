@@ -49,8 +49,9 @@ export function StoreTopNav({
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const { t, locale } = useI18n();
+  const isPreview = visitorPreview || router.query.preview === "1";
 
-  const previewQuery = visitorPreview && store ? "1" : undefined;
+  const previewQuery = isPreview && store ? "1" : undefined;
   const storeHref = store
     ? withQuery(`/store/${store.slug}`, { preview: previewQuery })
     : "/store";
@@ -246,7 +247,7 @@ export function StoreTopNav({
           </div>
 
           <LanguageSwitcher compact />
-          {visitorPreview ? (
+          {isPreview ? (
             <Link
               href="/login"
               className="inline-flex h-10 items-center rounded-xl border border-white/10 px-3 text-xs font-bold text-white/70"

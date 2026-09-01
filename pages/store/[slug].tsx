@@ -6,7 +6,7 @@ import { Settings } from "lucide-react";
 import webserver from "infra/webserver";
 import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { Storefront } from "components/store/Storefront";
-import type { StoreApi } from "components/store/types";
+import { storeContextFromApi, type StoreApi } from "components/store/types";
 import { fetchJson } from "lib/api-client";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
@@ -30,23 +30,44 @@ interface CurrentUser {
  * price disagree with the client-fetched list on the same page.
  */
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { slug } = context.query;
-  const isPreview = context.query.preview === "1";
+  const slug = Array.isArray(context.query.slug)
+    ? context.query.slug[0]
+    : context.query.slug;
+  const previewRequested = context.query.preview === "1";
 
-  if (isPreview) {
+  if (previewRequested) {
     context.res.setHeader("Cache-Control", "private, no-store");
-    context.res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    context.res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    const vary = String(context.res.getHeader("Vary") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (!vary.some((value) => value.toLowerCase() === "cookie")) {
+      vary.push("Cookie");
+    }
+    context.res.setHeader("Vary", vary.join(", "));
   }
+  if (!slug) return { notFound: true };
 
   const headers = headersForInternalFetch(context.req.headers);
 
   try {
-    const store = await fetchPageData<StoreApi>(
-      `${webserver.getOrigin()}/api/v1/stores/${slug}${isPreview ? "?preview=1" : ""}`,
-      { headers },
+    const storeUrl = new URL(
+      `/api/v1/stores/${encodeURIComponent(slug)}`,
+      webserver.getOrigin(),
     );
+    if (previewRequested) storeUrl.searchParams.set("preview", "1");
+
+    const store = await fetchPageData<StoreApi>(storeUrl.toString(), {
+      headers,
+    });
 
     if (!store) return { notFound: true };
+
+    const isPreview = previewRequested;
+    if (store.status === "DRAFT" && !isPreview) {
+      return { notFound: true };
+    }
 
     return { props: { store, isPreview } };
   } catch (error) {
@@ -57,13 +78,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 export default function StorePage({
   store,
-  isPreview = false,
+  isPreview,
 }: {
   store: StoreApi;
-  isPreview?: boolean;
+  isPreview: boolean;
 }) {
   const { locale, t } = useI18n();
   const metadata = outletMetadata(store, locale);
+  const viewStore = storeContextFromApi(store);
   const { data: currentUser } = useSWR<CurrentUser>(
     isPreview ? null : "/api/v1/user",
     fetchJson,
@@ -71,7 +93,7 @@ export default function StorePage({
   );
 
   return (
-    <StorefrontRouteLayout store={store} visitorPreview={isPreview}>
+    <StorefrontRouteLayout store={viewStore} visitorPreview={isPreview}>
       <Storefront
         featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
@@ -80,20 +102,21 @@ export default function StorePage({
         pageTitle={metadata.title}
         metaDescription={metadata.description}
         canonicalPath={`/store/${store.slug}`}
-        socialImage={socialImageUrl(
-          "outlet",
-          locale,
-          store.slug,
-          store.published_at,
-        )}
-        socialImageAlt={
-          locale === "pt-BR"
-            ? `Seleção de jogos da Outlet ${store.name}, com a marca Manifold`
-            : `${store.name}'s game selection with Manifold branding`
+        socialImage={
+          isPreview
+            ? undefined
+            : socialImageUrl("outlet", locale, store.slug, store.published_at)
         }
-        jsonLd={outletJsonLd(store, locale)}
-        store={store}
-        visitorPreview={isPreview}
+        socialImageAlt={
+          isPreview
+            ? undefined
+            : locale === "pt-BR"
+              ? `Seleção de jogos da Outlet ${store.name}, com a marca Manifold`
+              : `${store.name}'s game selection with Manifold branding`
+        }
+        jsonLd={isPreview ? undefined : outletJsonLd(store, locale)}
+        store={viewStore}
+        isPreview={isPreview}
       />
 
       {!isPreview && currentUser?.id === store.owner_id && (

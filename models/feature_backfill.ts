@@ -180,8 +180,9 @@ async function reconcileStudioMembers(
   return result;
 }
 
-// Store owners receive every delegable Outlet permission plus the identity and
-// publication capabilities that must never be delegated to a member.
+// Store owners receive every current Outlet capability. Authorization still
+// resolves ownership at request time; global features only clear the coarse
+// controller gate used before the resource is loaded.
 async function reconcileStoreOwners(
   eligibleUsers: EligibleUsers,
   touchedIds: Set<string>,

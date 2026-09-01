@@ -89,9 +89,6 @@ describe("models/feature_backfill.ts reconcileAll()", () => {
     expect(unchangedUnrelated.features).not.toContain(
       "manage:store_featured_games",
     );
-    expect(unchangedUnrelated.features).not.toContain(
-      "update:store_presentation",
-    );
   });
 
   // The admin pass decides who is an admin by asking whether they already hold

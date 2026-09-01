@@ -12,6 +12,8 @@ interface Store {
   slug: string;
   name: string;
   owner_id: string;
+  status?: "DRAFT" | "PUBLISHED";
+  published_at?: string | null;
 }
 
 interface StoresResponse {
@@ -85,13 +87,28 @@ export default function MyStoresPage() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 font-bold text-white transition-colors hover:border-violet-400/30 hover:bg-white/[0.07]"
               >
                 <span className="truncate">{storeItem.name}</span>
-                {currentUser && (
-                  <span className="shrink-0 px-2 py-0.5 rounded-md bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
-                    {storeItem.owner_id === currentUser.id
-                      ? t("Owner")
-                      : t("Member")}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-2">
+                  {storeItem.status && (
+                    <span
+                      className={`rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                        storeItem.status === "PUBLISHED"
+                          ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
+                          : "border-violet-300/20 bg-violet-400/10 text-violet-200"
+                      }`}
+                    >
+                      {storeItem.status === "PUBLISHED"
+                        ? t("Published")
+                        : t("Draft")}
+                    </span>
+                  )}
+                  {currentUser && (
+                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-white/60">
+                      {storeItem.owner_id === currentUser.id
+                        ? t("Owner")
+                        : t("Member")}
+                    </span>
+                  )}
+                </span>
               </Link>
             ))}
           </div>

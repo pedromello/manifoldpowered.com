@@ -8,13 +8,15 @@ import {
   Smartphone,
 } from "lucide-react";
 import Link from "next/link";
-import { useSWRConfig } from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
-import type {
-  OutletBrandTokens,
-  OutletLayoutPreset,
-  OutletSocialLinks,
-  StoreManagementApi,
+import {
+  storeContextFromApi,
+  type OutletBrandTokens,
+  type OutletLayoutPreset,
+  type OutletSocialLinks,
+  type StoreApi,
+  type StoreManagementApi,
 } from "components/store/types";
 import { useI18n } from "lib/i18n";
 import { isBespokeThemeKey } from "storefronts/bespoke";
@@ -107,7 +109,106 @@ const SOCIAL_FIELDS: Array<{
   },
   { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@you" },
   { key: "x", label: "X", placeholder: "https://x.com/your-profile" },
+  {
+    key: "discord",
+    label: "Discord",
+    placeholder: "https://discord.gg/your-community",
+  },
+  {
+    key: "bluesky",
+    label: "Bluesky",
+    placeholder: "https://bsky.app/profile/your-profile",
+  },
 ];
+
+type PublicationApi = {
+  status: "DRAFT" | "PUBLISHED";
+  published_at: string | null;
+  draft_revision: number;
+  published_revision: { source_draft_revision: number } | null;
+  readiness: {
+    ready: boolean;
+    catalog_game_count: number;
+    checks: {
+      brand_complete: boolean;
+      visual_identity: boolean;
+      catalog_intentional: boolean;
+      catalog_has_games: boolean;
+      editorial_highlight: boolean;
+    };
+  };
+};
+
+const fetchPublication = async (url: string): Promise<PublicationApi> => {
+  const response = await fetch(url);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed: ${response.status}`);
+  }
+  return body;
+};
+
+type OutletEditorRequestResult = {
+  response: Response;
+  body: ({ message?: string } & Record<string, unknown>) | null;
+};
+
+async function editorResponseBody(
+  response: Response,
+): Promise<OutletEditorRequestResult["body"]> {
+  const body: unknown = await response.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body)
+    ? (body as OutletEditorRequestResult["body"])
+    : null;
+}
+
+export async function saveOutletDraftRequest({
+  slug,
+  draftRevision,
+  payload,
+  fetcher = fetch,
+}: {
+  slug: string;
+  draftRevision: number;
+  payload: Record<string, unknown>;
+  fetcher?: typeof fetch;
+}): Promise<OutletEditorRequestResult> {
+  const response = await fetcher(`/api/v1/stores/${slug}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "If-Match": `"${draftRevision}"`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return { response, body: await editorResponseBody(response) };
+}
+
+export async function publishOutletDraftRequest({
+  slug,
+  draftRevision,
+  fetcher = fetch,
+}: {
+  slug: string;
+  draftRevision: number;
+  fetcher?: typeof fetch;
+}): Promise<OutletEditorRequestResult> {
+  const response = await fetcher(`/api/v1/stores/${slug}/publication`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "publish",
+      expected_draft_revision: draftRevision,
+    }),
+  });
+  return { response, body: await editorResponseBody(response) };
+}
+
+export async function retryPublicationReadiness(
+  revalidate: () => unknown | Promise<unknown>,
+): Promise<void> {
+  await revalidate();
+}
 
 const FIELD_CONTROL_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/25 focus:border-violet-300/65 focus:ring-2 focus:ring-violet-500/15";
@@ -239,26 +340,27 @@ export function OutletCustomizationForm({
 }) {
   const { t, translateError } = useI18n();
   const { mutate } = useSWRConfig();
-  const [name, setName] = useState(store.name);
-  const [tagline, setTagline] = useState(store.tagline ?? "");
+  const [savedStore, setSavedStore] = useState<StoreApi>(store);
+  const savedPresentation = useMemo(
+    () => storeContextFromApi(savedStore),
+    [savedStore],
+  );
+  const [name, setName] = useState(savedPresentation.name);
+  const [tagline, setTagline] = useState(savedPresentation.tagline ?? "");
   const [description, setDescription] = useState(store.description ?? "");
   const [logoUrl, setLogoUrl] = useState(store.logo_url ?? "");
-  const [coverUrl, setCoverUrl] = useState(store.cover_url ?? "");
+  const [coverUrl, setCoverUrl] = useState(savedPresentation.cover_url ?? "");
   const [socialLinks, setSocialLinks] = useState<OutletSocialLinks>(
-    store.social_links ?? {},
+    savedPresentation.social_links,
   );
   const [layoutPreset, setLayoutPreset] = useState<OutletLayoutPreset>(
-    store.layout_preset ?? "channel",
+    savedPresentation.layout_preset ?? "channel",
   );
   const [hasSelectedPreset, setHasSelectedPreset] = useState(
-    store.layout_preset !== null,
+    savedPresentation.layout_preset !== null,
   );
   const [brandTokens, setBrandTokens] = useState<OutletBrandTokens>(
-    store.brand_tokens ?? {
-      palette: "manifold",
-      typography: "modern",
-      shape: "soft",
-    },
+    savedPresentation.brand_tokens,
   );
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">(
     "desktop",
@@ -269,36 +371,35 @@ export function OutletCustomizationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [draftRevision, setDraftRevision] = useState(store.draft_revision);
-  const [publicationStatus, setPublicationStatus] = useState(
-    store.publication_status,
-  );
-  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(
-    store.has_unpublished_changes,
-  );
-  const [publicationReadiness, setPublicationReadiness] = useState(
-    store.publication_readiness,
+  const publicationKey = `/api/v1/stores/${store.slug}/publication`;
+  const {
+    data: publication,
+    error: publicationError,
+    isLoading: publicationIsLoading,
+    isValidating: publicationIsValidating,
+    mutate: mutatePublication,
+  } = useSWR<PublicationApi>(publicationKey, fetchPublication);
+  const publicationStatus = publication?.status ?? store.status ?? "DRAFT";
+  const publicationReadiness = publication?.readiness;
+  const hasUnpublishedChanges = Boolean(
+    publicationStatus === "PUBLISHED" &&
+    publication?.published_revision &&
+    draftRevision > publication.published_revision.source_draft_revision,
   );
 
   useEffect(() => {
-    setName(store.name);
-    setTagline(store.tagline ?? "");
+    const presentation = storeContextFromApi(store);
+    setSavedStore(store);
+    setName(presentation.name);
+    setTagline(presentation.tagline ?? "");
     setDescription(store.description ?? "");
     setLogoUrl(store.logo_url ?? "");
-    setCoverUrl(store.cover_url ?? "");
-    setSocialLinks(store.social_links ?? {});
-    setLayoutPreset(store.layout_preset ?? "channel");
-    setHasSelectedPreset(store.layout_preset !== null);
-    setBrandTokens(
-      store.brand_tokens ?? {
-        palette: "manifold",
-        typography: "modern",
-        shape: "soft",
-      },
-    );
+    setCoverUrl(presentation.cover_url ?? "");
+    setSocialLinks(presentation.social_links);
+    setLayoutPreset(presentation.layout_preset ?? "channel");
+    setHasSelectedPreset(presentation.layout_preset !== null);
+    setBrandTokens(presentation.brand_tokens);
     setDraftRevision(store.draft_revision);
-    setPublicationStatus(store.publication_status);
-    setHasUnpublishedChanges(store.has_unpublished_changes);
-    setPublicationReadiness(store.publication_readiness);
     setPreviewRevision((current) => current + 1);
   }, [store]);
 
@@ -338,16 +439,16 @@ export function OutletCustomizationForm({
 
   const savedPayload = useMemo(
     () => ({
-      name: store.name.trim(),
-      tagline: store.tagline?.trim() || null,
-      description: store.description?.trim() || null,
-      logo_url: store.logo_url?.trim() || null,
-      cover_url: store.cover_url?.trim() || null,
-      social_links: store.social_links ?? {},
-      layout_preset: store.layout_preset,
-      brand_tokens: store.brand_tokens,
+      name: savedPresentation.name.trim(),
+      tagline: savedPresentation.tagline?.trim() || null,
+      description: savedPresentation.description?.trim() || null,
+      logo_url: savedPresentation.logo_url?.trim() || null,
+      cover_url: savedPresentation.cover_url?.trim() || null,
+      social_links: savedPresentation.social_links,
+      layout_preset: savedPresentation.layout_preset,
+      brand_tokens: savedPresentation.brand_tokens,
     }),
-    [store],
+    [savedPresentation],
   );
 
   const currentComparablePayload = {
@@ -365,10 +466,9 @@ export function OutletCustomizationForm({
   const managementKey = `/api/v1/stores/${store.slug}?preview=1`;
 
   function applyManagementResponse(body: StoreManagementApi) {
+    setSavedStore(body);
     setDraftRevision(body.draft_revision);
-    setPublicationStatus(body.publication_status);
-    setHasUnpublishedChanges(body.has_unpublished_changes);
-    setPublicationReadiness(body.publication_readiness);
+    setPreviewRevision((current) => current + 1);
     void mutate(managementKey, body, { revalidate: false });
   }
 
@@ -390,15 +490,11 @@ export function OutletCustomizationForm({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`/api/v1/stores/${store.slug}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "If-Match": `"${draftRevision}"`,
-        },
-        body: JSON.stringify(draftPayload),
+      const { response, body } = await saveOutletDraftRequest({
+        slug: store.slug,
+        draftRevision,
+        payload: draftPayload,
       });
-      const body = await response.json().catch(() => null);
       if (!response.ok) {
         if (response.status === 409) {
           await mutate(managementKey);
@@ -412,6 +508,7 @@ export function OutletCustomizationForm({
       }
 
       applyManagementResponse(body as StoreManagementApi);
+      await mutatePublication();
       setSuccess(t("Draft saved. The public Outlet has not changed."));
     } catch {
       setError(t("Could not save these changes. Try again."));
@@ -425,7 +522,7 @@ export function OutletCustomizationForm({
       setError(t("Save the draft before publishing it."));
       return;
     }
-    if (!publicationReadiness.ready) {
+    if (!publicationReadiness?.ready) {
       setError(t("Complete the publication checklist before publishing."));
       return;
     }
@@ -435,14 +532,15 @@ export function OutletCustomizationForm({
     setIsPublishing(true);
 
     try {
-      const response = await fetch(`/api/v1/stores/${store.slug}/publish`, {
-        method: "POST",
-        headers: { "If-Match": `"${draftRevision}"` },
+      const { response, body } = await publishOutletDraftRequest({
+        slug: store.slug,
+        draftRevision,
       });
-      const body = await response.json().catch(() => null);
       if (!response.ok) {
         if (response.status === 409) {
-          await mutate(managementKey);
+          const latest = await mutate(managementKey);
+          if (latest) applyManagementResponse(latest as StoreManagementApi);
+          await mutatePublication();
           setError(
             t("This draft changed elsewhere. We reloaded the latest version."),
           );
@@ -452,7 +550,9 @@ export function OutletCustomizationForm({
         return;
       }
 
-      applyManagementResponse(body as StoreManagementApi);
+      const nextPublication = body as PublicationApi;
+      setDraftRevision(nextPublication.draft_revision);
+      await mutatePublication(nextPublication, { revalidate: false });
       setSuccess(t("Published. Visitors now see this version."));
     } catch {
       setError(t("Could not publish this Outlet. Try again."));
@@ -485,8 +585,19 @@ export function OutletCustomizationForm({
     document.getElementById(`preview-${nextViewport}-tab`)?.focus();
   }
 
-  const bespoke = isBespokeThemeKey(store.theme_key);
+  const bespoke = isBespokeThemeKey(savedPresentation.theme_key);
   const pendingPublication = hasUnpublishedChanges || isDirty;
+  const publicationActionStatus = publicationIsLoading
+    ? t("Publishing is disabled while readiness is loading.")
+    : publicationError
+      ? t("Publishing is disabled because readiness could not be loaded.")
+      : isDirty
+        ? t("Save the draft before publishing it.")
+        : !publicationReadiness?.ready
+          ? t("Complete the publication checklist before publishing.")
+          : publicationStatus === "PUBLISHED" && !hasUnpublishedChanges
+            ? t("The public Outlet already matches this draft.")
+            : t("This draft is ready to publish.");
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-10">
@@ -549,9 +660,13 @@ export function OutletCustomizationForm({
               id="publication-checklist-heading"
               className="mt-1 text-lg font-black"
             >
-              {publicationReadiness.ready
-                ? t("Ready to publish")
-                : t("Complete these steps to publish")}
+              {publicationIsLoading
+                ? t("Loading publication readiness...")
+                : publicationError
+                  ? t("Publication readiness unavailable")
+                  : publicationReadiness?.ready
+                    ? t("Ready to publish")
+                    : t("Complete these steps to publish")}
             </h2>
           </div>
           <p className="text-xs font-semibold text-white/40">
@@ -560,34 +675,60 @@ export function OutletCustomizationForm({
             )}
           </p>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <ReadinessItem
-            ready={publicationReadiness.checks.identity_complete}
-            label={t("Complete identity")}
-          />
-          <ReadinessItem
-            ready={publicationReadiness.checks.strategy_chosen}
-            label={t("Selection strategy")}
-          />
-          <ReadinessItem
-            ready={
-              publicationReadiness.checks.selected_games >=
-              publicationReadiness.checks.minimum_games
-            }
-            label={t("Selected games")}
-            detail={t("{selected} of {minimum}", {
-              selected: publicationReadiness.checks.selected_games,
-              minimum: publicationReadiness.checks.minimum_games,
-            })}
-          />
-          <ReadinessItem
-            ready={publicationReadiness.checks.featured_games >= 1}
-            label={t("Featured recommendation")}
-            detail={t("{count} selected", {
-              count: publicationReadiness.checks.featured_games,
-            })}
-          />
-        </div>
+        {publicationIsLoading ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-bold text-white/55"
+          >
+            {t("Loading publication readiness...")}
+          </div>
+        ) : publicationError ? (
+          <div
+            role="alert"
+            className="mt-4 flex flex-col gap-3 rounded-xl border border-rose-400/25 bg-rose-400/[0.08] px-4 py-3 text-sm font-bold text-rose-100 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>
+              {t(
+                "We could not load readiness. Publishing remains disabled until it is refreshed.",
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => void retryPublicationReadiness(mutatePublication)}
+              disabled={publicationIsValidating}
+              className="min-h-10 shrink-0 rounded-lg border border-rose-200/25 px-3 text-xs font-black uppercase tracking-wider hover:bg-rose-200/10 disabled:opacity-50"
+            >
+              {publicationIsValidating ? t("Retrying...") : t("Try again")}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <ReadinessItem
+              ready={publicationReadiness?.checks.brand_complete === true}
+              label={t("Complete identity")}
+            />
+            <ReadinessItem
+              ready={publicationReadiness?.checks.visual_identity === true}
+              label={t("Visual layout")}
+            />
+            <ReadinessItem
+              ready={publicationReadiness?.checks.catalog_intentional === true}
+              label={t("Selection strategy")}
+            />
+            <ReadinessItem
+              ready={publicationReadiness?.checks.catalog_has_games === true}
+              label={t("Selected games")}
+              detail={t("{count} selected", {
+                count: publicationReadiness?.catalog_game_count ?? 0,
+              })}
+            />
+            <ReadinessItem
+              ready={publicationReadiness?.checks.editorial_highlight === true}
+              label={t("Featured recommendation")}
+            />
+          </div>
+        )}
       </section>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(540px,1.2fr)]">
@@ -607,6 +748,13 @@ export function OutletCustomizationForm({
                 "Use hosted image URLs for your logo and cover. Game uploads and downloads stay in Manifold Desktop.",
               )}
             </p>
+            {bespoke && (
+              <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-3 text-sm leading-6 text-amber-100/80">
+                {t(
+                  "This custom storefront uses artwork and social destinations maintained by Manifold. You can still edit its name, logo, tagline, and description.",
+                )}
+              </p>
+            )}
 
             <div className="mt-6 grid gap-4">
               <Field label={t("Outlet name")}>
@@ -655,6 +803,7 @@ export function OutletCustomizationForm({
                     type="url"
                     pattern="https://.*"
                     title={t("Use an HTTPS URL.")}
+                    disabled={bespoke}
                     value={coverUrl}
                     onChange={(event) => setCoverUrl(event.target.value)}
                     placeholder="https://example.com/cover.jpg"
@@ -665,16 +814,24 @@ export function OutletCustomizationForm({
             </div>
           </section>
 
-          <section aria-labelledby="social-heading">
-            <h2 id="social-heading" className="text-lg font-black">
+          <fieldset
+            aria-labelledby="social-heading"
+            disabled={bespoke}
+            className="min-w-0 disabled:opacity-60"
+          >
+            <legend id="social-heading" className="text-lg font-black">
               {t("Social links")}
-            </h2>
+            </legend>
             <p className="mt-1 text-sm text-white/40">
-              {t("Only the links you provide will appear on your Outlet.")}
+              {bespoke
+                ? t(
+                    "Social destinations for this custom storefront are maintained by Manifold.",
+                  )
+                : t("Only the links you provide will appear on your Outlet.")}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {SOCIAL_FIELDS.map((field) => (
-                <Field key={field.key} label={field.label}>
+                <Field key={field.key} label={t(field.label)}>
                   <input
                     type="url"
                     pattern="https://.*"
@@ -692,7 +849,7 @@ export function OutletCustomizationForm({
                 </Field>
               ))}
             </div>
-          </section>
+          </fieldset>
 
           <fieldset className="min-w-0" disabled={bespoke}>
             <legend className="sr-only">{t("Page layout")}</legend>
@@ -881,11 +1038,14 @@ export function OutletCustomizationForm({
             <button
               type="button"
               onClick={handlePublish}
+              aria-describedby="publication-action-status"
               disabled={
                 isSubmitting ||
                 isPublishing ||
+                publicationIsLoading ||
+                Boolean(publicationError) ||
                 isDirty ||
-                !publicationReadiness.ready ||
+                !publicationReadiness?.ready ||
                 (publicationStatus === "PUBLISHED" && !hasUnpublishedChanges)
               }
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 text-sm font-black text-white transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-[#0b0812] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
@@ -898,6 +1058,14 @@ export function OutletCustomizationForm({
                   : t("Publish Outlet")}
             </button>
           </div>
+          <p
+            id="publication-action-status"
+            role="status"
+            aria-live="polite"
+            className="text-xs font-semibold leading-5 text-white/40"
+          >
+            {publicationActionStatus}
+          </p>
         </div>
 
         <section

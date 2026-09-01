@@ -7,7 +7,7 @@ beforeAll(async () => {
 });
 
 describe("PATCH /api/v1/stores/[slug]", () => {
-  test("requires authentication and the owner-only presentation feature", async () => {
+  test("requires authentication and update permission", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
     const createdStore = await orchestrator.createStore(owner.id, {
@@ -29,8 +29,7 @@ describe("PATCH /api/v1/stores/[slug]", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({
       name: "ForbiddenError",
-      action:
-        "Verify your user has the following features: update:store_presentation",
+      action: "Verify your user has the following features: update:store",
     });
   });
 
@@ -73,9 +72,8 @@ describe("PATCH /api/v1/stores/[slug]", () => {
     expect(await response.json()).toMatchObject({
       slug: createdStore.slug,
       name: "Renamed Outlet",
-      publication_status: "DRAFT",
+      status: "DRAFT",
       draft_revision: 2,
-      has_unpublished_changes: true,
       layout_preset: "editorial",
     });
   });
@@ -136,7 +134,7 @@ describe("PATCH /api/v1/stores/[slug]", () => {
     { logo_url: "not-a-url" },
     { logo_url: "http://example.com/logo.png" },
     { cover_url: "javascript:alert(1)" },
-    { social_links: { discord: "https://discord.example/creator" } },
+    { social_links: { myspace: "https://example.com/creator" } },
   ])("rejects unsafe presentation input %#", async (body) => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
@@ -189,7 +187,7 @@ describe("PATCH /api/v1/stores/[slug]", () => {
     expect(response.status).toBe(400);
   });
 
-  test("does not delegate presentation writes through update:store", async () => {
+  test("delegates presentation writes through update:store", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
     const createdStore = await orchestrator.createStore(owner.id, {
@@ -215,6 +213,10 @@ describe("PATCH /api/v1/stores/[slug]", () => {
       },
     );
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      name: "Member takeover",
+      draft_revision: 2,
+    });
   });
 });

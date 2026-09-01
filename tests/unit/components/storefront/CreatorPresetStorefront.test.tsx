@@ -93,6 +93,7 @@ function props(
   const outlet = store(layoutPreset);
   return {
     store: outlet,
+    isPreview: false,
     followControl: (
       <button data-storefront="follow-outlet">Follow Lantern Club</button>
     ),
@@ -121,7 +122,7 @@ function props(
     itemHref: (slug) => `/item/${slug}?store=${outlet.slug}`,
     browseHref: () => `/store/${outlet.slug}`,
     searchAction: `/store/${outlet.slug}`,
-    persistentQuery: {},
+    searchHiddenFields: {},
   };
 }
 
@@ -188,7 +189,7 @@ describe("CreatorPresetStorefront", () => {
 
   test("keeps draft preview context on search and attributed item links", () => {
     const previewProps = props("community");
-    previewProps.persistentQuery = { preview: "1" };
+    previewProps.searchHiddenFields = { preview: "1" };
     previewProps.itemHref = (gameSlug) =>
       `/item/${gameSlug}?store=lantern-club&preview=1`;
 

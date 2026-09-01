@@ -1,5 +1,9 @@
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
+import {
+  createReadyDraft,
+  publicationRequest,
+} from "tests/integration/api/v1/_support/outlet-lifecycle";
 
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
@@ -8,13 +12,15 @@ beforeAll(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
-async function expectPng(path: string, init?: RequestInit) {
+async function expectPng(
+  path: string,
+  expectedCache: "public" | "no-store" = "public",
+  init?: RequestInit,
+) {
   const response = await fetch(`${webserver.getOrigin()}${path}`, init);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toContain("image/png");
-  expect(response.headers.get("cache-control")).toContain(
-    "stale-while-revalidate",
-  );
+  expect(response.headers.get("cache-control")).toContain(expectedCache);
 
   const bytes = new Uint8Array(await response.arrayBuffer());
   expect(Array.from(bytes.slice(0, 8))).toEqual(PNG_SIGNATURE);
@@ -23,36 +29,27 @@ async function expectPng(path: string, init?: RequestInit) {
   return { response, bytes };
 }
 
-async function publishOutlet(ownerId: string, outlet: Record<string, unknown>) {
-  const session = await orchestrator.createSession(ownerId);
-  const response = await fetch(
-    `${webserver.getOrigin()}/api/v1/stores/${outlet.slug}/publish`,
-    {
-      method: "POST",
-      headers: {
-        Cookie: `session_id=${session.token}`,
-        "If-Match": `"${outlet.draft_revision}"`,
-      },
-    },
+async function publishOutlet(label: string) {
+  const fixture = await createReadyDraft(label);
+  const response = await publicationRequest(
+    fixture.store.slug,
+    fixture.sessionToken,
+    "publish",
+    fixture.store.draft_revision,
   );
   expect(response.status).toBe(200);
 
-  return { session, published: await response.json() };
+  return { fixture, published: await response.json() };
 }
 
 describe("GET /api/og/[...segments]", () => {
   test("renders the institutional home preview", async () => {
-    await expectPng("/api/og/home?locale=en");
+    await expectPng("/api/og/home?locale=en", "public");
   });
 
   test("renders an Outlet preview without a remote logo", async () => {
-    const owner = await orchestrator.createUser();
-    await orchestrator.activateUser(owner.id);
-    const outlet = await orchestrator.createStore(owner.id, {
-      name: "Fallback Friends",
-      description: "Games chosen with care.",
-    });
-    const { published } = await publishOutlet(owner.id, outlet);
+    const { fixture, published } = await publishOutlet("Fallback Friends");
+    const outlet = fixture.store;
 
     const unversioned = await expectPng(
       `/api/og/outlet/${outlet.slug}?locale=pt-BR`,
@@ -92,13 +89,8 @@ describe("GET /api/og/[...segments]", () => {
   });
 
   test("keeps published OG content stable after a private draft edit", async () => {
-    const owner = await orchestrator.createUser();
-    await orchestrator.activateUser(owner.id);
-    const outlet = await orchestrator.createStore(owner.id, {
-      name: "Visible Published Identity",
-      description: "Only this copy is public.",
-    });
-    const { session } = await publishOutlet(owner.id, outlet);
+    const { fixture } = await publishOutlet("Visible Published Identity");
+    const outlet = fixture.store;
     const before = await expectPng(`/api/og/outlet/${outlet.slug}?locale=en`);
 
     const patchResponse = await fetch(
@@ -106,7 +98,7 @@ describe("GET /api/og/[...segments]", () => {
       {
         method: "PATCH",
         headers: {
-          Cookie: `session_id=${session.token}`,
+          Cookie: `session_id=${fixture.sessionToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -119,7 +111,8 @@ describe("GET /api/og/[...segments]", () => {
 
     const after = await expectPng(
       `/api/og/outlet/${outlet.slug}?locale=en&preview=1`,
-      { headers: { Cookie: `session_id=${session.token}` } },
+      "public",
+      { headers: { Cookie: `session_id=${fixture.sessionToken}` } },
     );
     expect(after.response.headers.get("etag")).toBe(
       before.response.headers.get("etag"),
@@ -128,12 +121,8 @@ describe("GET /api/og/[...segments]", () => {
   });
 
   test("revalidates a published revision with its ETag", async () => {
-    const owner = await orchestrator.createUser();
-    await orchestrator.activateUser(owner.id);
-    const outlet = await orchestrator.createStore(owner.id, {
-      name: "Conditional Preview",
-    });
-    await publishOutlet(owner.id, outlet);
+    const { fixture } = await publishOutlet("Conditional Preview");
+    const outlet = fixture.store;
     const initial = await expectPng(`/api/og/outlet/${outlet.slug}?locale=en`);
     const etag = initial.response.headers.get("etag");
     expect(etag).toBeTruthy();
@@ -157,7 +146,7 @@ describe("GET /api/og/[...segments]", () => {
       media: { screenshots: [], videos: [] },
     });
 
-    await expectPng(`/api/og/game/${game.slug}?locale=en`);
+    await expectPng(`/api/og/game/${game.slug}?locale=en`, "public");
   });
 
   test("returns 404 for an unknown preview kind", async () => {

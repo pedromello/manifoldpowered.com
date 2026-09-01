@@ -30,6 +30,14 @@ const fetcher = async (url: string): Promise<ListResponse> => {
   return body;
 };
 
+function localUrl(path: string) {
+  return new URL(path, "http://manifold.local");
+}
+
+function relativeUrl(url: URL) {
+  return `${url.pathname}${url.search}`;
+}
+
 export type StorefrontControllerOptions = {
   /** Hero rail source. Receives locale and persistent preview params. */
   featuredEndpoint: string;
@@ -41,8 +49,8 @@ export type StorefrontControllerOptions = {
   searchPagePath: string;
   /** Set for an outlet storefront so links carry sale attribution. */
   storeSlug?: string;
-  /** Preserved in links/forms without becoming catalog filter state. */
-  persistentQuery?: Readonly<Record<string, string>>;
+  /** Preserve working-draft context through APIs, navigation and item links. */
+  isPreview?: boolean;
 };
 
 function isOrder(value: string | null): value is StorefrontOrder {
@@ -65,7 +73,7 @@ export function useStorefrontController({
   browsePath,
   searchPagePath,
   storeSlug,
-  persistentQuery = {},
+  isPreview = false,
 }: StorefrontControllerOptions): StorefrontControllerResult {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
@@ -90,21 +98,29 @@ export function useStorefrontController({
   // Only non-default values are sent, so the request URL — and therefore the
   // SWR cache key — stays exactly what it was before this hook existed.
   const listUrl = useMemo(() => {
-    const params = new URLSearchParams(persistentQuery);
-    if (q) params.set("q", q);
-    if (effectiveTags.length > 0) params.set("tags", effectiveTags.join(","));
-    if (order !== "newest") params.set("order", order);
-    if (page > 1) params.set("page", String(page));
-    params.set("locale", locale);
-    return `${listEndpoint}?${params.toString()}`;
-  }, [listEndpoint, q, effectiveTags, order, page, locale, persistentQuery]);
+    const url = localUrl(listEndpoint);
+    if (q) url.searchParams.set("q", q);
+    else url.searchParams.delete("q");
+    if (effectiveTags.length > 0) {
+      url.searchParams.set("tags", effectiveTags.join(","));
+    } else {
+      url.searchParams.delete("tags");
+    }
+    if (order !== "newest") url.searchParams.set("order", order);
+    else url.searchParams.delete("order");
+    if (page > 1) url.searchParams.set("page", String(page));
+    else url.searchParams.delete("page");
+    if (isPreview) url.searchParams.set("preview", "1");
+    url.searchParams.set("locale", locale);
+    return relativeUrl(url);
+  }, [listEndpoint, q, effectiveTags, order, page, isPreview, locale]);
 
   const featuredUrl = useMemo(() => {
-    const params = new URLSearchParams(persistentQuery);
-    params.set("locale", locale);
-    const separator = featuredEndpoint.includes("?") ? "&" : "?";
-    return `${featuredEndpoint}${separator}${params.toString()}`;
-  }, [featuredEndpoint, locale, persistentQuery]);
+    const url = localUrl(featuredEndpoint);
+    if (isPreview) url.searchParams.set("preview", "1");
+    url.searchParams.set("locale", locale);
+    return relativeUrl(url);
+  }, [featuredEndpoint, isPreview, locale]);
 
   const {
     data: featuredData,
@@ -131,17 +147,20 @@ export function useStorefrontController({
         ...patch,
       };
 
-      const params = new URLSearchParams(persistentQuery);
-      if (next.q) params.set("q", next.q);
-      if (next.category) params.set("category", next.category);
-      next.tags.forEach((tag) => params.append("tags", tag));
-      if (next.order !== "newest") params.set("order", next.order);
-      if (next.page > 1) params.set("page", String(next.page));
+      const url = localUrl(browsePath);
+      ["q", "category", "tags", "order", "page"].forEach((key) =>
+        url.searchParams.delete(key),
+      );
+      if (next.q) url.searchParams.set("q", next.q);
+      if (next.category) url.searchParams.set("category", next.category);
+      next.tags.forEach((tag) => url.searchParams.append("tags", tag));
+      if (next.order !== "newest") url.searchParams.set("order", next.order);
+      if (next.page > 1) url.searchParams.set("page", String(next.page));
+      if (isPreview) url.searchParams.set("preview", "1");
 
-      const queryString = params.toString();
-      return queryString ? `${browsePath}?${queryString}` : browsePath;
+      return relativeUrl(url);
     },
-    [browsePath, q, activeCategory, tags, order, page, persistentQuery],
+    [browsePath, q, activeCategory, tags, order, page, isPreview],
   );
 
   // Shallow so filtering never refetches the page's server props, matching how
@@ -167,18 +186,15 @@ export function useStorefrontController({
   );
 
   const itemHref = useCallback(
-    (gameSlug: string) => {
-      const attributedHref = buildItemHref(gameSlug, storeSlug);
-      const params = new URLSearchParams(persistentQuery);
-      const persistent = params.toString();
-      if (!persistent) return attributedHref;
-      const separator = attributedHref.includes("?") ? "&" : "?";
-      return `${attributedHref}${separator}${persistent}`;
-    },
-    [persistentQuery, storeSlug],
+    (gameSlug: string) => buildItemHref(gameSlug, storeSlug, isPreview),
+    [storeSlug, isPreview],
   );
 
+  const searchUrl = localUrl(searchPagePath);
+  const searchHiddenFields = Object.fromEntries(searchUrl.searchParams);
+
   return {
+    isPreview,
     featured: featuredData?.games || [],
     featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
@@ -208,7 +224,7 @@ export function useStorefrontController({
 
     itemHref,
     browseHref,
-    searchAction: searchPagePath,
-    persistentQuery,
+    searchAction: searchUrl.pathname,
+    searchHiddenFields,
   };
 }

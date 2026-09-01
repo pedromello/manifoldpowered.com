@@ -19,8 +19,11 @@ const PUBLIC_STORE_FIELDS = [
   "social_links",
   "brand_tokens",
   "owner_id",
-  "publication_status",
+  "presentation",
+  "status",
   "published_at",
+  "storefront_source",
+  "published_revision",
   "created_at",
   "updated_at",
 ].sort();

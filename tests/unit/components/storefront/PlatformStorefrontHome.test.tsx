@@ -46,6 +46,7 @@ function props(
 
   return {
     store,
+    isPreview: false,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
@@ -78,7 +79,7 @@ function props(
     itemHref: (slug) => `/item/${slug}${storeQuery}`,
     browseHref: () => (store ? `/store/${store.slug}` : "/store"),
     searchAction: store ? `/store/${store.slug}` : "/search",
-    persistentQuery: {},
+    searchHiddenFields: {},
     showDiscover: !store,
   };
 }
@@ -151,7 +152,7 @@ describe("PlatformStorefrontHome", () => {
         shape: "soft",
       },
     });
-    previewProps.persistentQuery = { preview: "1" };
+    previewProps.searchHiddenFields = { preview: "1" };
 
     const markup = renderToStaticMarkup(
       <PlatformStorefrontHome {...previewProps} />,

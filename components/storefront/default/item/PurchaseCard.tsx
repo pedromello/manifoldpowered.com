@@ -33,7 +33,7 @@ export function PurchaseCard({
   acquisitionError,
   onRedeem,
   wishlist,
-  visitorPreview = false,
+  isPreview,
 }: {
   game: GameDetailApi;
   isFreeGame: boolean;
@@ -43,7 +43,7 @@ export function PurchaseCard({
   acquisitionError: string | null;
   onRedeem: () => void;
   wishlist: ItemWishlist;
-  visitorPreview?: boolean;
+  isPreview: boolean;
 }) {
   const router = useRouter();
   const { locale, t } = useI18n();
@@ -76,17 +76,25 @@ export function PurchaseCard({
           </div>
         )}
 
-        {visitorPreview && (
-          <p
-            role="status"
-            className="rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-4 py-3 text-sm font-semibold leading-5 text-violet-100"
-          >
-            {t("Purchases and account actions are disabled in preview.")}
-          </p>
+        {isPreview && (
+          <div className="rounded-lg border border-violet-300/25 bg-violet-400/10 px-4 py-3">
+            <button
+              type="button"
+              disabled
+              className="w-full cursor-not-allowed rounded-lg border border-white/10 bg-white/[0.04] px-5 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white/45"
+            >
+              {t("Purchasing is disabled in preview")}
+            </button>
+            <p className="mt-2 text-xs font-semibold leading-5 text-violet-100/70">
+              {t(
+                "Open the published Outlet to test acquisition and attribution.",
+              )}
+            </p>
+          </div>
         )}
 
-        {!visitorPreview &&
-          isPlatformPurchase &&
+        {isPlatformPurchase &&
+          !isPreview &&
           (isInLibrary ? (
             <button
               onClick={() => router.push("/library")}
@@ -114,7 +122,7 @@ export function PurchaseCard({
             </button>
           ))}
 
-        {!visitorPreview && isPlatformPurchase && acquisitionError && (
+        {isPlatformPurchase && !isPreview && acquisitionError && (
           <p
             role="alert"
             className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-5 text-rose-200"
@@ -123,7 +131,7 @@ export function PurchaseCard({
           </p>
         )}
 
-        {!visitorPreview &&
+        {!isPreview &&
           (game.social_links.steam_page ? (
             <a
               href={game.social_links.steam_page}
@@ -135,7 +143,7 @@ export function PurchaseCard({
               <span>{t("View on Steam")}</span>
               <ExternalLink
                 size={16}
-                className="opacity-60 group-hover:opacity-100 transition-opacity"
+                className="opacity-60 transition-opacity group-hover:opacity-100"
               />
             </a>
           ) : (
@@ -210,11 +218,13 @@ export function PurchaseCard({
               href={game.social_links.twitter}
               label="X"
             />
-            <SocialLink
-              icon={IconBrandSteam}
-              href={game.social_links.steam_page}
-              label="Steam"
-            />
+            {!isPreview && (
+              <SocialLink
+                icon={IconBrandSteam}
+                href={game.social_links.steam_page}
+                label="Steam"
+              />
+            )}
             <SocialLink
               icon={MessageSquare}
               href={game.social_links.discord}

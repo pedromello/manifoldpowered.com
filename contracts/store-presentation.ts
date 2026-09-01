@@ -21,6 +21,8 @@ export const STORE_SOCIAL_PLATFORMS = [
   "instagram",
   "tiktok",
   "x",
+  "discord",
+  "bluesky",
 ] as const;
 export type StoreSocialPlatform = (typeof STORE_SOCIAL_PLATFORMS)[number];
 
@@ -40,57 +42,21 @@ export const DEFAULT_STORE_BRAND_TOKENS: StoreBrandTokens = {
 
 export const DEFAULT_STORE_LAYOUT_PRESET: StoreLayoutPreset = "channel";
 
-export const STORE_PUBLICATION_STATUSES = ["DRAFT", "PUBLISHED"] as const;
-export type StorePublicationStatus =
-  (typeof STORE_PUBLICATION_STATUSES)[number];
+export const STORE_PRESENTATION_VERSION = 1 as const;
 
-/**
- * The immutable presentation payload captured by each StoreRevision.
- * Slug, ownership, and commercial terms stay on Store. Curation is captured
- * separately in StoreCurationSnapshot so a publish can switch both atomically.
- */
+/** The versioned presentation JSON captured by each immutable StoreRevision. */
 export type StorePresentationSnapshot = {
-  name: string;
-  description: string | null;
-  logo_url: string | null;
+  version: typeof STORE_PRESENTATION_VERSION;
   theme_key: string | null;
   layout_preset: StoreLayoutPreset | null;
   tagline: string | null;
-  cover_url: string | null;
+  cover_image_url: string | null;
   social_links: StoreSocialLinks;
   brand_tokens: StoreBrandTokens;
 };
 
-export const STORE_CURATION_STRATEGIES = [
-  "NONE",
-  "RULES",
-  "MANUAL",
-  "MIXED",
-] as const;
-export type StoreCurationStrategy = (typeof STORE_CURATION_STRATEGIES)[number];
-
-export type StoreFeaturedSnapshot = {
-  game_id: string;
-  position: number;
-  recommendation_reason: string | null;
-};
-
-export type StoreTagFilterSnapshot = {
-  tag: string;
-  mode: "WHITELIST" | "BLACKLIST";
-};
-
-export type StoreGameOverrideSnapshot = {
-  game_id: string;
-  visibility: "SHOW" | "HIDE";
-};
-
-export type StoreCurationSnapshot = {
-  curation_strategy: StoreCurationStrategy;
-  featured_games: StoreFeaturedSnapshot[];
-  tag_filters: StoreTagFilterSnapshot[];
-  game_overrides: StoreGameOverrideSnapshot[];
-};
-
-export type StoreRevisionSnapshot = StorePresentationSnapshot &
-  StoreCurationSnapshot;
+/** Owner-controlled draft values; `theme_key` is platform-controlled. */
+export type StorePresentationDraft = Omit<
+  StorePresentationSnapshot,
+  "theme_key"
+>;

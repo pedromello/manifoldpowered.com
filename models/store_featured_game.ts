@@ -1,7 +1,7 @@
-import { Prisma, type StoreRevision } from "generated/prisma/client";
+import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import { ValidationError } from "infra/errors";
-import storeCuration from "models/store_curation";
+import { getCurationWhereClause } from "models/store_catalog";
 import { z } from "zod";
 
 export const MAX_FEATURED_GAMES = 3;
@@ -67,114 +67,86 @@ interface EditorialGameQuery {
   priceableGameIds?: string[] | null;
   page: number;
   limit: number;
-  publishedRevision?: StoreRevision;
 }
 
-const publishedFeaturedGamesSchema = z
-  .array(
-    z
-      .object({
-        game_id: z.string().min(1),
-        position: z.number().int().min(1).max(MAX_FEATURED_GAMES),
-        recommendation_reason: z
-          .string()
-          .max(MAX_RECOMMENDATION_REASON_LENGTH)
-          .nullable(),
-      })
-      .strict(),
-  )
-  .max(MAX_FEATURED_GAMES)
-  .superRefine((selection, context) => {
-    const gameIds = selection.map(({ game_id }) => game_id);
-    const positions = selection.map(({ position }) => position);
-    if (new Set(gameIds).size !== gameIds.length) {
-      context.addIssue({
-        code: "custom",
-        path: [],
-        message: "Published Featured games must be unique",
-      });
-    }
-    if (
-      new Set(positions).size !== positions.length ||
-      [...positions]
-        .sort((a, b) => a - b)
-        .some((position, index) => position !== index + 1)
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: [],
-        message: "Published Featured positions must be contiguous",
-      });
-    }
+async function incrementDraftRevision(
+  storeId: string,
+  transaction: Prisma.TransactionClient,
+) {
+  await transaction.store.update({
+    where: { id: storeId },
+    data: { draft_revision: { increment: 1 } },
   });
+}
 
 async function replaceSelection(
   storeId: string,
   recommendations: FeaturedRecommendation[],
 ) {
-  const curationWhere = await storeCuration.getCurationWhereClause(storeId);
   const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
 
-  return prisma.$transaction(async (transaction) => {
-    const andClauses: Prisma.GameWhereInput[] = [];
-    if (Object.keys(curationWhere).length > 0) {
-      andClauses.push(curationWhere);
-    }
+  return prisma.$transaction(
+    async (transaction) => {
+      const curationWhere = await getCurationWhereClause(storeId, transaction);
+      const andClauses: Prisma.GameWhereInput[] = [];
+      if (Object.keys(curationWhere).length > 0) {
+        andClauses.push(curationWhere);
+      }
 
-    const games = await transaction.game.findMany({
-      where: {
-        slug: { in: gameSlugs },
-        status: "ACTIVE",
-        ...(andClauses.length > 0 && { AND: andClauses }),
-      },
-      select: { id: true, slug: true },
-    });
-
-    const gameBySlug = new Map(games.map((game) => [game.slug, game]));
-    const ineligibleSlugs = gameSlugs.filter((slug) => !gameBySlug.has(slug));
-
-    if (ineligibleSlugs.length > 0) {
-      throw new ValidationError({
-        message: "One or more games cannot be featured by this Outlet.",
-        action:
-          "Choose active games that are currently included in the Outlet catalog.",
-        context: { game_slugs: ineligibleSlugs },
+      const games = await transaction.game.findMany({
+        where: {
+          slug: { in: gameSlugs },
+          status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+          ...(andClauses.length > 0 && { AND: andClauses }),
+        },
+        select: { id: true, slug: true },
       });
-    }
 
-    await transaction.storeFeaturedGame.deleteMany({
-      where: { store_id: storeId },
-    });
-    await transaction.storeFeaturedGame.createMany({
-      data: recommendations.map((recommendation, index) => ({
-        store_id: storeId,
-        game_id: gameBySlug.get(recommendation.game_slug)!.id,
+      const gameBySlug = new Map(games.map((game) => [game.slug, game]));
+      const ineligibleSlugs = gameSlugs.filter((slug) => !gameBySlug.has(slug));
+
+      if (ineligibleSlugs.length > 0) {
+        throw new ValidationError({
+          message: "One or more games cannot be featured by this Outlet.",
+          action:
+            "Choose active games that are currently included in the Outlet catalog.",
+          context: { game_slugs: ineligibleSlugs },
+        });
+      }
+
+      await transaction.storeFeaturedGame.deleteMany({
+        where: { store_id: storeId },
+      });
+      await transaction.storeFeaturedGame.createMany({
+        data: recommendations.map((recommendation, index) => ({
+          store_id: storeId,
+          game_id: gameBySlug.get(recommendation.game_slug)!.id,
+          position: index + 1,
+          recommendation_reason: recommendation.recommendation_reason,
+        })),
+      });
+
+      await incrementDraftRevision(storeId, transaction);
+
+      return recommendations.map((recommendation, index) => ({
+        ...recommendation,
         position: index + 1,
-        recommendation_reason: recommendation.recommendation_reason,
-      })),
-    });
-    await transaction.store.update({
-      where: { id: storeId },
-      data: { draft_revision: { increment: 1 } },
-    });
-
-    return recommendations.map((recommendation, index) => ({
-      ...recommendation,
-      position: index + 1,
-    }));
-  });
+      }));
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function resetSelection(storeId: string) {
-  await prisma.$transaction(async (transaction) => {
-    await transaction.storeFeaturedGame.deleteMany({
-      where: { store_id: storeId },
-    });
-    await transaction.store.update({
-      where: { id: storeId },
-      data: { draft_revision: { increment: 1 } },
-    });
-  });
+  await prisma.$transaction(
+    async (transaction) => {
+      await transaction.storeFeaturedGame.deleteMany({
+        where: { store_id: storeId },
+      });
+      await incrementDraftRevision(storeId, transaction);
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 async function findAvailableEditorialGames({
@@ -183,17 +155,56 @@ async function findAvailableEditorialGames({
   priceableGameIds,
   page,
   limit,
-  publishedRevision,
 }: EditorialGameQuery) {
-  const selection = publishedRevision
-    ? publishedFeaturedGamesSchema
-        .parse(publishedRevision.featured_games)
-        .sort((a, b) => a.position - b.position)
-    : await prisma.storeFeaturedGame.findMany({
-        where: { store_id: storeId },
-        orderBy: { position: "asc" },
-      });
+  const selection = await prisma.storeFeaturedGame.findMany({
+    where: { store_id: storeId },
+    orderBy: { position: "asc" },
+  });
 
+  return findAvailableEditorialGamesFromSelection({
+    selection,
+    curationWhere,
+    priceableGameIds,
+    page,
+    limit,
+  });
+}
+
+async function findAvailableEditorialGamesFromSnapshot({
+  selection,
+  curationWhere,
+  priceableGameIds,
+  page,
+  limit,
+}: Omit<EditorialGameQuery, "storeId"> & {
+  selection: Array<{
+    game_id: string;
+    position: number;
+    recommendation_reason: string | null;
+  }>;
+}) {
+  return findAvailableEditorialGamesFromSelection({
+    selection,
+    curationWhere,
+    priceableGameIds,
+    page,
+    limit,
+  });
+}
+
+async function findAvailableEditorialGamesFromSelection({
+  selection,
+  curationWhere,
+  priceableGameIds,
+  page,
+  limit,
+}: Omit<EditorialGameQuery, "storeId"> & {
+  selection: Array<{
+    game_id: string;
+    position: number;
+    recommendation_reason: string | null;
+  }>;
+}) {
   if (selection.length === 0) {
     return null;
   }
@@ -203,13 +214,21 @@ async function findAvailableEditorialGames({
     andClauses.push(curationWhere);
   }
   if (priceableGameIds !== null && priceableGameIds !== undefined) {
-    andClauses.push({ id: { in: priceableGameIds } });
+    // ONLY_DISPLAY titles are intentionally visible without a regional price,
+    // matching game.findAllPaginated. ACTIVE titles must be priceable in the
+    // visitor's currency.
+    andClauses.push({
+      OR: [
+        { status: "ONLY_DISPLAY" },
+        { status: "ACTIVE", id: { in: priceableGameIds } },
+      ],
+    });
   }
 
   const games = await prisma.game.findMany({
     where: {
       id: { in: selection.map((entry) => entry.game_id) },
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
       ...(andClauses.length > 0 && { AND: andClauses }),
     },
   });
@@ -244,6 +263,7 @@ const storeFeaturedGame = {
   replaceSelection,
   resetSelection,
   findAvailableEditorialGames,
+  findAvailableEditorialGamesFromSnapshot,
 };
 
 export default storeFeaturedGame;

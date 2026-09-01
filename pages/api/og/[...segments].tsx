@@ -1,7 +1,11 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
-import type { GameDetailApi, StoreApi } from "components/store/types";
+import {
+  storeContextFromApi,
+  type GameDetailApi,
+  type StoreApi,
+} from "components/store/types";
 import type { AppLocale } from "lib/locale";
 import {
   cleanMetadataText,
@@ -41,7 +45,7 @@ type ImageCandidate = {
 };
 
 type PublishedStoreApi = StoreApi & {
-  publication_status: "PUBLISHED";
+  storefront_source: "REVISION";
   published_at: string;
 };
 
@@ -263,16 +267,28 @@ export function publishedStoreFromResponse(
   const candidate = value as Record<string, unknown>;
   const isNullableString = (field: unknown) =>
     field === null || typeof field === "string";
+  const presentation =
+    candidate.presentation && typeof candidate.presentation === "object"
+      ? (candidate.presentation as Record<string, unknown>)
+      : null;
   if (
-    candidate.publication_status !== "PUBLISHED" ||
+    candidate.storefront_source !== "REVISION" ||
     typeof candidate.published_at !== "string" ||
     !Number.isFinite(Date.parse(candidate.published_at)) ||
     typeof candidate.slug !== "string" ||
     typeof candidate.name !== "string" ||
     !isNullableString(candidate.description) ||
     !isNullableString(candidate.logo_url) ||
-    !isNullableString(candidate.cover_url) ||
-    !isNullableString(candidate.theme_key)
+    !presentation ||
+    presentation.version !== 1 ||
+    !isNullableString(presentation.theme_key) ||
+    !isNullableString(presentation.layout_preset) ||
+    !isNullableString(presentation.tagline) ||
+    !isNullableString(presentation.cover_image_url) ||
+    !presentation.social_links ||
+    typeof presentation.social_links !== "object" ||
+    !presentation.brand_tokens ||
+    typeof presentation.brand_tokens !== "object"
   ) {
     return null;
   }
@@ -283,15 +299,16 @@ export function publishedStoreFromResponse(
 export function outletArtworkCandidates(
   store: PublishedStoreApi,
 ): ImageCandidate[] {
-  const bespokeArtwork = isBespokeThemeKey(store.theme_key)
-    ? BESPOKE_OG_ARTWORK[store.theme_key]
+  const presentation = storeContextFromApi(store);
+  const bespokeArtwork = isBespokeThemeKey(presentation.theme_key)
+    ? BESPOKE_OG_ARTWORK[presentation.theme_key]
     : null;
 
   return [
     ...(bespokeArtwork
       ? [{ url: bespokeArtwork, trustedInternalAsset: true }]
       : []),
-    { url: store.cover_url },
+    { url: presentation.cover_url },
     { url: store.logo_url },
   ];
 }
