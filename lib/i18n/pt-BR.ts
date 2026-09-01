@@ -1117,7 +1117,6 @@ export const ptBR: Record<string, string> = {
     "Escolha como o catálogo deste rascunho começa. Essa decisão explícita é obrigatória antes da publicação.",
   "Choose a catalog scope to continue publication readiness.":
     "Escolha um escopo de catálogo para avançar nos requisitos de publicação.",
-  "Full catalog": "Catálogo completo",
   "Selected catalog": "Catálogo selecionado",
   "Include every eligible game. A per-game Hide always excludes; a per-game Show wins a hide-by-tag rule.":
     "Inclua todos os jogos elegíveis. Ocultar por jogo sempre exclui; Mostrar por jogo vence uma regra de ocultação por tag.",

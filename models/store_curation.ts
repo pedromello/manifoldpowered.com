@@ -118,7 +118,13 @@ async function incrementDraftRevision(
     where: { id: storeId, draft_revision: expectedDraftRevision },
     data: { draft_revision: { increment: 1 } },
   });
-  if (updated.count !== 1) throw new ConflictError();
+  if (updated.count !== 1) {
+    throw new ConflictError({
+      message: "The Outlet draft changed before the curation update completed.",
+      action: "Refresh the Outlet and try the curation update again.",
+      context: { expected_draft_revision: expectedDraftRevision },
+    });
+  }
   return expectedDraftRevision + 1;
 }
 
