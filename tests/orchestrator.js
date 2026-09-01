@@ -221,12 +221,66 @@ const uniqueFakerName = () =>
 
 // Stores
 const createStore = async (ownerId, storeData = {}) => {
-  return store.create({
+  const createdStore = await store.create({
     name: storeData.name || uniqueFakerName(),
-    description: storeData.description || faker.lorem.sentence(),
+    description:
+      storeData.description === undefined
+        ? faker.lorem.sentence()
+        : storeData.description,
+    logo_url: storeData.logo_url,
+    layout_preset: storeData.layout_preset,
+    tagline: storeData.tagline,
+    cover_url: storeData.cover_url,
+    social_links: storeData.social_links,
+    brand_tokens: storeData.brand_tokens,
     owner_id: ownerId,
   });
+
+  // Most pre-lifecycle fixtures model legacy public Outlets. New lifecycle
+  // tests opt into the production default explicitly with `{ draft: true }`.
+  if (storeData.draft === true) return createdStore;
+
+  // Seed the same grandfathered state produced by the rollout migration.
+  // Production publish intentionally enforces readiness; forcing all legacy
+  // test fixtures to create five catalog games and a complete creator profile
+  // would obscure what those unrelated tests are actually exercising.
+  return database.prisma.$transaction(async (transaction) => {
+    const revision = await transaction.storeRevision.create({
+      data: {
+        store_id: createdStore.id,
+        revision_number: 1,
+        source_draft_revision: createdStore.draft_revision,
+        created_by: ownerId,
+        name: createdStore.name,
+        description: createdStore.description,
+        logo_url: createdStore.logo_url,
+        theme_key: createdStore.theme_key,
+        layout_preset: createdStore.layout_preset,
+        tagline: createdStore.tagline,
+        cover_url: createdStore.cover_url,
+        social_links: createdStore.social_links,
+        brand_tokens: createdStore.brand_tokens,
+        curation_strategy: "NONE",
+        featured_games: [],
+        tag_filters: [],
+        game_overrides: [],
+      },
+    });
+    const publishedAt = new Date();
+    const publishedStore = await transaction.store.update({
+      where: { id: createdStore.id },
+      data: {
+        publication_status: "PUBLISHED",
+        published_revision_id: revision.id,
+        published_at: publishedAt,
+      },
+    });
+    return { ...publishedStore, published_revision: revision };
+  });
 };
+
+const publishStore = async (storeItem, actorId = storeItem.owner_id) =>
+  store.publish(storeItem.id, actorId, storeItem.draft_revision);
 
 const addStoreMember = async (storeId, username, permissions) => {
   return store.addMember(storeId, username, permissions);
@@ -418,6 +472,7 @@ const orchestrator = {
   DO_NOT_FAKE_TIMERS_FOR_PRISMA,
   getFileDownloadUrl,
   createStore,
+  publishStore,
   addStoreMember,
   addStoreTagFilter,
   addStoreGameOverride,

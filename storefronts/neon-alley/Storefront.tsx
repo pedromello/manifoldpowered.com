@@ -106,6 +106,7 @@ export function NeonAlleyStorefront({
   itemHref,
   browseHref,
   searchAction,
+  persistentQuery,
 }: StorefrontViewProps) {
   const { t } = useI18n();
   const trending = useStorefrontTrending(store.slug, 4);
@@ -176,6 +177,9 @@ export function NeonAlleyStorefront({
             {activeCategory && (
               <input type="hidden" name="category" value={activeCategory} />
             )}
+            {Object.entries(persistentQuery).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))}
           </Form>
 
           <nav data-storefront="filters" className="flex flex-col">

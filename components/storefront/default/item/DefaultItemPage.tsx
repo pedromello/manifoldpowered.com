@@ -33,6 +33,7 @@ export function DefaultItemPage({
   wishlist,
   reviews,
   backHref,
+  visitorPreview,
 }: ItemViewProps) {
   const { t } = useI18n();
   const [reviewMode, setReviewMode] = useState<"create" | "edit" | null>(null);
@@ -75,6 +76,7 @@ export function DefaultItemPage({
               acquisitionError={acquisitionError}
               onRedeem={redeem}
               wishlist={wishlist}
+              visitorPreview={visitorPreview}
             />
           </aside>
         </div>

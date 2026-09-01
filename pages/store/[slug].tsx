@@ -31,33 +31,47 @@ interface CurrentUser {
  */
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
+  const isPreview = context.query.preview === "1";
+
+  if (isPreview) {
+    context.res.setHeader("Cache-Control", "private, no-store");
+    context.res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
 
   const headers = headersForInternalFetch(context.req.headers);
 
   try {
     const store = await fetchPageData<StoreApi>(
-      `${webserver.getOrigin()}/api/v1/stores/${slug}`,
+      `${webserver.getOrigin()}/api/v1/stores/${slug}${isPreview ? "?preview=1" : ""}`,
       { headers },
     );
 
     if (!store) return { notFound: true };
 
-    return { props: { store } };
+    return { props: { store, isPreview } };
   } catch (error) {
     console.error("Error fetching outlet via API:", error);
     throw error;
   }
 };
 
-export default function StorePage({ store }: { store: StoreApi }) {
+export default function StorePage({
+  store,
+  isPreview = false,
+}: {
+  store: StoreApi;
+  isPreview?: boolean;
+}) {
   const { locale, t } = useI18n();
   const metadata = outletMetadata(store, locale);
-  const { data: currentUser } = useSWR<CurrentUser>("/api/v1/user", fetchJson, {
-    shouldRetryOnError: false,
-  });
+  const { data: currentUser } = useSWR<CurrentUser>(
+    isPreview ? null : "/api/v1/user",
+    fetchJson,
+    { shouldRetryOnError: false },
+  );
 
   return (
-    <StorefrontRouteLayout store={store}>
+    <StorefrontRouteLayout store={store} visitorPreview={isPreview}>
       <Storefront
         featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
         listEndpoint={`/api/v1/stores/${store.slug}/search`}
@@ -66,7 +80,12 @@ export default function StorePage({ store }: { store: StoreApi }) {
         pageTitle={metadata.title}
         metaDescription={metadata.description}
         canonicalPath={`/store/${store.slug}`}
-        socialImage={socialImageUrl("outlet", locale, store.slug)}
+        socialImage={socialImageUrl(
+          "outlet",
+          locale,
+          store.slug,
+          store.published_at,
+        )}
         socialImageAlt={
           locale === "pt-BR"
             ? `Seleção de jogos da Outlet ${store.name}, com a marca Manifold`
@@ -74,9 +93,10 @@ export default function StorePage({ store }: { store: StoreApi }) {
         }
         jsonLd={outletJsonLd(store, locale)}
         store={store}
+        visitorPreview={isPreview}
       />
 
-      {currentUser?.id === store.owner_id && (
+      {!isPreview && currentUser?.id === store.owner_id && (
         <Link
           href={`/store/${store.slug}/manage`}
           aria-label={t("Manage {name}", { name: store.name })}

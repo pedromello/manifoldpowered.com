@@ -158,6 +158,19 @@ describe("library.acquireGame() ledger entries", () => {
     expect(await ledger.findBySource("SALE", sale.id)).toHaveLength(3);
   });
 
+  test("ignores a draft Outlet slug rather than attributing a private Outlet", async () => {
+    const game = await seedGame();
+    const buyer = await orchestrator.createUser();
+    const owner = await orchestrator.createUser();
+    const draft = await orchestrator.createStore(owner.id, { draft: true });
+
+    await library.acquireGame(buyer.id, game.slug, draft.slug);
+
+    const sale = await prisma.sale.findFirstOrThrow();
+    expect(sale.store_id).toBeNull();
+    expect(await ledger.findBySource("SALE", sale.id)).toHaveLength(3);
+  });
+
   // The outlet is the payee, so who owns it is irrelevant to the money. This
   // used to drop the attribution entirely, because a commission had to name a
   // user the ledger could find.

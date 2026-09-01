@@ -208,7 +208,7 @@ async function resolveAffiliateLeniently(
   if (!storeSlug) return null;
 
   try {
-    const foundStore = await store.findOneBySlug(storeSlug);
+    const foundStore = await store.findOnePublishedBySlug(storeSlug);
 
     return { store_id: foundStore.id };
   } catch {

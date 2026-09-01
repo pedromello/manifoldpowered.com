@@ -31,6 +31,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
+  const preview = req.query.preview === "1";
 
   const result = listQuerySchema.safeParse(req.query);
 
@@ -42,9 +43,19 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const foundStore = await store.findOneBySlug(slug as string);
+  const foundStore = await store.findOneVisibleBySlug(
+    slug as string,
+    req.context.user,
+    preview,
+  );
+  const publishedRevision = store.curationRevisionForRequest(
+    foundStore,
+    preview,
+  );
+  if (preview) setPreviewHeaders(res);
   const curationWhere = await storeCuration.getCurationWhereClause(
     foundStore.id,
+    publishedRevision,
   );
 
   const { currency, gameIds, locale } =
@@ -54,6 +65,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     storeId: foundStore.id,
     curationWhere,
     priceableGameIds: gameIds,
+    publishedRevision,
     ...result.data,
   });
 
@@ -143,6 +155,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     currency,
     mode: "AUTOMATIC",
   });
+}
+
+function setPreviewHeaders(res: NextApiResponse) {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
 }
 
 async function putHandler(req: NextApiRequest, res: NextApiResponse) {

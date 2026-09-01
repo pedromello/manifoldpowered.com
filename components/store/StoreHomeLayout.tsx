@@ -123,7 +123,25 @@ function StoreHomeFooter() {
   );
 }
 
-export function StoreHomeLayout({ children }: { children: ReactNode }) {
+function PreviewAccountControl() {
+  const { t } = useI18n();
+  return (
+    <Link
+      href="/login"
+      className="inline-flex h-10 items-center rounded-lg border border-white/10 px-3 text-xs font-bold text-white/70"
+    >
+      {t("Log in")}
+    </Link>
+  );
+}
+
+export function StoreHomeLayout({
+  children,
+  visitorPreview = false,
+}: {
+  children: ReactNode;
+  visitorPreview?: boolean;
+}) {
   const router = useRouter();
   const { t } = useI18n();
 
@@ -187,7 +205,7 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="mt-auto space-y-3">
-            <FollowedOutlets />
+            {!visitorPreview && <FollowedOutlets />}
 
             <div className="rounded-lg border border-white/[0.08] bg-white/[0.025] p-4">
               <p className="text-sm font-semibold text-white/80">
@@ -215,7 +233,11 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
             <GlobalSearch />
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <UserMenu variant="store-home" />
+              {visitorPreview ? (
+                <PreviewAccountControl />
+              ) : (
+                <UserMenu variant="store-home" />
+              )}
             </div>
           </div>
 
@@ -236,7 +258,11 @@ export function StoreHomeLayout({ children }: { children: ReactNode }) {
             </Link>
             <GlobalSearch compact />
             <LanguageSwitcher compact />
-            <UserMenu variant="store-home" />
+            {visitorPreview ? (
+              <PreviewAccountControl />
+            ) : (
+              <UserMenu variant="store-home" />
+            )}
           </div>
         </header>
 

@@ -1,7 +1,7 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
-import { Prisma } from "generated/prisma/client";
+import { Prisma, type StoreRevision } from "generated/prisma/client";
 import gameModel from "models/game";
 
 export const TAG_FILTER_MODES = ["WHITELIST", "BLACKLIST"] as const;
@@ -16,6 +16,66 @@ export type TagFilterCreateDto = z.infer<typeof tagFilterSchema>;
 export const tagFilterModeSchema = tagFilterSchema.pick({ mode: true });
 
 export const GAME_OVERRIDE_VISIBILITIES = ["SHOW", "HIDE"] as const;
+
+const publishedCurationSchema = z
+  .object({
+    curation_strategy: z.enum(["NONE", "RULES", "MANUAL", "MIXED"]),
+    tag_filters: z.array(
+      z
+        .object({
+          tag: z
+            .string()
+            .min(1)
+            .max(100)
+            .refine((tag) => tag === tag.trim().toLowerCase()),
+          mode: z.enum(TAG_FILTER_MODES),
+        })
+        .strict(),
+    ),
+    game_overrides: z.array(
+      z
+        .object({
+          game_id: z.string().min(1),
+          visibility: z.enum(GAME_OVERRIDE_VISIBILITIES),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+  .superRefine((snapshot, context) => {
+    const tags = snapshot.tag_filters.map(({ tag }) => tag);
+    if (new Set(tags).size !== tags.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["tag_filters"],
+        message: "Duplicate tags",
+      });
+    }
+    const gameIds = snapshot.game_overrides.map(({ game_id }) => game_id);
+    if (new Set(gameIds).size !== gameIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["game_overrides"],
+        message: "Duplicate game overrides",
+      });
+    }
+
+    const expectedStrategy =
+      snapshot.tag_filters.length > 0 && snapshot.game_overrides.length > 0
+        ? "MIXED"
+        : snapshot.tag_filters.length > 0
+          ? "RULES"
+          : snapshot.game_overrides.length > 0
+            ? "MANUAL"
+            : "NONE";
+    if (snapshot.curation_strategy !== expectedStrategy) {
+      context.addIssue({
+        code: "custom",
+        path: ["curation_strategy"],
+        message: "Curation strategy does not match its snapshot",
+      });
+    }
+  });
 
 export const gameOverrideSchema = z.object({
   game_slug: z.string().min(1),
@@ -45,12 +105,16 @@ async function addTagFilter(
   const normalizedTag = normalizeTag(tag);
 
   try {
-    return await prisma.storeTagFilter.create({
-      data: {
-        store_id: storeId,
-        tag: normalizedTag,
-        mode,
-      },
+    return await prisma.$transaction(async (transaction) => {
+      const created = await transaction.storeTagFilter.create({
+        data: {
+          store_id: storeId,
+          tag: normalizedTag,
+          mode,
+        },
+      });
+      await bumpStoreDraftRevision(transaction, storeId);
+      return created;
     });
   } catch (error) {
     if (
@@ -95,23 +159,22 @@ async function updateTagFilterMode(
 ) {
   const filter = await findOneTagFilterByTag(storeId, tag);
 
-  return await prisma.storeTagFilter.update({
-    where: {
-      id: filter.id,
-    },
-    data: {
-      mode,
-    },
+  return prisma.$transaction(async (transaction) => {
+    const updated = await transaction.storeTagFilter.update({
+      where: { id: filter.id },
+      data: { mode },
+    });
+    await bumpStoreDraftRevision(transaction, storeId);
+    return updated;
   });
 }
 
 async function removeTagFilter(storeId: string, tag: string) {
   const filter = await findOneTagFilterByTag(storeId, tag);
 
-  await prisma.storeTagFilter.delete({
-    where: {
-      id: filter.id,
-    },
+  await prisma.$transaction(async (transaction) => {
+    await transaction.storeTagFilter.delete({ where: { id: filter.id } });
+    await bumpStoreDraftRevision(transaction, storeId);
   });
 }
 
@@ -141,12 +204,16 @@ async function addGameOverride(
   }
 
   try {
-    return await prisma.storeGameOverride.create({
-      data: {
-        store_id: storeId,
-        game_id: targetGame.id,
-        visibility,
-      },
+    return await prisma.$transaction(async (transaction) => {
+      const created = await transaction.storeGameOverride.create({
+        data: {
+          store_id: storeId,
+          game_id: targetGame.id,
+          visibility,
+        },
+      });
+      await bumpStoreDraftRevision(transaction, storeId);
+      return created;
     });
   } catch (error) {
     if (
@@ -198,24 +265,39 @@ async function updateGameOverrideVisibility(
 ) {
   const override = await findOneGameOverrideBySlug(storeId, gameSlug);
 
-  return await prisma.storeGameOverride.update({
-    where: {
-      id: override.id,
-    },
-    data: {
-      visibility,
-    },
+  return prisma.$transaction(async (transaction) => {
+    const updated = await transaction.storeGameOverride.update({
+      where: { id: override.id },
+      data: { visibility },
+    });
+    await bumpStoreDraftRevision(transaction, storeId);
+    return updated;
   });
 }
 
 async function removeGameOverride(storeId: string, gameSlug: string) {
   const override = await findOneGameOverrideBySlug(storeId, gameSlug);
 
-  await prisma.storeGameOverride.delete({
-    where: {
-      id: override.id,
-    },
+  await prisma.$transaction(async (transaction) => {
+    await transaction.storeGameOverride.delete({ where: { id: override.id } });
+    await bumpStoreDraftRevision(transaction, storeId);
   });
+}
+
+async function bumpStoreDraftRevision(
+  transaction: Prisma.TransactionClient,
+  storeId: string,
+) {
+  const result = await transaction.store.updateMany({
+    where: { id: storeId },
+    data: { draft_revision: { increment: 1 } },
+  });
+  if (result.count !== 1) {
+    throw new NotFoundError({
+      message: "Store not found.",
+      action: "Check the store ID and try again.",
+    });
+  }
 }
 
 async function listGameOverridesWithSlugs(storeId: string) {
@@ -255,11 +337,21 @@ async function listGameOverridesWithSlugs(storeId: string) {
 
 async function getCurationWhereClause(
   storeId: string,
+  publishedRevision?: StoreRevision,
 ): Promise<Prisma.GameWhereInput> {
-  const [filters, overrides] = await Promise.all([
-    prisma.storeTagFilter.findMany({ where: { store_id: storeId } }),
-    prisma.storeGameOverride.findMany({ where: { store_id: storeId } }),
-  ]);
+  const publishedCuration = publishedRevision
+    ? publishedCurationSchema.parse({
+        curation_strategy: publishedRevision.curation_strategy,
+        tag_filters: publishedRevision.tag_filters,
+        game_overrides: publishedRevision.game_overrides,
+      })
+    : null;
+  const [filters, overrides] = publishedCuration
+    ? [publishedCuration.tag_filters, publishedCuration.game_overrides]
+    : await Promise.all([
+        prisma.storeTagFilter.findMany({ where: { store_id: storeId } }),
+        prisma.storeGameOverride.findMany({ where: { store_id: storeId } }),
+      ]);
 
   const whitelist = filters
     .filter((filter) => filter.mode === "WHITELIST")
@@ -281,6 +373,15 @@ async function getCurationWhereClause(
     forceHideIds.length === 0
   ) {
     return {};
+  }
+
+  // Without tag rules the catalog remains inclusive. Individual SHOW rules
+  // are therefore already satisfied, while HIDE rules must still win. Avoid
+  // putting an empty object inside Prisma's OR array: Prisma treats that as an
+  // empty disjunction, which previously made a single HIDE rule hide every
+  // game in the Outlet.
+  if (whitelist.length === 0 && blacklist.length === 0) {
+    return forceHideIds.length > 0 ? { id: { notIn: forceHideIds } } : {};
   }
 
   // Overrides always win over tag-based rules: a force-hidden game is excluded

@@ -458,6 +458,18 @@ model Sale {
   @@map("sales")
 }
 
+enum StorePublicationStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum StoreCurationStrategy {
+  NONE
+  RULES
+  MANUAL
+  MIXED
+}
+
 model Store {
   id          String  @id @default(uuid())
   name        String  @db.VarChar(255)
@@ -465,6 +477,25 @@ model Store {
   description String? @db.Text
   logo_url    String? @db.VarChar(2048)
   owner_id    String // Logical reference to User.id (creator/owner)
+
+  // Hand-built storefronts are assigned by the platform, never by an Outlet
+  // owner. Keeping this separate from both slug and layout_preset prevents a
+  // self-service Outlet from assuming another Outlet's bespoke presentation.
+  theme_key String? @unique @db.VarChar(64)
+
+  // Self-service presentation. Every value that reaches these JSON columns is
+  // parsed through the strict allow-lists in models/store.ts; arbitrary CSS,
+  // colours, fonts, and social-link keys are not part of the owner surface.
+  layout_preset String? @db.VarChar(32)
+  tagline       String? @db.VarChar(160)
+  cover_url     String? @db.VarChar(2048)
+  social_links  Json    @default("{}")
+  brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
+
+  publication_status    StorePublicationStatus @default(DRAFT)
+  published_revision_id String?                @unique
+  published_at          DateTime?
+  draft_revision        Int                    @default(1)
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
   // Null means the platform default applies — most outlets never get a bespoke
@@ -483,6 +514,38 @@ model Store {
   @@index([owner_id])
   @@index([slug])
   @@map("stores")
+}
+
+// Immutable presentation snapshots. Store remains the editable draft and the
+// published revision id is a logical reference, matching the repository's
+// deliberate no-foreign-key policy.
+model StoreRevision {
+  id                    String @id @default(uuid())
+  store_id              String
+  revision_number       Int
+  source_draft_revision Int
+  created_by            String
+
+  name          String  @db.VarChar(255)
+  description   String? @db.Text
+  logo_url      String? @db.VarChar(2048)
+  theme_key     String? @db.VarChar(64)
+  layout_preset String? @db.VarChar(32)
+  tagline       String? @db.VarChar(160)
+  cover_url     String? @db.VarChar(2048)
+  social_links  Json
+  brand_tokens  Json
+
+  curation_strategy StoreCurationStrategy
+  featured_games    Json
+  tag_filters       Json
+  game_overrides    Json
+
+  created_at DateTime @default(now())
+
+  @@unique([store_id, revision_number])
+  @@index([store_id, created_at])
+  @@map("store_revisions")
 }
 
 model StoreMember {

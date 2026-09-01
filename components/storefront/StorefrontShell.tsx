@@ -22,6 +22,8 @@ export type StorefrontShellProps = {
   socialImage: string;
   socialImageAlt: string;
   jsonLd?: JsonLd;
+  /** Draft previews must not emit public canonicals, OG metadata, or JSON-LD. */
+  noIndex?: boolean;
   /** Identifies the theme in contract-guard messages. */
   themeKey?: string;
   /** Skipped on product pages, which are not catalogue surfaces. */
@@ -53,6 +55,7 @@ export function StorefrontShell({
   socialImage,
   socialImageAlt,
   jsonLd,
+  noIndex = false,
   themeKey = "default",
   enforceContract = false,
   hasGames = false,
@@ -75,6 +78,7 @@ export function StorefrontShell({
         image={socialImage}
         imageAlt={socialImageAlt}
         jsonLd={jsonLd}
+        noIndex={noIndex}
       />
       <Head>
         {/* Overrides the global #fffbf6 in _app so the PWA status bar matches

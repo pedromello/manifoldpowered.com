@@ -29,6 +29,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     page,
     limit,
     q,
+    onlyPublished: true,
   });
 
   const secureOutputValues = stores.map((storeItem) =>

@@ -2,7 +2,10 @@ import { prisma } from "infra/database";
 import authorization from "models/authorization";
 import userModel from "models/user";
 import { MEMBER_PERMISSIONS as STUDIO_MEMBER_PERMISSIONS } from "models/studio";
-import { MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS } from "models/store";
+import {
+  MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS,
+  STORE_OWNER_FEATURES,
+} from "models/store";
 
 interface PassResult {
   scanned: number;
@@ -177,9 +180,8 @@ async function reconcileStudioMembers(
   return result;
 }
 
-// Store owners receive every delegable Outlet permission. Some are baseline
-// features, while editorial curation is intentionally only granted to Outlet
-// owners and explicitly permitted members.
+// Store owners receive every delegable Outlet permission plus the identity and
+// publication capabilities that must never be delegated to a member.
 async function reconcileStoreOwners(
   eligibleUsers: EligibleUsers,
   touchedIds: Set<string>,
@@ -194,7 +196,7 @@ async function reconcileStoreOwners(
     await applyIfMissing(
       ownerId,
       eligibleUsers,
-      STORE_MEMBER_PERMISSIONS,
+      [...STORE_MEMBER_PERMISSIONS, ...STORE_OWNER_FEATURES],
       result,
       touchedIds,
     );

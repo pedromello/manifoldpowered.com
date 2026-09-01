@@ -1,4 +1,17 @@
 import { DisplayPrice } from "lib/price";
+import type {
+  StoreBrandTokens,
+  StoreCurationStrategy,
+  StoreLayoutPreset,
+  StorePublicationStatus,
+  StoreSocialLinks,
+} from "contracts/store-presentation";
+export {
+  STORE_LAYOUT_PRESETS as OUTLET_LAYOUT_PRESETS,
+  STORE_PALETTES as OUTLET_BRAND_PALETTES,
+  STORE_SHAPES as OUTLET_BRAND_SHAPES,
+  STORE_TYPOGRAPHIES as OUTLET_BRAND_TYPOGRAPHY,
+} from "contracts/store-presentation";
 
 export type ExternalOffer = {
   provider: "STEAM";
@@ -73,6 +86,10 @@ export type GameDetailApi = GameApi & {
   };
 };
 
+export type OutletLayoutPreset = StoreLayoutPreset;
+export type OutletBrandTokens = StoreBrandTokens;
+export type OutletSocialLinks = StoreSocialLinks;
+
 /**
  * The wire shape of a store as it leaves the
  * `create:store | read:public_store | update:store` branch of `filterOutput`.
@@ -86,9 +103,41 @@ export type StoreApi = {
   name: string;
   description: string | null;
   logo_url: string | null;
+  /** Registry-controlled and never accepted by the owner-facing write schema. */
+  theme_key: string | null;
+  layout_preset: OutletLayoutPreset | null;
+  tagline: string | null;
+  cover_url: string | null;
+  social_links: OutletSocialLinks;
+  brand_tokens: OutletBrandTokens;
   owner_id: string;
+  publication_status: StorePublicationStatus;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/** Owner-only draft metadata returned by `?preview=1` and write endpoints. */
+export type StoreManagementApi = StoreApi & {
+  draft_revision: number;
+  has_unpublished_changes: boolean;
+  publication_readiness: {
+    ready: boolean;
+    blockers: Array<
+      | "IDENTITY_INCOMPLETE"
+      | "CURATION_STRATEGY_REQUIRED"
+      | "MINIMUM_GAMES_REQUIRED"
+      | "FEATURED_REQUIRED"
+    >;
+    checks: {
+      identity_complete: boolean;
+      strategy_chosen: boolean;
+      strategy: StoreCurationStrategy;
+      selected_games: number;
+      minimum_games: number;
+      featured_games: number;
+    };
+  };
 };
 
 // The pagination envelope already lives with the component that consumes it.

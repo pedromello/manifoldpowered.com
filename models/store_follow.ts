@@ -14,7 +14,7 @@ export const storeFollowQuerySchema = z
   .strict();
 
 async function follow(userId: string, storeSlug: string) {
-  const store = await storeModel.findOneBySlug(storeSlug);
+  const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
   try {
     await prisma.storeFollow.create({
@@ -52,7 +52,7 @@ async function unfollow(userId: string, storeSlug: string) {
 }
 
 async function status(userId: string | undefined, storeSlug: string) {
-  const store = await storeModel.findOneBySlug(storeSlug);
+  const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
   if (!userId) {
     return { is_followed: false };
@@ -82,11 +82,9 @@ async function listForUser(userId: string) {
     return [];
   }
 
-  const stores = await prisma.store.findMany({
-    where: {
-      id: { in: relationships.map((relationship) => relationship.store_id) },
-    },
-  });
+  const stores = await storeModel.findPublishedByIds(
+    relationships.map((relationship) => relationship.store_id),
+  );
   const storeById = new Map(stores.map((store) => [store.id, store]));
 
   // Logical references can outlive their target in a no-FK schema. Never leak

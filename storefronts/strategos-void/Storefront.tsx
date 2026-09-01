@@ -75,6 +75,7 @@ export function StrategosVoidStorefront({
   itemHref,
   browseHref,
   searchAction,
+  persistentQuery,
 }: StorefrontViewProps) {
   const { locale, t } = useI18n();
   const heroGame = featured[0] ?? games[0] ?? null;
@@ -172,6 +173,9 @@ export function StrategosVoidStorefront({
             />
             {tags.map((tag) => (
               <input key={tag} type="hidden" name="tags" value={tag} />
+            ))}
+            {Object.entries(persistentQuery).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
             ))}
           </Form>
         </div>

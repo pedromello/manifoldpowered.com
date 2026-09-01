@@ -33,6 +33,7 @@ export function PurchaseCard({
   acquisitionError,
   onRedeem,
   wishlist,
+  visitorPreview = false,
 }: {
   game: GameDetailApi;
   isFreeGame: boolean;
@@ -42,6 +43,7 @@ export function PurchaseCard({
   acquisitionError: string | null;
   onRedeem: () => void;
   wishlist: ItemWishlist;
+  visitorPreview?: boolean;
 }) {
   const router = useRouter();
   const { locale, t } = useI18n();
@@ -74,7 +76,17 @@ export function PurchaseCard({
           </div>
         )}
 
-        {isPlatformPurchase &&
+        {visitorPreview && (
+          <p
+            role="status"
+            className="rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-4 py-3 text-sm font-semibold leading-5 text-violet-100"
+          >
+            {t("Purchases and account actions are disabled in preview.")}
+          </p>
+        )}
+
+        {!visitorPreview &&
+          isPlatformPurchase &&
           (isInLibrary ? (
             <button
               onClick={() => router.push("/library")}
@@ -102,7 +114,7 @@ export function PurchaseCard({
             </button>
           ))}
 
-        {isPlatformPurchase && acquisitionError && (
+        {!visitorPreview && isPlatformPurchase && acquisitionError && (
           <p
             role="alert"
             className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-5 text-rose-200"
@@ -111,38 +123,39 @@ export function PurchaseCard({
           </p>
         )}
 
-        {game.social_links.steam_page ? (
-          <a
-            href={game.social_links.steam_page}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-          >
-            <IconBrandSteam size={24} className="text-white/65" />
-            <span>{t("View on Steam")}</span>
-            <ExternalLink
-              size={16}
-              className="opacity-60 group-hover:opacity-100 transition-opacity"
-            />
-          </a>
-        ) : (
-          <button
-            onClick={wishlist.toggle}
-            disabled={wishlist.isToggling}
-            className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
-              wishlist.isWishlisted
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
-                : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-            }`}
-          >
-            <Heart
-              size={20}
-              fill={wishlist.isWishlisted ? "currentColor" : "none"}
-              className={wishlist.isToggling ? "opacity-50" : ""}
-            />
-            {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
-          </button>
-        )}
+        {!visitorPreview &&
+          (game.social_links.steam_page ? (
+            <a
+              href={game.social_links.steam_page}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+            >
+              <IconBrandSteam size={24} className="text-white/65" />
+              <span>{t("View on Steam")}</span>
+              <ExternalLink
+                size={16}
+                className="opacity-60 group-hover:opacity-100 transition-opacity"
+              />
+            </a>
+          ) : (
+            <button
+              onClick={wishlist.toggle}
+              disabled={wishlist.isToggling}
+              className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
+                wishlist.isWishlisted
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
+                  : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+              }`}
+            >
+              <Heart
+                size={20}
+                fill={wishlist.isWishlisted ? "currentColor" : "none"}
+                className={wishlist.isToggling ? "opacity-50" : ""}
+              />
+              {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
+            </button>
+          ))}
 
         <div className="h-px bg-white/10" />
 

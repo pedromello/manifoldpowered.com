@@ -24,24 +24,50 @@ export type StoreNavContext = {
   logo_url?: string | null;
 };
 
-export function StoreTopNav({ store }: { store?: StoreNavContext }) {
+function withQuery(path: string, entries: Record<string, string | undefined>) {
+  const [pathname, existingQuery = ""] = path.split("?", 2);
+  const params = new URLSearchParams(existingQuery);
+  Object.entries(entries).forEach(([name, value]) => {
+    if (value === undefined) {
+      params.delete(name);
+    } else {
+      params.set(name, value);
+    }
+  });
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+export function StoreTopNav({
+  store,
+  visitorPreview = false,
+}: {
+  store?: StoreNavContext;
+  visitorPreview?: boolean;
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const { t, locale } = useI18n();
 
-  const storeHref = store ? `/store/${store.slug}` : "/store";
+  const previewQuery = visitorPreview && store ? "1" : undefined;
+  const storeHref = store
+    ? withQuery(`/store/${store.slug}`, { preview: previewQuery })
+    : "/store";
+  const searchResultsHref = store ? storeHref : "/search";
+
+  const searchParams = new URLSearchParams({
+    q: searchQuery.trim(),
+    limit: "5",
+  });
+  if (previewQuery) searchParams.set("preview", previewQuery);
   const searchEndpoint = store
     ? `/api/v1/stores/${store.slug}/search`
     : "/api/v1/games";
-  const searchResultsHref = store ? storeHref : "/search";
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     searchQuery.trim()
-      ? withLocale(
-          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`,
-          locale,
-        )
+      ? withLocale(`${searchEndpoint}?${searchParams.toString()}`, locale)
       : null,
     (url) => fetch(url).then((res) => res.json()),
   );
@@ -51,9 +77,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       setIsFocused(false);
-      router.push(
-        `${searchResultsHref}?q=${encodeURIComponent(searchQuery.trim())}`,
-      );
+      router.push(withQuery(searchResultsHref, { q: searchQuery.trim() }));
     }
   };
 
@@ -151,7 +175,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                       return (
                         <Link
                           key={game.id}
-                          href={itemHref(game.slug, store?.slug)}
+                          href={withQuery(itemHref(game.slug, store?.slug), {
+                            preview: previewQuery,
+                          })}
                           data-storefront="game-link"
                           className="flex items-center gap-4 px-4 py-2 transition-colors hover:bg-white/5"
                         >
@@ -199,7 +225,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                     })}
                     <div className="px-4 py-2 mt-1 border-t border-white/5">
                       <Link
-                        href={`${searchResultsHref}?q=${encodeURIComponent(searchQuery)}`}
+                        href={withQuery(searchResultsHref, {
+                          q: searchQuery.trim(),
+                        })}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
                         {t("View all results")}
@@ -218,7 +246,16 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
           </div>
 
           <LanguageSwitcher compact />
-          <UserMenu />
+          {visitorPreview ? (
+            <Link
+              href="/login"
+              className="inline-flex h-10 items-center rounded-xl border border-white/10 px-3 text-xs font-bold text-white/70"
+            >
+              {t("Log in")}
+            </Link>
+          ) : (
+            <UserMenu />
+          )}
         </div>
       </div>
     </header>

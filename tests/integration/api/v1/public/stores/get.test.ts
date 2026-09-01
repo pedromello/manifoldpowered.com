@@ -12,7 +12,15 @@ const PUBLIC_STORE_FIELDS = [
   "name",
   "description",
   "logo_url",
+  "theme_key",
+  "layout_preset",
+  "tagline",
+  "cover_url",
+  "social_links",
+  "brand_tokens",
   "owner_id",
+  "publication_status",
+  "published_at",
   "created_at",
   "updated_at",
 ].sort();
@@ -115,6 +123,25 @@ describe("GET /api/v1/public/stores", () => {
       expect(responseBody.pagination.limit).toBe(1);
       expect(responseBody.pagination.total).toBeGreaterThanOrEqual(2);
       expect(responseBody.pagination.pages).toBeGreaterThanOrEqual(2);
+    });
+
+    test("Excludes draft and unpublished Outlets", async () => {
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const draft = await orchestrator.createStore(owner.id, {
+        name: "Directory Private Draft",
+        draft: true,
+      });
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/public/stores?q=Directory%20Private%20Draft`,
+      );
+      expect(response.status).toBe(200);
+      expect(
+        (await response.json()).stores.map(
+          (item: { slug: string }) => item.slug,
+        ),
+      ).not.toContain(draft.slug);
     });
   });
 });

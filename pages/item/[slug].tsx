@@ -14,17 +14,28 @@ import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
 import { gameJsonLd, gameMetadata, socialImageUrl } from "lib/seo";
 import { fetchPageData } from "lib/page-data";
+import {
+  hasCreatorPreset,
+  resolveOutletDesign,
+} from "components/storefront/presets/config";
 
 type ItemPageProps = {
   game: GameDetailApi;
   /** The outlet this visit came through, or null for a direct visit. */
   store: StoreApi | null;
+  isPreview: boolean;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug } = context.query;
   const storeSlug = storeSlugFromQuery(context.query);
+  const isPreview = context.query.preview === "1" && Boolean(storeSlug);
   const locale = context.locale === "pt-BR" ? "pt-BR" : "en";
+
+  if (isPreview) {
+    context.res.setHeader("Cache-Control", "private, no-store");
+    context.res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
 
   // Forwarded because the price shown here is regional (models/region.ts).
   // Without it a Brazilian visitor saw BRL on the storefront list and USD on
@@ -45,30 +56,40 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     if (storeSlug) {
       try {
         const storeResponse = await fetch(
-          `${webserver.getOrigin()}/api/v1/stores/${storeSlug}`,
+          `${webserver.getOrigin()}/api/v1/stores/${storeSlug}${
+            isPreview ? "?preview=1" : ""
+          }`,
           { headers },
         );
         if (storeResponse.ok) {
           store = await storeResponse.json();
+        } else if (isPreview) {
+          return { notFound: true };
         }
       } catch {
+        if (isPreview) return { notFound: true };
         store = null;
       }
     }
 
-    return { props: { game, store } };
+    return { props: { game, store, isPreview } };
   } catch (error) {
     console.error("Error fetching game via API:", error);
     throw error;
   }
 };
 
-export default function GameDetailsPage({ game, store }: ItemPageProps) {
+export default function GameDetailsPage({
+  game,
+  store,
+  isPreview,
+}: ItemPageProps) {
   const { locale } = useI18n();
   const metadata = gameMetadata(game, locale);
   const controller = useItemController({
     gameSlug: game.slug,
     storeSlug: store?.slug,
+    visitorPreview: isPreview,
   });
 
   // An outlet with a bespoke storefront but no bespoke product page still gets
@@ -76,12 +97,16 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
   // Manifold's colours mid-journey.
   const resolution = store ? resolveStorefront(store) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;
+  const outletDesign =
+    store && !custom && hasCreatorPreset(store)
+      ? resolveOutletDesign(store)
+      : null;
   const ItemView = custom?.ItemPage ?? DefaultItemPage;
 
   const page = (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? PLATFORM_PALETTE}
+      palette={custom?.palette ?? outletDesign?.palette ?? PLATFORM_PALETTE}
       title={metadata.title}
       description={metadata.description}
       canonicalPath={`/item/${game.slug}`}
@@ -92,6 +117,7 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
           : `${game.title} artwork by ${game.developer_name} with Manifold branding`
       }
       jsonLd={gameJsonLd(game, locale)}
+      noIndex={isPreview}
     >
       <ItemView {...controller} game={game} store={store} />
     </StorefrontShell>
@@ -101,5 +127,9 @@ export default function GameDetailsPage({ game, store }: ItemPageProps) {
     return <StoreHomeLayout>{page}</StoreHomeLayout>;
   }
 
-  return <StorefrontRouteLayout store={store}>{page}</StorefrontRouteLayout>;
+  return (
+    <StorefrontRouteLayout store={store} visitorPreview={isPreview}>
+      {page}
+    </StorefrontRouteLayout>
+  );
 }

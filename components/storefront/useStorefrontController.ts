@@ -13,7 +13,6 @@ import type {
   StorefrontQuery,
 } from "components/storefront/types";
 import { STOREFRONT_ORDERS } from "components/storefront/types";
-import { withLocale } from "lib/localized-api";
 
 type ListResponse = {
   games: GameApi[];
@@ -22,11 +21,17 @@ type ListResponse = {
   mode?: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
 };
 
-const fetcher = (url: string): Promise<ListResponse> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<ListResponse> => {
+  const response = await fetch(url);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed: ${response.status}`);
+  }
+  return body;
+};
 
 export type StorefrontControllerOptions = {
-  /** Hero rail source. Receives no query params. */
+  /** Hero rail source. Receives locale and persistent preview params. */
   featuredEndpoint: string;
   /** Filtered list source. Receives q/tags/order/page. */
   listEndpoint: string;
@@ -36,6 +41,8 @@ export type StorefrontControllerOptions = {
   searchPagePath: string;
   /** Set for an outlet storefront so links carry sale attribution. */
   storeSlug?: string;
+  /** Preserved in links/forms without becoming catalog filter state. */
+  persistentQuery?: Readonly<Record<string, string>>;
 };
 
 function isOrder(value: string | null): value is StorefrontOrder {
@@ -58,6 +65,7 @@ export function useStorefrontController({
   browsePath,
   searchPagePath,
   storeSlug,
+  persistentQuery = {},
 }: StorefrontControllerOptions): StorefrontControllerResult {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
@@ -82,19 +90,35 @@ export function useStorefrontController({
   // Only non-default values are sent, so the request URL — and therefore the
   // SWR cache key — stays exactly what it was before this hook existed.
   const listUrl = useMemo(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(persistentQuery);
     if (q) params.set("q", q);
     if (effectiveTags.length > 0) params.set("tags", effectiveTags.join(","));
     if (order !== "newest") params.set("order", order);
     if (page > 1) params.set("page", String(page));
     params.set("locale", locale);
     return `${listEndpoint}?${params.toString()}`;
-  }, [listEndpoint, q, effectiveTags, order, page, locale]);
+  }, [listEndpoint, q, effectiveTags, order, page, locale, persistentQuery]);
 
-  const { data: featuredData, isLoading: isFeaturedLoading } =
-    useSWR<ListResponse>(withLocale(featuredEndpoint, locale), fetcher);
+  const featuredUrl = useMemo(() => {
+    const params = new URLSearchParams(persistentQuery);
+    params.set("locale", locale);
+    const separator = featuredEndpoint.includes("?") ? "&" : "?";
+    return `${featuredEndpoint}${separator}${params.toString()}`;
+  }, [featuredEndpoint, locale, persistentQuery]);
 
-  const { data, isLoading } = useSWR<ListResponse>(listUrl, fetcher);
+  const {
+    data: featuredData,
+    error: featuredError,
+    isLoading: isFeaturedLoading,
+    mutate: mutateFeatured,
+  } = useSWR<ListResponse>(featuredUrl, fetcher);
+
+  const {
+    data,
+    error: catalogError,
+    isLoading,
+    mutate: mutateCatalog,
+  } = useSWR<ListResponse>(listUrl, fetcher);
 
   const browseHref = useCallback(
     (patch: Partial<StorefrontQuery>) => {
@@ -107,7 +131,7 @@ export function useStorefrontController({
         ...patch,
       };
 
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(persistentQuery);
       if (next.q) params.set("q", next.q);
       if (next.category) params.set("category", next.category);
       next.tags.forEach((tag) => params.append("tags", tag));
@@ -117,7 +141,7 @@ export function useStorefrontController({
       const queryString = params.toString();
       return queryString ? `${browsePath}?${queryString}` : browsePath;
     },
-    [browsePath, q, activeCategory, tags, order, page],
+    [browsePath, q, activeCategory, tags, order, page, persistentQuery],
   );
 
   // Shallow so filtering never refetches the page's server props, matching how
@@ -143,17 +167,28 @@ export function useStorefrontController({
   );
 
   const itemHref = useCallback(
-    (gameSlug: string) => buildItemHref(gameSlug, storeSlug),
-    [storeSlug],
+    (gameSlug: string) => {
+      const attributedHref = buildItemHref(gameSlug, storeSlug);
+      const params = new URLSearchParams(persistentQuery);
+      const persistent = params.toString();
+      if (!persistent) return attributedHref;
+      const separator = attributedHref.includes("?") ? "&" : "?";
+      return `${attributedHref}${separator}${persistent}`;
+    },
+    [persistentQuery, storeSlug],
   );
 
   return {
     featured: featuredData?.games || [],
     featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
+    featuredError: Boolean(featuredError),
+    retryFeatured: () => void mutateFeatured(),
 
     games: data?.games || [],
     isLoading,
+    catalogError: Boolean(catalogError),
+    retryCatalog: () => void mutateCatalog(),
     pagination: data?.pagination,
     currency: data?.currency || "USD",
 
@@ -174,5 +209,6 @@ export function useStorefrontController({
     itemHref,
     browseHref,
     searchAction: searchPagePath,
+    persistentQuery,
   };
 }

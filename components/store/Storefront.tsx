@@ -6,6 +6,17 @@ import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
 import type { JsonLd } from "lib/seo";
 import { FollowOutletButton } from "components/store/FollowOutletButton";
+import { CreatorPresetStorefront } from "components/storefront/presets/CreatorPresetStorefront";
+import {
+  hasCreatorPreset,
+  resolveOutletDesign,
+} from "components/storefront/presets/config";
+import { useI18n } from "lib/i18n";
+
+const NO_PERSISTENT_QUERY: Readonly<Record<string, string>> = {};
+const PREVIEW_PERSISTENT_QUERY: Readonly<Record<string, string>> = {
+  preview: "1",
+};
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -26,6 +37,8 @@ export type StorefrontProps = {
   store?: StoreContext | null;
   /** Renders the "Discover other Outlets" section at the bottom. Main storefront only. */
   showDiscover?: boolean;
+  /** Management preview renders visitor controls while the server authorizes draft data. */
+  visitorPreview?: boolean;
 };
 
 /**
@@ -50,41 +63,70 @@ export function Storefront({
   jsonLd,
   store = null,
   showDiscover = false,
+  visitorPreview = false,
 }: StorefrontProps) {
+  const { t } = useI18n();
   const controller = useStorefrontController({
     featuredEndpoint,
     listEndpoint,
     browsePath,
     searchPagePath,
     storeSlug: store?.slug,
+    persistentQuery: visitorPreview
+      ? PREVIEW_PERSISTENT_QUERY
+      : NO_PERSISTENT_QUERY,
   });
 
   const resolution = store ? resolveStorefront(store) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;
+  const outletDesign =
+    store && !custom && hasCreatorPreset(store)
+      ? resolveOutletDesign(store)
+      : null;
   const followControl = store ? (
-    <FollowOutletButton
-      storeSlug={store.slug}
-      storeName={store.name}
-      variant={custom ? "theme" : "platform"}
-    />
+    visitorPreview ? (
+      <button
+        type="button"
+        disabled
+        data-storefront="follow-outlet"
+        className="inline-flex min-h-10 items-center rounded-xl border border-sf-border bg-sf-surface px-4 text-sm font-bold text-sf-muted"
+      >
+        {t("Follow")}
+      </button>
+    ) : (
+      <FollowOutletButton
+        storeSlug={store.slug}
+        storeName={store.name}
+        variant={custom ? "theme" : "platform"}
+      />
+    )
   ) : null;
 
   return (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? PLATFORM_PALETTE}
+      palette={custom?.palette ?? outletDesign?.palette ?? PLATFORM_PALETTE}
       title={pageTitle}
       description={metaDescription}
       canonicalPath={canonicalPath}
       socialImage={socialImage}
       socialImageAlt={socialImageAlt}
       jsonLd={jsonLd}
-      themeKey={resolution?.themeKey ?? "platform"}
+      noIndex={visitorPreview}
+      themeKey={
+        custom ? resolution?.themeKey : (outletDesign?.themeKey ?? "platform")
+      }
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
     >
       {custom && store ? (
         <custom.Storefront
+          {...controller}
+          store={store}
+          followControl={followControl}
+        />
+      ) : store && outletDesign ? (
+        <CreatorPresetStorefront
           {...controller}
           store={store}
           followControl={followControl}

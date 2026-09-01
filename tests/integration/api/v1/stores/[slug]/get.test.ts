@@ -28,9 +28,17 @@ describe("GET /api/v1/stores/[slug]", () => {
         name: createdStore.name,
         description: createdStore.description,
         logo_url: createdStore.logo_url,
+        theme_key: createdStore.theme_key,
+        layout_preset: createdStore.layout_preset,
+        tagline: createdStore.tagline,
+        cover_url: createdStore.cover_url,
+        social_links: createdStore.social_links,
+        brand_tokens: createdStore.brand_tokens,
         owner_id: owner.id,
+        publication_status: "PUBLISHED",
+        published_at: createdStore.published_at?.toISOString(),
         created_at: createdStore.created_at.toISOString(),
-        updated_at: responseBody.updated_at,
+        updated_at: createdStore.published_at?.toISOString(),
       });
     });
 

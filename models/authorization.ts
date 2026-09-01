@@ -5,6 +5,7 @@ import {
   UserActivationToken,
   Review,
   Store,
+  StoreRevision,
   StoreMember,
   StoreTagFilter,
   StoreGameOverride,
@@ -20,6 +21,7 @@ import {
   GameReleasePatch,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { InternalServerError } from "infra/errors";
 import {
   downloadAuthorizationSchema,
@@ -54,8 +56,32 @@ function buyerRefFor(userId: string, storeId: string | null): string {
 }
 
 type StoreWithMembers = Store & { members: StoreMember[] };
+type StoreWithPublishedRevision = Store & {
+  published_revision?: StoreRevision | null;
+  publication_readiness?: unknown;
+};
 type StudioWithMembers = Studio & { members: StudioMember[] };
 type GameWithStudio = Game & { studio: StudioWithMembers | null };
+
+function hasUnpublishedStoreChanges(
+  store: StoreWithPublishedRevision,
+): boolean {
+  const revision = store.published_revision;
+  if (!revision) return true;
+  if (store.draft_revision !== revision.source_draft_revision) return true;
+
+  return !(
+    store.name === revision.name &&
+    store.description === revision.description &&
+    store.logo_url === revision.logo_url &&
+    store.theme_key === revision.theme_key &&
+    store.layout_preset === revision.layout_preset &&
+    store.tagline === revision.tagline &&
+    store.cover_url === revision.cover_url &&
+    isDeepStrictEqual(store.social_links, revision.social_links) &&
+    isDeepStrictEqual(store.brand_tokens, revision.brand_tokens)
+  );
+}
 
 const AVAILABLE_FEATURES = [
   // User
@@ -124,8 +150,14 @@ const AVAILABLE_FEATURES = [
   // Stores
   "create:store",
   "read:public_store",
+  "read:store_preview",
+  "read:store_preview:any",
   "update:store",
   "update:store:any",
+  "update:store_presentation",
+  "update:store_presentation:any",
+  "publish:store",
+  "publish:store:any",
   "manage:store_featured_games",
   "manage:store_members",
   "manage:store_members:any",
@@ -252,6 +284,9 @@ const ADMIN_ONLY_FEATURES = [
   "read:exchange_rate:any",
   "create:exchange_rate:any",
   "update:store_commission:any",
+  "update:store_presentation:any",
+  "publish:store:any",
+  "read:store_preview:any",
   "read:supplier_terms:any",
   "update:supplier_terms:any",
   "read:store_statement:any",
@@ -303,6 +338,30 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   let authorized = false;
 
   if (user.features?.includes(feature)) {
+    authorized = true;
+  }
+
+  if (
+    !resource &&
+    feature === "update:store_presentation" &&
+    can(user, "update:store_presentation:any")
+  ) {
+    authorized = true;
+  }
+
+  if (
+    !resource &&
+    feature === "read:store_preview" &&
+    can(user, "read:store_preview:any")
+  ) {
+    authorized = true;
+  }
+
+  if (
+    !resource &&
+    feature === "publish:store" &&
+    can(user, "publish:store:any")
+  ) {
     authorized = true;
   }
 
@@ -385,6 +444,49 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       isOwner ||
       isPermittedMember ||
       (anyFeature !== undefined && can(user, anyFeature))
+    ) {
+      authorized = true;
+    }
+  }
+
+  // Store presentation and publication are owner-only capabilities. They are
+  // deliberately outside MEMBER_PERMISSIONS: a delegated catalog curator must
+  // not be able to replace the Outlet's identity or make a draft public.
+  if (
+    (feature === "update:store_presentation" || feature === "publish:store") &&
+    resource
+  ) {
+    authorized = false;
+    const storeResource = resource as StoreWithMembers;
+    const anyFeature = {
+      "update:store_presentation": "update:store_presentation:any",
+      "publish:store": "publish:store:any",
+    }[feature] as string;
+
+    if (user.id === storeResource.owner_id || can(user, anyFeature)) {
+      authorized = true;
+    }
+  }
+
+  if (feature === "read:store_preview" && resource) {
+    authorized = false;
+    const storeResource = resource as StoreWithMembers;
+    const isPermittedMember = storeResource.members?.some(
+      (member) =>
+        member.user_id === user.id &&
+        member.permissions.some((permission) =>
+          [
+            "read:store_preview",
+            "update:store",
+            "manage:store_featured_games",
+          ].includes(permission),
+        ),
+    );
+
+    if (
+      user.id === storeResource.owner_id ||
+      isPermittedMember ||
+      can(user, "read:store_preview:any")
     ) {
       authorized = true;
     }
@@ -852,19 +954,56 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     return downloadAuthorizationSchema.parse(resource);
   }
 
-  if (
-    feature === "create:store" ||
-    feature === "read:public_store" ||
-    feature === "update:store"
-  ) {
-    const storeOutput = resource as Store;
+  if (feature === "read:public_store") {
+    const storeOutput = resource as StoreWithPublishedRevision;
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
       name: storeOutput.name,
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
+      theme_key: storeOutput.theme_key,
+      layout_preset: storeOutput.layout_preset,
+      tagline: storeOutput.tagline,
+      cover_url: storeOutput.cover_url,
+      social_links: storeOutput.social_links,
+      brand_tokens: storeOutput.brand_tokens,
       owner_id: storeOutput.owner_id,
+      publication_status: storeOutput.publication_status,
+      published_at: storeOutput.published_at,
+      created_at: storeOutput.created_at,
+      updated_at: storeOutput.published_at ?? storeOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "create:store" ||
+    feature === "update:store" ||
+    feature === "read:store_preview" ||
+    feature === "update:store_presentation" ||
+    feature === "publish:store"
+  ) {
+    const storeOutput = resource as StoreWithPublishedRevision;
+    return {
+      id: storeOutput.id,
+      slug: storeOutput.slug,
+      name: storeOutput.name,
+      description: storeOutput.description,
+      logo_url: storeOutput.logo_url,
+      theme_key: storeOutput.theme_key,
+      layout_preset: storeOutput.layout_preset,
+      tagline: storeOutput.tagline,
+      cover_url: storeOutput.cover_url,
+      social_links: storeOutput.social_links,
+      brand_tokens: storeOutput.brand_tokens,
+      owner_id: storeOutput.owner_id,
+      publication_status: storeOutput.publication_status,
+      published_at: storeOutput.published_at,
+      draft_revision: storeOutput.draft_revision,
+      has_unpublished_changes: hasUnpublishedStoreChanges(storeOutput),
+      ...(storeOutput.publication_readiness !== undefined && {
+        publication_readiness: storeOutput.publication_readiness,
+      }),
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };
@@ -888,14 +1027,27 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     feature === "read:store:any" ||
     feature === "update:store_commission:any"
   ) {
-    const storeOutput = resource as Store;
+    const storeOutput = resource as StoreWithPublishedRevision;
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
       name: storeOutput.name,
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
+      theme_key: storeOutput.theme_key,
+      layout_preset: storeOutput.layout_preset,
+      tagline: storeOutput.tagline,
+      cover_url: storeOutput.cover_url,
+      social_links: storeOutput.social_links,
+      brand_tokens: storeOutput.brand_tokens,
       owner_id: storeOutput.owner_id,
+      publication_status: storeOutput.publication_status,
+      published_at: storeOutput.published_at,
+      draft_revision: storeOutput.draft_revision,
+      has_unpublished_changes: hasUnpublishedStoreChanges(storeOutput),
+      ...(storeOutput.publication_readiness !== undefined && {
+        publication_readiness: storeOutput.publication_readiness,
+      }),
       // Null means no bespoke rate, so the platform default applies. Serialised
       // at full scale for the same reason exchange rates are: the wire format
       // should not depend on how the driver stringifies a Decimal.

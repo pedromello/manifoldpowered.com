@@ -73,10 +73,12 @@ export function socialImageUrl(
   kind: "home" | "outlet" | "game",
   locale: AppLocale,
   slug?: string,
+  version?: string | null,
 ): string {
   const suffix = slug ? `/${encodeURIComponent(slug)}` : "";
   const url = new URL(`/api/og/${kind}${suffix}`, SITE_ORIGIN);
   url.searchParams.set("locale", locale);
+  if (version) url.searchParams.set("v", version);
   return url.toString();
 }
 
@@ -102,11 +104,11 @@ export function outletMetadata(store: StoreApi, locale: AppLocale) {
     "Manifold Outlet";
   const title =
     locale === "pt-BR"
-      ? `${name} — Jogos selecionados na Manifold`
+      ? `${name} — Jogos selecionados no Manifold`
       : `${name} — Curated games on Manifold`;
   const fallback =
     locale === "pt-BR"
-      ? `Explore a seleção de jogos da Outlet ${name} no catálogo compartilhado da Manifold.`
+      ? `Explore a seleção de jogos da Outlet ${name} no catálogo compartilhado do Manifold.`
       : `Explore ${name}'s game selection in Manifold's shared catalog.`;
   const editorialDescription = cleanMetadataText(
     store.description,
@@ -150,7 +152,7 @@ export function gameMetadata(game: GameDetailApi, locale: AppLocale) {
   const description =
     contentDescription ||
     (locale === "pt-BR"
-      ? `${titleText} é um jogo de ${studio || "um estúdio independente"} disponível na Manifold.`
+      ? `${titleText} é um jogo de ${studio || "um estúdio independente"} disponível no Manifold.`
       : `${titleText} is a game by ${studio || "an independent studio"} available on Manifold.`);
   const separator = description && commercial ? " · " : "";
 
@@ -215,7 +217,12 @@ export function outletJsonLd(store: StoreApi, locale: AppLocale): JsonLd {
     url,
     inLanguage: locale,
     isPartOf: websiteReference(),
-    primaryImageOfPage: socialImageUrl("outlet", locale, store.slug),
+    primaryImageOfPage: socialImageUrl(
+      "outlet",
+      locale,
+      store.slug,
+      store.published_at,
+    ),
   };
 }
 

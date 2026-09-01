@@ -10,6 +10,8 @@ export type ItemControllerOptions = {
   gameSlug: string;
   /** The outlet this visit is attributed to, resolved server-side from `?store=`. */
   storeSlug?: string;
+  /** Draft previews are read-only and must never perform account actions. */
+  visitorPreview?: boolean;
 };
 
 export type ItemWishlist = {
@@ -49,6 +51,7 @@ export type ItemReviews = {
 };
 
 export type ItemControllerResult = {
+  visitorPreview: boolean;
   isLoggedOut: boolean;
   isInLibrary: boolean;
   isCheckingLibrary: boolean;
@@ -98,6 +101,7 @@ const fetchJson = (url: string) => fetch(url).then(okJson);
 export function useItemController({
   gameSlug,
   storeSlug,
+  visitorPreview = false,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
   const { t, translateError } = useI18n();
@@ -108,7 +112,9 @@ export function useItemController({
     error: libraryError,
     mutate: mutateLibrary,
   } = useSWR(
-    `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
+    visitorPreview
+      ? null
+      : `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
     fetchJson,
     {
       shouldRetryOnError: false,
@@ -126,7 +132,7 @@ export function useItemController({
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
-    `/api/v1/wishlists?slug=${gameSlug}`,
+    visitorPreview ? null : `/api/v1/wishlists?slug=${gameSlug}`,
     (url) => fetch(url).then((res) => res.json()),
   );
 
@@ -135,7 +141,7 @@ export function useItemController({
   const isLoggedOut =
     libraryError instanceof ApiRequestError &&
     (libraryError.status === 401 || libraryError.status === 403);
-  const isCheckingLibrary = !libraryData && !libraryError;
+  const isCheckingLibrary = !visitorPreview && !libraryData && !libraryError;
   const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
     hasJustAcquired ||
@@ -156,6 +162,7 @@ export function useItemController({
   const [isToggling, setIsToggling] = useState(false);
 
   const redeem = async () => {
+    if (visitorPreview) return;
     setAcquisitionError(null);
 
     if (isLoggedOut) {
@@ -204,6 +211,7 @@ export function useItemController({
     message: string;
     recommended: boolean;
   }) => {
+    if (visitorPreview) return false;
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -241,6 +249,7 @@ export function useItemController({
     message: string;
     recommended: boolean;
   }) => {
+    if (visitorPreview) return false;
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -274,6 +283,7 @@ export function useItemController({
   };
 
   const removeReview = async () => {
+    if (visitorPreview) return false;
     setReviewActionError(null);
     setIsDeletingReview(true);
     try {
@@ -306,6 +316,7 @@ export function useItemController({
   };
 
   const toggleWishlist = async () => {
+    if (visitorPreview) return;
     if (!wishlistData || isToggling) return;
     setIsToggling(true);
 
@@ -342,6 +353,7 @@ export function useItemController({
   };
 
   return {
+    visitorPreview,
     isLoggedOut,
     isInLibrary,
     isCheckingLibrary,
@@ -368,11 +380,13 @@ export function useItemController({
     reviews: {
       // The viewer's own review is pinned separately by the view, so it is
       // filtered out of the general list here rather than in the markup.
-      list: (reviewsData?.reviews || []).filter(
-        (review) => review.id !== reviewsData?.user_review?.id,
-      ),
-      userReview: reviewsData?.user_review ?? null,
-      canReview: reviewsData?.can_review ?? false,
+      list: visitorPreview
+        ? reviewsData?.reviews || []
+        : (reviewsData?.reviews || []).filter(
+            (review) => review.id !== reviewsData?.user_review?.id,
+          ),
+      userReview: visitorPreview ? null : (reviewsData?.user_review ?? null),
+      canReview: visitorPreview ? false : (reviewsData?.can_review ?? false),
       summary: reviewsData?.summary
         ? {
             positiveReviews: reviewsData.summary.positive_reviews,
@@ -402,6 +416,8 @@ export function useItemController({
       clearError: () => setReviewActionError(null),
     },
 
-    backHref: storeSlug ? `/store/${storeSlug}` : "/store",
+    backHref: storeSlug
+      ? `/store/${storeSlug}${visitorPreview ? "?preview=1" : ""}`
+      : "/store",
   };
 }

@@ -14,20 +14,12 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
+import { OutletCustomizationForm } from "components/store/OutletCustomizationForm";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
-import { type GameApi } from "components/store/types";
+import { type GameApi, type StoreManagementApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
 import { formatMoney } from "lib/price";
 import { useI18n } from "lib/i18n";
-
-interface StoreApi {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  logo_url: string | null;
-  owner_id: string;
-}
 
 interface TagFilterApi {
   id: string;
@@ -83,13 +75,14 @@ export default function StoreManagePage() {
   const router = useRouter();
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
+  const managementStoreKey = slug ? `/api/v1/stores/${slug}?preview=1` : null;
   const [tab, setTab] = useState<Tab>("featured");
 
   const {
     data: storeData,
     isLoading: isStoreLoading,
     error: storeError,
-  } = useSWR<StoreApi>(slug ? `/api/v1/stores/${slug}` : null, fetcher);
+  } = useSWR<StoreManagementApi>(managementStoreKey, fetcher);
 
   const {
     data: tagFilters,
@@ -133,7 +126,9 @@ export default function StoreManagePage() {
             </p>
           </div>
           <Link
-            href={`/store/${storeData.slug}`}
+            href={`/store/${storeData.slug}${
+              storeData.publication_status === "PUBLISHED" ? "" : "?preview=1"
+            }`}
             className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
           >
             {t("View my Outlet")}
@@ -216,11 +211,14 @@ function FeaturedTab({
   storeName: string;
 }) {
   const { t, translateError } = useI18n();
-  const featuredKey = `/api/v1/stores/${storeSlug}/featured`;
-  const { data, isLoading, error, mutate } = useSWR<FeaturedResponse>(
-    featuredKey,
-    fetcher,
-  );
+  const { mutate: mutateCache } = useSWRConfig();
+  const featuredKey = `/api/v1/stores/${storeSlug}/featured?preview=1`;
+  const {
+    data,
+    isLoading,
+    error,
+    mutate: mutateFeatured,
+  } = useSWR<FeaturedResponse>(featuredKey, fetcher);
   const [recommendations, setRecommendations] = useState<
     FeaturedRecommendationDraft[]
   >([]);
@@ -319,7 +317,10 @@ function FeaturedTab({
         return;
       }
       setSuccess(t("Featured recommendations saved."));
-      await mutate();
+      await Promise.all([
+        mutateFeatured(),
+        mutateCache(`/api/v1/stores/${storeSlug}?preview=1`),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -343,7 +344,10 @@ function FeaturedTab({
       }
       setRecommendations([]);
       setSuccess(t("Automatic Featured restored."));
-      await mutate();
+      await Promise.all([
+        mutateFeatured(),
+        mutateCache(`/api/v1/stores/${storeSlug}?preview=1`),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -378,7 +382,7 @@ function FeaturedTab({
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
         {recommendations.length < 3 ? (
           <GameAutocomplete
-            endpoint={`/api/v1/stores/${storeSlug}/search`}
+            endpoint={`/api/v1/stores/${storeSlug}/search?preview=1`}
             onSelect={addGame}
             placeholder={t("Search games in this Outlet...")}
           />
@@ -575,7 +579,10 @@ function CurationTab({
         return;
       }
       setTag("");
-      mutate(tagFiltersKey);
+      await Promise.all([
+        mutate(tagFiltersKey),
+        mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -588,24 +595,30 @@ function CurationTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: newMode }),
     });
-    mutate(tagFiltersKey);
+    await Promise.all([
+      mutate(tagFiltersKey),
+      mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+    ]);
   }
 
   async function handleRemoveTag(filter: TagFilterApi) {
     await fetch(`${tagFiltersKey}/${encodeURIComponent(filter.tag)}`, {
       method: "DELETE",
     });
-    mutate(tagFiltersKey);
+    await Promise.all([
+      mutate(tagFiltersKey),
+      mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+    ]);
   }
 
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-black">{t("Tag Filters")}</h2>
+          <h2 className="text-lg font-black">{t("Tag rules")}</h2>
           <p className="text-white/50 text-sm font-bold mt-1">
             {t(
-              "Whitelist tags to show only matching games, or blacklist tags to hide them. With no filters, your Outlet shows the full catalog.",
+              "Choose tags to show matching games or hide games from the selection.",
             )}
           </p>
         </div>
@@ -625,8 +638,8 @@ function CurationTab({
             }
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
           >
-            <option value="WHITELIST">{t("Whitelist")}</option>
-            <option value="BLACKLIST">{t("Blacklist")}</option>
+            <option value="WHITELIST">{t("Show games with this tag")}</option>
+            <option value="BLACKLIST">{t("Hide games with this tag")}</option>
           </select>
           <button
             type="submit"
@@ -648,7 +661,7 @@ function CurationTab({
             <Loader2 className="animate-spin text-white/30" size={20} />
           ) : tagFilters.length === 0 ? (
             <p className="text-white/30 text-sm font-bold italic">
-              {t("No tag filters yet — showing the full catalog.")}
+              {t("No tag rules yet. Add one to define the selection.")}
             </p>
           ) : (
             tagFilters.map((filter) => (
@@ -663,7 +676,7 @@ function CurationTab({
                 <button
                   onClick={() => handleToggleMode(filter)}
                   className="hover:underline"
-                  title={t("Toggle whitelist/blacklist")}
+                  title={t("Switch between show and hide")}
                 >
                   {filter.mode === "WHITELIST" ? "✓" : "✕"} {filter.tag}
                 </button>
@@ -689,7 +702,7 @@ function CurationTab({
             size={16}
             className={`transition-transform ${isOverridesOpen ? "rotate-180" : ""}`}
           />
-          {t("Advanced: Per-Game Overrides")}
+          {t("Advanced: individual games")}
         </button>
 
         {isOverridesOpen && <GameOverridesPanel storeSlug={storeSlug} />}
@@ -730,7 +743,10 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
         return;
       }
       setSelectedGame(null);
-      mutate(overridesKey);
+      await Promise.all([
+        mutate(overridesKey),
+        mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -740,15 +756,16 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
     await fetch(`${overridesKey}/${encodeURIComponent(override.game_slug)}`, {
       method: "DELETE",
     });
-    mutate(overridesKey);
+    await Promise.all([
+      mutate(overridesKey),
+      mutate(`/api/v1/stores/${storeSlug}?preview=1`),
+    ]);
   }
 
   return (
     <div className="mt-4 pl-6 border-l border-white/10 flex flex-col gap-4">
       <p className="text-white/50 text-sm font-bold">
-        {t(
-          "Force-show or force-hide a specific game, regardless of tag filters.",
-        )}
+        {t("Show or hide a specific game regardless of the tag rules.")}
       </p>
 
       <form onSubmit={handleAddOverride} className="flex flex-wrap gap-2">
@@ -785,8 +802,8 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           onChange={(e) => setVisibility(e.target.value as "SHOW" | "HIDE")}
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
         >
-          <option value="SHOW">{t("Force show")}</option>
-          <option value="HIDE">{t("Force hide")}</option>
+          <option value="SHOW">{t("Show")}</option>
+          <option value="HIDE">{t("Hide")}</option>
         </select>
         <button
           type="submit"
@@ -808,7 +825,7 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           <Loader2 className="animate-spin text-white/30" size={20} />
         ) : !overrides || overrides.length === 0 ? (
           <p className="text-white/30 text-sm font-bold italic">
-            {t("No per-game overrides yet.")}
+            {t("No individual game rules yet.")}
           </p>
         ) : (
           overrides.map((override) => (
@@ -870,102 +887,8 @@ function OverrideChip({
   );
 }
 
-function SettingsTab({ store }: { store: StoreApi }) {
-  const { t, translateError } = useI18n();
-  const [name, setName] = useState(store.name);
-  const [description, setDescription] = useState(store.description ?? "");
-  const [logoUrl, setLogoUrl] = useState(store.logo_url ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { mutate } = useSWRConfig();
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setSuccess(false);
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/v1/stores/${store.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          description: description.trim() || undefined,
-          logo_url: logoUrl.trim() || undefined,
-        }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        setError(translateError(body?.message, "Failed to update Outlet."));
-        return;
-      }
-      setSuccess(true);
-      mutate(`/api/v1/stores/${store.slug}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md">
-      <label className="flex flex-col gap-2">
-        <span className="text-xs font-black uppercase tracking-wider text-white/40">
-          {t("Outlet name")}
-        </span>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
-        />
-      </label>
-
-      <label className="flex flex-col gap-2">
-        <span className="text-xs font-black uppercase tracking-wider text-white/40">
-          {t("Description")}
-        </span>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20 resize-none"
-        />
-      </label>
-
-      <label className="flex flex-col gap-2">
-        <span className="text-xs font-black uppercase tracking-wider text-white/40">
-          {t("Logo URL")}
-        </span>
-        <input
-          type="text"
-          value={logoUrl}
-          onChange={(e) => setLogoUrl(e.target.value)}
-          placeholder="https://example.com/logo.png"
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
-        />
-      </label>
-
-      {error && (
-        <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold">
-          {t("Saved.")}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={isSubmitting || !name.trim()}
-        className="w-fit rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {isSubmitting ? t("Saving...") : t("Save Changes")}
-      </button>
-    </form>
-  );
+function SettingsTab({ store }: { store: StoreManagementApi }) {
+  return <OutletCustomizationForm store={store} />;
 }
 
 function SalesTab({ storeSlug }: { storeSlug: string }) {

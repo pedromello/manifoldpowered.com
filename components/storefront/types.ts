@@ -16,7 +16,17 @@ export type { GameApi, GameDetailApi, PaginationApi };
  */
 export type StoreContext = Pick<
   StoreApi,
-  "id" | "slug" | "name" | "description" | "logo_url"
+  | "id"
+  | "slug"
+  | "name"
+  | "description"
+  | "logo_url"
+  | "theme_key"
+  | "layout_preset"
+  | "tagline"
+  | "cover_url"
+  | "social_links"
+  | "brand_tokens"
 >;
 
 /**
@@ -70,10 +80,14 @@ export type StorefrontViewProps = {
   /** Whether the Outlet chose these games or the catalog ranked them. */
   featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
+  featuredError: boolean;
+  retryFeatured: () => void;
 
   /** The required surface. A view that does not render this fails the contract. */
   games: GameApi[];
   isLoading: boolean;
+  catalogError: boolean;
+  retryCatalog: () => void;
   pagination?: PaginationApi;
   /** ISO-4217 code the prices in `games` are denominated in. */
   currency: string;
@@ -100,6 +114,8 @@ export type StorefrontViewProps = {
   browseHref: (patch: Partial<StorefrontQuery>) => string;
   /** Target for a `<Form action=...>` so search still works without JS. */
   searchAction: string;
+  /** Query entries that must survive every browse/search navigation (preview). */
+  persistentQuery: Readonly<Record<string, string>>;
 };
 
 /**

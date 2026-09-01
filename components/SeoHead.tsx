@@ -21,6 +21,7 @@ export function SeoHead({
   image,
   imageAlt,
   jsonLd,
+  noIndex = false,
 }: {
   locale: AppLocale;
   path: string;
@@ -29,7 +30,18 @@ export function SeoHead({
   image: string;
   imageAlt: string;
   jsonLd?: JsonLd;
+  noIndex?: boolean;
 }) {
+  if (noIndex) {
+    return (
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta name="robots" content="noindex,nofollow,noarchive" />
+      </Head>
+    );
+  }
+
   const canonical = canonicalUrl(locale, path);
   const alternates = languageAlternates(path);
 
