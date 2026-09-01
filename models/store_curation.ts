@@ -28,6 +28,24 @@ export const gameOverrideVisibilitySchema = gameOverrideSchema.pick({
   visibility: true,
 });
 
+export const creatorSelectionSchema = z.discriminatedUnion("strategy", [
+  z.object({
+    strategy: z.literal("FOCUSED"),
+    tags: z.array(z.string().trim().min(1).max(100)).min(1).max(20),
+    game_slugs: z.array(z.string()).max(100).default([]),
+  }),
+  z.object({
+    strategy: z.literal("HANDPICKED"),
+    tags: z.array(z.string()).max(20).default([]),
+    game_slugs: z.array(z.string().trim().min(1)).min(5).max(100),
+  }),
+]);
+
+export type CreatorSelectionDto = z.infer<typeof creatorSelectionSchema>;
+
+export const CREATOR_HANDPICKED_FILTER_TAG =
+  "__manifold_creator_handpicked__" as const;
+
 // Tag filters are stored and matched case-insensitively: "RPG" and "rpg" are
 // the same filter. We canonicalize to lowercase on write and on every lookup
 // so the (store_id, tag) unique constraint dedupes case variants, and resolve
@@ -253,6 +271,88 @@ async function listGameOverridesWithSlugs(storeId: string) {
   }));
 }
 
+// Replaces the creator's initial selection as one desired state. The previous
+// onboarding implementation issued a sequence of independent requests, which
+// could leave a half-curated Outlet when any request failed. Deleting and
+// recreating inside one transaction also makes retries naturally idempotent.
+async function replaceCreatorSelection(
+  storeId: string,
+  selection: CreatorSelectionDto,
+) {
+  const parsed = creatorSelectionSchema.parse(selection);
+  const normalizedTags = [
+    ...new Set(
+      (parsed.strategy === "FOCUSED"
+        ? parsed.tags
+        : [CREATOR_HANDPICKED_FILTER_TAG]
+      ).map(normalizeTag),
+    ),
+  ];
+  const requestedSlugs = [
+    ...new Set(parsed.strategy === "HANDPICKED" ? parsed.game_slugs : []),
+  ];
+
+  return prisma.$transaction(async (transaction) => {
+    const foundStore = await transaction.store.findUnique({
+      where: { id: storeId },
+      select: { id: true },
+    });
+    if (!foundStore) {
+      throw new NotFoundError({
+        message: "Outlet not found.",
+        action: "Check the Outlet and try again.",
+      });
+    }
+
+    const games =
+      requestedSlugs.length > 0
+        ? await transaction.game.findMany({
+            where: { slug: { in: requestedSlugs } },
+            select: { id: true, slug: true },
+          })
+        : [];
+    if (games.length !== requestedSlugs.length) {
+      const foundSlugs = new Set(games.map((game) => game.slug));
+      const missing = requestedSlugs.filter((slug) => !foundSlugs.has(slug));
+      throw new ValidationError({
+        message: `Some selected games were not found: ${missing.join(", ")}.`,
+        action: "Refresh the catalog and choose the games again.",
+      });
+    }
+
+    await transaction.storeTagFilter.deleteMany({
+      where: { store_id: storeId },
+    });
+    await transaction.storeGameOverride.deleteMany({
+      where: { store_id: storeId },
+    });
+
+    await transaction.storeTagFilter.createMany({
+      data: normalizedTags.map((tag) => ({
+        store_id: storeId,
+        tag,
+        mode: "WHITELIST",
+      })),
+    });
+
+    if (games.length > 0) {
+      await transaction.storeGameOverride.createMany({
+        data: games.map((game) => ({
+          store_id: storeId,
+          game_id: game.id,
+          visibility: "SHOW",
+        })),
+      });
+    }
+
+    return {
+      strategy: parsed.strategy,
+      tags: parsed.strategy === "FOCUSED" ? normalizedTags : [],
+      game_slugs: games.map((game) => game.slug),
+    };
+  });
+}
+
 async function getCurationWhereClause(
   storeId: string,
 ): Promise<Prisma.GameWhereInput> {
@@ -346,6 +446,7 @@ const storeCuration = {
   updateGameOverrideVisibility,
   removeGameOverride,
   listGameOverridesWithSlugs,
+  replaceCreatorSelection,
   getCurationWhereClause,
 };
 

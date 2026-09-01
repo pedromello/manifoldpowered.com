@@ -90,7 +90,7 @@ export const ptBR: Record<string, string> = {
   "Search by username or email...": "Buscar por nome de usuário ou e-mail...",
   "Search games": "Buscar jogos",
   "Search games...": "Buscar jogos...",
-  "Search games on Manifold": "Buscar jogos na Manifold",
+  "Search games on Manifold": "Buscar jogos no Manifold",
   "Select...": "Selecione...",
   "Select language": "Selecionar idioma",
   "Show Less": "Mostrar menos",
@@ -138,7 +138,7 @@ export const ptBR: Record<string, string> = {
   Revenue: "Receita",
   Store: "Loja",
   Studio: "Studio",
-  "Manifold logo": "Logo da Manifold",
+  "Manifold logo": "Logo do Manifold",
   "Manifold Store": "Loja Manifold",
   "e.g. RPG": "ex.: RPG",
   "Your account": "Sua conta",
@@ -169,14 +169,14 @@ export const ptBR: Record<string, string> = {
   "Dismiss preview notice": "Dispensar aviso de prévia",
   "Empty Archives": "Arquivos vazios",
   "Explore {name}'s curated catalog on Manifold.":
-    "Explore o catálogo selecionado por {name} na Manifold.",
+    "Explore o catálogo selecionado por {name} no Manifold.",
   "Explore games": "Explorar jogos",
   "Explore the shared catalog": "Explore o catálogo compartilhado",
   "Featured games": "Jogos em destaque",
   "Featured games in {name}": "Jogos em destaque em {name}",
-  "Featured games on Manifold": "Jogos em destaque na Manifold",
+  "Featured games on Manifold": "Jogos em destaque no Manifold",
   "Featured in {name}": "Em destaque em {name}",
-  "Featured on Manifold": "Em destaque na Manifold",
+  "Featured on Manifold": "Em destaque no Manifold",
   "Follow us on X": "Siga-nos no X",
   "Game distribution, powered by communities":
     "Distribuição de jogos impulsionada por comunidades",
@@ -184,15 +184,15 @@ export const ptBR: Record<string, string> = {
     "Os jogos ficam em um só catálogo. As Outlets ajudam você a descobri-los.",
   "Hot right now": "Em alta agora",
   "How it works": "Como funciona",
-  "How Manifold works": "Como a Manifold funciona",
+  "How Manifold works": "Como o Manifold funciona",
   "Independent storefronts": "Outlets independentes",
-  "Just Arrived at Manifold": "Acabaram de chegar à Manifold",
+  "Just Arrived at Manifold": "Acabaram de chegar ao Manifold",
   "Manifold | One library, endless storefronts":
     "Manifold | Uma biblioteca, infinitas Outlets",
   "Manifold is in preview. You can explore games and Outlets while we finish the purchasing experience.":
-    "A Manifold está em versão prévia. Você pode explorar jogos e Outlets enquanto finalizamos a experiência de compra.",
+    "O Manifold está em versão prévia. Você pode explorar jogos e Outlets enquanto finalizamos a experiência de compra.",
   "Network Status: Optimal": "Status da rede: ideal",
-  "New to Manifold?": "Conhecendo a Manifold agora?",
+  "New to Manifold?": "Conhecendo o Manifold agora?",
   "Next Featured game": "Próximo jogo em Destaques",
   "Next media": "Próxima mídia",
   "No games found matching {query}": "Nenhum jogo encontrado para {query}",
@@ -200,7 +200,7 @@ export const ptBR: Record<string, string> = {
   "No other Outlets to show yet.": "Ainda não há outras Outlets para mostrar.",
   "Nothing here yet.": "Ainda não há nada aqui.",
   "Nothing on this channel": "Nada neste canal",
-  "Now on Manifold": "Agora na Manifold",
+  "Now on Manifold": "Agora no Manifold",
   "One library. Endless storefronts.": "Uma biblioteca. Infinitas Outlets.",
   Outlet: "Outlet",
   "Outlet pick": "Escolha da Outlet",
@@ -285,9 +285,9 @@ export const ptBR: Record<string, string> = {
   "Your collection": "Sua coleção",
   "Your library is empty": "Sua biblioteca está vazia",
   "Every game you acquire through Manifold, ready to download from one place.":
-    "Todos os jogos que você adquire pela Manifold, prontos para baixar em um só lugar.",
+    "Todos os jogos que você adquire pelo Manifold, prontos para baixar em um só lugar.",
   "Find a game through Manifold or an independent Outlet. It will appear here after acquisition.":
-    "Encontre um jogo pela Manifold ou por uma Outlet independente. Depois de adquiri-lo, ele aparecerá aqui.",
+    "Encontre um jogo pelo Manifold ou por uma Outlet independente. Depois de adquiri-lo, ele aparecerá aqui.",
   "Purchase history is private and attached to your Manifold account.":
     "O histórico de compras é privado e vinculado à sua conta Manifold.",
   "The amount, currency, date, and referring Outlet recorded for each purchase.":
@@ -364,7 +364,7 @@ export const ptBR: Record<string, string> = {
   "Account requested": "Conta solicitada",
   "Activate Your Manifold Account": "Ative sua conta Manifold",
   "Activate your Manifold early access account.":
-    "Ative sua conta de acesso antecipado da Manifold.",
+    "Ative sua conta de acesso antecipado do Manifold.",
   "Activating your account": "Ativando sua conta",
   "Activation link failed": "Falha no link de ativação",
   "Already have an account?": "Já tem uma conta?",
@@ -379,8 +379,8 @@ export const ptBR: Record<string, string> = {
   "Hold tight.": "Só um instante.",
   "I want to play": "Quero jogar",
   "I want to publish games": "Quero publicar jogos",
-  "Log in to Manifold": "Entre na Manifold",
-  "Log in to Manifold.": "Entre na Manifold.",
+  "Log in to Manifold": "Entre no Manifold",
+  "Log in to Manifold.": "Entre no Manifold.",
   "Login | Manifold": "Entrar | Manifold",
   "No password needed. We will email you a one-time code.":
     "Você não precisa de senha. Enviaremos um código de uso único por e-mail.",
@@ -409,11 +409,11 @@ export const ptBR: Record<string, string> = {
   "You are officially in.": "Sua entrada está confirmada.",
   "Your Manifold account": "Sua conta Manifold",
   "Choose your identity on Manifold. We will email you an activation link.":
-    "Escolha sua identidade na Manifold. Enviaremos um link de ativação por e-mail.",
+    "Escolha sua identidade no Manifold. Enviaremos um link de ativação por e-mail.",
   "We sent you an activation email. Please activate your account within 24 hours.":
     "Enviamos um e-mail de ativação. Ative sua conta em até 24 horas.",
   "Welcome to Manifold. We will notify you as soon as the early access begins.":
-    "Boas-vindas à Manifold. Avisaremos assim que o acesso antecipado começar.",
+    "Boas-vindas ao Manifold. Avisaremos assim que o acesso antecipado começar.",
   "Could not request early access.":
     "Não foi possível solicitar o acesso antecipado.",
   "Could not send the login code.":
@@ -423,9 +423,9 @@ export const ptBR: Record<string, string> = {
     "Seus jogos acompanham você, não a Outlet.",
   "Discover a game through any creator-run Outlet and keep it in the same personal library.":
     "Descubra um jogo em qualquer Outlet administrada por criadores e mantenha-o na mesma biblioteca pessoal.",
-  "Join Manifold": "Faça parte da Manifold",
+  "Join Manifold": "Faça parte do Manifold",
   "One library across every Manifold Outlet":
-    "Uma biblioteca em todas as Outlets da Manifold",
+    "Uma biblioteca em todas as Outlets do Manifold",
   "Passwordless sign-in with a six-digit code":
     "Acesso sem senha com um código de seis dígitos",
   "Purchases and downloads stay with your account":
@@ -442,14 +442,14 @@ export const ptBR: Record<string, string> = {
   "I make games": "Eu crio jogos",
   "I sell games": "Eu vendo jogos",
   "I'll decide later, take me to Manifold":
-    "Vou decidir depois; quero ir para a Manifold",
+    "Vou decidir depois; quero ir para o Manifold",
   "Open an Outlet and earn by curating games for your audience.":
     "Abra uma Outlet e ganhe ao selecionar jogos para seu público.",
   "Ship once. Reach every Outlet.":
     "Publique uma vez. Alcance todas as Outlets.",
   "Turn your taste into income.": "Transforme seu bom gosto em renda.",
   "Welcome to Manifold. What do you want to build?":
-    "Boas-vindas à Manifold. O que você quer criar?",
+    "Boas-vindas ao Manifold. O que você quer criar?",
   "You can change this later.": "Você poderá mudar isso depois.",
 
   // Creator workspace, Studios, and Outlets
@@ -465,6 +465,27 @@ export const ptBR: Record<string, string> = {
   "Choose an Outlet": "Escolher uma Outlet",
   "Clear selected game": "Limpar jogo selecionado",
   "Create your Outlet": "Crie sua Outlet",
+  "Continue a draft or open a live Outlet.":
+    "Continue um rascunho ou abra uma Outlet publicada.",
+  "Published · Open Overview": "Publicada · Abrir visão geral",
+  "Publish & share": "Publicar e compartilhar",
+  "Draft · Continue setup": "Rascunho · Continuar configuração",
+  "We couldn't return your Outlet to draft. Try again.":
+    "Não foi possível devolver sua Outlet ao rascunho. Tente novamente.",
+  "Loading preview...": "Carregando prévia...",
+  "Preview your Outlet": "Veja a prévia da sua Outlet",
+  "Confirm only after the preview finishes loading.":
+    "Confirme somente depois que a prévia terminar de carregar.",
+  "Return this Outlet to draft before editing its live content.":
+    "Devolva esta Outlet ao rascunho antes de editar o conteúdo publicado.",
+  "Returning to draft...": "Voltando ao rascunho...",
+  "Return to draft": "Voltar ao rascunho",
+  "You can view this Outlet, but you do not have editing permission.":
+    "Você pode ver esta Outlet, mas não tem permissão para editá-la.",
+  "Share your Outlet with your audience":
+    "Compartilhe sua Outlet com seu público",
+  "Copy the live link and put your selection where your community already follows you.":
+    "Copie o link publicado e leve sua seleção para onde sua comunidade já acompanha você.",
   "Create Your Outlet | Manifold": "Crie sua Outlet | Manifold",
   "Create your Studio": "Crie seu Studio",
   "Create Your Studio | Manifold": "Crie seu Studio | Manifold",
@@ -555,15 +576,15 @@ export const ptBR: Record<string, string> = {
   "You do not have permission to manage this Outlet's catalog curation.":
     "Você não tem permissão para gerenciar a curadoria do catálogo desta Outlet.",
   "Your Outlet shows the full Manifold catalog by default. You can curate what it shows after creating it.":
-    "Sua Outlet exibe todo o catálogo da Manifold por padrão. Depois de criá-la, você poderá definir o que ela mostra.",
+    "Sua Outlet exibe todo o catálogo do Manifold por padrão. Depois de criá-la, você poderá definir o que ela mostra.",
 
   // Creator value propositions and storefront explainer
   "An Outlet is your own storefront on Manifold. You choose the games, you build the audience, and you earn on what you sell — no inventory and no upfront cost. Every Outlet is powered by the shared Manifold catalog, so you can start selling in minutes.":
-    "Uma Outlet é sua própria loja na Manifold. Você escolhe os jogos, constrói o público e ganha com o que vende — sem estoque e sem custo inicial. Toda Outlet usa o catálogo compartilhado da Manifold, então você pode começar a vender em minutos.",
+    "Uma Outlet é sua própria loja no Manifold. Você escolhe os jogos, constrói o público e ganha com o que vende — sem estoque e sem custo inicial. Toda Outlet usa o catálogo compartilhado do Manifold, então você pode começar a vender em minutos.",
   "Launch an Outlet and earn by selling and curating games to the audience you already have.":
     "Lance uma Outlet e ganhe vendendo e selecionando jogos para o público que você já tem.",
   "Earn on every sale you drive, across the entire Manifold catalog":
-    "Ganhe em cada venda que gerar em todo o catálogo da Manifold",
+    "Ganhe em cada venda que gerar em todo o catálogo do Manifold",
   "Curate a storefront that matches your audience, no inventory required":
     "Crie uma Outlet alinhada ao seu público, sem precisar de estoque",
   "Get paid for discovery — your picks become your revenue":
@@ -577,7 +598,7 @@ export const ptBR: Record<string, string> = {
   "Reach players everywhere, with purchases, downloads, and progress synced":
     "Alcance jogadores em todos os lugares, com compras, downloads e progresso sincronizados",
   "You're exploring the Manifold preview. The games, prices, and Studios shown here are sample content and are not currently for sale.":
-    "Você está explorando a prévia da Manifold. Os jogos, preços e Studios exibidos são conteúdo de demonstração e não estão à venda no momento.",
+    "Você está explorando a prévia do Manifold. Os jogos, preços e Studios exibidos são conteúdo de demonstração e não estão à venda no momento.",
   "Discover games through creators you trust, publish once across the network, or launch an Outlet for your own community.":
     "Descubra jogos por meio de criadores em quem confia, publique uma vez em toda a rede ou lance uma Outlet para sua comunidade.",
   "Creators curate": "Criadores fazem a curadoria",
@@ -669,7 +690,7 @@ export const ptBR: Record<string, string> = {
   "Last updated: {time}": "Última atualização: {time}",
   "Live check": "Verificação em tempo real",
   "Live infrastructure": "Infraestrutura em tempo real",
-  "Manifold status": "Status da Manifold",
+  "Manifold status": "Status do Manifold",
   Manual: "Manual",
   "Max connections": "Máximo de conexões",
   "New Currency": "Nova moeda",
@@ -745,7 +766,7 @@ export const ptBR: Record<string, string> = {
   "Leave empty to take effect now. A future date is stored but won't affect prices until it arrives.":
     "Deixe em branco para entrar em vigor agora. Uma data futura será armazenada, mas só afetará os preços quando chegar.",
   "Manifold is the seller for these purchases. An Outlet records who referred the purchase; your contract of sale is with Manifold.":
-    "A Manifold é a vendedora dessas compras. Uma Outlet registra quem indicou a compra; seu contrato de venda é com a Manifold.",
+    "O Manifold é o vendedor dessas compras. Uma Outlet registra quem indicou a compra; seu contrato de venda é com o Manifold.",
   "Not in effect yet — today's prices still use the previous rate.":
     "Ainda não está em vigor — os preços de hoje continuam usando a cotação anterior.",
   "Nothing earned yet. Commission appears here once a sale is attributed to your Outlet.":
@@ -775,15 +796,15 @@ export const ptBR: Record<string, string> = {
   "Think Steam, but with creator-run storefronts. Games share one catalog and players keep one library.":
     "Pense na Steam, mas com Outlets administradas por criadores. Os jogos compartilham um catálogo, e os jogadores mantêm uma só biblioteca.",
   "Open-source pre-release": "Pré-lançamento de código aberto",
-  "See Manifold from your perspective": "Veja a Manifold da sua perspectiva",
+  "See Manifold from your perspective": "Veja o Manifold da sua perspectiva",
   "Select audience": "Selecionar público",
   "The network": "A rede",
   "Browse storefronts curated by creators across Manifold — each with its own taste, its own picks, and the same catalog behind it.":
-    "Explore Outlets selecionadas por criadores em toda a Manifold — cada uma com seu próprio gosto, suas escolhas e o mesmo catálogo por trás.",
+    "Explore Outlets selecionadas por criadores por todo o Manifold — cada uma com seu próprio gosto, suas escolhas e o mesmo catálogo por trás.",
   "Discover creator-curated game storefronts, publish once across the Manifold network, or launch an Outlet for your community.":
     "Descubra Outlets de jogos selecionadas por criadores, publique uma vez em toda a rede Manifold ou lance uma Outlet para sua comunidade.",
   "Distribute your games and get discovered across every Outlet on Manifold.":
-    "Distribua seus jogos e seja descoberto em todas as Outlets da Manifold.",
+    "Distribua seus jogos e seja descoberto em todas as Outlets do Manifold.",
   "The open-source protocol for community-driven game distribution. Reclaiming the digital shelf for creators and players alike.":
     "O protocolo de código aberto para distribuição de jogos guiada por comunidades. Devolvendo a prateleira digital a criadores e jogadores.",
   "The catalog is shared. Discovery is distributed. Ownership stays simple for the player.":
@@ -798,7 +819,7 @@ export const ptBR: Record<string, string> = {
   "Turn recommendations into a storefront your audience can trust.":
     "Transforme recomendações em uma Outlet na qual seu público confia.",
   "Manifold gives creators a place to curate games, bring their own identity, and earn from the discovery they already make happen.":
-    "A Manifold oferece aos criadores um espaço para selecionar jogos, expressar sua identidade e ganhar com a descoberta que já promovem.",
+    "O Manifold oferece aos criadores um espaço para selecionar jogos, expressar sua identidade e ganhar com a descoberta que já promovem.",
   "Your taste, clearly presented": "Seu bom gosto, apresentado com clareza",
   "Choose the games that fit your audience and give them a focused place to browse instead of another list of affiliate links.":
     "Escolha os jogos que combinam com seu público e ofereça um espaço focado para explorar, em vez de mais uma lista de links de afiliados.",
@@ -807,7 +828,7 @@ export const ptBR: Record<string, string> = {
     "Quando um jogador compra pela sua Outlet, a indicação é atribuída e seu papel na descoberta pode ser recompensado.",
   "No commerce stack to maintain": "Sem infraestrutura de vendas para manter",
   "Manifold handles the shared catalog, player accounts, checkout, and library while your Outlet owns the presentation.":
-    "A Manifold cuida do catálogo compartilhado, das contas dos jogadores, do processo de compra e da biblioteca, enquanto sua Outlet controla a apresentação.",
+    "O Manifold cuida do catálogo compartilhado, das contas dos jogadores, do processo de compra e da biblioteca, enquanto sua Outlet controla a apresentação.",
   "Build the Outlet your community expects":
     "Crie a Outlet que sua comunidade espera",
   "Start with a name and a point of view. You can refine the catalog and identity as your community grows.":
@@ -819,7 +840,7 @@ export const ptBR: Record<string, string> = {
   "Publish once. Let the right communities carry the game further.":
     "Publique uma vez. Deixe as comunidades certas levarem seu jogo mais longe.",
   "Instead of asking every creator to send players somewhere else, Manifold lets their recommendations lead to a storefront built for their audience.":
-    "Em vez de pedir que cada criador envie jogadores para outro lugar, a Manifold permite que suas recomendações levem a uma Outlet feita para seu público.",
+    "Em vez de pedir que cada criador envie jogadores para outro lugar, o Manifold permite que suas recomendações levem a uma Outlet feita para seu público.",
   "One product page": "Uma página de produto",
   "Maintain the build, price, media, and long-form game description in one place while Outlets curate the same listing.":
     "Mantenha a versão, o preço, as mídias e a descrição completa do jogo em um só lugar, enquanto as Outlets selecionam o mesmo anúncio.",
@@ -840,10 +861,10 @@ export const ptBR: Record<string, string> = {
   "Discover through people you trust. Keep everything in one library.":
     "Descubra por meio de pessoas em quem confia. Mantenha tudo em uma só biblioteca.",
   "A Manifold Outlet changes who helps you discover a game, not where your purchase lives. Your account and library work across the network.":
-    "Uma Outlet da Manifold muda quem ajuda você a descobrir um jogo, não onde sua compra fica. Sua conta e biblioteca funcionam em toda a rede.",
+    "Uma Outlet do Manifold muda quem ajuda você a descobrir um jogo, não onde sua compra fica. Sua conta e biblioteca funcionam em toda a rede.",
   "One account and library": "Uma conta e uma biblioteca",
   "A purchase from any Manifold-powered Outlet goes to the same player account, ready to find and download later.":
-    "Uma compra feita em qualquer Outlet da Manifold vai para a mesma conta do jogador, pronta para ser encontrada e baixada depois.",
+    "Uma compra feita em qualquer Outlet do Manifold vai para a mesma conta do jogador, pronta para ser encontrada e baixada depois.",
   "More useful recommendations": "Recomendações mais úteis",
   "Browse focused selections from creators and communities instead of relying on one ranking system to decide what you see.":
     "Explore seleções focadas de criadores e comunidades, em vez de depender de um único sistema de classificação para decidir o que você vê.",
@@ -884,6 +905,221 @@ export const ptBR: Record<string, string> = {
   "Outlets you follow will appear here.":
     "As Outlets que você seguir aparecerão aqui.",
   "{count} more": "Mais {count}",
+
+  // Creator Outlet onboarding and workspace
+  "I create content": "Eu crio conteúdo",
+  "Turn the games you recommend into an Outlet your audience can recognize and revisit.":
+    "Transforme os jogos que você recomenda em uma Outlet que seu público reconheça e queira revisitar.",
+  "We couldn't load your Outlets": "Não foi possível carregar suas Outlets",
+  "Your work is safe. Try loading the workspace again.":
+    "Seu trabalho está seguro. Tente carregar a área de trabalho novamente.",
+  "Create your Outlet | Manifold": "Crie sua Outlet | Manifold",
+  "We couldn't publish your Outlet. Try again.":
+    "Não foi possível publicar sua Outlet. Tente novamente.",
+  "{name} workspace": "Área de trabalho de {name}",
+  "Shape your selection, publish, and follow its progress.":
+    "Defina sua seleção, publique e acompanhe o progresso.",
+  "View live": "Ver publicada",
+  Preview: "Prévia",
+  "Outlet workspace sections": "Seções da área de trabalho da Outlet",
+  "Choose by theme": "Escolher por tema",
+  "Show games that match a theme, or hide themes that do not fit your audience. Your Outlet stays in draft until the selection is intentional.":
+    "Mostre jogos que correspondam a um tema ou oculte temas que não combinam com seu público. Sua Outlet permanece como rascunho até que a seleção seja intencional.",
+  "Show matching": "Mostrar correspondentes",
+  "Hide matching": "Ocultar correspondentes",
+  "Your handpicked shelf is controlling what appears.":
+    "Sua prateleira escolhida a dedo controla o que aparece.",
+  "No themes chosen yet — your Outlet is not ready to publish.":
+    "Nenhum tema foi escolhido — sua Outlet ainda não está pronta para publicação.",
+  "Switch between show and hide": "Alternar entre mostrar e ocultar",
+  "Advanced controls": "Controles avançados",
+  "Show or hide a specific game regardless of your themes.":
+    "Mostre ou oculte um jogo específico independentemente dos seus temas.",
+  Show: "Mostrar",
+  Hide: "Ocultar",
+  "Loading your setup...": "Carregando sua configuração...",
+  "Creator setup": "Configuração do criador",
+  "Build an Outlet your audience will recognize":
+    "Crie uma Outlet que seu público vai reconhecer",
+  "{completed} of {total} steps complete":
+    "{completed} de {total} etapas concluídas",
+  "Outlet setup steps": "Etapas de configuração da Outlet",
+  "Start with your point of view": "Comece pelo seu ponto de vista",
+  "Tell people who this Outlet is for": "Conte para quem esta Outlet foi feita",
+  "A clear name, a short promise, and your niche are enough to begin. You can polish the visual identity later.":
+    "Um nome claro, uma promessa breve e seu nicho são suficientes para começar. Você pode aperfeiçoar a identidade visual depois.",
+  "e.g. Save Point Club": "ex.: Save Point Club",
+  "Your niche": "Seu nicho",
+  "Write it like you would introduce your channel or community.":
+    "Escreva como você apresentaria seu canal ou sua comunidade.",
+  "Cozy indies for slow Sunday mornings":
+    "Indies aconchegantes para manhãs tranquilas de domingo",
+  "Short description": "Descrição curta",
+  "This appears on your Outlet and helps people trust your picks.":
+    "Isto aparece na sua Outlet e ajuda as pessoas a confiarem nas suas escolhas.",
+  "Thoughtful recommendations for players who want memorable worlds without the rush.":
+    "Recomendações cuidadosas para jogadores que buscam mundos memoráveis sem pressa.",
+  "Optional. We'll use your Outlet's initials until you add one.":
+    "Opcional. Usaremos as iniciais da sua Outlet até você adicionar um logo.",
+  "Choose your games": "Escolha seus jogos",
+  "Identity preview": "Prévia da identidade",
+  "Your Outlet": "Sua Outlet",
+  "Your point of view will appear here.": "Seu ponto de vista aparecerá aqui.",
+  "Make an intentional first selection":
+    "Faça uma primeira seleção intencional",
+  "How do you want to shape your shelf?":
+    "Como você quer montar sua prateleira?",
+  "Nothing goes live automatically. Choose a focused niche or handpick the first games your audience should see.":
+    "Nada é publicado automaticamente. Escolha um nicho específico ou selecione a dedo os primeiros jogos que seu público deve ver.",
+  "Selection strategy": "Estratégia de seleção",
+  "Focused niche": "Nicho específico",
+  "Show games that match the themes you choose. Best for a clear genre or mood.":
+    "Mostre jogos que correspondam aos temas escolhidos. Ideal para um gênero ou clima bem definido.",
+  "Handpicked shelf": "Prateleira escolhida a dedo",
+  "Start with five or more specific games. Best when every recommendation is personal.":
+    "Comece com cinco ou mais jogos específicos. Ideal quando cada recomendação é pessoal.",
+  "Choose themes your audience expects": "Escolha temas que seu público espera",
+  "Choose at least one. You can refine this selection later.":
+    "Escolha pelo menos um. Você poderá refinar esta seleção depois.",
+  "Add another theme": "Adicionar outro tema",
+  "Add theme": "Adicionar tema",
+  "Pick your first five games": "Escolha seus primeiros cinco jogos",
+  "Search the catalog and choose the games you would recommend first.":
+    "Busque no catálogo e escolha os jogos que você recomendaria primeiro.",
+  "{count} / 5 selected": "{count} / 5 selecionados",
+  "Your handpicked games will appear here.":
+    "Seus jogos escolhidos a dedo aparecerão aqui.",
+  "Saving selection...": "Salvando seleção...",
+  "Save selection": "Salvar seleção",
+  "Lead with a recommendation": "Comece com uma recomendação",
+  "Choose the game that opens your story":
+    "Escolha o jogo que abre sua história",
+  "Your Featured pick gets the largest space. Add the personal reason you would give a friend — it is required before publishing.":
+    "Sua escolha em Destaques recebe o maior espaço. Acrescente o motivo pessoal que você daria a um amigo — ele é obrigatório antes da publicação.",
+  "Search inside your focused selection":
+    "Buscar dentro da sua seleção específica",
+  "No games match yet": "Ainda não há jogos correspondentes",
+  "Go back and broaden your themes, then try again.":
+    "Volte, amplie seus temas e tente novamente.",
+  "Your recommendation": "Sua recomendação",
+  "Why should they play it?": "Por que as pessoas deveriam jogar?",
+  "It makes every small choice feel meaningful, and the soundtrack stays with you.":
+    "Ele faz cada pequena escolha parecer importante, e a trilha sonora fica com você.",
+  "Choose one game to write your recommendation.":
+    "Escolha um jogo para escrever sua recomendação.",
+  "Saving Featured...": "Salvando Destaque...",
+  "See the preview": "Ver a prévia",
+  "Check the experience": "Confira a experiência",
+  "Preview your Outlet before it goes live":
+    "Veja a prévia da sua Outlet antes da publicação",
+  "This is the same storefront your audience will see, including regional prices and attributed game links.":
+    "Esta é a mesma vitrine que seu público verá, incluindo preços regionais e links de jogos com atribuição.",
+  "Open full preview": "Abrir prévia completa",
+  "Preview of {name}": "Prévia de {name}",
+  "I reviewed the preview": "Revisei a prévia",
+  "We couldn't copy the link. Open the Outlet and copy it from your browser.":
+    "Não foi possível copiar o link. Abra a Outlet e copie-o pelo navegador.",
+  "Checking publication readiness...":
+    "Verificando se está pronta para publicação...",
+  "Readiness unavailable": "Verificação de preparo indisponível",
+  "Ready to share": "Pronta para compartilhar",
+  "Final check": "Verificação final",
+  "Your Outlet is live": "Sua Outlet está publicada",
+  "Publish when every promise is true":
+    "Publique quando todas as promessas forem cumpridas",
+  "Copy your link and invite your audience into the selection you built.":
+    "Copie seu link e convide seu público para conhecer a seleção que você criou.",
+  "The server checks the real Outlet — not just this form — before it can go live.":
+    "O servidor verifica a Outlet real — não apenas este formulário — antes da publicação.",
+  "Publication checklist": "Checklist de publicação",
+  Ready: "Pronta",
+  "Needs attention": "Requer atenção",
+  "Link copied": "Link copiado",
+  "Copy Outlet link": "Copiar link da Outlet",
+  "Go to Overview": "Ir para a visão geral",
+  "Publishing...": "Publicando...",
+  "Publish Outlet": "Publicar Outlet",
+  "Saving your progress...": "Salvando seu progresso...",
+  "Progress saved on this device": "Progresso salvo neste dispositivo",
+  "Progress could not be saved": "Não foi possível salvar o progresso",
+  "We couldn't save your selection. Try again.":
+    "Não foi possível salvar sua seleção. Tente novamente.",
+  "We couldn't save your Featured pick. Try again.":
+    "Não foi possível salvar sua escolha em Destaques. Tente novamente.",
+  "We couldn't publish your Outlet. Review the checklist and try again.":
+    "Não foi possível publicar sua Outlet. Revise o checklist e tente novamente.",
+  "We couldn't check whether this Outlet is ready.":
+    "Não foi possível verificar se esta Outlet está pronta.",
+  "Loading your Outlet overview...":
+    "Carregando a visão geral da sua Outlet...",
+  "We couldn't load your Outlet overview":
+    "Não foi possível carregar a visão geral da sua Outlet",
+  "Your work is safe. Try loading it again.":
+    "Seu trabalho está seguro. Tente carregá-lo novamente.",
+  "Your launch status isn't available yet":
+    "O status de lançamento ainda não está disponível",
+  "Give your Outlet its identity": "Dê uma identidade à sua Outlet",
+  "Introduce your point of view and what your audience can expect.":
+    "Apresente seu ponto de vista e o que seu público pode esperar.",
+  "Edit identity": "Editar identidade",
+  "Choose a clear selection": "Escolha uma seleção clara",
+  "Pick a focus instead of showing the entire catalog by default.":
+    "Defina um foco em vez de mostrar todo o catálogo por padrão.",
+  "Choose selection": "Escolher seleção",
+  "Add games your audience will care about":
+    "Adicione jogos relevantes para seu público",
+  "Make sure your intentional selection has something to explore.":
+    "Garanta que sua seleção intencional tenha algo para explorar.",
+  "Add games": "Adicionar jogos",
+  "Lead with a personal recommendation": "Comece com uma recomendação pessoal",
+  "Feature a standout game and tell people why you chose it.":
+    "Destaque um jogo marcante e conte por que você o escolheu.",
+  "Create Featured pick": "Criar escolha em Destaques",
+  Published: "Publicada",
+  Draft: "Rascunho",
+  "Live since {date}": "Publicada desde {date}",
+  "Your corner of Manifold is taking shape.":
+    "Seu espaço no Manifold está ganhando forma.",
+  "Publishing is unavailable right now.":
+    "A publicação está indisponível no momento.",
+  "Launch checklist": "Checklist de lançamento",
+  "Everything is in place": "Está tudo pronto",
+  "Build a place worth following": "Crie um espaço que valha a pena acompanhar",
+  "{completed} of {total} complete": "{completed} de {total} concluídos",
+  "Outlet launch checklist": "Checklist de lançamento da Outlet",
+  Complete: "Concluído",
+  "Not complete": "Incompleto",
+  Workspace: "Área de trabalho",
+  "Keep shaping your Outlet": "Continue aprimorando sua Outlet",
+  "Outlet editing shortcuts": "Atalhos de edição da Outlet",
+  "Identity and story": "Identidade e história",
+  "Your selection": "Sua seleção",
+  "Featured recommendation": "Recomendação em Destaques",
+  "Your Outlet is public": "Sua Outlet está pública",
+  "See it as your audience will": "Veja como seu público verá",
+  "Open the live page whenever you want to check or share it.":
+    "Abra a página publicada quando quiser conferi-la ou compartilhá-la.",
+  "Preview is private until you choose to publish.":
+    "A prévia é privada até você decidir publicar.",
+  "Your next move": "Seu próximo passo",
+  "See your Outlet in the world": "Veja sua Outlet no mundo",
+  "Your live page is ready to visit and share with your audience.":
+    "Sua página publicada está pronta para ser visitada e compartilhada com seu público.",
+  "One focused step keeps your Outlet moving toward launch.":
+    "Um passo focado mantém sua Outlet avançando rumo ao lançamento.",
+  "Continue building": "Continuar criando",
+  "Checking your launch": "Verificando seu lançamento",
+  "Your checklist is complete": "Seu checklist está completo",
+  "Refresh the launch status before taking the next step.":
+    "Atualize o status de lançamento antes de avançar.",
+  "Refresh status": "Atualizar status",
+  "Take one final look": "Faça uma última revisão",
+  "See the complete experience before sharing it with anyone.":
+    "Veja a experiência completa antes de compartilhá-la com alguém.",
+  "Ready when you are": "Pronta quando você estiver",
+  "Bring your Outlet to your audience": "Leve sua Outlet ao seu público",
+  "Publishing makes this page live. Nothing changes until you choose it.":
+    "A publicação coloca esta página no ar. Nada muda até você decidir.",
 
   // Dynamic labels
   Pending: "Pendente",

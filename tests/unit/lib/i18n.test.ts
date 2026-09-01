@@ -131,6 +131,15 @@ describe("i18n catalog", () => {
     expect(invalid).toEqual([]);
   });
 
+  test("uses masculine articles and contractions for Manifold in pt-BR", () => {
+    const feminineManifold = /\b(?:a|da|na|pela)\s+Manifold\b|à\s+Manifold\b/i;
+    const invalid = Object.values(ptBR).filter((translation) =>
+      feminineManifold.test(translation),
+    );
+
+    expect(invalid).toEqual([]);
+  });
+
   test.each(["Manifold", "Outlet", "Studio"])(
     "keeps the protected name %s when it appears in source copy",
     (protectedName) => {

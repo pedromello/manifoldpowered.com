@@ -14,9 +14,20 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
+import { CreatorOutletOverview } from "components/creator/CreatorOutletOverview";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
+import {
+  fetchOutletPublication,
+  updateOutletPublication,
+} from "lib/creator-outlet-client";
+import {
+  CREATOR_HANDPICKED_FILTER_TAG,
+  loadCreatorOutletDraft,
+  saveCreatorOutletDraft,
+  type OutletPublicationContract,
+} from "lib/creator-lifecycle";
 import { formatMoney } from "lib/price";
 import { useI18n } from "lib/i18n";
 
@@ -27,6 +38,8 @@ interface StoreApi {
   description: string | null;
   logo_url: string | null;
   owner_id: string;
+  status?: "DRAFT" | "PUBLISHED";
+  published_at?: string | null;
 }
 
 interface TagFilterApi {
@@ -77,19 +90,66 @@ const fetcher = (url: string) =>
     return res.json();
   });
 
-type Tab = "featured" | "curation" | "settings" | "sales" | "earnings";
+type Tab =
+  | "overview"
+  | "featured"
+  | "curation"
+  | "settings"
+  | "sales"
+  | "earnings";
+
+const tabs: [Tab, string][] = [
+  ["overview", "Overview"],
+  ["featured", "Featured"],
+  ["curation", "Your games"],
+  ["settings", "Identity"],
+  ["sales", "Sales"],
+  ["earnings", "Earnings"],
+];
+
+function isTab(value: unknown): value is Tab {
+  return typeof value === "string" && tabs.some(([tab]) => tab === value);
+}
+
+interface CurrentUserApi {
+  id: string;
+}
 
 export default function StoreManagePage() {
   const router = useRouter();
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
-  const [tab, setTab] = useState<Tab>("featured");
+  const tab = isTab(router.query.tab) ? router.query.tab : "overview";
+  const [previewedAt, setPreviewedAt] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const {
     data: storeData,
     isLoading: isStoreLoading,
     error: storeError,
-  } = useSWR<StoreApi>(slug ? `/api/v1/stores/${slug}` : null, fetcher);
+  } = useSWR<StoreApi>(
+    slug ? `/api/v1/stores/${slug}?preview=1` : null,
+    fetcher,
+  );
+
+  const { data: currentUser } = useSWR<CurrentUserApi>(
+    "/api/v1/user",
+    fetcher,
+    { shouldRetryOnError: false },
+  );
+
+  const {
+    data: publication,
+    isLoading: isPublicationLoading,
+    error: publicationError,
+    mutate: mutatePublication,
+  } = useSWR<OutletPublicationContract>(
+    slug ? `/api/v1/stores/${slug}/publication` : null,
+    () => fetchOutletPublication(slug as string),
+    { shouldRetryOnError: false },
+  );
 
   const {
     data: tagFilters,
@@ -99,6 +159,71 @@ export default function StoreManagePage() {
     slug ? `/api/v1/stores/${slug}/tag-filters` : null,
     fetcher,
   );
+
+  useEffect(() => {
+    if (!storeData) return;
+    const localDraft = loadCreatorOutletDraft(localStorage, storeData.owner_id);
+    if (localDraft?.storeSlug === storeData.slug) {
+      setPreviewedAt(localDraft.previewedAt);
+    }
+  }, [storeData]);
+
+  function markPreviewed() {
+    if (!storeData) return;
+    const timestamp = new Date().toISOString();
+    setPreviewedAt(timestamp);
+    const localDraft = loadCreatorOutletDraft(localStorage, storeData.owner_id);
+    if (localDraft?.storeSlug === storeData.slug) {
+      saveCreatorOutletDraft(localStorage, {
+        ...localDraft,
+        previewedAt: timestamp,
+        currentStep: "PUBLISH",
+        updatedAt: timestamp,
+      });
+    }
+  }
+
+  async function publishOutlet() {
+    if (!storeData) return;
+    setIsPublishing(true);
+    setPublishError(null);
+    try {
+      const updated = await updateOutletPublication(storeData.slug, "publish");
+      await mutatePublication(updated, { revalidate: false });
+    } catch (error) {
+      setPublishError(
+        error instanceof Error
+          ? error.message
+          : t("We couldn't publish your Outlet. Try again."),
+      );
+      await mutatePublication();
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function unpublishOutlet() {
+    if (!storeData) return;
+    setIsUnpublishing(true);
+    setPublishError(null);
+    try {
+      const updated = await updateOutletPublication(
+        storeData.slug,
+        "unpublish",
+      );
+      await mutatePublication(updated, { revalidate: false });
+      await router.replace(`/store/${storeData.slug}/manage?tab=overview`);
+    } catch (error) {
+      setPublishError(
+        error instanceof Error
+          ? error.message
+          : t("We couldn't return your Outlet to draft. Try again."),
+      );
+      await mutatePublication();
+    } finally {
+      setIsUnpublishing(false);
+    }
+  }
 
   if (isStoreLoading || !slug) {
     return (
@@ -116,6 +241,29 @@ export default function StoreManagePage() {
     );
   }
 
+  const isPublished = publication?.status === "PUBLISHED";
+  const isOwner = currentUser?.id === storeData.owner_id;
+  const canEdit =
+    publication?.capabilities?.edit ??
+    Boolean(isOwner || (!isTagFiltersLoading && !tagFiltersError));
+  const canPublish = publication?.capabilities?.publish ?? Boolean(isOwner);
+  const canUnpublish = publication?.capabilities?.unpublish ?? Boolean(isOwner);
+  const effectiveTab =
+    isPublished && ["featured", "curation", "settings"].includes(tab)
+      ? "overview"
+      : tab;
+  const visibleTabs = isPublished
+    ? tabs.filter(([value]) =>
+        ["overview", "sales", "earnings"].includes(value),
+      )
+    : tabs;
+  const visibleTagFilters = (tagFilters ?? []).filter(
+    (filter) => filter.tag !== CREATOR_HANDPICKED_FILTER_TAG,
+  );
+  const isHandpicked = (tagFilters ?? []).some(
+    (filter) => filter.tag === CREATOR_HANDPICKED_FILTER_TAG,
+  );
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#0b0812] pb-24 text-white">
       <Head>
@@ -126,53 +274,77 @@ export default function StoreManagePage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black break-words">
-              {t("Manage {name}", { name: storeData.name })}
+              {t("{name} workspace", { name: storeData.name })}
             </h1>
             <p className="text-white/50 text-sm font-bold mt-1">
-              {t("Curate your Outlet and track your sales.")}
+              {t("Shape your selection, publish, and follow its progress.")}
             </p>
           </div>
           <Link
-            href={`/store/${storeData.slug}`}
-            className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
+            href={
+              isPublished
+                ? `/store/${storeData.slug}`
+                : `/store/${storeData.slug}?preview=1`
+            }
+            className="flex min-h-11 w-fit shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-violet-400"
           >
-            {t("View my Outlet")}
+            {isPublished ? t("View live") : t("Preview")}
             <ExternalLink size={14} />
           </Link>
         </div>
 
         {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
-            Four tabs do not fit a 390px viewport: without this the row pushes
+            Workspace sections do not fit a 390px viewport: without this the row pushes
             the page into horizontal scroll and the last tab sits off-screen
             where it cannot be tapped at all. */}
-        <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(
-            [
-              ["featured", "Featured"],
-              ["curation", "Curation"],
-              ["settings", "Settings"],
-              ["sales", "Sales"],
-              ["earnings", "Earnings"],
-            ] as [Tab, string][]
-          ).map(([value, label]) => (
-            <button
+        <nav
+          aria-label={t("Outlet workspace sections")}
+          className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {visibleTabs.map(([value, label]) => (
+            <Link
               key={value}
-              onClick={() => setTab(value)}
-              className={`shrink-0 px-4 py-3 text-sm font-black uppercase tracking-wider transition-colors border-b-2 ${
-                tab === value
+              href={{
+                pathname: `/store/${storeData.slug}/manage`,
+                query: { tab: value },
+              }}
+              aria-current={effectiveTab === value ? "page" : undefined}
+              className={`flex min-h-11 shrink-0 items-center border-b-2 px-4 py-3 text-sm font-black uppercase tracking-wider outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 ${
+                effectiveTab === value
                   ? "text-white border-white"
                   : "text-white/40 border-transparent hover:text-white/70"
               }`}
             >
               {t(label)}
-            </button>
+            </Link>
           ))}
-        </div>
+        </nav>
 
-        {tab === "featured" && (
+        {effectiveTab === "overview" && (
+          <CreatorOutletOverview
+            store={storeData}
+            publication={publication ?? null}
+            loading={isPublicationLoading}
+            error={publicationError ?? null}
+            retry={() => mutatePublication()}
+            previewedAt={previewedAt}
+            onPreview={markPreviewed}
+            onPublish={publishOutlet}
+            onUnpublish={unpublishOutlet}
+            isPublishing={isPublishing}
+            isUnpublishing={isUnpublishing}
+            publishError={publishError}
+            canEdit={canEdit}
+            canPublish={canPublish}
+            canUnpublish={canUnpublish}
+          />
+        )}
+
+        {effectiveTab === "featured" && canEdit && (
           <FeaturedTab storeSlug={storeData.slug} storeName={storeData.name} />
         )}
-        {tab === "curation" &&
+        {effectiveTab === "curation" &&
+          canEdit &&
           (tagFiltersError ? (
             <p className="text-rose-300 font-bold text-sm">
               {t(
@@ -182,13 +354,18 @@ export default function StoreManagePage() {
           ) : (
             <CurationTab
               storeSlug={storeData.slug}
-              tagFilters={tagFilters ?? []}
+              tagFilters={visibleTagFilters}
               isTagFiltersLoading={isTagFiltersLoading}
+              isHandpicked={isHandpicked}
             />
           ))}
-        {tab === "settings" && <SettingsTab store={storeData} />}
-        {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
-        {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+        {effectiveTab === "settings" && canEdit && (
+          <SettingsTab store={storeData} />
+        )}
+        {effectiveTab === "sales" && <SalesTab storeSlug={storeData.slug} />}
+        {effectiveTab === "earnings" && (
+          <EarningsTab storeSlug={storeData.slug} />
+        )}
       </div>
     </div>
   );
@@ -479,10 +656,11 @@ function FeaturedTab({
 
                   <label className="mt-4 block">
                     <span className="text-xs font-black uppercase tracking-wider text-white/45">
-                      {t("Why do you recommend it?")}{" "}
-                      <span className="normal-case">({t("optional")})</span>
+                      {t("Why do you recommend it?")}
                     </span>
                     <textarea
+                      required
+                      aria-required="true"
                       value={entry.recommendationReason}
                       onChange={(event) =>
                         updateReason(index, event.target.value)
@@ -529,7 +707,14 @@ function FeaturedTab({
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSubmitting || recommendations.length === 0}
+          disabled={
+            isSubmitting ||
+            recommendations.length === 0 ||
+            recommendations.some(
+              (recommendation) =>
+                recommendation.recommendationReason.trim().length === 0,
+            )
+          }
           className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isSubmitting ? t("Saving...") : t("Save Featured")}
@@ -543,10 +728,12 @@ function CurationTab({
   storeSlug,
   tagFilters,
   isTagFiltersLoading,
+  isHandpicked,
 }: {
   storeSlug: string;
   tagFilters: TagFilterApi[];
   isTagFiltersLoading?: boolean;
+  isHandpicked?: boolean;
 }) {
   const { mutate } = useSWRConfig();
   const { t, translateError } = useI18n();
@@ -602,10 +789,10 @@ function CurationTab({
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-black">{t("Tag Filters")}</h2>
+          <h2 className="text-lg font-black">{t("Choose by theme")}</h2>
           <p className="text-white/50 text-sm font-bold mt-1">
             {t(
-              "Whitelist tags to show only matching games, or blacklist tags to hide them. With no filters, your Outlet shows the full catalog.",
+              "Show games that match a theme, or hide themes that do not fit your audience. Your Outlet stays in draft until the selection is intentional.",
             )}
           </p>
         </div>
@@ -625,8 +812,8 @@ function CurationTab({
             }
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
           >
-            <option value="WHITELIST">{t("Whitelist")}</option>
-            <option value="BLACKLIST">{t("Blacklist")}</option>
+            <option value="WHITELIST">{t("Show matching")}</option>
+            <option value="BLACKLIST">{t("Hide matching")}</option>
           </select>
           <button
             type="submit"
@@ -648,7 +835,11 @@ function CurationTab({
             <Loader2 className="animate-spin text-white/30" size={20} />
           ) : tagFilters.length === 0 ? (
             <p className="text-white/30 text-sm font-bold italic">
-              {t("No tag filters yet — showing the full catalog.")}
+              {isHandpicked
+                ? t("Your handpicked shelf is controlling what appears.")
+                : t(
+                    "No themes chosen yet — your Outlet is not ready to publish.",
+                  )}
             </p>
           ) : (
             tagFilters.map((filter) => (
@@ -663,7 +854,7 @@ function CurationTab({
                 <button
                   onClick={() => handleToggleMode(filter)}
                   className="hover:underline"
-                  title={t("Toggle whitelist/blacklist")}
+                  title={t("Switch between show and hide")}
                 >
                   {filter.mode === "WHITELIST" ? "✓" : "✕"} {filter.tag}
                 </button>
@@ -689,7 +880,7 @@ function CurationTab({
             size={16}
             className={`transition-transform ${isOverridesOpen ? "rotate-180" : ""}`}
           />
-          {t("Advanced: Per-Game Overrides")}
+          {t("Advanced controls")}
         </button>
 
         {isOverridesOpen && <GameOverridesPanel storeSlug={storeSlug} />}
@@ -746,9 +937,7 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
   return (
     <div className="mt-4 pl-6 border-l border-white/10 flex flex-col gap-4">
       <p className="text-white/50 text-sm font-bold">
-        {t(
-          "Force-show or force-hide a specific game, regardless of tag filters.",
-        )}
+        {t("Show or hide a specific game regardless of your themes.")}
       </p>
 
       <form onSubmit={handleAddOverride} className="flex flex-wrap gap-2">
@@ -785,8 +974,8 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
           onChange={(e) => setVisibility(e.target.value as "SHOW" | "HIDE")}
           className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
         >
-          <option value="SHOW">{t("Force show")}</option>
-          <option value="HIDE">{t("Force hide")}</option>
+          <option value="SHOW">{t("Show")}</option>
+          <option value="HIDE">{t("Hide")}</option>
         </select>
         <button
           type="submit"
