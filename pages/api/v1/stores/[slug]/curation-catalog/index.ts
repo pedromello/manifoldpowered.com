@@ -63,6 +63,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const featuredIds = [...state.featured_by_game_id.keys()];
   const newReleaseCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const catalogPage = await game.findCurationCatalogPage({
+    storeId: foundStore.id,
     page: query.data.page,
     limit: query.data.limit,
     q: query.data.q,

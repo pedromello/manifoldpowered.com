@@ -1069,6 +1069,7 @@ function andGameWhere(
  * and card metadata.
  */
 async function findCurationCatalogPage({
+  storeId,
   page,
   limit,
   q,
@@ -1081,6 +1082,7 @@ async function findCurationCatalogPage({
   priceableGameIds,
   newReleaseCutoff,
 }: {
+  storeId: string;
   page: number;
   limit: number;
   q?: string;
@@ -1108,6 +1110,7 @@ async function findCurationCatalogPage({
 
   const saleRows = await prisma.sale.groupBy({
     by: ["game_id"],
+    where: { store_id: storeId },
     _count: { _all: true },
   });
   const salesByGameId = new Map(

@@ -1,4 +1,5 @@
 import webserver from "infra/webserver";
+import { prisma } from "infra/database";
 import gameModel from "models/game";
 import orchestrator from "tests/orchestrator";
 
@@ -88,5 +89,67 @@ describe("GET /api/v1/stores/[slug]/curation-catalog", () => {
     expect(
       body.games.every((game: { in_outlet: boolean }) => game.in_outlet),
     ).toBe(true);
+  });
+
+  test("does not leak sales counts or rankings from another Outlet", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const managedStore = await orchestrator.createStore(owner.id, {
+      name: "Managed Sales Scope",
+      catalog_mode: "ALL",
+    });
+    const otherStore = await orchestrator.createStore(owner.id, {
+      name: "Other Sales Scope",
+      catalog_mode: "ALL",
+    });
+    const buyer = await orchestrator.createUser();
+
+    const managedBestSeller = await orchestrator.createGame(owner.id, {
+      title: "Managed Best Seller",
+    });
+    await gameModel.makePublic(managedBestSeller.id);
+    const otherOutletBestSeller = await orchestrator.createGame(owner.id, {
+      title: "Other Outlet Best Seller",
+    });
+    await gameModel.makePublic(otherOutletBestSeller.id);
+
+    await prisma.sale.createMany({
+      data: [
+        {
+          user_id: buyer.id,
+          game_id: managedBestSeller.id,
+          store_id: managedStore.id,
+          price_at_sale: 10,
+          currency: "USD",
+        },
+        ...Array.from({ length: 4 }, () => ({
+          user_id: buyer.id,
+          game_id: otherOutletBestSeller.id,
+          store_id: otherStore.id,
+          price_at_sale: 10,
+          currency: "USD",
+        })),
+      ],
+    });
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${managedStore.slug}/curation-catalog?status=BEST_SELLERS&order=BEST_SELLING`,
+      { headers: { Cookie: `session_id=${session.token}` } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.totals.best_sellers).toBe(1);
+    expect(body.games).toHaveLength(1);
+    expect(body.games[0]).toMatchObject({
+      id: managedBestSeller.id,
+      sales_count: 1,
+    });
+    expect(
+      body.games.some(
+        (game: { id: string }) => game.id === otherOutletBestSeller.id,
+      ),
+    ).toBe(false);
   });
 });

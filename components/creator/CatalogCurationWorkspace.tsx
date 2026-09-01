@@ -243,6 +243,14 @@ export function CatalogCurationWorkspace({
       ]
     : [];
 
+  async function refreshCatalogState() {
+    await Promise.allSettled([
+      mutate(),
+      mutateGlobal(`/api/v1/stores/${storeSlug}?preview=1`),
+      mutateGlobal(`/api/v1/stores/${storeSlug}/publication`),
+    ]);
+  }
+
   function toggleGame(game: CurationGame) {
     setPendingAction(null);
     setBulkPreview(null);
@@ -326,6 +334,7 @@ export function CatalogCurationWorkspace({
       );
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshCatalogState();
         setFeedback({
           tone: "error",
           message: translateError(
@@ -352,6 +361,15 @@ export function CatalogCurationWorkspace({
             : t("No manual changes were needed."),
         ...(body.undo_available && { batchId: body.batch_id }),
       });
+    } catch {
+      // The request may have reached the server even when its response was
+      // lost. Revalidate, but keep the operation id, preview and selection so
+      // the idempotent retry remains safe.
+      await refreshCatalogState();
+      setFeedback({
+        tone: "error",
+        message: t("The catalog change could not be saved. Try again safely."),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -373,17 +391,28 @@ export function CatalogCurationWorkspace({
       );
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshCatalogState();
         setFeedback({
           tone: "error",
           message: translateError(
             body?.message,
             "This change can no longer be safely undone.",
           ),
+          batchId,
         });
         return;
       }
       await mutate();
       setFeedback({ tone: "success", message: t("Last change undone.") });
+    } catch {
+      // Undo is idempotent server-side. Keep the batch id visible so the
+      // creator can retry after the refreshed state is inspected.
+      await refreshCatalogState();
+      setFeedback({
+        tone: "error",
+        message: t("This change can no longer be safely undone."),
+        batchId,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -408,6 +437,7 @@ export function CatalogCurationWorkspace({
       );
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshCatalogState();
         setFeedback({
           tone: "error",
           message: translateError(
@@ -428,6 +458,15 @@ export function CatalogCurationWorkspace({
             ? "Full catalog kept. You can hide exceptions anytime."
             : "Selection mode started. Show at least five games to get ready.",
         ),
+      });
+    } catch {
+      // Mode changes bump the draft revision. Always re-fetch before offering
+      // the still-visible selector again so a lost response cannot leave the
+      // UI claiming the old default rule.
+      await refreshCatalogState();
+      setFeedback({
+        tone: "error",
+        message: t("The catalog strategy could not be saved."),
       });
     } finally {
       setIsSaving(false);

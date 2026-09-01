@@ -109,6 +109,37 @@ interface TagFilterImpactApi {
   unchanged_count: number;
 }
 
+export function parseTagRuleChangeReceipt(value: unknown): {
+  changeId: string;
+  draftRevision: number;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const body = value as Record<string, unknown>;
+  if (
+    typeof body.change_id !== "string" ||
+    body.change_id.trim().length === 0 ||
+    typeof body.draft_revision !== "number" ||
+    !Number.isSafeInteger(body.draft_revision) ||
+    body.draft_revision < 1
+  ) {
+    return null;
+  }
+  return {
+    changeId: body.change_id,
+    draftRevision: body.draft_revision,
+  };
+}
+
+function parseDraftRevision(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const revision = (value as Record<string, unknown>).draft_revision;
+  return typeof revision === "number" &&
+    Number.isSafeInteger(revision) &&
+    revision >= 1
+    ? revision
+    : null;
+}
+
 interface GameOverrideApi {
   id: string;
   game_slug: string;
@@ -1215,6 +1246,18 @@ function CurationTab({
     void mutate(publicationEndpoint(storeSlug));
   }, [draftRevision, mutate, storeSlug]);
 
+  async function refreshRuleState() {
+    await Promise.allSettled([
+      mutate(tagFiltersKey),
+      mutate(publicationEndpoint(storeSlug)),
+      mutate(
+        (key) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
+      ),
+    ]);
+  }
+
   async function previewRuleChange({
     action,
     targetTag,
@@ -1256,6 +1299,8 @@ function CurationTab({
         previous,
         impact: body,
       });
+    } catch {
+      setError(t("Failed to preview tag rule impact."));
     } finally {
       setIsPreviewingRule(false);
     }
@@ -1293,22 +1338,35 @@ function CurationTab({
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshRuleState();
         setError(translateError(body?.message, "Failed to update tag rule."));
         return;
       }
-      setDraftRevision(body.draft_revision);
-      setLastRuleChange(
-        body.change_id
-          ? { changeId: body.change_id, draftRevision: body.draft_revision }
-          : null,
-      );
+      const receipt = parseTagRuleChangeReceipt(body);
+      if (!receipt) {
+        // A successful mutation without its change id cannot be offered for a
+        // blind undo or replay. Re-fetch the authoritative rules, keep the
+        // form input, and require a fresh impact preview for the retry.
+        await refreshRuleState();
+        setLastRuleChange(null);
+        setPendingRule(null);
+        setError(t("Failed to update tag rule."));
+        return;
+      }
+      setDraftRevision(receipt.draftRevision);
+      setLastRuleChange(receipt);
       setSuccess(t("Tag rule saved."));
       setTag("");
       setPendingRule(null);
-      await Promise.all([
-        mutate(tagFiltersKey),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      await refreshRuleState();
+    } catch {
+      // The server may have committed before the connection was lost. Refresh
+      // first and discard only the stale impact preview; the typed tag remains
+      // available for a fresh, safe preview/retry.
+      await refreshRuleState();
+      setLastRuleChange(null);
+      setPendingRule(null);
+      setError(t("Failed to update tag rule."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1334,16 +1392,26 @@ function CurationTab({
       );
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshRuleState();
         setError(translateError(body?.message, "Failed to undo tag rule."));
         return;
       }
+      const resultDraftRevision = parseDraftRevision(body);
+      if (resultDraftRevision === null) {
+        await refreshRuleState();
+        setLastRuleChange(null);
+        setError(t("Failed to undo tag rule."));
+        return;
+      }
       setSuccess(t("Last change undone."));
-      setDraftRevision(body.draft_revision);
+      setDraftRevision(resultDraftRevision);
       setLastRuleChange(null);
-      await Promise.all([
-        mutate(tagFiltersKey),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      await refreshRuleState();
+    } catch {
+      // The undo endpoint is idempotent. Preserve its change id for retry after
+      // the current rule list and publication readiness have been refreshed.
+      await refreshRuleState();
+      setError(t("Failed to undo tag rule."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1611,6 +1679,18 @@ function GameOverridesPanel({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  async function refreshOverrideState() {
+    await Promise.allSettled([
+      mutate(overridesKey),
+      mutate(
+        (key) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
+      ),
+      mutate(publicationEndpoint(storeSlug)),
+    ]);
+  }
+
   async function handleAddOverride(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedGame || draftRevision === null) return;
@@ -1628,19 +1708,17 @@ function GameOverridesPanel({
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshOverrideState();
         setError(translateError(body?.message, "Failed to add game override."));
         return;
       }
       setSelectedGame(null);
-      await Promise.all([
-        mutate(overridesKey),
-        mutate(
-          (key) =>
-            typeof key === "string" &&
-            key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
-        ),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      await refreshOverrideState();
+    } catch {
+      // Keep the selected game and intended visibility available for retry,
+      // while refreshing in case the response was lost after persistence.
+      await refreshOverrideState();
+      setError(t("Failed to add game override."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1649,30 +1727,31 @@ function GameOverridesPanel({
   async function handleRemoveOverride(override: GameOverrideApi) {
     if (draftRevision === null) return;
     setError(null);
-    const response = await fetch(
-      `${overridesKey}/${encodeURIComponent(override.game_slug)}`,
-      {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expected_draft_revision: draftRevision }),
-      },
-    );
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(
-        translateError(body?.message, "Failed to remove game override."),
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(
+        `${overridesKey}/${encodeURIComponent(override.game_slug)}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_draft_revision: draftRevision }),
+        },
       );
-      return;
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        await refreshOverrideState();
+        setError(
+          translateError(body?.message, "Failed to remove game override."),
+        );
+        return;
+      }
+      await refreshOverrideState();
+    } catch {
+      await refreshOverrideState();
+      setError(t("Failed to remove game override."));
+    } finally {
+      setIsSubmitting(false);
     }
-    await Promise.all([
-      mutate(overridesKey),
-      mutate(
-        (key) =>
-          typeof key === "string" &&
-          key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
-      ),
-      mutate(publicationEndpoint(storeSlug)),
-    ]);
   }
 
   return (
@@ -1731,7 +1810,10 @@ function GameOverridesPanel({
       </form>
 
       {error && (
-        <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300"
+        >
           {error}
         </div>
       )}
