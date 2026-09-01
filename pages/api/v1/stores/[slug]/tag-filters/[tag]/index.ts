@@ -67,7 +67,11 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const result = optionalExpectedRevisionSchema.safeParse(req.body ?? {});
+  const requestBody =
+    req.body === "" || req.body === null || req.body === undefined
+      ? {}
+      : req.body;
+  const result = optionalExpectedRevisionSchema.safeParse(requestBody);
   if (!result.success)
     throw new ValidationError({ context: result.error.issues });
   await storeCuration.removeTagFilter(
