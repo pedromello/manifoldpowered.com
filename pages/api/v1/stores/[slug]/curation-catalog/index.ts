@@ -15,6 +15,8 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(48).default(12),
   q: z.string().trim().max(120).optional(),
   tag: z.string().trim().max(100).optional(),
+  locale: z.enum(["en", "pt-BR"]).default("en"),
+  order: z.enum(["TITLE_ASC", "NEWEST", "BEST_SELLING"]).default("TITLE_ASC"),
   status: z
     .enum([
       "ALL",
@@ -52,30 +54,47 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const { currency, gameIds } =
+  const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
-  const catalogGames = await game.findAllForCuration(gameIds);
-  const [pricingContext, state] = await Promise.all([
-    storefrontPricing.contextFor(currency, catalogGames, req),
-    storeCuration.getCurationManagementState(
-      foundStore.id,
-      catalogGames.map((catalogGame) => catalogGame.id),
-    ),
+  const [state, curationWhere] = await Promise.all([
+    storeCuration.getCurationManagementState(foundStore.id, []),
+    storeCuration.getCurationWhereClause(foundStore.id),
   ]);
+  const featuredIds = [...state.featured_by_game_id.keys()];
+  const newReleaseCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const catalogPage = await game.findCurationCatalogPage({
+    page: query.data.page,
+    limit: query.data.limit,
+    q: query.data.q,
+    tag: query.data.tag,
+    status: query.data.status,
+    order:
+      query.data.status === "BEST_SELLERS" && !("order" in req.query)
+        ? "BEST_SELLING"
+        : query.data.order,
+    locale,
+    curationWhere,
+    featuredGameIds: featuredIds,
+    priceableGameIds: gameIds,
+    newReleaseCutoff,
+  });
+  const pricingContext = await storefrontPricing.contextFor(
+    currency,
+    catalogPage.games,
+    req,
+  );
   const games = storefrontPricing.filterAndPrice(
     req.context.user,
-    catalogGames,
+    catalogPage.games,
     pricingContext,
   );
-  const now = Date.now();
-  const newReleaseCutoff = now - 90 * 24 * 60 * 60 * 1000;
 
   const decorated = games.map((catalogGame) => {
     const override = state.overrides_by_game_id.get(catalogGame.id);
     const featured = state.featured_by_game_id.get(catalogGame.id);
     return {
       ...catalogGame,
-      in_outlet: state.visible_ids.has(catalogGame.id),
+      in_outlet: catalogPage.visible_ids.has(catalogGame.id),
       visibility_source:
         override?.visibility === "SHOW"
           ? "ALWAYS_VISIBLE"
@@ -85,120 +104,37 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
       is_editorial: Boolean(featured),
       recommendation_reason: featured?.recommendation_reason ?? null,
       editorial_position: featured?.position ?? null,
-      sales_count: state.sales_by_game_id.get(catalogGame.id) ?? 0,
+      sales_count: catalogPage.sales_by_game_id.get(catalogGame.id) ?? 0,
       is_new_release:
-        new Date(catalogGame.launch_date).getTime() >= newReleaseCutoff,
+        new Date(catalogGame.launch_date).getTime() >=
+        newReleaseCutoff.getTime(),
     };
   });
-
-  const facetsByKey = new Map<string, { tag: string; count: number }>();
-  for (const catalogGame of decorated) {
-    for (const tag of catalogGame.tags ?? []) {
-      const key = tag.trim().toLowerCase();
-      if (!key) continue;
-      const current = facetsByKey.get(key);
-      facetsByKey.set(key, {
-        tag: current?.tag ?? tag,
-        count: (current?.count ?? 0) + 1,
-      });
-    }
-  }
-
-  const totals = {
-    all: decorated.length,
-    in_outlet: decorated.filter((catalogGame) => catalogGame.in_outlet).length,
-    outside_outlet: decorated.filter((catalogGame) => !catalogGame.in_outlet)
-      .length,
-    editorial: decorated.filter((catalogGame) => catalogGame.is_editorial)
-      .length,
-    new_releases: decorated.filter((catalogGame) => catalogGame.is_new_release)
-      .length,
-    best_sellers: decorated.filter((catalogGame) => catalogGame.sales_count > 0)
-      .length,
-  };
-
-  const normalizedQuery = query.data.q?.toLowerCase();
-  let filtered = decorated.filter((catalogGame) => {
-    if (
-      normalizedQuery &&
-      ![
-        catalogGame.title,
-        catalogGame.description,
-        catalogGame.developer_name,
-      ].some((value) => value?.toLowerCase().includes(normalizedQuery))
-    ) {
-      return false;
-    }
-    if (query.data.tag && !(catalogGame.tags ?? []).includes(query.data.tag)) {
-      return false;
-    }
-
-    switch (query.data.status) {
-      case "IN_OUTLET":
-        return catalogGame.in_outlet;
-      case "OUTSIDE_OUTLET":
-        return !catalogGame.in_outlet;
-      case "EDITORIAL":
-        return catalogGame.is_editorial;
-      case "NEW_RELEASES":
-        return catalogGame.is_new_release;
-      case "BEST_SELLERS":
-        return catalogGame.sales_count > 0;
-      default:
-        return true;
-    }
-  });
-
-  filtered = filtered.sort((left, right) => {
-    if (query.data.status === "NEW_RELEASES") {
-      return (
-        new Date(right.launch_date).getTime() -
-        new Date(left.launch_date).getTime()
-      );
-    }
-    if (query.data.status === "BEST_SELLERS") {
-      return right.sales_count - left.sales_count;
-    }
-    return left.title.localeCompare(right.title);
-  });
-
-  const featuredIds = [...state.featured_by_game_id.keys()];
   const featuredOutsideCount = featuredIds.filter(
-    (gameId) => !state.visible_ids.has(gameId),
+    (gameId) => !catalogPage.visible_featured_ids.has(gameId),
   ).length;
   const readiness = {
-    result_count: totals.in_outlet,
+    result_count: catalogPage.totals.in_outlet,
     minimum_count: 5,
-    has_minimum_catalog: totals.in_outlet >= 5,
+    has_minimum_catalog: catalogPage.totals.in_outlet >= 5,
     featured_count: featuredIds.length,
     featured_outside_count: featuredOutsideCount,
     featured_inside: featuredIds.length > 0 && featuredOutsideCount === 0,
     ready:
       state.catalog_mode !== "UNDECIDED" &&
-      totals.in_outlet >= 5 &&
+      catalogPage.totals.in_outlet >= 5 &&
       featuredIds.length > 0 &&
       featuredOutsideCount === 0,
   };
-  const start = (query.data.page - 1) * query.data.limit;
-  const pageGames = filtered.slice(start, start + query.data.limit);
 
   return res.status(200).json({
-    games: pageGames,
-    pagination: {
-      page: query.data.page,
-      limit: query.data.limit,
-      total: filtered.length,
-      pages: Math.ceil(filtered.length / query.data.limit),
-    },
+    games: decorated,
+    pagination: catalogPage.pagination,
     currency,
     catalog_mode: state.catalog_mode,
     draft_revision: state.draft_revision,
-    totals,
-    facets: [...facetsByKey.values()].sort((left, right) =>
-      right.count === left.count
-        ? left.tag.localeCompare(right.tag)
-        : right.count - left.count,
-    ),
+    totals: catalogPage.totals,
+    facets: catalogPage.facets,
     readiness,
   });
 }

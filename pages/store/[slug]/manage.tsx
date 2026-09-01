@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
@@ -153,20 +153,66 @@ const fetcher = (url: string) =>
 
 type Tab = "featured" | "curation" | "settings" | "sales" | "earnings";
 
+function isManageTab(value: string): value is Tab {
+  return ["featured", "curation", "settings", "sales", "earnings"].includes(
+    value,
+  );
+}
+
 export default function StoreManagePage() {
   const router = useRouter();
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
-  const [tab, setTab] = useState<Tab>("featured");
+  const requestedTab =
+    typeof router.query.tab === "string" ? router.query.tab : "featured";
+  const tab: Tab = isManageTab(requestedTab) ? requestedTab : "featured";
 
   const {
     data: storeData,
     isLoading: isStoreLoading,
     error: storeError,
+    mutate: mutateStore,
   } = useSWR<StoreApi>(
     slug ? `/api/v1/stores/${slug}?preview=1` : null,
     fetcher,
   );
+
+  function selectTab(nextTab: Tab) {
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, tab: nextTab },
+      },
+      undefined,
+      { shallow: true, scroll: false },
+    );
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: Tab) {
+    const tabs: Tab[] = [
+      "featured",
+      "curation",
+      "settings",
+      "sales",
+      "earnings",
+    ];
+    const currentIndex = tabs.indexOf(tab);
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? tabs.length - 1
+          : event.key === "ArrowRight"
+            ? (currentIndex + 1) % tabs.length
+            : event.key === "ArrowLeft"
+              ? (currentIndex - 1 + tabs.length) % tabs.length
+              : null;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    selectTab(nextTab);
+    document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
+  }
 
   const {
     data: tagFilters,
@@ -179,16 +225,30 @@ export default function StoreManagePage() {
 
   if (isStoreLoading || !slug) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
+      <div
+        role="status"
+        className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]"
+      >
         <Loader2 className="animate-spin text-white/30" size={32} />
+        <span className="sr-only">{t("Loading...")}</span>
       </div>
     );
   }
 
   if (storeError || !storeData) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
-        <p className="text-rose-300 font-bold">{t("Outlet not found.")}</p>
+      <div
+        role="alert"
+        className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 bg-[#0b0812]"
+      >
+        <p className="font-bold text-rose-300">{t("Outlet not found.")}</p>
+        <button
+          type="button"
+          onClick={() => void mutateStore()}
+          className="rounded-lg border border-white/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-white/70 hover:bg-white/5 hover:text-white"
+        >
+          {t("Try again")}
+        </button>
       </div>
     );
   }
@@ -217,7 +277,11 @@ export default function StoreManagePage() {
             Four tabs do not fit a 390px viewport: without this the row pushes
             the page into horizontal scroll and the last tab sits off-screen
             where it cannot be tapped at all. */}
-        <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          role="tablist"
+          aria-label={t("Manage {name}", { name: storeData.name })}
+          className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {(
             [
               ["featured", "Featured"],
@@ -228,8 +292,15 @@ export default function StoreManagePage() {
             ] as [Tab, string][]
           ).map(([value, label]) => (
             <button
+              type="button"
+              role="tab"
+              id={`outlet-manage-tab-${value}`}
+              aria-selected={tab === value}
+              aria-controls={`outlet-manage-panel-${value}`}
               key={value}
-              onClick={() => setTab(value)}
+              onClick={() => selectTab(value)}
+              onKeyDown={(event) => handleTabKeyDown(event, value)}
+              tabIndex={tab === value ? 0 : -1}
               className={`shrink-0 px-4 py-3 text-sm font-black uppercase tracking-wider transition-colors border-b-2 ${
                 tab === value
                   ? "text-white border-white"
@@ -241,26 +312,35 @@ export default function StoreManagePage() {
           ))}
         </div>
 
-        {tab === "featured" && (
-          <FeaturedTab storeSlug={storeData.slug} storeName={storeData.name} />
-        )}
-        {tab === "curation" &&
-          (tagFiltersError ? (
-            <p className="text-rose-300 font-bold text-sm">
-              {t(
-                "You do not have permission to manage this Outlet's catalog curation.",
-              )}
-            </p>
-          ) : (
-            <CurationTab
+        <div
+          role="tabpanel"
+          id={`outlet-manage-panel-${tab}`}
+          aria-labelledby={`outlet-manage-tab-${tab}`}
+        >
+          {tab === "featured" && (
+            <FeaturedTab
               storeSlug={storeData.slug}
-              tagFilters={tagFilters ?? []}
-              isTagFiltersLoading={isTagFiltersLoading}
+              storeName={storeData.name}
             />
-          ))}
-        {tab === "settings" && <SettingsTab store={storeData} />}
-        {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
-        {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+          )}
+          {tab === "curation" &&
+            (tagFiltersError ? (
+              <p className="text-sm font-bold text-rose-300">
+                {t(
+                  "You do not have permission to manage this Outlet's catalog curation.",
+                )}
+              </p>
+            ) : (
+              <CurationTab
+                storeSlug={storeData.slug}
+                tagFilters={tagFilters ?? []}
+                isTagFiltersLoading={isTagFiltersLoading}
+              />
+            ))}
+          {tab === "settings" && <SettingsTab store={storeData} />}
+          {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
+          {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+        </div>
       </div>
     </div>
   );

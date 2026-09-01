@@ -33,6 +33,7 @@ type CatalogStatus =
   | "NEW_RELEASES"
   | "BEST_SELLERS";
 type BulkAction = "SHOW" | "HIDE" | "PIN_SHOW";
+type CatalogOrder = "TITLE_ASC" | "NEWEST" | "BEST_SELLING";
 
 type CurationGame = GameApi & {
   in_outlet: boolean;
@@ -99,6 +100,10 @@ function validStatus(value: string): value is CatalogStatus {
   ].includes(value);
 }
 
+function validOrder(value: string): value is CatalogOrder {
+  return ["TITLE_ASC", "NEWEST", "BEST_SELLING"].includes(value);
+}
+
 export function CatalogCurationWorkspace({
   storeSlug,
   onDraftRevisionChange,
@@ -116,6 +121,13 @@ export function CatalogCurationWorkspace({
   const status: CatalogStatus = validStatus(requestedStatus)
     ? requestedStatus
     : "ALL";
+  const requestedOrder = queryValue(
+    router.query.order,
+    status === "BEST_SELLERS" ? "BEST_SELLING" : "TITLE_ASC",
+  );
+  const order: CatalogOrder = validOrder(requestedOrder)
+    ? requestedOrder
+    : "TITLE_ASC";
   const [queryInput, setQueryInput] = useState(urlQuery);
   const [selectedGames, setSelectedGames] = useState<
     Record<string, CurationGame>
@@ -170,17 +182,15 @@ export function CatalogCurationWorkspace({
       page: String(urlPage),
       limit: String(PAGE_SIZE),
       status,
+      order,
       locale,
     });
     if (urlQuery) params.set("q", urlQuery);
     if (activeTag) params.set("tag", activeTag);
     return `/api/v1/stores/${storeSlug}/curation-catalog?${params.toString()}`;
-  }, [activeTag, locale, status, storeSlug, urlPage, urlQuery]);
-  const { data, error, isLoading, mutate } = useSWR<CatalogResponse>(
-    catalogKey,
-    fetcher,
-    { keepPreviousData: true },
-  );
+  }, [activeTag, locale, order, status, storeSlug, urlPage, urlQuery]);
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<CatalogResponse>(catalogKey, fetcher, { keepPreviousData: true });
   useEffect(() => {
     if (data) onDraftRevisionChange?.(data.draft_revision);
   }, [data, onDraftRevisionChange]);
@@ -380,6 +390,7 @@ export function CatalogCurationWorkspace({
   }
 
   async function chooseCatalogMode(catalogMode: "ALL" | "SELECTED") {
+    if (data?.catalog_mode === catalogMode) return;
     setIsSaving(true);
     setFeedback(null);
     try {
@@ -424,7 +435,11 @@ export function CatalogCurationWorkspace({
   }
 
   return (
-    <section aria-labelledby="catalog-curation-heading" className="space-y-6">
+    <section
+      aria-labelledby="catalog-curation-heading"
+      aria-busy={isLoading || isValidating}
+      className="space-y-6"
+    >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-300/70">
@@ -453,44 +468,76 @@ export function CatalogCurationWorkspace({
         </Link>
       </div>
 
-      {data?.catalog_mode === "UNDECIDED" && (
+      {data && (
         <div className="rounded-3xl border border-violet-300/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.18),transparent_52%)] p-5 sm:p-7">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200/65">
-            {t("First catalog decision")}
-          </p>
-          <h3 className="mt-2 text-xl font-black text-white">
-            {t("How do you want to begin?")}
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/50">
-            {t(
-              "Start with a hand-picked selection or keep the full catalog and hide only the exceptions. No hundreds of hidden rules are created.",
-            )}
-          </p>
+          {data.catalog_mode === "UNDECIDED" ? (
+            <>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200/65">
+                {t("First catalog decision")}
+              </p>
+              <h3 className="mt-2 text-xl font-black text-white">
+                {t("How do you want to begin?")}
+              </h3>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/50">
+                {t(
+                  "Start with a hand-picked selection or keep the full catalog and hide only the exceptions. No hundreds of hidden rules are created.",
+                )}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm font-black text-white/75">
+              {t("Choose Full catalog or Selected catalog.")}
+            </p>
+          )}
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => chooseCatalogMode("SELECTED")}
-              disabled={isSaving}
-              className="rounded-2xl border border-violet-300/30 bg-violet-400/15 p-4 text-left transition hover:bg-violet-400/20 disabled:opacity-50"
+              disabled={isSaving || data.catalog_mode === "SELECTED"}
+              aria-pressed={data.catalog_mode === "SELECTED"}
+              className={`rounded-2xl border p-4 text-left transition disabled:cursor-default disabled:opacity-100 ${
+                data.catalog_mode === "SELECTED"
+                  ? "border-violet-300/45 bg-violet-400/20"
+                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+              }`}
             >
               <span className="flex items-center gap-2 font-black text-violet-100">
-                <Check size={17} /> {t("Start with a selection")}
+                {data.catalog_mode === "SELECTED" ? (
+                  <CheckCircle2 size={17} />
+                ) : (
+                  <Check size={17} />
+                )}
+                {t("Selected catalog")}
               </span>
               <span className="mt-1.5 block text-xs font-semibold leading-relaxed text-white/45">
-                {t("Only games you show will enter the Outlet.")}
+                {t(
+                  "Start empty. Show-tag rules and per-game Show add games; a per-game Hide always excludes.",
+                )}
               </span>
             </button>
             <button
               type="button"
               onClick={() => chooseCatalogMode("ALL")}
-              disabled={isSaving}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/[0.07] disabled:opacity-50"
+              disabled={isSaving || data.catalog_mode === "ALL"}
+              aria-pressed={data.catalog_mode === "ALL"}
+              className={`rounded-2xl border p-4 text-left transition disabled:cursor-default disabled:opacity-100 ${
+                data.catalog_mode === "ALL"
+                  ? "border-violet-300/45 bg-violet-400/20"
+                  : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+              }`}
             >
               <span className="flex items-center gap-2 font-black text-white/80">
-                <Eye size={17} /> {t("Keep the full catalog")}
+                {data.catalog_mode === "ALL" ? (
+                  <CheckCircle2 size={17} />
+                ) : (
+                  <Eye size={17} />
+                )}
+                {t("Full catalog")}
               </span>
               <span className="mt-1.5 block text-xs font-semibold leading-relaxed text-white/45">
-                {t("Everything stays visible until you hide an exception.")}
+                {t(
+                  "Include every eligible game. A per-game Hide always excludes; a per-game Show wins a hide-by-tag rule.",
+                )}
               </span>
             </button>
           </div>
@@ -500,16 +547,16 @@ export function CatalogCurationWorkspace({
       {data && (
         <div
           className={`grid gap-3 rounded-2xl border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
-            data.readiness.ready
+            data.readiness.has_minimum_catalog && data.readiness.featured_inside
               ? "border-emerald-400/20 bg-emerald-400/[0.07]"
               : "border-amber-300/20 bg-amber-300/[0.06]"
           }`}
         >
           <div>
             <p className="text-sm font-black text-white">
-              {data.readiness.ready
-                ? t("Catalog ready for publishing")
-                : t("Catalog readiness")}
+              {locale === "pt-BR"
+                ? "Progresso parcial da curadoria"
+                : "Partial curation progress"}
             </p>
             <p className="mt-1 text-xs font-semibold text-white/45">
               {t("{count} of {minimum} games · {featured} editorial picks", {
@@ -524,7 +571,7 @@ export function CatalogCurationWorkspace({
             </p>
           </div>
           <Link
-            href="#editorial-highlights-heading"
+            href={`/store/${encodeURIComponent(storeSlug)}/manage?tab=featured`}
             className="text-xs font-black text-amber-200 underline-offset-4 hover:underline"
           >
             {t("Review Editorial")}
@@ -575,6 +622,18 @@ export function CatalogCurationWorkspace({
                 </option>
               ))}
             </select>
+            <select
+              value={order}
+              onChange={(event) =>
+                replaceQuery({ order: event.target.value, page: 1 })
+              }
+              aria-label={t("Sort games")}
+              className="h-12 rounded-2xl border border-white/10 bg-[#17121f] px-4 text-sm font-black text-white outline-none focus:border-violet-400/50 lg:max-w-56"
+            >
+              <option value="TITLE_ASC">{t("Title (A-Z)")}</option>
+              <option value="NEWEST">{t("Newest First")}</option>
+              <option value="BEST_SELLING">{t("Best seller")}</option>
+            </select>
           </div>
 
           <div
@@ -589,6 +648,12 @@ export function CatalogCurationWorkspace({
                 onClick={() =>
                   replaceQuery({
                     status: filter.value === "ALL" ? null : filter.value,
+                    order:
+                      filter.value === "BEST_SELLERS"
+                        ? "BEST_SELLING"
+                        : order === "BEST_SELLING"
+                          ? "TITLE_ASC"
+                          : order,
                     page: 1,
                   })
                 }
@@ -807,6 +872,13 @@ export function CatalogCurationWorkspace({
               <p className="mt-3 font-black text-rose-200">
                 {t("We could not load your catalog curation.")}
               </p>
+              <button
+                type="button"
+                onClick={() => void mutate()}
+                className="mt-4 rounded-lg border border-rose-200/25 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-100 hover:bg-rose-200/10"
+              >
+                {t("Try again")}
+              </button>
             </div>
           ) : games.length === 0 ? (
             <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 text-center">
@@ -879,7 +951,7 @@ export function CatalogCurationWorkspace({
                           </span>
                           {game.is_editorial && (
                             <Link
-                              href="#editorial-highlights-heading"
+                              href={`/store/${encodeURIComponent(storeSlug)}/manage?tab=featured`}
                               className="inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-amber-950/75 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 backdrop-blur-md hover:bg-amber-900/80"
                             >
                               <Sparkles size={11} /> {t("Edit Editorial")}
