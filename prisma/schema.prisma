@@ -436,12 +436,12 @@ model LibraryItem {
 // store_id is nullable: null means the acquisition happened through the
 // global storefront (no store attribution), not through a specific store.
 model Sale {
-  id            String  @id @default(uuid())
-  user_id       String // Logical reference to User.id (who acquired)
-  game_id       String // Logical reference to Game.id (what was acquired)
-  store_id      String? // Logical reference to Store.id; null = platform/global acquisition
+  id                String  @id @default(uuid())
+  user_id           String // Logical reference to User.id (who acquired)
+  game_id           String // Logical reference to Game.id (what was acquired)
+  store_id          String? // Logical reference to Store.id; null = platform/global acquisition
   store_revision_id String? // Logical StoreRevision snapshot used for attribution
-  price_at_sale Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
+  price_at_sale     Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
 
   // The currency the buyer was charged in, and the rate that produced the
   // amount when it came from converting the USD base price. Without these a
@@ -486,15 +486,15 @@ enum StoreRevisionCatalogMode {
 }
 
 model Store {
-  id                         String      @id @default(uuid())
-  name                       String      @db.VarChar(255)
-  slug                       String      @unique @db.VarChar(255)
-  description                String?     @db.Text
-  logo_url                   String?     @db.VarChar(2048)
+  id                         String           @id @default(uuid())
+  name                       String           @db.VarChar(255)
+  slug                       String           @unique @db.VarChar(255)
+  description                String?          @db.Text
+  logo_url                   String?          @db.VarChar(2048)
   owner_id                   String // Logical reference to User.id (creator/owner)
-  status                     StoreStatus @default(DRAFT)
+  status                     StoreStatus      @default(DRAFT)
   catalog_mode               StoreCatalogMode @default(UNDECIDED)
-  draft_revision             Int         @default(1)
+  draft_revision             Int              @default(1)
   published_revision_id      String? // Logical reference to StoreRevision.id
   last_published_revision_id String? // Preserved after unpublish
   published_at               DateTime?
@@ -557,7 +557,7 @@ model StoreLifecycleEvent {
   from_status       StoreStatus
   to_status         StoreStatus
   // No updated_at: lifecycle events are immutable audit records.
-  created_at    DateTime             @default(now())
+  created_at        DateTime             @default(now())
 
   @@index([store_id, created_at])
   @@index([actor_user_id, created_at])
@@ -642,6 +642,44 @@ model StoreGameOverride {
   @@unique([store_id, game_id])
   @@index([store_id])
   @@map("store_game_overrides")
+}
+
+model StoreCurationBatch {
+  id                    String                 @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  operation_id          String                 @db.VarChar(64)
+  request_fingerprint   String                 @db.VarChar(64)
+  base_draft_revision   Int
+  result_draft_revision Int
+  action                GameOverrideBulkAction
+  changes               Json
+  undone_at             DateTime?
+  created_at            DateTime               @default(now())
+
+  @@unique([store_id, operation_id])
+  @@index([store_id, created_at])
+  @@map("store_curation_batches")
+}
+
+model StoreTagRuleChange {
+  id                    String         @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  tag                   String         @db.VarChar(100)
+  previous_mode         TagFilterMode?
+  applied_mode          TagFilterMode?
+  base_draft_revision   Int
+  result_draft_revision Int
+  undone_at             DateTime?
+  created_at            DateTime       @default(now())
+
+  @@index([store_id, created_at])
+  @@map("store_tag_rule_changes")
+}
+
+enum GameOverrideBulkAction {
+  SHOW
+  HIDE
+  PIN_SHOW
 }
 
 model StoreFeaturedGame {

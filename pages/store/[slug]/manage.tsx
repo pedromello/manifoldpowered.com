@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
@@ -19,8 +19,10 @@ import {
   ArrowDown,
   Trash2,
   RotateCcw,
+  Check,
 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
+import { CatalogCurationWorkspace } from "components/creator/CatalogCurationWorkspace";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import { type GameApi } from "components/store/types";
 import { Pagination, type PaginationApi } from "components/Pagination";
@@ -98,6 +100,46 @@ interface TagFilterApi {
   mode: "WHITELIST" | "BLACKLIST";
 }
 
+interface TagFilterImpactApi {
+  draft_revision: number;
+  current_count: number;
+  result_count: number;
+  shown_count: number;
+  hidden_count: number;
+  unchanged_count: number;
+}
+
+export function parseTagRuleChangeReceipt(value: unknown): {
+  changeId: string;
+  draftRevision: number;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const body = value as Record<string, unknown>;
+  if (
+    typeof body.change_id !== "string" ||
+    body.change_id.trim().length === 0 ||
+    typeof body.draft_revision !== "number" ||
+    !Number.isSafeInteger(body.draft_revision) ||
+    body.draft_revision < 1
+  ) {
+    return null;
+  }
+  return {
+    changeId: body.change_id,
+    draftRevision: body.draft_revision,
+  };
+}
+
+function parseDraftRevision(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const revision = (value as Record<string, unknown>).draft_revision;
+  return typeof revision === "number" &&
+    Number.isSafeInteger(revision) &&
+    revision >= 1
+    ? revision
+    : null;
+}
+
 interface GameOverrideApi {
   id: string;
   game_slug: string;
@@ -141,22 +183,67 @@ const fetcher = (url: string) =>
   });
 
 type Tab = "featured" | "curation" | "settings" | "sales" | "earnings";
-type CatalogMode = "UNDECIDED" | "ALL" | "SELECTED";
+
+function isManageTab(value: string): value is Tab {
+  return ["featured", "curation", "settings", "sales", "earnings"].includes(
+    value,
+  );
+}
 
 export default function StoreManagePage() {
   const router = useRouter();
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
-  const [tab, setTab] = useState<Tab>("featured");
+  const requestedTab =
+    typeof router.query.tab === "string" ? router.query.tab : "featured";
+  const tab: Tab = isManageTab(requestedTab) ? requestedTab : "featured";
 
   const {
     data: storeData,
     isLoading: isStoreLoading,
     error: storeError,
+    mutate: mutateStore,
   } = useSWR<StoreApi>(
     slug ? `/api/v1/stores/${slug}?preview=1` : null,
     fetcher,
   );
+
+  function selectTab(nextTab: Tab) {
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...router.query, tab: nextTab },
+      },
+      undefined,
+      { shallow: true, scroll: false },
+    );
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: Tab) {
+    const tabs: Tab[] = [
+      "featured",
+      "curation",
+      "settings",
+      "sales",
+      "earnings",
+    ];
+    const currentIndex = tabs.indexOf(tab);
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? tabs.length - 1
+          : event.key === "ArrowRight"
+            ? (currentIndex + 1) % tabs.length
+            : event.key === "ArrowLeft"
+              ? (currentIndex - 1 + tabs.length) % tabs.length
+              : null;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    selectTab(nextTab);
+    document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
+  }
 
   const {
     data: tagFilters,
@@ -169,16 +256,30 @@ export default function StoreManagePage() {
 
   if (isStoreLoading || !slug) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
+      <div
+        role="status"
+        className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]"
+      >
         <Loader2 className="animate-spin text-white/30" size={32} />
+        <span className="sr-only">{t("Loading...")}</span>
       </div>
     );
   }
 
   if (storeError || !storeData) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812]">
-        <p className="text-rose-300 font-bold">{t("Outlet not found.")}</p>
+      <div
+        role="alert"
+        className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 bg-[#0b0812]"
+      >
+        <p className="font-bold text-rose-300">{t("Outlet not found.")}</p>
+        <button
+          type="button"
+          onClick={() => void mutateStore()}
+          className="rounded-lg border border-white/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-white/70 hover:bg-white/5 hover:text-white"
+        >
+          {t("Try again")}
+        </button>
       </div>
     );
   }
@@ -207,7 +308,11 @@ export default function StoreManagePage() {
             Four tabs do not fit a 390px viewport: without this the row pushes
             the page into horizontal scroll and the last tab sits off-screen
             where it cannot be tapped at all. */}
-        <div className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          role="tablist"
+          aria-label={t("Manage {name}", { name: storeData.name })}
+          className="-mx-4 flex items-center gap-2 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {(
             [
               ["featured", "Featured"],
@@ -218,8 +323,15 @@ export default function StoreManagePage() {
             ] as [Tab, string][]
           ).map(([value, label]) => (
             <button
+              type="button"
+              role="tab"
+              id={`outlet-manage-tab-${value}`}
+              aria-selected={tab === value}
+              aria-controls={`outlet-manage-panel-${value}`}
               key={value}
-              onClick={() => setTab(value)}
+              onClick={() => selectTab(value)}
+              onKeyDown={(event) => handleTabKeyDown(event, value)}
+              tabIndex={tab === value ? 0 : -1}
               className={`shrink-0 px-4 py-3 text-sm font-black uppercase tracking-wider transition-colors border-b-2 ${
                 tab === value
                   ? "text-white border-white"
@@ -231,27 +343,35 @@ export default function StoreManagePage() {
           ))}
         </div>
 
-        {tab === "featured" && (
-          <FeaturedTab storeSlug={storeData.slug} storeName={storeData.name} />
-        )}
-        {tab === "curation" &&
-          (tagFiltersError ? (
-            <p className="text-rose-300 font-bold text-sm">
-              {t(
-                "You do not have permission to manage this Outlet's catalog curation.",
-              )}
-            </p>
-          ) : (
-            <CurationTab
+        <div
+          role="tabpanel"
+          id={`outlet-manage-panel-${tab}`}
+          aria-labelledby={`outlet-manage-tab-${tab}`}
+        >
+          {tab === "featured" && (
+            <FeaturedTab
               storeSlug={storeData.slug}
-              catalogMode={storeData.catalog_mode ?? "UNDECIDED"}
-              tagFilters={tagFilters ?? []}
-              isTagFiltersLoading={isTagFiltersLoading}
+              storeName={storeData.name}
             />
-          ))}
-        {tab === "settings" && <SettingsTab store={storeData} />}
-        {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
-        {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+          )}
+          {tab === "curation" &&
+            (tagFiltersError ? (
+              <p className="text-sm font-bold text-rose-300">
+                {t(
+                  "You do not have permission to manage this Outlet's catalog curation.",
+                )}
+              </p>
+            ) : (
+              <CurationTab
+                storeSlug={storeData.slug}
+                tagFilters={tagFilters ?? []}
+                isTagFiltersLoading={isTagFiltersLoading}
+              />
+            ))}
+          {tab === "settings" && <SettingsTab store={storeData} />}
+          {tab === "sales" && <SalesTab storeSlug={storeData.slug} />}
+          {tab === "earnings" && <EarningsTab storeSlug={storeData.slug} />}
+        </div>
       </div>
     </div>
   );
@@ -1089,12 +1209,10 @@ function FeaturedTab({
 
 function CurationTab({
   storeSlug,
-  catalogMode,
   tagFilters,
   isTagFiltersLoading,
 }: {
   storeSlug: string;
-  catalogMode: CatalogMode;
   tagFilters: TagFilterApi[];
   isTagFiltersLoading?: boolean;
 }) {
@@ -1103,297 +1221,450 @@ function CurationTab({
   const [tag, setTag] = useState("");
   const [mode, setMode] = useState<"WHITELIST" | "BLACKLIST">("WHITELIST");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isModeSubmitting, setIsModeSubmitting] = useState(false);
-  const [isOverridesOpen, setIsOverridesOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [draftRevision, setDraftRevision] = useState<number | null>(null);
+  const [pendingRule, setPendingRule] = useState<{
+    action: "UPSERT" | "REMOVE";
+    tag: string;
+    mode?: "WHITELIST" | "BLACKLIST";
+    previous: TagFilterApi | null;
+    impact: TagFilterImpactApi;
+  } | null>(null);
+  const [isPreviewingRule, setIsPreviewingRule] = useState(false);
+  const [lastRuleChange, setLastRuleChange] = useState<{
+    changeId: string;
+    draftRevision: number;
+  } | null>(null);
 
   const tagFiltersKey = `/api/v1/stores/${storeSlug}/tag-filters`;
+  const previewKey = `${tagFiltersKey}/preview`;
 
   useEffect(() => {
-    if (catalogMode === "ALL") setMode("BLACKLIST");
-  }, [catalogMode]);
+    if (draftRevision === null) return;
+    void mutate(publicationEndpoint(storeSlug));
+  }, [draftRevision, mutate, storeSlug]);
 
-  async function handleCatalogMode(
-    nextMode: Exclude<CatalogMode, "UNDECIDED">,
-  ) {
-    if (nextMode === catalogMode || isModeSubmitting) return;
+  async function refreshRuleState() {
+    await Promise.allSettled([
+      mutate(tagFiltersKey),
+      mutate(publicationEndpoint(storeSlug)),
+      mutate(
+        (key) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
+      ),
+    ]);
+  }
+
+  async function previewRuleChange({
+    action,
+    targetTag,
+    targetMode,
+    previous,
+  }: {
+    action: "UPSERT" | "REMOVE";
+    targetTag: string;
+    targetMode?: "WHITELIST" | "BLACKLIST";
+    previous: TagFilterApi | null;
+  }) {
+    if (draftRevision === null) return;
     setError(null);
-    setIsModeSubmitting(true);
+    setSuccess(null);
+    setPendingRule(null);
+    setIsPreviewingRule(true);
     try {
-      const response = await fetch(`/api/v1/stores/${storeSlug}`, {
-        method: "PATCH",
+      const response = await fetch(previewKey, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ catalog_mode: nextMode }),
+        body: JSON.stringify({
+          action,
+          tag: targetTag.trim(),
+          ...(targetMode && { mode: targetMode }),
+          expected_draft_revision: draftRevision,
+        }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         setError(
-          translateError(body?.message, "Failed to save catalog choice."),
+          translateError(body?.message, "Failed to preview tag rule impact."),
         );
         return;
       }
-      await Promise.all([
-        mutate(`/api/v1/stores/${storeSlug}?preview=1`),
-        mutate("/api/v1/stores"),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      setPendingRule({
+        action,
+        tag: targetTag.trim(),
+        mode: targetMode,
+        previous,
+        impact: body,
+      });
+    } catch {
+      setError(t("Failed to preview tag rule impact."));
     } finally {
-      setIsModeSubmitting(false);
+      setIsPreviewingRule(false);
     }
   }
 
-  async function handleAddTag(event: React.FormEvent) {
+  async function handlePreviewNewRule(event: React.FormEvent) {
     event.preventDefault();
     if (!tag.trim()) return;
-    setError(null);
+    await previewRuleChange({
+      action: "UPSERT",
+      targetTag: tag,
+      targetMode: mode,
+      previous:
+        tagFilters.find(
+          (filter) => filter.tag.toLowerCase() === tag.trim().toLowerCase(),
+        ) ?? null,
+    });
+  }
+
+  async function applyRuleChange() {
+    if (!pendingRule) return;
     setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
     try {
-      const response = await fetch(tagFiltersKey, {
+      const response = await fetch(`${tagFiltersKey}/changes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag: tag.trim(), mode }),
+        body: JSON.stringify({
+          action: pendingRule.action,
+          tag: pendingRule.tag,
+          ...(pendingRule.mode && { mode: pendingRule.mode }),
+          expected_draft_revision: pendingRule.impact.draft_revision,
+        }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(translateError(body?.message, "Failed to add tag filter."));
+        await refreshRuleState();
+        setError(translateError(body?.message, "Failed to update tag rule."));
         return;
       }
+      const receipt = parseTagRuleChangeReceipt(body);
+      if (!receipt) {
+        // A successful mutation without its change id cannot be offered for a
+        // blind undo or replay. Re-fetch the authoritative rules, keep the
+        // form input, and require a fresh impact preview for the retry.
+        await refreshRuleState();
+        setLastRuleChange(null);
+        setPendingRule(null);
+        setError(t("Failed to update tag rule."));
+        return;
+      }
+      setDraftRevision(receipt.draftRevision);
+      setLastRuleChange(receipt);
+      setSuccess(t("Tag rule saved."));
       setTag("");
-      await Promise.all([
-        mutate(tagFiltersKey),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      setPendingRule(null);
+      await refreshRuleState();
+    } catch {
+      // The server may have committed before the connection was lost. Refresh
+      // first and discard only the stale impact preview; the typed tag remains
+      // available for a fresh, safe preview/retry.
+      await refreshRuleState();
+      setLastRuleChange(null);
+      setPendingRule(null);
+      setError(t("Failed to update tag rule."));
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleToggleMode(filter: TagFilterApi) {
-    setError(null);
-    const newMode = filter.mode === "WHITELIST" ? "BLACKLIST" : "WHITELIST";
-    const response = await fetch(
-      `${tagFiltersKey}/${encodeURIComponent(filter.tag)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: newMode }),
-      },
-    );
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(translateError(body?.message, "Failed to update tag filter."));
-      return;
-    }
-    await Promise.all([
-      mutate(tagFiltersKey),
-      mutate(publicationEndpoint(storeSlug)),
-    ]);
-  }
+  const canUndoRule = Boolean(lastRuleChange);
 
-  async function handleRemoveTag(filter: TagFilterApi) {
+  async function undoRuleChange() {
+    if (!lastRuleChange || !canUndoRule) return;
+    setIsSubmitting(true);
     setError(null);
-    const response = await fetch(
-      `${tagFiltersKey}/${encodeURIComponent(filter.tag)}`,
-      { method: "DELETE" },
-    );
-    if (!response.ok) {
+    setSuccess(null);
+    try {
+      const response = await fetch(
+        `${tagFiltersKey}/changes/${lastRuleChange.changeId}/undo`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expected_draft_revision: lastRuleChange.draftRevision,
+          }),
+        },
+      );
       const body = await response.json().catch(() => null);
-      setError(translateError(body?.message, "Failed to remove tag filter."));
-      return;
+      if (!response.ok) {
+        await refreshRuleState();
+        setError(translateError(body?.message, "Failed to undo tag rule."));
+        return;
+      }
+      const resultDraftRevision = parseDraftRevision(body);
+      if (resultDraftRevision === null) {
+        await refreshRuleState();
+        setLastRuleChange(null);
+        setError(t("Failed to undo tag rule."));
+        return;
+      }
+      setSuccess(t("Last change undone."));
+      setDraftRevision(resultDraftRevision);
+      setLastRuleChange(null);
+      await refreshRuleState();
+    } catch {
+      // The undo endpoint is idempotent. Preserve its change id for retry after
+      // the current rule list and publication readiness have been refreshed.
+      await refreshRuleState();
+      setError(t("Failed to undo tag rule."));
+    } finally {
+      setIsSubmitting(false);
     }
-    await Promise.all([
-      mutate(tagFiltersKey),
-      mutate(publicationEndpoint(storeSlug)),
-    ]);
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-        <div>
-          <h2 className="text-lg font-black">{t("Catalog scope")}</h2>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-white/50">
-            {t(
-              "Choose how this draft starts its catalog. This explicit choice is required before publication.",
-            )}
-          </p>
-        </div>
-        {catalogMode === "UNDECIDED" && (
-          <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-400/[0.08] px-4 py-3 text-sm font-bold text-amber-100/80">
-            {t("Choose a catalog scope to continue publication readiness.")}
-          </p>
-        )}
-        <div
-          role="radiogroup"
-          aria-label={t("Catalog scope")}
-          className="mt-4 grid gap-3 sm:grid-cols-2"
-        >
-          {(
-            [
-              {
-                value: "ALL",
-                title: "Full catalog",
-                description:
-                  "Include every eligible game. A per-game Hide always excludes; a per-game Show wins a hide-by-tag rule.",
-              },
-              {
-                value: "SELECTED",
-                title: "Selected catalog",
-                description:
-                  "Start empty. Show-tag rules and per-game Show add games; a per-game Hide always excludes.",
-              },
-            ] as const
-          ).map((option) => {
-            const selected = catalogMode === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                disabled={isModeSubmitting}
-                onClick={() => void handleCatalogMode(option.value)}
-                className={`min-h-28 rounded-xl border p-4 text-left transition disabled:cursor-wait disabled:opacity-50 ${
-                  selected
-                    ? "border-violet-300/45 bg-violet-400/10 ring-2 ring-violet-400/10"
-                    : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/[0.04]"
-                }`}
-              >
-                <span className="flex items-center gap-2 font-black">
-                  {selected ? (
-                    <CheckCircle2 size={17} className="text-violet-300" />
-                  ) : (
-                    <Circle size={17} className="text-white/25" />
-                  )}
-                  {t(option.title)}
-                </span>
-                <span className="mt-2 block text-xs font-semibold leading-5 text-white/45">
-                  {t(option.description)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+    <div className="flex flex-col gap-10">
+      <CatalogCurationWorkspace
+        storeSlug={storeSlug}
+        onDraftRevisionChange={setDraftRevision}
+      />
 
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-lg font-black">{t("Catalog rules")}</h2>
-          <p className="text-white/50 text-sm font-bold mt-1">
-            {catalogMode === "ALL"
-              ? t(
-                  "The full catalog is included. Hide by tag or game; Show a game to override a hide-by-tag rule.",
-                )
-              : catalogMode === "SELECTED"
-                ? t(
-                    "The selected catalog starts empty. Show tags or games to add them; a per-game Hide always excludes.",
-                  )
-                : t(
-                    "Choose a catalog scope above, then use rules to show or hide games.",
-                  )}
-          </p>
-        </div>
-
-        <form onSubmit={handleAddTag} className="flex flex-wrap gap-2">
-          <input
-            type="text"
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            placeholder={t("e.g. RPG")}
-            className="w-full sm:w-auto sm:flex-1 sm:min-w-[160px] rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/10 focus:border-white/20"
-          />
-          <select
-            value={mode}
-            onChange={(e) =>
-              setMode(e.target.value as "WHITELIST" | "BLACKLIST")
-            }
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white outline-none focus:bg-white/10 focus:border-white/20"
-          >
-            {catalogMode !== "ALL" && (
-              <option value="WHITELIST">{t("Show matching games")}</option>
-            )}
-            <option value="BLACKLIST">{t("Hide matching games")}</option>
-          </select>
-          <button
-            type="submit"
-            disabled={
-              isSubmitting || catalogMode === "UNDECIDED" || !tag.trim()
-            }
-            className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {t("Add")}
-          </button>
-        </form>
-
-        {error && (
-          <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
-            {error}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          {isTagFiltersLoading ? (
-            <Loader2 className="animate-spin text-white/30" size={20} />
-          ) : tagFilters.length === 0 ? (
-            <p className="text-white/30 text-sm font-bold italic">
-              {catalogMode === "ALL"
-                ? t("No tag rules yet — the full catalog is included.")
-                : catalogMode === "SELECTED"
-                  ? t("No tag rules yet — add a Show rule to include games.")
-                  : t("No tag rules yet.")}
-            </p>
-          ) : (
-            tagFilters.map((filter) => (
-              <div
-                key={filter.id}
-                className={`flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border text-sm font-bold ${
-                  filter.mode === "WHITELIST"
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                    : "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                }`}
-              >
-                <button
-                  onClick={() => handleToggleMode(filter)}
-                  disabled={
-                    catalogMode === "ALL" && filter.mode === "BLACKLIST"
-                  }
-                  className="hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
-                  title={t("Switch between showing and hiding matches")}
-                >
-                  {filter.mode === "WHITELIST" ? "✓" : "✕"} {filter.tag}
-                </button>
-                <button
-                  onClick={() => handleRemoveTag(filter)}
-                  className="text-white/40 hover:text-white transition-colors"
-                  aria-label={t("Remove {tag} filter", { tag: filter.tag })}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section>
+      <section className="rounded-3xl border border-white/[0.09] bg-[#100c17] p-5 sm:p-7">
         <button
-          onClick={() => setIsOverridesOpen((open) => !open)}
-          className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white/60 hover:text-white transition-colors"
+          type="button"
+          onClick={() => setIsAdvancedOpen((open) => !open)}
+          aria-expanded={isAdvancedOpen}
+          aria-controls="advanced-curation-rules"
+          className="flex w-full items-center justify-between gap-3 text-left text-sm font-black uppercase tracking-wider text-white/65 transition-colors hover:text-white"
         >
+          <span>
+            <span className="block text-base normal-case tracking-normal text-white">
+              {t("Advanced rules")}
+            </span>
+            <span className="mt-1 block text-xs normal-case tracking-normal text-white/35">
+              {t("Tag rules and direct game overrides")}
+            </span>
+          </span>
           <ChevronDown
-            size={16}
-            className={`transition-transform ${isOverridesOpen ? "rotate-180" : ""}`}
+            size={18}
+            className={`shrink-0 transition-transform ${isAdvancedOpen ? "rotate-180" : ""}`}
           />
-          {t("Advanced: Per-game choices")}
         </button>
 
-        {isOverridesOpen && <GameOverridesPanel storeSlug={storeSlug} />}
+        {isAdvancedOpen && (
+          <div
+            id="advanced-curation-rules"
+            className="mt-6 flex flex-col gap-8 border-t border-white/[0.08] pt-6"
+          >
+            <div className="flex flex-col gap-4">
+              <div>
+                <h3 className="text-lg font-black">{t("Rules by tag")}</h3>
+                <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-white/45">
+                  {t(
+                    "Tag rules can shape the catalog automatically. You will review their exact impact before saving.",
+                  )}
+                </p>
+              </div>
+
+              <form
+                onSubmit={handlePreviewNewRule}
+                className="flex flex-wrap gap-2"
+              >
+                <input
+                  type="text"
+                  value={tag}
+                  onChange={(event) => setTag(event.target.value)}
+                  placeholder={t("e.g. RPG")}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-base font-bold text-white placeholder:text-white/30 outline-none focus:border-violet-400/40 focus:bg-white/10 sm:w-auto sm:min-w-[160px] sm:flex-1 sm:text-sm"
+                />
+                <select
+                  value={mode}
+                  onChange={(event) =>
+                    setMode(event.target.value as "WHITELIST" | "BLACKLIST")
+                  }
+                  aria-label={t("Tag rule result")}
+                  className="rounded-xl border border-white/10 bg-[#17121f] px-4 py-2.5 text-sm font-bold text-white outline-none focus:border-violet-400/40"
+                >
+                  <option value="WHITELIST">{t("Show")}</option>
+                  <option value="BLACKLIST">{t("Hide")}</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={isPreviewingRule || isSubmitting || !tag.trim()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/15 px-4 py-2.5 text-sm font-black text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isPreviewingRule && (
+                    <Loader2 size={15} className="animate-spin" />
+                  )}
+                  {t("Review impact")}
+                </button>
+              </form>
+
+              {pendingRule && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-2xl border border-violet-300/20 bg-violet-400/[0.08] p-4 sm:p-5"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-200/65">
+                        {t("Rule impact")}
+                      </p>
+                      <p className="mt-1 font-black text-white">
+                        {pendingRule.action === "REMOVE"
+                          ? t("Remove rule for {tag}", {
+                              tag: pendingRule.tag,
+                            })
+                          : t(
+                              pendingRule.mode === "WHITELIST"
+                                ? "Show games tagged {tag}"
+                                : "Hide games tagged {tag}",
+                              { tag: pendingRule.tag },
+                            )}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-white/50">
+                        {t(
+                          "{before} shown now → {after} after saving · {shown} added · {hidden} removed",
+                          {
+                            before: pendingRule.impact.current_count,
+                            after: pendingRule.impact.result_count,
+                            shown: pendingRule.impact.shown_count,
+                            hidden: pendingRule.impact.hidden_count,
+                          },
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => setPendingRule(null)}
+                        className="rounded-xl border border-white/10 px-3.5 py-2.5 text-sm font-black text-white/55 hover:bg-white/5 hover:text-white"
+                      >
+                        {t("Cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyRuleChange}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-black text-white transition hover:bg-violet-400 disabled:opacity-50"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <Check size={15} />
+                        )}
+                        {isSubmitting ? t("Saving...") : t("Apply rule")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300"
+                >
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex flex-col gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span>{success}</span>
+                  {canUndoRule && (
+                    <button
+                      type="button"
+                      onClick={undoRuleChange}
+                      disabled={isSubmitting}
+                      className="inline-flex w-fit items-center gap-2 rounded-lg border border-emerald-300/20 px-3 py-1.5 text-xs font-black hover:bg-white/10 disabled:opacity-50"
+                    >
+                      <RotateCcw size={14} /> {t("Undo")}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {isTagFiltersLoading ? (
+                  <Loader2 className="animate-spin text-white/30" size={20} />
+                ) : tagFilters.length === 0 ? (
+                  <p className="text-sm font-bold italic text-white/30">
+                    {t("No tag rules yet — showing the full catalog.")}
+                  </p>
+                ) : (
+                  tagFilters.map((filter) => (
+                    <div
+                      key={filter.id}
+                      className={`flex items-center gap-1 rounded-xl border py-1.5 pl-3 pr-1.5 text-sm font-bold ${
+                        filter.mode === "WHITELIST"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          previewRuleChange({
+                            action: "UPSERT",
+                            targetTag: filter.tag,
+                            targetMode:
+                              filter.mode === "WHITELIST"
+                                ? "BLACKLIST"
+                                : "WHITELIST",
+                            previous: filter,
+                          })
+                        }
+                        className="rounded-md px-1 py-0.5 hover:bg-white/10"
+                        aria-label={t("Change {tag} rule to {action}", {
+                          tag: filter.tag,
+                          action: t(
+                            filter.mode === "WHITELIST" ? "Hide" : "Show",
+                          ),
+                        })}
+                      >
+                        {filter.mode === "WHITELIST" ? t("Show") : t("Hide")}:{" "}
+                        {filter.tag}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          previewRuleChange({
+                            action: "REMOVE",
+                            targetTag: filter.tag,
+                            previous: filter,
+                          })
+                        }
+                        className="rounded-md p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+                        aria-label={t("Remove {tag} rule", {
+                          tag: filter.tag,
+                        })}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <GameOverridesPanel
+              storeSlug={storeSlug}
+              draftRevision={draftRevision}
+            />
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
-function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
+function GameOverridesPanel({
+  storeSlug,
+  draftRevision,
+}: {
+  storeSlug: string;
+  draftRevision: number | null;
+}) {
   const { mutate } = useSWRConfig();
   const { t, translateError } = useI18n();
   const overridesKey = `/api/v1/stores/${storeSlug}/game-overrides`;
@@ -1408,48 +1679,79 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  async function refreshOverrideState() {
+    await Promise.allSettled([
+      mutate(overridesKey),
+      mutate(
+        (key) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/v1/stores/${storeSlug}/curation-catalog?`),
+      ),
+      mutate(publicationEndpoint(storeSlug)),
+    ]);
+  }
+
   async function handleAddOverride(event: React.FormEvent) {
     event.preventDefault();
-    if (!selectedGame) return;
+    if (!selectedGame || draftRevision === null) return;
     setError(null);
     setIsSubmitting(true);
     try {
       const response = await fetch(overridesKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game_slug: selectedGame.slug, visibility }),
+        body: JSON.stringify({
+          game_slug: selectedGame.slug,
+          visibility,
+          expected_draft_revision: draftRevision,
+        }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
+        await refreshOverrideState();
         setError(translateError(body?.message, "Failed to add game override."));
         return;
       }
       setSelectedGame(null);
-      await Promise.all([
-        mutate(overridesKey),
-        mutate(publicationEndpoint(storeSlug)),
-      ]);
+      await refreshOverrideState();
+    } catch {
+      // Keep the selected game and intended visibility available for retry,
+      // while refreshing in case the response was lost after persistence.
+      await refreshOverrideState();
+      setError(t("Failed to add game override."));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleRemoveOverride(override: GameOverrideApi) {
-    const response = await fetch(
-      `${overridesKey}/${encodeURIComponent(override.game_slug)}`,
-      { method: "DELETE" },
-    );
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(
-        translateError(body?.message, "Failed to remove game override."),
+    if (draftRevision === null) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(
+        `${overridesKey}/${encodeURIComponent(override.game_slug)}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ expected_draft_revision: draftRevision }),
+        },
       );
-      return;
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        await refreshOverrideState();
+        setError(
+          translateError(body?.message, "Failed to remove game override."),
+        );
+        return;
+      }
+      await refreshOverrideState();
+    } catch {
+      await refreshOverrideState();
+      setError(t("Failed to remove game override."));
+    } finally {
+      setIsSubmitting(false);
     }
-    await Promise.all([
-      mutate(overridesKey),
-      mutate(publicationEndpoint(storeSlug)),
-    ]);
   }
 
   return (
@@ -1508,7 +1810,10 @@ function GameOverridesPanel({ storeSlug }: { storeSlug: string }) {
       </form>
 
       {error && (
-        <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300"
+        >
           {error}
         </div>
       )}

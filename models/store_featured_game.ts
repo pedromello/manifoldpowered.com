@@ -1,7 +1,7 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import { ValidationError } from "infra/errors";
-import storeCuration from "models/store_curation";
+import { getCurationWhereClause } from "models/store_catalog";
 import { z } from "zod";
 
 export const MAX_FEATURED_GAMES = 3;
@@ -87,10 +87,7 @@ async function replaceSelection(
 
   return prisma.$transaction(
     async (transaction) => {
-      const curationWhere = await storeCuration.getCurationWhereClause(
-        storeId,
-        transaction,
-      );
+      const curationWhere = await getCurationWhereClause(storeId, transaction);
       const andClauses: Prisma.GameWhereInput[] = [];
       if (Object.keys(curationWhere).length > 0) {
         andClauses.push(curationWhere);

@@ -53,6 +53,7 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Creators",
   "Curation",
   "Dashboard",
+  "Deselect {title}",
   "Developers",
   "Disabled",
   "Disabled currencies",
@@ -63,11 +64,17 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "For You",
   "Games",
   "Horror",
+  "Hide {count} selected games",
+  "Hide games tagged {tag}",
+  "Hidden",
   "Inactive",
   "Indie",
   "Last 30 days",
   "Last 7 days",
   "Manual",
+  "Manual choice",
+  "Advanced rule",
+  "Full catalog",
   "Mixed",
   "Mostly Negative",
   "Mostly Positive",
@@ -89,12 +96,18 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Revenue",
   "Sales",
   "Settings",
+  "Select {title}",
+  "Show {count} selected games",
+  "Show games tagged {tag}",
+  "Shown",
   "Simulation",
   "Strategy",
   "Studios",
   "Title (A-Z)",
   "Very Negative",
   "Very Positive",
+  "The selected games are now hidden from your Outlet.",
+  "The selected games are now shown in your Outlet.",
   "Your Games",
 ] as const;
 
@@ -147,7 +160,7 @@ describe("i18n catalog", () => {
   );
 
   test("uses masculine articles for Manifold in pt-BR copy", () => {
-    const feminineArticle = /\b(?:a|à|da|na|pela|uma) Manifold\b/i;
+    const feminineArticle = /\b(?:a|à|da|na|pela|uma)\s+Manifold\b/i;
     const invalid = Object.entries(ptBR)
       .filter(([, translation]) => feminineArticle.test(translation))
       .map(([source]) => source);
