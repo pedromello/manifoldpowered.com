@@ -1020,6 +1020,25 @@ async function findAllForSitemap() {
   });
 }
 
+async function findAllForCuration(priceableGameIds?: string[] | null) {
+  const andClauses: Prisma.GameWhereInput[] = [];
+  if (priceableGameIds !== null && priceableGameIds !== undefined) {
+    andClauses.push({
+      OR: [
+        { status: "ONLY_DISPLAY" },
+        { status: "ACTIVE", id: { in: priceableGameIds } },
+      ],
+    });
+  }
+
+  return prisma.game.findMany({
+    where: {
+      status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+      ...(andClauses.length > 0 && { AND: andClauses }),
+    },
+  });
+}
+
 async function setStatus(id: string, status: GameStatus) {
   return await prisma.game.update({
     where: {
@@ -1060,6 +1079,7 @@ const game = {
   findAllPaginated,
   findAllPaginatedAdmin,
   findAllForSitemap,
+  findAllForCuration,
   makePublic,
   setStatus,
   ensurePurchasable,

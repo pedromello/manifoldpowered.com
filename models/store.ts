@@ -8,6 +8,7 @@ export const storeSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().max(1000).optional(),
   logo_url: z.string().url().max(2048).optional(),
+  catalog_mode: z.enum(["UNDECIDED", "ALL", "SELECTED"]).optional(),
 });
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
@@ -81,6 +82,7 @@ async function create(storeData: StoreCreateDto) {
       logo_url: storeData.logo_url,
       owner_id: storeData.owner_id,
       slug,
+      catalog_mode: storeData.catalog_mode ?? "UNDECIDED",
     },
   });
 

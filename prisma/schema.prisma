@@ -459,12 +459,16 @@ model Sale {
 }
 
 model Store {
-  id          String  @id @default(uuid())
-  name        String  @db.VarChar(255)
-  slug        String  @unique @db.VarChar(255)
-  description String? @db.Text
-  logo_url    String? @db.VarChar(2048)
-  owner_id    String // Logical reference to User.id (creator/owner)
+  id             String           @id @default(uuid())
+  name           String           @db.VarChar(255)
+  slug           String           @unique @db.VarChar(255)
+  description    String?          @db.Text
+  logo_url       String?          @db.VarChar(2048)
+  owner_id       String // Logical reference to User.id (creator/owner)
+  // Added by Sprint 0. Sprint 2 consumes this lifecycle state and must not
+  // create or migrate it independently.
+  catalog_mode   StoreCatalogMode @default(UNDECIDED)
+  draft_revision Int              @default(1)
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
   // Null means the platform default applies — most outlets never get a bespoke
@@ -483,6 +487,12 @@ model Store {
   @@index([owner_id])
   @@index([slug])
   @@map("stores")
+}
+
+enum StoreCatalogMode {
+  UNDECIDED
+  ALL
+  SELECTED
 }
 
 model StoreMember {
@@ -563,6 +573,44 @@ model StoreGameOverride {
   @@unique([store_id, game_id])
   @@index([store_id])
   @@map("store_game_overrides")
+}
+
+model StoreCurationBatch {
+  id                    String                 @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  operation_id          String                 @db.VarChar(64)
+  request_fingerprint   String                 @db.VarChar(64)
+  base_draft_revision   Int
+  result_draft_revision Int
+  action                GameOverrideBulkAction
+  changes               Json
+  undone_at             DateTime?
+  created_at            DateTime               @default(now())
+
+  @@unique([store_id, operation_id])
+  @@index([store_id, created_at])
+  @@map("store_curation_batches")
+}
+
+model StoreTagRuleChange {
+  id                    String         @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  tag                   String         @db.VarChar(100)
+  previous_mode         TagFilterMode?
+  applied_mode          TagFilterMode?
+  base_draft_revision   Int
+  result_draft_revision Int
+  undone_at             DateTime?
+  created_at            DateTime       @default(now())
+
+  @@index([store_id, created_at])
+  @@map("store_tag_rule_changes")
+}
+
+enum GameOverrideBulkAction {
+  SHOW
+  HIDE
+  PIN_SHOW
 }
 
 model StoreFeaturedGame {

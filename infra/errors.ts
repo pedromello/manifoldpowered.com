@@ -143,6 +143,37 @@ export class ValidationError extends Error {
   }
 }
 
+export class ConflictError extends Error {
+  public statusCode = 409;
+  public action: string;
+  public context: unknown;
+
+  constructor({
+    message = "The resource changed while you were editing it",
+    action = "Refresh and try again",
+    context,
+  }: {
+    message?: string;
+    action?: string;
+    context?: unknown;
+  } = {}) {
+    super(message);
+    this.name = "ConflictError";
+    this.action = action;
+    this.context = context;
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      name: this.name,
+      action: this.action,
+      status_code: this.statusCode,
+      context: this.context,
+    };
+  }
+}
+
 export class NotFoundError extends Error {
   public statusCode: number;
   public action: string;

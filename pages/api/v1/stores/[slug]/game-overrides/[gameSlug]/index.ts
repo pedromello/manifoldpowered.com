@@ -3,6 +3,7 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
 import storeCuration, {
+  expectedRevisionSchema,
   gameOverrideVisibilitySchema,
 } from "models/store_curation";
 import authorization from "models/authorization";
@@ -42,6 +43,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
     gameSlug as string,
     result.data.visibility,
+    result.data.expected_draft_revision,
   );
 
   const secureOutputValues = authorization.filterOutput(
@@ -67,7 +69,14 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  await storeCuration.removeGameOverride(foundStore.id, gameSlug as string);
+  const result = expectedRevisionSchema.safeParse(req.body);
+  if (!result.success)
+    throw new ValidationError({ context: result.error.issues });
+  await storeCuration.removeGameOverride(
+    foundStore.id,
+    gameSlug as string,
+    result.data.expected_draft_revision,
+  );
 
   return res.status(200).json({ message: "Game override removed from store" });
 }

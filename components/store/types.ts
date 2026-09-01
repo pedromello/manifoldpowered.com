@@ -87,6 +87,7 @@ export type StoreApi = {
   description: string | null;
   logo_url: string | null;
   owner_id: string;
+  catalog_mode?: "UNDECIDED" | "ALL" | "SELECTED";
   created_at: string;
   updated_at: string;
 };

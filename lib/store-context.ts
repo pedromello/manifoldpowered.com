@@ -12,8 +12,15 @@
 export const STORE_QUERY_PARAM = "store";
 
 /** Link to a game's detail page, carrying attribution when there is any. */
-export function itemHref(gameSlug: string, storeSlug?: string | null): string {
-  return withStore(`/item/${gameSlug}`, storeSlug);
+export function itemHref(
+  gameSlug: string,
+  storeSlug?: string | null,
+  preview = false,
+): string {
+  return withStore(
+    `/item/${gameSlug}${preview ? "?preview=1" : ""}`,
+    storeSlug,
+  );
 }
 
 /** Append `?store=` to a path that has no query string of its own. */

@@ -2,7 +2,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
-import storeCuration, { tagFilterModeSchema } from "models/store_curation";
+import storeCuration, {
+  expectedRevisionSchema,
+  tagFilterModeSchema,
+} from "models/store_curation";
 import authorization from "models/authorization";
 import { ForbiddenError, ValidationError } from "infra/errors";
 
@@ -39,6 +42,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
     tag as string,
     result.data.mode,
+    result.data.expected_draft_revision,
   );
 
   const secureOutputValues = authorization.filterOutput(
@@ -63,7 +67,14 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  await storeCuration.removeTagFilter(foundStore.id, tag as string);
+  const result = expectedRevisionSchema.safeParse(req.body);
+  if (!result.success)
+    throw new ValidationError({ context: result.error.issues });
+  await storeCuration.removeTagFilter(
+    foundStore.id,
+    tag as string,
+    result.data.expected_draft_revision,
+  );
 
   return res.status(200).json({ message: "Tag filter removed from store" });
 }

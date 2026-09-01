@@ -865,6 +865,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
+      catalog_mode: storeOutput.catalog_mode,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };

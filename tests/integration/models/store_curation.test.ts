@@ -189,7 +189,7 @@ describe("models/store_curation.ts curation rules", () => {
     ).rejects.toThrow();
 
     // Removing by yet another case resolves the same lowercase row.
-    await storeCuration.removeTagFilter(createdStore.id, "rPg");
+    await storeCuration.removeTagFilter(createdStore.id, "rPg", 1);
     const remaining = await storeCuration.listTagFilters(createdStore.id);
     expect(remaining).toHaveLength(0);
   });
