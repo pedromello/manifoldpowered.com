@@ -14,7 +14,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "infra/errors";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
-  .get(controller.canRequest("read:game_ownership_claim"), getHandler)
+  .get(getHandler)
   .post(controller.canRequest("create:game_ownership_claim"), postHandler)
   .handler(controller.errorHandlers);
 
@@ -46,23 +46,29 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     parsed.data.slug,
     parsed.data.studio_id,
   );
-  if (
-    !authorization.can(
-      req.context.user,
-      "read:game_ownership_claim",
-      foundStudio,
-    )
-  ) {
+  const canReadClaims = authorization.can(
+    req.context.user,
+    "read:game_ownership_claim",
+    foundStudio,
+  );
+  const canCreateClaims = authorization.can(
+    req.context.user,
+    "create:game_ownership_claim",
+    foundStudio,
+  );
+  if (!canReadClaims && !canCreateClaims) {
     throw new ForbiddenError({
-      message: "You cannot view ownership claims for this studio.",
+      message: "You cannot access ownership claims for this studio.",
       action:
         "Choose a studio that you own or represent with claim permissions.",
     });
   }
 
-  const claims = await gameOwnershipClaim.findForStudios(foundGame.id, [
-    foundStudio.id,
-  ]);
+  // Creation permission must be sufficient to retrieve the exact declaration
+  // required by POST, but it must not implicitly grant access to claim history.
+  const claims = canReadClaims
+    ? await gameOwnershipClaim.findForStudios(foundGame.id, [foundStudio.id])
+    : [];
   return res.status(200).json({
     claims: claims.map((claim) =>
       authorization.filterOutput(

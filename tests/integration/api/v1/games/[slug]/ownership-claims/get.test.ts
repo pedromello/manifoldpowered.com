@@ -1,5 +1,6 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
+import { prisma } from "infra/database";
 import {
   createClaimDirect,
   createUnclaimedGame,
@@ -83,7 +84,50 @@ describe("GET /api/v1/games/[slug]/ownership-claims", () => {
 
     expect(response.status).toBe(403);
     expect((await response.json()).message).toBe(
-      "You cannot view ownership claims for this studio.",
+      "You cannot access ownership claims for this studio.",
     );
+  });
+
+  test("lets a create-only member retrieve terms without exposing claim history", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const studio = await orchestrator.createStudio(owner.id, {
+      name: "Create Only Studio",
+    });
+    const game = await createUnclaimedGame("Create Only Terms Game");
+    await createClaimDirect({
+      gameId: game.id,
+      gameTitle: game.title,
+      studioId: studio.id,
+      studioName: studio.name,
+      userId: owner.id,
+    });
+
+    const member = await orchestrator.createUser();
+    await orchestrator.activateUser(member.id);
+    await orchestrator.addStudioMember(studio.id, member.username, [
+      "create:game_ownership_claim",
+    ]);
+    const session = await orchestrator.createSession(member.id);
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/games/${game.slug}/ownership-claims?studio_id=${studio.id}&locale=en`,
+      { headers: { Cookie: `session_id=${session.token}` } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.claims).toEqual([]);
+    expect(body.current_terms).toMatchObject({
+      text: expect.stringContaining(studio.name),
+      digest: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+
+    const membership = await prisma.studioMember.findUniqueOrThrow({
+      where: {
+        studio_id_user_id: { studio_id: studio.id, user_id: member.id },
+      },
+    });
+    expect(membership.permissions).not.toContain("read:game_ownership_claim");
   });
 });

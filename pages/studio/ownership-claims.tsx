@@ -146,6 +146,10 @@ export default function StudioOwnershipClaimsPage() {
       : null;
   const currentTerms = claimData?.current_terms;
 
+  useEffect(() => {
+    setAcceptedRightsTerms(false);
+  }, [locale, currentTerms?.digest]);
+
   function selectGame(game: GameApi) {
     setSelectedGame(game);
     setAcceptedRightsTerms(false);
