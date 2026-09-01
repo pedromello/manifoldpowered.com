@@ -10,7 +10,7 @@ export const TAG_FILTER_MODES = ["WHITELIST", "BLACKLIST"] as const;
 export const tagFilterSchema = z.object({
   tag: z.string().min(1).max(100),
   mode: z.enum(TAG_FILTER_MODES),
-  expected_draft_revision: z.number().int().positive(),
+  expected_draft_revision: z.number().int().positive().optional(),
 });
 
 export type TagFilterCreateDto = z.infer<typeof tagFilterSchema>;
@@ -22,6 +22,10 @@ export const tagFilterModeSchema = tagFilterSchema.pick({
 
 export const expectedRevisionSchema = z.object({
   expected_draft_revision: z.number().int().positive(),
+});
+
+export const optionalExpectedRevisionSchema = z.object({
+  expected_draft_revision: z.number().int().positive().optional(),
 });
 
 export const tagFilterPreviewSchema = z
@@ -41,7 +45,7 @@ export const GAME_OVERRIDE_VISIBILITIES = ["SHOW", "HIDE"] as const;
 export const gameOverrideSchema = z.object({
   game_slug: z.string().min(1),
   visibility: z.enum(GAME_OVERRIDE_VISIBILITIES),
-  expected_draft_revision: z.number().int().positive(),
+  expected_draft_revision: z.number().int().positive().optional(),
 });
 
 export type GameOverrideCreateDto = z.infer<typeof gameOverrideSchema>;
@@ -89,16 +93,19 @@ function normalizeTag(tag: string): string {
 
 type RevisionDatabase = Pick<Prisma.TransactionClient, "store">;
 
-async function assertDraftRevision(
+async function resolveDraftRevision(
   database: RevisionDatabase,
   storeId: string,
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   const store = await database.store.findUniqueOrThrow({
     where: { id: storeId },
     select: { draft_revision: true },
   });
-  if (store.draft_revision !== expectedDraftRevision) {
+  if (
+    expectedDraftRevision !== undefined &&
+    store.draft_revision !== expectedDraftRevision
+  ) {
     throw new ConflictError({
       context: {
         expected_draft_revision: expectedDraftRevision,
@@ -107,6 +114,14 @@ async function assertDraftRevision(
     });
   }
   return store.draft_revision;
+}
+
+async function assertDraftRevision(
+  database: RevisionDatabase,
+  storeId: string,
+  expectedDraftRevision: number,
+) {
+  return resolveDraftRevision(database, storeId, expectedDraftRevision);
 }
 
 async function incrementDraftRevision(
@@ -148,17 +163,21 @@ async function addTagFilter(
   storeId: string,
   tag: string,
   mode: (typeof TAG_FILTER_MODES)[number],
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   const normalizedTag = normalizeTag(tag);
 
   try {
     return await prisma.$transaction(async (transaction) => {
-      await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+      const resolvedDraftRevision = await resolveDraftRevision(
+        transaction,
+        storeId,
+        expectedDraftRevision,
+      );
       const filter = await transaction.storeTagFilter.create({
         data: { store_id: storeId, tag: normalizedTag, mode },
       });
-      await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+      await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
       return filter;
     });
   } catch (error) {
@@ -179,10 +198,14 @@ async function updateTagFilterMode(
   storeId: string,
   tag: string,
   mode: (typeof TAG_FILTER_MODES)[number],
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   return prisma.$transaction(async (transaction) => {
-    await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+    const resolvedDraftRevision = await resolveDraftRevision(
+      transaction,
+      storeId,
+      expectedDraftRevision,
+    );
     const filter = await transaction.storeTagFilter.findUnique({
       where: { store_id_tag: { store_id: storeId, tag: normalizeTag(tag) } },
     });
@@ -192,7 +215,7 @@ async function updateTagFilterMode(
       where: { id: filter.id },
       data: { mode },
     });
-    await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+    await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
     return updated;
   });
 }
@@ -200,17 +223,21 @@ async function updateTagFilterMode(
 async function removeTagFilter(
   storeId: string,
   tag: string,
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   await prisma.$transaction(async (transaction) => {
-    await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+    const resolvedDraftRevision = await resolveDraftRevision(
+      transaction,
+      storeId,
+      expectedDraftRevision,
+    );
     const filter = await transaction.storeTagFilter.findUnique({
       where: { store_id_tag: { store_id: storeId, tag: normalizeTag(tag) } },
     });
     if (!filter)
       throw new NotFoundError({ message: "Tag rule was not found." });
     await transaction.storeTagFilter.delete({ where: { id: filter.id } });
-    await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+    await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
   });
 }
 
@@ -229,7 +256,7 @@ async function addGameOverride(
   storeId: string,
   gameSlug: string,
   visibility: (typeof GAME_OVERRIDE_VISIBILITIES)[number],
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   const targetGame = await gameModel.findOneBySlug(gameSlug);
 
@@ -242,11 +269,15 @@ async function addGameOverride(
 
   try {
     return await prisma.$transaction(async (transaction) => {
-      await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+      const resolvedDraftRevision = await resolveDraftRevision(
+        transaction,
+        storeId,
+        expectedDraftRevision,
+      );
       const override = await transaction.storeGameOverride.create({
         data: { store_id: storeId, game_id: targetGame.id, visibility },
       });
-      await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+      await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
       return override;
     });
   } catch (error) {
@@ -267,12 +298,16 @@ async function updateGameOverrideVisibility(
   storeId: string,
   gameSlug: string,
   visibility: (typeof GAME_OVERRIDE_VISIBILITIES)[number],
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   const targetGame = await gameModel.findOneBySlug(gameSlug);
   if (!targetGame) throw new NotFoundError({ message: "Game was not found." });
   return prisma.$transaction(async (transaction) => {
-    await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+    const resolvedDraftRevision = await resolveDraftRevision(
+      transaction,
+      storeId,
+      expectedDraftRevision,
+    );
     const override = await transaction.storeGameOverride.findUnique({
       where: {
         store_id_game_id: { store_id: storeId, game_id: targetGame.id },
@@ -284,7 +319,7 @@ async function updateGameOverrideVisibility(
       where: { id: override.id },
       data: { visibility },
     });
-    await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+    await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
     return updated;
   });
 }
@@ -292,12 +327,16 @@ async function updateGameOverrideVisibility(
 async function removeGameOverride(
   storeId: string,
   gameSlug: string,
-  expectedDraftRevision: number,
+  expectedDraftRevision?: number,
 ) {
   const targetGame = await gameModel.findOneBySlug(gameSlug);
   if (!targetGame) throw new NotFoundError({ message: "Game was not found." });
   await prisma.$transaction(async (transaction) => {
-    await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+    const resolvedDraftRevision = await resolveDraftRevision(
+      transaction,
+      storeId,
+      expectedDraftRevision,
+    );
     const override = await transaction.storeGameOverride.findUnique({
       where: {
         store_id_game_id: { store_id: storeId, game_id: targetGame.id },
@@ -306,7 +345,7 @@ async function removeGameOverride(
     if (!override)
       throw new NotFoundError({ message: "Override was not found." });
     await transaction.storeGameOverride.delete({ where: { id: override.id } });
-    await incrementDraftRevision(transaction, storeId, expectedDraftRevision);
+    await incrementDraftRevision(transaction, storeId, resolvedDraftRevision);
   });
 }
 
@@ -440,13 +479,8 @@ function buildCurationWhereClause(
           }
         : { id: { in: [] } };
 
-  if (
-    catalogMode === "ALL" &&
-    blacklistCasings.length === 0 &&
-    forceShowIds.length === 0 &&
-    forceHideIds.length === 0
-  ) {
-    return {};
+  if (catalogMode === "ALL" && blacklistCasings.length === 0) {
+    return forceHideIds.length > 0 ? { id: { notIn: forceHideIds } } : {};
   }
 
   return {
@@ -648,56 +682,78 @@ export async function undoTagRuleChange(
   changeId: string,
   expectedDraftRevision: number,
 ) {
-  return prisma.$transaction(async (transaction) => {
-    await assertDraftRevision(transaction, storeId, expectedDraftRevision);
-    const change = await transaction.storeTagRuleChange.findFirst({
-      where: { id: changeId, store_id: storeId },
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const change = await transaction.storeTagRuleChange.findFirst({
+          where: { id: changeId, store_id: storeId },
+        });
+        if (!change)
+          throw new NotFoundError({ message: "Tag change was not found." });
+        if (change.undone_at) {
+          return {
+            already_undone: true,
+            draft_revision: await resolveDraftRevision(transaction, storeId),
+          };
+        }
+
+        await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+        if (change.result_draft_revision !== expectedDraftRevision) {
+          throw new ConflictError({
+            message: "This tag change can no longer be safely undone.",
+            action: "Review the current rules before changing them again.",
+          });
+        }
+        const current = await transaction.storeTagFilter.findUnique({
+          where: { store_id_tag: { store_id: storeId, tag: change.tag } },
+        });
+        if ((current?.mode ?? null) !== change.applied_mode) {
+          throw new ConflictError({
+            message: "The tag rule changed after this operation.",
+          });
+        }
+        if (change.previous_mode) {
+          await transaction.storeTagFilter.upsert({
+            where: { store_id_tag: { store_id: storeId, tag: change.tag } },
+            create: {
+              store_id: storeId,
+              tag: change.tag,
+              mode: change.previous_mode,
+            },
+            update: { mode: change.previous_mode },
+          });
+        } else if (current) {
+          await transaction.storeTagFilter.delete({
+            where: { id: current.id },
+          });
+        }
+        await transaction.storeTagRuleChange.update({
+          where: { id: change.id },
+          data: { undone_at: new Date() },
+        });
+        return {
+          already_undone: false,
+          draft_revision: await incrementDraftRevision(
+            transaction,
+            storeId,
+            expectedDraftRevision,
+          ),
+        };
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch (error) {
+    const completed = await prisma.storeTagRuleChange.findFirst({
+      where: { id: changeId, store_id: storeId, undone_at: { not: null } },
     });
-    if (!change)
-      throw new NotFoundError({ message: "Tag change was not found." });
-    if (change.undone_at) {
-      return { already_undone: true, draft_revision: expectedDraftRevision };
+    if (completed) {
+      return {
+        already_undone: true,
+        draft_revision: await resolveDraftRevision(prisma, storeId),
+      };
     }
-    if (change.result_draft_revision !== expectedDraftRevision) {
-      throw new ConflictError({
-        message: "This tag change can no longer be safely undone.",
-        action: "Review the current rules before changing them again.",
-      });
-    }
-    const current = await transaction.storeTagFilter.findUnique({
-      where: { store_id_tag: { store_id: storeId, tag: change.tag } },
-    });
-    if ((current?.mode ?? null) !== change.applied_mode) {
-      throw new ConflictError({
-        message: "The tag rule changed after this operation.",
-      });
-    }
-    if (change.previous_mode) {
-      await transaction.storeTagFilter.upsert({
-        where: { store_id_tag: { store_id: storeId, tag: change.tag } },
-        create: {
-          store_id: storeId,
-          tag: change.tag,
-          mode: change.previous_mode,
-        },
-        update: { mode: change.previous_mode },
-      });
-    } else if (current) {
-      await transaction.storeTagFilter.delete({ where: { id: current.id } });
-    }
-    await transaction.storeTagRuleChange.update({
-      where: { id: change.id },
-      data: { undone_at: new Date() },
-    });
-    return {
-      already_undone: false,
-      draft_revision: await incrementDraftRevision(
-        transaction,
-        storeId,
-        expectedDraftRevision,
-      ),
-    };
-  });
+    throw error;
+  }
 }
 
 export async function getCurationManagementState(
@@ -717,7 +773,10 @@ export async function getCurationManagementState(
     }),
     prisma.sale.groupBy({
       by: ["game_id"],
-      where: { game_id: { in: candidateGameIds } },
+      where: {
+        store_id: storeId,
+        game_id: { in: candidateGameIds },
+      },
       _count: { _all: true },
     }),
   ]);
@@ -770,6 +829,41 @@ function batchChanges(value: Prisma.JsonValue): BulkCurationChange[] {
   return value as unknown as BulkCurationChange[];
 }
 
+function bulkReplayResponse(
+  batch: {
+    id: string;
+    request_fingerprint: string;
+    result_draft_revision: number;
+    changes: Prisma.JsonValue;
+    undone_at: Date | null;
+  },
+  input: z.infer<typeof bulkCurationSchema>,
+  expectedFingerprint: string,
+) {
+  if (batch.request_fingerprint !== expectedFingerprint) {
+    throw new ConflictError({
+      message: "This operation id was already used for another request.",
+      action: "Create a new operation after reviewing the selection.",
+    });
+  }
+  const changes = batchChanges(batch.changes);
+  return {
+    batch_id: batch.id,
+    changed_count: changes.length,
+    unchanged_count: input.game_slugs.length - changes.length,
+    undo_available: changes.length > 0 && !batch.undone_at,
+    replayed: true,
+    draft_revision: batch.result_draft_revision,
+  };
+}
+
+function isRetryableTransactionError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2002" || error.code === "P2034")
+  );
+}
+
 export async function previewBulkCuration(
   storeId: string,
   input: z.infer<typeof bulkCurationPreviewSchema>,
@@ -820,9 +914,155 @@ export async function applyBulkCuration(
   }
   const casingsByLowerTag = await getGameTagCasings();
 
-  return prisma.$transaction(
-    async (transaction) => {
-      const existingBatch = await transaction.storeCurationBatch.findUnique({
+  const execute = () =>
+    prisma.$transaction(
+      async (transaction) => {
+        const existingBatch = await transaction.storeCurationBatch.findUnique({
+          where: {
+            store_id_operation_id: {
+              store_id: storeId,
+              operation_id: input.operation_id,
+            },
+          },
+        });
+        if (existingBatch) {
+          return bulkReplayResponse(existingBatch, input, expectedFingerprint);
+        }
+
+        const [store, filters, overrides, games] = await Promise.all([
+          transaction.store.findUniqueOrThrow({ where: { id: storeId } }),
+          transaction.storeTagFilter.findMany({
+            where: { store_id: storeId },
+          }),
+          transaction.storeGameOverride.findMany({
+            where: { store_id: storeId },
+          }),
+          transaction.game.findMany({
+            where: {
+              slug: { in: input.game_slugs },
+              status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+            },
+          }),
+        ]);
+        if (store.draft_revision !== input.expected_draft_revision) {
+          throw new ConflictError({
+            context: {
+              expected_draft_revision: input.expected_draft_revision,
+              actual_draft_revision: store.draft_revision,
+            },
+          });
+        }
+
+        if (games.length !== input.game_slugs.length) {
+          const foundSlugs = new Set(games.map((game) => game.slug));
+          throw new ValidationError({
+            message: "One or more games are unavailable for curation.",
+            action: "Refresh the catalog and try again.",
+            context: {
+              game_slugs: input.game_slugs.filter(
+                (slug) => !foundSlugs.has(slug),
+              ),
+            },
+          });
+        }
+
+        const curationWhere = buildCurationWhereClause(
+          store.catalog_mode,
+          filters,
+          overrides,
+          casingsByLowerTag,
+        );
+        const visibleGames = await transaction.game.findMany({
+          where: {
+            slug: { in: input.game_slugs },
+            status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+            ...(Object.keys(curationWhere).length > 0 && {
+              AND: [curationWhere],
+            }),
+          },
+          select: { id: true },
+        });
+        const visibleIds = new Set(visibleGames.map((game) => game.id));
+        const overrideByGameId = new Map(
+          overrides.map((override) => [override.game_id, override]),
+        );
+        const gameBySlug = new Map(games.map((game) => [game.slug, game]));
+        const changes: BulkCurationChange[] = [];
+
+        for (const gameSlug of input.game_slugs) {
+          const game = gameBySlug.get(gameSlug)!;
+          const currentVisible = visibleIds.has(game.id);
+          const previous = overrideByGameId.get(game.id) ?? null;
+          const shouldChange =
+            input.action === "PIN_SHOW"
+              ? previous?.visibility !== "SHOW"
+              : input.action === "SHOW"
+                ? !currentVisible
+                : currentVisible;
+          if (!shouldChange) continue;
+
+          const targetVisibility = input.action === "HIDE" ? "HIDE" : "SHOW";
+          const applied = await transaction.storeGameOverride.upsert({
+            where: {
+              store_id_game_id: { store_id: storeId, game_id: game.id },
+            },
+            create: {
+              store_id: storeId,
+              game_id: game.id,
+              visibility: targetVisibility,
+            },
+            update: { visibility: targetVisibility },
+          });
+          changes.push({
+            game_id: game.id,
+            game_slug: game.slug,
+            previous: previous
+              ? {
+                  visibility: previous.visibility,
+                  updated_at: previous.updated_at.toISOString(),
+                }
+              : null,
+            applied: {
+              visibility: applied.visibility,
+              updated_at: applied.updated_at.toISOString(),
+            },
+          });
+        }
+
+        const resultDraftRevision = await incrementDraftRevision(
+          transaction,
+          storeId,
+          input.expected_draft_revision,
+        );
+        const batch = await transaction.storeCurationBatch.create({
+          data: {
+            store_id: storeId,
+            operation_id: input.operation_id,
+            request_fingerprint: expectedFingerprint,
+            base_draft_revision: input.expected_draft_revision,
+            result_draft_revision: resultDraftRevision,
+            action: input.action,
+            changes: changes as unknown as Prisma.InputJsonValue,
+          },
+        });
+
+        return {
+          batch_id: batch.id,
+          changed_count: changes.length,
+          unchanged_count: input.game_slugs.length - changes.length,
+          undo_available: changes.length > 0,
+          replayed: false,
+          draft_revision: resultDraftRevision,
+        };
+      },
+      { isolationLevel: "Serializable" },
+    );
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await execute();
+    } catch (error) {
+      const existingBatch = await prisma.storeCurationBatch.findUnique({
         where: {
           store_id_operation_id: {
             store_id: storeId,
@@ -831,151 +1071,20 @@ export async function applyBulkCuration(
         },
       });
       if (existingBatch) {
-        if (existingBatch.request_fingerprint !== expectedFingerprint) {
-          throw new ConflictError({
-            message: "This operation id was already used for another request.",
-            action: "Create a new operation after reviewing the selection.",
-          });
-        }
-        const changes = batchChanges(existingBatch.changes);
-        return {
-          batch_id: existingBatch.id,
-          changed_count: changes.length,
-          unchanged_count: input.game_slugs.length - changes.length,
-          undo_available: changes.length > 0 && !existingBatch.undone_at,
-          replayed: true,
-          draft_revision: existingBatch.result_draft_revision,
-        };
+        return bulkReplayResponse(existingBatch, input, expectedFingerprint);
       }
-
-      const [store, filters, overrides, games] = await Promise.all([
-        transaction.store.findUniqueOrThrow({ where: { id: storeId } }),
-        transaction.storeTagFilter.findMany({
-          where: { store_id: storeId },
-        }),
-        transaction.storeGameOverride.findMany({
-          where: { store_id: storeId },
-        }),
-        transaction.game.findMany({
-          where: {
-            slug: { in: input.game_slugs },
-            status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
-          },
-        }),
-      ]);
-      if (store.draft_revision !== input.expected_draft_revision) {
+      if (isRetryableTransactionError(error) && attempt < 2) continue;
+      if (isRetryableTransactionError(error)) {
         throw new ConflictError({
-          context: {
-            expected_draft_revision: input.expected_draft_revision,
-            actual_draft_revision: store.draft_revision,
-          },
+          message: "The Outlet draft changed during the bulk update.",
+          action: "Refresh the catalog and preview the selection again.",
         });
       }
+      throw error;
+    }
+  }
 
-      if (games.length !== input.game_slugs.length) {
-        const foundSlugs = new Set(games.map((game) => game.slug));
-        throw new ValidationError({
-          message: "One or more games are unavailable for curation.",
-          action: "Refresh the catalog and try again.",
-          context: {
-            game_slugs: input.game_slugs.filter(
-              (slug) => !foundSlugs.has(slug),
-            ),
-          },
-        });
-      }
-
-      const curationWhere = buildCurationWhereClause(
-        store.catalog_mode,
-        filters,
-        overrides,
-        casingsByLowerTag,
-      );
-      const visibleGames = await transaction.game.findMany({
-        where: {
-          slug: { in: input.game_slugs },
-          status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
-          ...(Object.keys(curationWhere).length > 0 && {
-            AND: [curationWhere],
-          }),
-        },
-        select: { id: true },
-      });
-      const visibleIds = new Set(visibleGames.map((game) => game.id));
-      const overrideByGameId = new Map(
-        overrides.map((override) => [override.game_id, override]),
-      );
-      const gameBySlug = new Map(games.map((game) => [game.slug, game]));
-      const changes: BulkCurationChange[] = [];
-
-      for (const gameSlug of input.game_slugs) {
-        const game = gameBySlug.get(gameSlug)!;
-        const currentVisible = visibleIds.has(game.id);
-        const previous = overrideByGameId.get(game.id) ?? null;
-        const shouldChange =
-          input.action === "PIN_SHOW"
-            ? previous?.visibility !== "SHOW"
-            : input.action === "SHOW"
-              ? !currentVisible
-              : currentVisible;
-        if (!shouldChange) continue;
-
-        const targetVisibility = input.action === "HIDE" ? "HIDE" : "SHOW";
-        const applied = await transaction.storeGameOverride.upsert({
-          where: {
-            store_id_game_id: { store_id: storeId, game_id: game.id },
-          },
-          create: {
-            store_id: storeId,
-            game_id: game.id,
-            visibility: targetVisibility,
-          },
-          update: { visibility: targetVisibility },
-        });
-        changes.push({
-          game_id: game.id,
-          game_slug: game.slug,
-          previous: previous
-            ? {
-                visibility: previous.visibility,
-                updated_at: previous.updated_at.toISOString(),
-              }
-            : null,
-          applied: {
-            visibility: applied.visibility,
-            updated_at: applied.updated_at.toISOString(),
-          },
-        });
-      }
-
-      const resultDraftRevision = await incrementDraftRevision(
-        transaction,
-        storeId,
-        input.expected_draft_revision,
-      );
-      const batch = await transaction.storeCurationBatch.create({
-        data: {
-          store_id: storeId,
-          operation_id: input.operation_id,
-          request_fingerprint: expectedFingerprint,
-          base_draft_revision: input.expected_draft_revision,
-          result_draft_revision: resultDraftRevision,
-          action: input.action,
-          changes: changes as unknown as Prisma.InputJsonValue,
-        },
-      });
-
-      return {
-        batch_id: batch.id,
-        changed_count: changes.length,
-        unchanged_count: input.game_slugs.length - changes.length,
-        undo_available: changes.length > 0,
-        replayed: false,
-        draft_revision: resultDraftRevision,
-      };
-    },
-    { isolationLevel: "Serializable" },
-  );
+  throw new ConflictError({});
 }
 
 export async function undoBulkCuration(
@@ -983,87 +1092,105 @@ export async function undoBulkCuration(
   batchId: string,
   expectedDraftRevision: number,
 ) {
-  return prisma.$transaction(
-    async (transaction) => {
-      const batch = await transaction.storeCurationBatch.findFirst({
-        where: { id: batchId, store_id: storeId },
-      });
-      if (!batch) {
-        throw new NotFoundError({
-          message: "Curation change was not found.",
-          action: "Refresh the catalog and try again.",
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const batch = await transaction.storeCurationBatch.findFirst({
+          where: { id: batchId, store_id: storeId },
         });
-      }
-      await assertDraftRevision(transaction, storeId, expectedDraftRevision);
-      if (batch.undone_at) {
-        return {
-          batch_id: batch.id,
-          undone_count: 0,
-          already_undone: true,
-          draft_revision: expectedDraftRevision,
-        };
-      }
-
-      const changes = batchChanges(batch.changes);
-      const currentOverrides = await transaction.storeGameOverride.findMany({
-        where: {
-          store_id: storeId,
-          game_id: { in: changes.map((change) => change.game_id) },
-        },
-      });
-      const currentByGameId = new Map(
-        currentOverrides.map((override) => [override.game_id, override]),
-      );
-
-      const conflicted = changes.filter((change) => {
-        const current = currentByGameId.get(change.game_id);
-        return (
-          !current ||
-          current.visibility !== change.applied.visibility ||
-          current.updated_at.toISOString() !== change.applied.updated_at
-        );
-      });
-      if (conflicted.length > 0) {
-        throw new ValidationError({
-          message:
-            "This change can no longer be safely undone because the catalog changed again.",
-          action: "Review the current catalog before making another change.",
-          context: { game_slugs: conflicted.map((change) => change.game_slug) },
-        });
-      }
-
-      for (const change of changes) {
-        const current = currentByGameId.get(change.game_id)!;
-        if (change.previous) {
-          await transaction.storeGameOverride.update({
-            where: { id: current.id },
-            data: { visibility: change.previous.visibility },
-          });
-        } else {
-          await transaction.storeGameOverride.delete({
-            where: { id: current.id },
+        if (!batch) {
+          throw new NotFoundError({
+            message: "Curation change was not found.",
+            action: "Refresh the catalog and try again.",
           });
         }
-      }
-      await transaction.storeCurationBatch.update({
-        where: { id: batch.id },
-        data: { undone_at: new Date() },
-      });
-      const resultDraftRevision = await incrementDraftRevision(
-        transaction,
-        storeId,
-        expectedDraftRevision,
-      );
+        if (batch.undone_at) {
+          return {
+            batch_id: batch.id,
+            undone_count: 0,
+            already_undone: true,
+            draft_revision: await resolveDraftRevision(transaction, storeId),
+          };
+        }
 
+        await assertDraftRevision(transaction, storeId, expectedDraftRevision);
+
+        const changes = batchChanges(batch.changes);
+        const currentOverrides = await transaction.storeGameOverride.findMany({
+          where: {
+            store_id: storeId,
+            game_id: { in: changes.map((change) => change.game_id) },
+          },
+        });
+        const currentByGameId = new Map(
+          currentOverrides.map((override) => [override.game_id, override]),
+        );
+
+        const conflicted = changes.filter((change) => {
+          const current = currentByGameId.get(change.game_id);
+          return (
+            !current ||
+            current.visibility !== change.applied.visibility ||
+            current.updated_at.toISOString() !== change.applied.updated_at
+          );
+        });
+        if (conflicted.length > 0) {
+          throw new ValidationError({
+            message:
+              "This change can no longer be safely undone because the catalog changed again.",
+            action: "Review the current catalog before making another change.",
+            context: {
+              game_slugs: conflicted.map((change) => change.game_slug),
+            },
+          });
+        }
+
+        for (const change of changes) {
+          const current = currentByGameId.get(change.game_id)!;
+          if (change.previous) {
+            await transaction.storeGameOverride.update({
+              where: { id: current.id },
+              data: { visibility: change.previous.visibility },
+            });
+          } else {
+            await transaction.storeGameOverride.delete({
+              where: { id: current.id },
+            });
+          }
+        }
+        await transaction.storeCurationBatch.update({
+          where: { id: batch.id },
+          data: { undone_at: new Date() },
+        });
+        const resultDraftRevision = await incrementDraftRevision(
+          transaction,
+          storeId,
+          expectedDraftRevision,
+        );
+
+        return {
+          batch_id: batch.id,
+          undone_count: changes.length,
+          already_undone: false,
+          draft_revision: resultDraftRevision,
+        };
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch (error) {
+    const completed = await prisma.storeCurationBatch.findFirst({
+      where: { id: batchId, store_id: storeId, undone_at: { not: null } },
+    });
+    if (completed) {
       return {
-        batch_id: batch.id,
-        undone_count: changes.length,
-        already_undone: false,
-        draft_revision: resultDraftRevision,
+        batch_id: completed.id,
+        undone_count: 0,
+        already_undone: true,
+        draft_revision: await resolveDraftRevision(prisma, storeId),
       };
-    },
-    { isolationLevel: "Serializable" },
-  );
+    }
+    throw error;
+  }
 }
 
 // Returns a map of lowercased tag -> the actual casing(s) that tag appears

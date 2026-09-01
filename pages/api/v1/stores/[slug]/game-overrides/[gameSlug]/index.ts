@@ -3,8 +3,8 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
 import storeCuration, {
-  expectedRevisionSchema,
   gameOverrideVisibilitySchema,
+  optionalExpectedRevisionSchema,
 } from "models/store_curation";
 import authorization from "models/authorization";
 import { ForbiddenError, ValidationError } from "infra/errors";
@@ -69,7 +69,7 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const result = expectedRevisionSchema.safeParse(req.body);
+  const result = optionalExpectedRevisionSchema.safeParse(req.body ?? {});
   if (!result.success)
     throw new ValidationError({ context: result.error.issues });
   await storeCuration.removeGameOverride(

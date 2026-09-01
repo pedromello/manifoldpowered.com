@@ -12,7 +12,9 @@ describe("POST /api/v1/stores/[slug]/tag-filters/preview", () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
     const session = await orchestrator.createSession(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "SELECTED",
+    });
 
     const rpg = await orchestrator.createGame(owner.id, {
       title: "Preview Rule RPG",
@@ -37,17 +39,19 @@ describe("POST /api/v1/stores/[slug]/tag-filters/preview", () => {
           action: "UPSERT",
           tag: "rpg",
           mode: "WHITELIST",
+          expected_draft_revision: 1,
         }),
       },
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      current_count: 2,
+      draft_revision: 1,
+      current_count: 0,
       result_count: 1,
-      shown_count: 0,
-      hidden_count: 1,
-      unchanged_count: 1,
+      shown_count: 1,
+      hidden_count: 0,
+      unchanged_count: 0,
     });
 
     const filtersResponse = await fetch(
@@ -92,17 +96,22 @@ describe("POST /api/v1/stores/[slug]/tag-filters/preview", () => {
           "Content-Type": "application/json",
           Cookie: `session_id=${session.token}`,
         },
-        body: JSON.stringify({ action: "REMOVE", tag: "horror" }),
+        body: JSON.stringify({
+          action: "REMOVE",
+          tag: "horror",
+          expected_draft_revision: 3,
+        }),
       },
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      current_count: 2,
-      result_count: 2,
-      shown_count: 0,
+      draft_revision: 3,
+      current_count: 3,
+      result_count: 4,
+      shown_count: 1,
       hidden_count: 0,
-      unchanged_count: 2,
+      unchanged_count: 3,
     });
   });
 
@@ -126,6 +135,7 @@ describe("POST /api/v1/stores/[slug]/tag-filters/preview", () => {
           action: "UPSERT",
           tag: "rpg",
           mode: "WHITELIST",
+          expected_draft_revision: 1,
         }),
       },
     );
