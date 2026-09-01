@@ -829,8 +829,8 @@ async function changePublication(
       databaseCode === "40001" ||
       prismaMessage.includes("could not serialize access") ||
       (prismaCode === "P2002" &&
-          uniqueTarget.includes("store_id") &&
-          uniqueTarget.includes("revision"))
+        uniqueTarget.includes("store_id") &&
+        uniqueTarget.includes("revision"))
     ) {
       const latest = await prisma.store.findUnique({
         where: { id: storeId },

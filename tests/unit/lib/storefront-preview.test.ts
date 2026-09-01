@@ -21,14 +21,8 @@ describe("storefront preview request policy", () => {
       "Cache-Control",
       "private, no-store",
     );
-    expect(setHeader).toHaveBeenCalledWith(
-      "X-Robots-Tag",
-      "noindex, nofollow",
-    );
-    expect(setHeader).toHaveBeenCalledWith(
-      "Vary",
-      "Accept-Encoding, Cookie",
-    );
+    expect(setHeader).toHaveBeenCalledWith("X-Robots-Tag", "noindex, nofollow");
+    expect(setHeader).toHaveBeenCalledWith("Vary", "Accept-Encoding, Cookie");
   });
 
   test.each([undefined, "0", "true", ["1", "0"]])(

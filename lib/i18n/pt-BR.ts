@@ -1024,14 +1024,11 @@ export const ptBR: Record<string, string> = {
     "Não foi possível atualizar o status de publicação.",
   "Failed to save catalog choice.":
     "Não foi possível salvar a escolha de catálogo.",
-  "Failed to update tag filter.":
-    "Não foi possível atualizar a regra de tag.",
-  "Failed to remove tag filter.":
-    "Não foi possível remover a regra de tag.",
+  "Failed to update tag filter.": "Não foi possível atualizar a regra de tag.",
+  "Failed to remove tag filter.": "Não foi possível remover a regra de tag.",
   "Failed to remove game override.":
     "Não foi possível remover a escolha por jogo.",
-  "Purchasing is disabled in preview":
-    "As compras estão desativadas na prévia",
+  "Purchasing is disabled in preview": "As compras estão desativadas na prévia",
   "Open the published Outlet to test acquisition and attribution.":
     "Abra a Outlet publicada para testar a aquisição e a atribuição.",
   "Private draft preview": "Prévia privada do rascunho",
