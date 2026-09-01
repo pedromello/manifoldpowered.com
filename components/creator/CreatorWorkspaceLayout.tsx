@@ -2,16 +2,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { ArrowLeft, Building2, Gamepad2, Plus, Store } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Gamepad2,
+  LayoutDashboard,
+  Plus,
+} from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
 
 const links = [
-  { href: "/store/mine", label: "My Outlets", icon: Store },
+  { href: "/store/mine", label: "Overview", icon: LayoutDashboard },
   { href: "/studio", label: "My Studios", icon: Building2 },
-  { href: "/store/new", label: "Create Outlet", icon: Plus },
+  { href: "/store/new?new=1", label: "Create Outlet", icon: Plus },
   { href: "/onboarding/create", label: "Create Studio", icon: Gamepad2 },
 ] as const;
 
@@ -28,7 +34,7 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
           router.pathname !== "/store/new")
       );
     }
-    return router.pathname === href;
+    return router.asPath === href || router.pathname === href;
   };
 
   return (
@@ -103,12 +109,16 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
             <UserMenu variant="store-home" />
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto border-t border-white/[0.06] px-3 py-2 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav
+          aria-label={t("Creator workspace navigation")}
+          className="flex gap-1 overflow-x-auto border-t border-white/[0.06] px-3 py-2 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className={`flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold ${
+              aria-current={isActive(href) ? "page" : undefined}
+              className={`flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
                 isActive(href) ? "bg-white/[0.09]" : "text-white/50"
               }`}
             >

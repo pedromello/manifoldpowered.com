@@ -1,6 +1,6 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
-import { ValidationError } from "infra/errors";
+import { ConflictError, ValidationError } from "infra/errors";
 import { getCurationWhereClause } from "models/store_catalog";
 import { z } from "zod";
 
@@ -33,19 +33,24 @@ const recommendationsSchema = z
   });
 
 export const featuredGameSelectionSchema = z.union([
-  z.object({ recommendations: recommendationsSchema }),
+  z.object({
+    recommendations: recommendationsSchema,
+    expected_draft_revision: z.number().int().min(1),
+  }),
   z
     .object({
       game_slugs: z
         .array(z.string().trim().min(1).max(255))
         .min(1)
         .max(MAX_FEATURED_GAMES),
+      expected_draft_revision: z.number().int().min(1),
     })
-    .transform(({ game_slugs }) => ({
+    .transform(({ game_slugs, expected_draft_revision }) => ({
       recommendations: game_slugs.map((game_slug) => ({
         game_slug,
         recommendation_reason: null,
       })),
+      expected_draft_revision,
     }))
     .superRefine(({ recommendations }, context) => {
       const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
@@ -58,6 +63,10 @@ export const featuredGameSelectionSchema = z.union([
       }
     }),
 ]);
+
+export const featuredGameResetSchema = z
+  .object({ expected_draft_revision: z.number().int().min(1) })
+  .strict();
 
 export type FeaturedRecommendation = z.infer<typeof recommendationSchema>;
 
@@ -72,81 +81,144 @@ interface EditorialGameQuery {
 async function incrementDraftRevision(
   storeId: string,
   transaction: Prisma.TransactionClient,
+  expectedDraftRevision?: number,
 ) {
-  await transaction.store.update({
+  const current = await transaction.store.findUniqueOrThrow({
     where: { id: storeId },
+    select: { draft_revision: true },
+  });
+  const expected = expectedDraftRevision ?? current.draft_revision;
+  const updated = await transaction.store.updateMany({
+    where: { id: storeId, draft_revision: expected },
     data: { draft_revision: { increment: 1 } },
   });
+  if (updated.count !== 1) {
+    throw featuredConflict(expected, current.draft_revision);
+  }
+}
+
+function featuredConflict(expected: number, actual: number) {
+  return new ConflictError({
+    message: "The Outlet draft changed before Featured was saved.",
+    action: "Refresh Featured, review the latest selection, and try again.",
+    context: {
+      expected_draft_revision: expected,
+      actual_draft_revision: actual,
+    },
+  });
+}
+
+async function mapFeaturedConflict(
+  error: unknown,
+  storeId: string,
+  expectedDraftRevision?: number,
+): Promise<never> {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2002" || error.code === "P2034")
+  ) {
+    const latest = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { draft_revision: true },
+    });
+    throw featuredConflict(
+      expectedDraftRevision ?? latest?.draft_revision ?? 1,
+      latest?.draft_revision ?? 1,
+    );
+  }
+  throw error;
 }
 
 async function replaceSelection(
   storeId: string,
   recommendations: FeaturedRecommendation[],
+  expectedDraftRevision?: number,
 ) {
   const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
 
-  return prisma.$transaction(
-    async (transaction) => {
-      const curationWhere = await getCurationWhereClause(storeId, transaction);
-      const andClauses: Prisma.GameWhereInput[] = [];
-      if (Object.keys(curationWhere).length > 0) {
-        andClauses.push(curationWhere);
-      }
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const curationWhere = await getCurationWhereClause(
+          storeId,
+          transaction,
+        );
+        const andClauses: Prisma.GameWhereInput[] = [];
+        if (Object.keys(curationWhere).length > 0) {
+          andClauses.push(curationWhere);
+        }
 
-      const games = await transaction.game.findMany({
-        where: {
-          slug: { in: gameSlugs },
-          status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
-          ...(andClauses.length > 0 && { AND: andClauses }),
-        },
-        select: { id: true, slug: true },
-      });
-
-      const gameBySlug = new Map(games.map((game) => [game.slug, game]));
-      const ineligibleSlugs = gameSlugs.filter((slug) => !gameBySlug.has(slug));
-
-      if (ineligibleSlugs.length > 0) {
-        throw new ValidationError({
-          message: "One or more games cannot be featured by this Outlet.",
-          action:
-            "Choose active games that are currently included in the Outlet catalog.",
-          context: { game_slugs: ineligibleSlugs },
+        const games = await transaction.game.findMany({
+          where: {
+            slug: { in: gameSlugs },
+            status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+            ...(andClauses.length > 0 && { AND: andClauses }),
+          },
+          select: { id: true, slug: true },
         });
-      }
 
-      await transaction.storeFeaturedGame.deleteMany({
-        where: { store_id: storeId },
-      });
-      await transaction.storeFeaturedGame.createMany({
-        data: recommendations.map((recommendation, index) => ({
-          store_id: storeId,
-          game_id: gameBySlug.get(recommendation.game_slug)!.id,
+        const gameBySlug = new Map(games.map((game) => [game.slug, game]));
+        const ineligibleSlugs = gameSlugs.filter(
+          (slug) => !gameBySlug.has(slug),
+        );
+
+        if (ineligibleSlugs.length > 0) {
+          throw new ValidationError({
+            message: "One or more games cannot be featured by this Outlet.",
+            action:
+              "Choose active games that are currently included in the Outlet catalog.",
+            context: { game_slugs: ineligibleSlugs },
+          });
+        }
+
+        await transaction.storeFeaturedGame.deleteMany({
+          where: { store_id: storeId },
+        });
+        await transaction.storeFeaturedGame.createMany({
+          data: recommendations.map((recommendation, index) => ({
+            store_id: storeId,
+            game_id: gameBySlug.get(recommendation.game_slug)!.id,
+            position: index + 1,
+            recommendation_reason: recommendation.recommendation_reason,
+          })),
+        });
+
+        await incrementDraftRevision(
+          storeId,
+          transaction,
+          expectedDraftRevision,
+        );
+
+        return recommendations.map((recommendation, index) => ({
+          ...recommendation,
           position: index + 1,
-          recommendation_reason: recommendation.recommendation_reason,
-        })),
-      });
-
-      await incrementDraftRevision(storeId, transaction);
-
-      return recommendations.map((recommendation, index) => ({
-        ...recommendation,
-        position: index + 1,
-      }));
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
+        }));
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    return mapFeaturedConflict(error, storeId, expectedDraftRevision);
+  }
 }
 
-async function resetSelection(storeId: string) {
-  await prisma.$transaction(
-    async (transaction) => {
-      await transaction.storeFeaturedGame.deleteMany({
-        where: { store_id: storeId },
-      });
-      await incrementDraftRevision(storeId, transaction);
-    },
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
+async function resetSelection(storeId: string, expectedDraftRevision?: number) {
+  try {
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.storeFeaturedGame.deleteMany({
+          where: { store_id: storeId },
+        });
+        await incrementDraftRevision(
+          storeId,
+          transaction,
+          expectedDraftRevision,
+        );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    await mapFeaturedConflict(error, storeId, expectedDraftRevision);
+  }
 }
 
 async function findAvailableEditorialGames({

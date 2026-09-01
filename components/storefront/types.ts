@@ -72,10 +72,14 @@ export type StorefrontViewProps = {
   /** Whether the Outlet chose these games or the catalog ranked them. */
   featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
+  featuredError?: Error;
 
   /** The required surface. A view that does not render this fails the contract. */
   games: GameApi[];
   isLoading: boolean;
+  catalogError?: Error;
+  /** True only after both preview data sources completed successfully. */
+  isPreviewReady: boolean;
   pagination?: PaginationApi;
   /** ISO-4217 code the prices in `games` are denominated in. */
   currency: string;
