@@ -30,6 +30,7 @@ import {
   type StoreRevision,
 } from "generated/prisma/client";
 import { prisma } from "infra/database";
+import authorization from "models/authorization";
 import { gameSchema } from "models/game";
 import storeModel, {
   MEMBER_PERMISSIONS,
@@ -997,7 +998,11 @@ async function ensureOwner(): Promise<void> {
     where: { id: OWNER_FIXTURE.id },
   });
   const requiredFeatures = [
-    ...new Set([...MEMBER_PERMISSIONS, ...STORE_OWNER_FEATURES]),
+    ...new Set([
+      ...authorization.ACTIVATED_USER_FEATURES,
+      ...MEMBER_PERMISSIONS,
+      ...STORE_OWNER_FEATURES,
+    ]),
   ];
 
   if (!existing) {

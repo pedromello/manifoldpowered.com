@@ -19,6 +19,7 @@ import {
   type StoreManagementApi,
 } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import { isBespokeThemeKey } from "storefronts/bespoke";
 
 const PRESET_OPTIONS: Array<{
@@ -371,14 +372,15 @@ export function OutletCustomizationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [draftRevision, setDraftRevision] = useState(store.draft_revision);
-  const publicationKey = `/api/v1/stores/${store.slug}/publication`;
+  const publicationEndpoint = `/api/v1/stores/${store.slug}/publication`;
+  const publicationKey = [publicationEndpoint, "publication-raw"] as const;
   const {
     data: publication,
     error: publicationError,
     isLoading: publicationIsLoading,
     isValidating: publicationIsValidating,
     mutate: mutatePublication,
-  } = useSWR<PublicationApi>(publicationKey, fetchPublication);
+  } = useSWR<PublicationApi>(publicationKey, ([url]) => fetchPublication(url));
   const publicationStatus = publication?.status ?? store.status ?? "DRAFT";
   const publicationReadiness = publication?.readiness;
   const hasUnpublishedChanges = Boolean(
@@ -497,7 +499,11 @@ export function OutletCustomizationForm({
       });
       if (!response.ok) {
         if (response.status === 409) {
-          await mutate(managementKey);
+          await Promise.all([
+            mutate(managementKey),
+            mutatePublication(),
+            revalidateOutletDraftCaches(mutate, store.slug),
+          ]);
           setError(
             t("This draft changed elsewhere. We reloaded the latest version."),
           );
@@ -508,7 +514,10 @@ export function OutletCustomizationForm({
       }
 
       applyManagementResponse(body as StoreManagementApi);
-      await mutatePublication();
+      await Promise.all([
+        mutatePublication(),
+        revalidateOutletDraftCaches(mutate, store.slug),
+      ]);
       setSuccess(t("Draft saved. The public Outlet has not changed."));
     } catch {
       setError(t("Could not save these changes. Try again."));
@@ -540,7 +549,10 @@ export function OutletCustomizationForm({
         if (response.status === 409) {
           const latest = await mutate(managementKey);
           if (latest) applyManagementResponse(latest as StoreManagementApi);
-          await mutatePublication();
+          await Promise.all([
+            mutatePublication(),
+            revalidateOutletDraftCaches(mutate, store.slug),
+          ]);
           setError(
             t("This draft changed elsewhere. We reloaded the latest version."),
           );
@@ -553,6 +565,7 @@ export function OutletCustomizationForm({
       const nextPublication = body as PublicationApi;
       setDraftRevision(nextPublication.draft_revision);
       await mutatePublication(nextPublication, { revalidate: false });
+      await revalidateOutletDraftCaches(mutate, store.slug);
       setSuccess(t("Published. Visitors now see this version."));
     } catch {
       setError(t("Could not publish this Outlet. Try again."));

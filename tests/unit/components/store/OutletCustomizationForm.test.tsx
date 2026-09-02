@@ -137,6 +137,15 @@ describe("OutletCustomizationForm", () => {
     expect(markup).toContain("motion-reduce:transition-none");
   });
 
+  test("isolates raw publication readiness from the normalized manage-page cache", () => {
+    renderToStaticMarkup(<OutletCustomizationForm store={store()} />);
+
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      ["/api/v1/stores/lantern-club/publication", "publication-raw"],
+      expect.any(Function),
+    );
+  });
+
   test("keeps live and draft preview destinations separate after publication", () => {
     mockUseSWR.mockReturnValue({
       data: {
