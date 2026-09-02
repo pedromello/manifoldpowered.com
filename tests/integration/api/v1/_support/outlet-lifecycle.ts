@@ -68,6 +68,12 @@ export async function createReadyDraft(
     200,
     "selecting the ALL catalog mode",
   );
+  const featuredDraftRevision = (
+    await prisma.store.findUniqueOrThrow({
+      where: { id: createdStore.id },
+      select: { draft_revision: true },
+    })
+  ).draft_revision;
   await expectSuccessfulResponse(
     fetch(
       `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/featured`,
@@ -75,6 +81,7 @@ export async function createReadyDraft(
         method: "PUT",
         headers: authenticatedJsonHeaders(actor.sessionToken),
         body: JSON.stringify({
+          expected_draft_revision: featuredDraftRevision,
           recommendations: [
             {
               game_slug: games[0].slug,

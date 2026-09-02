@@ -657,36 +657,69 @@ async function update(
       : {}),
   };
 
-  return prisma.$transaction(async (transaction) => {
-    const existingStore = await transaction.store.findUnique({ where: { id } });
-    if (!existingStore) {
-      throw new NotFoundError({
-        message: "Store not found.",
-        action: "Check the store ID and try again.",
-      });
-    }
-    if (existingStore.draft_revision !== expectedDraftRevision) {
-      throw publicationConflict({
-        expectedDraftRevision,
-        actualDraftRevision: existingStore.draft_revision,
-      });
-    }
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        const existingStore = await transaction.store.findUnique({
+          where: { id },
+        });
+        if (!existingStore) {
+          throw new NotFoundError({
+            message: "Store not found.",
+            action: "Check the store ID and try again.",
+          });
+        }
+        if (existingStore.draft_revision !== expectedDraftRevision) {
+          throw publicationConflict({
+            expectedDraftRevision,
+            actualDraftRevision: existingStore.draft_revision,
+          });
+        }
 
-    const updated = await transaction.store.updateMany({
-      where: { id, draft_revision: expectedDraftRevision },
-      data: {
-        ...normalizedData,
-        draft_revision: { increment: 1 },
+        const updated = await transaction.store.updateMany({
+          where: { id, draft_revision: expectedDraftRevision },
+          // Slugs are immutable after creation. Renaming changes display
+          // identity, never the durable URL or attribution key.
+          data: {
+            ...normalizedData,
+            draft_revision: { increment: 1 },
+          },
+        });
+        if (updated.count !== 1) {
+          const latest = await transaction.store.findUnique({
+            where: { id },
+            select: { draft_revision: true },
+          });
+          throw publicationConflict({
+            expectedDraftRevision,
+            actualDraftRevision:
+              latest?.draft_revision ?? expectedDraftRevision,
+          });
+        }
+        return transaction.store.findUniqueOrThrow({ where: { id } });
       },
-    });
-    if (updated.count !== 1) {
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    const prismaCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : null;
+    if (prismaCode === "P2002" || prismaCode === "P2034") {
+      const latest = await prisma.store.findUnique({
+        where: { id },
+        select: { draft_revision: true },
+      });
       throw publicationConflict({
         expectedDraftRevision,
-        actualDraftRevision: existingStore.draft_revision,
+        actualDraftRevision: latest?.draft_revision ?? expectedDraftRevision,
       });
     }
-    return transaction.store.findUniqueOrThrow({ where: { id } });
-  });
+    throw error;
+  }
 }
 
 async function getPublicationState(

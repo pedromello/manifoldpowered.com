@@ -23,11 +23,18 @@ type ListResponse = {
 
 const fetcher = async (url: string): Promise<ListResponse> => {
   const response = await fetch(url);
-  const body = await response.json().catch(() => null);
+  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(body?.message || `Request failed: ${response.status}`);
+    throw new Error(
+      typeof body === "object" &&
+        body !== null &&
+        "message" in body &&
+        typeof body.message === "string"
+        ? body.message
+        : `Storefront request failed (${response.status}).`,
+    );
   }
-  return body;
+  return body as ListResponse;
 };
 
 function localUrl(path: string) {
@@ -124,14 +131,14 @@ export function useStorefrontController({
 
   const {
     data: featuredData,
-    error: featuredError,
+    error: featuredRequestError,
     isLoading: isFeaturedLoading,
     mutate: mutateFeatured,
   } = useSWR<ListResponse>(featuredUrl, fetcher);
 
   const {
     data,
-    error: catalogError,
+    error: catalogRequestError,
     isLoading,
     mutate: mutateCatalog,
   } = useSWR<ListResponse>(listUrl, fetcher);
@@ -198,13 +205,22 @@ export function useStorefrontController({
     featured: featuredData?.games || [],
     featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
-    featuredError: Boolean(featuredError),
+    featuredError: Boolean(featuredRequestError),
     retryFeatured: () => void mutateFeatured(),
 
     games: data?.games || [],
     isLoading,
-    catalogError: Boolean(catalogError),
+    catalogError: Boolean(catalogRequestError),
     retryCatalog: () => void mutateCatalog(),
+    previewError: featuredRequestError ?? catalogRequestError,
+    isPreviewReady:
+      isPreview &&
+      featuredData !== undefined &&
+      data !== undefined &&
+      !isFeaturedLoading &&
+      !isLoading &&
+      !featuredRequestError &&
+      !catalogRequestError,
     pagination: data?.pagination,
     currency: data?.currency || "USD",
 

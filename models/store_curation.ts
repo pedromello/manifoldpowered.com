@@ -80,6 +80,57 @@ export const catalogModeSchema = z.object({
   expected_draft_revision: z.number().int().positive(),
 });
 
+export const creatorSelectionSchema = z.discriminatedUnion("strategy", [
+  z
+    .object({
+      strategy: z.literal("FOCUSED"),
+      tags: z.array(z.string().trim().min(1).max(100)).min(1).max(20),
+      game_slugs: z.array(z.string().trim().min(1).max(255)).max(100),
+      expected_draft_revision: z.number().int().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      strategy: z.literal("HANDPICKED"),
+      tags: z.array(z.string().trim().min(1).max(100)).max(20),
+      game_slugs: z
+        .array(z.string().trim().min(1).max(255))
+        .min(5)
+        .max(100)
+        .refine((slugs) => new Set(slugs).size === slugs.length, {
+          message: "game_slugs must be unique",
+        }),
+      expected_draft_revision: z.number().int().positive(),
+    })
+    .strict(),
+]);
+
+export type CreatorSelectionDto = z.infer<typeof creatorSelectionSchema>;
+
+export function assertCreatorSelectionInitializationSafe(input: {
+  catalogMode: CatalogMode;
+  tagFilterCount: number;
+  gameOverrideCount: number;
+}) {
+  if (
+    input.catalogMode !== "UNDECIDED" ||
+    input.tagFilterCount > 0 ||
+    input.gameOverrideCount > 0
+  ) {
+    throw new ConflictError({
+      message:
+        "This Outlet already has catalog curation that onboarding cannot replace safely.",
+      action:
+        "Open the visual curation workspace to review and change the existing catalog.",
+      context: {
+        catalog_mode: input.catalogMode,
+        tag_filter_count: input.tagFilterCount,
+        game_override_count: input.gameOverrideCount,
+      },
+    });
+  }
+}
+
 export const tagRuleChangeSchema = tagFilterPreviewSchema;
 
 // Tag filters are stored and matched case-insensitively: "RPG" and "rpg" are
@@ -382,6 +433,224 @@ async function listGameOverridesWithSlugs(storeId: string) {
     ...override,
     game_slug: slugByGameId[override.game_id] || "unknown",
   }));
+}
+
+// The guided onboarding submits one intentional catalog decision. Keep that
+// convenience atomic, but persist it through the same canonical S2 state as
+// the curation workspace: SELECTED catalog mode, whitelist rules/SHOW
+// overrides, and a compare-and-swap draft revision.
+async function replaceCreatorSelection(
+  storeId: string,
+  selection: CreatorSelectionDto,
+) {
+  const parsed = creatorSelectionSchema.parse(selection);
+  const normalizedTags = [
+    ...new Set(
+      (parsed.strategy === "FOCUSED" ? parsed.tags : []).map(normalizeTag),
+    ),
+  ];
+  const requestedSlugs =
+    parsed.strategy === "HANDPICKED" ? parsed.game_slugs : [];
+
+  try {
+    return await prisma.$transaction(
+      async (transaction) => {
+        await assertDraftRevision(
+          transaction,
+          storeId,
+          parsed.expected_draft_revision,
+        );
+
+        const [currentStore, existingFilters, existingOverrides] =
+          await Promise.all([
+            transaction.store.findUniqueOrThrow({
+              where: { id: storeId },
+              select: { catalog_mode: true },
+            }),
+            transaction.storeTagFilter.count({ where: { store_id: storeId } }),
+            transaction.storeGameOverride.count({
+              where: { store_id: storeId },
+            }),
+          ]);
+        assertCreatorSelectionInitializationSafe({
+          catalogMode: currentStore.catalog_mode,
+          tagFilterCount: existingFilters,
+          gameOverrideCount: existingOverrides,
+        });
+
+        const games =
+          requestedSlugs.length > 0
+            ? await transaction.game.findMany({
+                where: {
+                  slug: { in: requestedSlugs },
+                  status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+                },
+                select: { id: true, slug: true },
+              })
+            : [];
+        if (games.length !== requestedSlugs.length) {
+          const foundSlugs = new Set(games.map((game) => game.slug));
+          throw new ValidationError({
+            message: "One or more selected games are unavailable for curation.",
+            action: "Refresh the catalog and choose the games again.",
+            context: {
+              game_slugs: requestedSlugs.filter(
+                (slug) => !foundSlugs.has(slug),
+              ),
+            },
+          });
+        }
+
+        const catalogGameCount =
+          parsed.strategy === "HANDPICKED"
+            ? games.length
+            : (
+                await transaction.game.findMany({
+                  where: { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
+                  select: { tags: true },
+                })
+              ).filter((game) =>
+                game.tags.some((tag) =>
+                  normalizedTags.includes(tag.trim().toLowerCase()),
+                ),
+              ).length;
+        if (catalogGameCount < 5) {
+          throw new ValidationError({
+            message:
+              "This focused selection needs at least five eligible catalog games.",
+            action: "Choose a broader focus or handpick at least five games.",
+            context: { minimum: 5, actual: catalogGameCount },
+          });
+        }
+
+        await transaction.store.update({
+          where: { id: storeId },
+          data: { catalog_mode: "SELECTED" },
+        });
+
+        if (normalizedTags.length > 0) {
+          await transaction.storeTagFilter.createMany({
+            data: normalizedTags.map((tag) => ({
+              store_id: storeId,
+              tag,
+              mode: "WHITELIST",
+            })),
+          });
+        }
+        if (games.length > 0) {
+          await transaction.storeGameOverride.createMany({
+            data: games.map((game) => ({
+              store_id: storeId,
+              game_id: game.id,
+              visibility: "SHOW",
+            })),
+          });
+        }
+
+        const draftRevision = await incrementDraftRevision(
+          transaction,
+          storeId,
+          parsed.expected_draft_revision,
+        );
+        const gameBySlug = new Map(games.map((game) => [game.slug, game]));
+
+        return {
+          strategy: parsed.strategy,
+          catalog_mode: "SELECTED" as const,
+          tags: normalizedTags,
+          game_slugs: requestedSlugs.filter((slug) => gameBySlug.has(slug)),
+          catalog_game_count: catalogGameCount,
+          draft_revision: draftRevision,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (isRetryableTransactionError(error)) {
+      const latest = await prisma.store.findUnique({
+        where: { id: storeId },
+        select: { draft_revision: true },
+      });
+      throw new ConflictError({
+        message: "The Outlet draft changed while the selection was saved.",
+        action: "Refresh the selection preview and try again.",
+        context: {
+          expected_draft_revision: parsed.expected_draft_revision,
+          actual_draft_revision: latest?.draft_revision,
+        },
+      });
+    }
+    throw error;
+  }
+}
+
+/** Read-only preview of the exact catalog count the initializer will apply. */
+async function previewCreatorSelection(
+  storeId: string,
+  selection: CreatorSelectionDto,
+) {
+  const parsed = creatorSelectionSchema.parse(selection);
+  await assertDraftRevision(prisma, storeId, parsed.expected_draft_revision);
+  const [currentStore, tagFilterCount, gameOverrideCount] = await Promise.all([
+    prisma.store.findUniqueOrThrow({
+      where: { id: storeId },
+      select: { catalog_mode: true, draft_revision: true },
+    }),
+    prisma.storeTagFilter.count({ where: { store_id: storeId } }),
+    prisma.storeGameOverride.count({ where: { store_id: storeId } }),
+  ]);
+  assertCreatorSelectionInitializationSafe({
+    catalogMode: currentStore.catalog_mode,
+    tagFilterCount,
+    gameOverrideCount,
+  });
+
+  const normalizedTags = [
+    ...new Set(
+      (parsed.strategy === "FOCUSED" ? parsed.tags : []).map(normalizeTag),
+    ),
+  ];
+  const requestedSlugs =
+    parsed.strategy === "HANDPICKED" ? parsed.game_slugs : [];
+  const games = await prisma.game.findMany({
+    where: {
+      ...(requestedSlugs.length > 0 && { slug: { in: requestedSlugs } }),
+      status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+    },
+    select: { slug: true, tags: true },
+  });
+  if (
+    requestedSlugs.length > 0 &&
+    games.length !== new Set(requestedSlugs).size
+  ) {
+    const foundSlugs = new Set(games.map((game) => game.slug));
+    throw new ValidationError({
+      message: "One or more selected games are unavailable for curation.",
+      action: "Refresh the catalog and choose the games again.",
+      context: {
+        game_slugs: requestedSlugs.filter((slug) => !foundSlugs.has(slug)),
+      },
+    });
+  }
+  const catalogGameCount =
+    parsed.strategy === "HANDPICKED"
+      ? games.length
+      : games.filter((game) =>
+          game.tags.some((tag) =>
+            normalizedTags.includes(tag.trim().toLowerCase()),
+          ),
+        ).length;
+
+  return {
+    strategy: parsed.strategy,
+    catalog_mode: "SELECTED" as const,
+    tags: normalizedTags,
+    game_slugs: requestedSlugs,
+    catalog_game_count: catalogGameCount,
+    minimum_game_count: 5,
+    can_apply: catalogGameCount >= 5,
+    draft_revision: currentStore.draft_revision,
+  };
 }
 
 type TagRule = {
@@ -1221,6 +1490,8 @@ const storeCuration = {
   updateGameOverrideVisibility,
   removeGameOverride,
   listGameOverridesWithSlugs,
+  replaceCreatorSelection,
+  previewCreatorSelection,
   getCurationWhereClause,
   previewTagFilterImpact,
   previewBulkCuration,

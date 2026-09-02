@@ -94,7 +94,8 @@ const clearDatabaseRows = async () => {
 const createUser = async (userDto = {}) => {
   return user.create({
     username:
-      userDto.username || faker.internet.username().replace(/[_.-]/g, ""),
+      userDto.username ||
+      faker.internet.username().replace(/[_.-]/g, "").slice(0, 30),
     email: userDto.email || faker.internet.email(),
     password:
       userDto.password !== undefined

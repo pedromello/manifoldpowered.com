@@ -5,6 +5,7 @@ import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import type { StoreContext } from "components/storefront/types";
 import type { JsonLd } from "lib/seo";
+import { useEffect } from "react";
 import { LockKeyhole } from "lucide-react";
 
 import { FollowOutletButton } from "components/store/FollowOutletButton";
@@ -37,6 +38,7 @@ export type StorefrontProps = {
   showDiscover?: boolean;
   /** A private, authenticated rendering of the working draft. */
   isPreview?: boolean;
+  onPreviewStatusChange?: (status: { ready: boolean; error?: string }) => void;
 };
 
 /**
@@ -62,6 +64,7 @@ export function Storefront({
   store = null,
   showDiscover = false,
   isPreview = false,
+  onPreviewStatusChange,
 }: StorefrontProps) {
   const { t } = useI18n();
   const controller = useStorefrontController({
@@ -72,6 +75,21 @@ export function Storefront({
     storeSlug: store?.slug,
     isPreview,
   });
+
+  useEffect(() => {
+    if (!isPreview || !onPreviewStatusChange) return;
+    const error = controller.previewError;
+    if (error) {
+      onPreviewStatusChange({ ready: false, error: error.message });
+    } else if (controller.isPreviewReady) {
+      onPreviewStatusChange({ ready: true });
+    }
+  }, [
+    controller.isPreviewReady,
+    controller.previewError,
+    isPreview,
+    onPreviewStatusChange,
+  ]);
 
   const resolution = store ? resolveStorefront(store) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;

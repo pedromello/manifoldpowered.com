@@ -32,6 +32,63 @@ describe("models/authorization.ts", () => {
     });
   });
 
+  describe(".storeManagementCapabilities()", () => {
+    const activatedFeatures = [...authorization.ACTIVATED_USER_FEATURES];
+
+    test("keeps the owner capability contract aligned across management surfaces", () => {
+      const outlet = {
+        owner_id: "owner-1",
+        members: [],
+      } as never;
+
+      expect(
+        authorization.storeManagementCapabilities(
+          { id: "owner-1", features: activatedFeatures },
+          outlet,
+        ),
+      ).toEqual({
+        identity: true,
+        curation: true,
+        featured: true,
+        sales: true,
+        earnings: true,
+        edit: true,
+        publish: true,
+        unpublish: true,
+      });
+    });
+
+    test("gives a statement-only delegate an earnings shell without draft or sales access", () => {
+      const delegate = {
+        id: "finance-1",
+        features: activatedFeatures,
+      };
+      const outlet = {
+        owner_id: "owner-1",
+        members: [
+          {
+            user_id: delegate.id,
+            permissions: ["read:store_statement"],
+          },
+        ],
+      } as never;
+
+      expect(
+        authorization.storeManagementCapabilities(delegate, outlet),
+      ).toEqual({
+        identity: false,
+        curation: false,
+        featured: false,
+        sales: false,
+        earnings: true,
+        edit: false,
+        publish: false,
+        unpublish: false,
+      });
+      expect(authorization.canReadStoreDraft(delegate, outlet)).toBe(false);
+    });
+  });
+
   describe(".filterOutput()", () => {
     test("without `user`", () => {
       expect(() => {

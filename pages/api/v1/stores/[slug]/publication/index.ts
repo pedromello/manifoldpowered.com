@@ -22,7 +22,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     publication,
   );
 
-  return res.status(200).json(output);
+  return res.status(200).json(withCapabilities(req, foundStore, output));
 }
 
 async function postHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -49,7 +49,21 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     publication,
   );
 
-  return res.status(200).json(output);
+  return res.status(200).json(withCapabilities(req, foundStore, output));
+}
+
+function withCapabilities(
+  req: NextApiRequest,
+  foundStore: Awaited<ReturnType<typeof store.findOneBySlugWithMembers>>,
+  output: Record<string, unknown>,
+) {
+  return {
+    ...output,
+    capabilities: authorization.storeManagementCapabilities(
+      req.context.user,
+      foundStore,
+    ),
+  };
 }
 
 function preparePrivateResponse(res: NextApiResponse) {

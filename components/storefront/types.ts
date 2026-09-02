@@ -83,6 +83,10 @@ export type StorefrontViewProps = {
   isLoading: boolean;
   catalogError: boolean;
   retryCatalog: () => void;
+  /** Raw request failure used by the preview status callback. */
+  previewError?: Error;
+  /** True only after both preview data sources completed successfully. */
+  isPreviewReady: boolean;
   pagination?: PaginationApi;
   /** ISO-4217 code the prices in `games` are denominated in. */
   currency: string;
