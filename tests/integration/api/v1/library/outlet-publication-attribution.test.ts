@@ -111,7 +111,10 @@ describe("Outlet publication attribution", () => {
       `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}`,
       {
         method: "PATCH",
-        headers: authenticatedJsonHeaders(fixture.sessionToken),
+        headers: {
+          ...authenticatedJsonHeaders(fixture.sessionToken),
+          "If-Match": `"${fixture.store.draft_revision}"`,
+        },
         body: JSON.stringify({ name: "Mutable Draft Name" }),
       },
     );

@@ -30,7 +30,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore,
   );
 
-  return res.status(200).json(secureOutputValues);
+  return sendJsonWithoutReplacingEtag(res, secureOutputValues);
 }
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -62,5 +62,17 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     updatedStore,
   );
 
-  return res.status(200).json(secureOutputValues);
+  return sendJsonWithoutReplacingEtag(res, secureOutputValues);
+}
+
+function sendJsonWithoutReplacingEtag(
+  res: NextApiResponse,
+  body: Record<string, unknown>,
+) {
+  // Next's res.json()/res.send() generates an ETag from the response body and
+  // replaces the draft-revision ETag set above. Ending the response directly
+  // keeps the revision as the sole optimistic-concurrency validator.
+  res.status(200);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  return res.end(JSON.stringify(body));
 }

@@ -208,9 +208,14 @@ async function recordSaleEntries(
   );
 }
 
-// Resolve store_slug leniently only when it is absent or genuinely unknown.
-// A known draft must block acquisition rather than silently dropping
-// attribution: otherwise an unpublished Outlet could still drive a sale.
+// Resolve store_slug leniently when it is absent, genuinely unknown, or names
+// an initial Outlet shell that has never had a publishable catalog. That shell
+// is private and cannot earn attribution, but it should not stop an otherwise
+// valid acquisition merely because its slug was supplied.
+//
+// A configured or previously published draft must still block acquisition
+// rather than silently dropping attribution: otherwise an unpublished Outlet
+// could keep driving sales after its owner intentionally took it offline.
 //
 // The outlet is the payee, so there is nothing else to resolve. Who owns it does
 // not enter into it: an outlet keeps earning across a change of ownership, and
@@ -228,15 +233,24 @@ async function resolveAffiliateLeniently(
     Array<{
       id: string;
       status: "DRAFT" | "PUBLISHED";
+      catalog_mode: "UNDECIDED" | "ALL" | "SELECTED";
       published_revision_id: string | null;
+      last_published_revision_id: string | null;
     }>
-  >`SELECT id, status, published_revision_id
+  >`SELECT id, status, catalog_mode, published_revision_id,
+      last_published_revision_id
     FROM stores
     WHERE slug = ${storeSlug}
     FOR SHARE`;
   if (!knownStore) return null;
 
   if (knownStore.status !== "PUBLISHED" || !knownStore.published_revision_id) {
+    const isInitialPrivateShell =
+      knownStore.status === "DRAFT" &&
+      knownStore.catalog_mode === "UNDECIDED" &&
+      knownStore.last_published_revision_id === null;
+    if (isInitialPrivateShell) return null;
+
     throw new ValidationError({
       message: "This Outlet is not currently published.",
       action: "Remove store_slug or acquire through a published Outlet.",
