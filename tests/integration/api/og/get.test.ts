@@ -77,6 +77,7 @@ describe("GET /api/og/[...segments]", () => {
     await orchestrator.activateUser(owner.id);
     const outlet = await orchestrator.createStore(owner.id, {
       name: "Secret Draft Outlet",
+      draft: true,
     });
     const session = await orchestrator.createSession(owner.id);
 
@@ -100,6 +101,7 @@ describe("GET /api/og/[...segments]", () => {
         headers: {
           Cookie: `session_id=${fixture.sessionToken}`,
           "Content-Type": "application/json",
+          "If-Match": `"${outlet.draft_revision}"`,
         },
         body: JSON.stringify({
           name: "Unpublished Secret Identity",

@@ -36,7 +36,6 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
   const storeUpdateDto = req.body;
-  const expectedDraftRevision = parseStoreDraftIfMatch(req.headers["if-match"]);
 
   const userTryingToUpdate = req.context.user;
   const storeToUpdate = await store.findOneBySlugWithMembers(slug as string);
@@ -48,6 +47,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  const expectedDraftRevision = parseStoreDraftIfMatch(req.headers["if-match"]);
   const updatedStore = await store.update(
     storeToUpdate.id,
     storeUpdateDto,
