@@ -5,14 +5,23 @@
  * management surfaces can share the same allow-list without pulling bespoke
  * storefront bundles into their runtime.
  */
-export const BESPOKE_THEME_KEYS = ["neon-alley", "strategos-void"] as const;
+import {
+  authoritativeStoreThemeKey,
+  STORE_THEME_KEYS,
+  type StoreThemeKey,
+} from "lib/storefront-theme-contract";
 
-export type BespokeThemeKey = (typeof BESPOKE_THEME_KEYS)[number];
+export const BESPOKE_THEME_KEYS = STORE_THEME_KEYS;
+
+export type BespokeThemeKey = StoreThemeKey;
 
 export function isBespokeThemeKey(
   themeKey: string | null | undefined,
 ): themeKey is BespokeThemeKey {
-  return BESPOKE_THEME_KEYS.some((registered) => registered === themeKey);
+  return (
+    typeof themeKey === "string" &&
+    authoritativeStoreThemeKey(themeKey) !== null
+  );
 }
 
 export const BESPOKE_OG_ARTWORK: Partial<Record<BespokeThemeKey, string>> = {

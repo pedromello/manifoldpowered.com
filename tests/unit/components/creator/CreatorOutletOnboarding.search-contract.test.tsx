@@ -33,7 +33,11 @@ jest.mock("react", () => {
   };
 });
 jest.mock("next/router", () => ({ useRouter: jest.fn() }));
-jest.mock("swr", () => ({ __esModule: true, default: jest.fn() }));
+jest.mock("swr", () => ({
+  __esModule: true,
+  default: jest.fn(),
+  mutate: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("components/store/GameAutocomplete", () => ({
   GameAutocomplete: jest.fn(() => null),
 }));
@@ -182,6 +186,62 @@ describe("creator onboarding game search contract", () => {
     expect(JSON.stringify(autocomplete?.props)).not.toContain(
       "/api/v1/items/games",
     );
+  });
+
+  test("resumes identity editing with the canonical If-Match CAS header", async () => {
+    const draft = createCreatorOutletDraft(
+      "owner-1",
+      "2026-09-01T12:00:00.000Z",
+      "draft-identity",
+    );
+    draft.storeSlug = "saved-outlet";
+    draft.identity = {
+      name: "Save Point Club",
+      niche: "Cozy indies",
+      description: "Thoughtful games for slow weekends.",
+      logoUrl: "https://cdn.example.test/save-point.png",
+    };
+    mockUseState.mockReset();
+    arrangeOnboarding(draft);
+    mockFetchOutletPublication.mockResolvedValue({
+      draftRevision: 7,
+    } as Awaited<ReturnType<typeof fetchOutletPublication>>);
+    const request = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ slug: "saved-outlet", draft_revision: 8 }),
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = request as typeof fetch;
+
+    try {
+      const onboarding = CreatorOutletOnboarding();
+      const identity = findFunctionElement(onboarding, "IdentityStep");
+      const onContinue = identity.props.onContinue;
+      if (typeof onContinue !== "function") {
+        throw new Error("IdentityStep must expose an onContinue action");
+      }
+
+      await onContinue();
+
+      expect(request).toHaveBeenCalledWith(
+        "/api/v1/stores/saved-outlet",
+        expect.objectContaining({
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "If-Match": '"7"',
+          },
+          body: JSON.stringify({
+            name: "Save Point Club",
+            description: "Cozy indies\n\nThoughtful games for slow weekends.",
+            logo_url: "https://cdn.example.test/save-point.png",
+          }),
+        }),
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   test.each([
