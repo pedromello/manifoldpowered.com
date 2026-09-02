@@ -13,6 +13,16 @@ const migrationSql = fs.readFileSync(migrationPath, "utf8");
 const statements = migrationSql.replace(/^--.*$/gm, "");
 
 describe("StoreRevision presentation forward migration", () => {
+  test("normalizes under a bounded transaction lock so concurrent revisions cannot escape", () => {
+    expect(statements).toContain("BEGIN;");
+    expect(statements).toContain("SET LOCAL lock_timeout = '10s';");
+    expect(statements).toContain("SET LOCAL statement_timeout = '15min';");
+    expect(statements).toContain(
+      'LOCK TABLE "store_revisions" IN SHARE ROW EXCLUSIVE MODE;',
+    );
+    expect(statements.trimEnd()).toMatch(/COMMIT;$/);
+  });
+
   test("is forward-only and can mutate only the presentation payload", () => {
     expect(path.basename(path.dirname(migrationPath))).toBe(
       "20260901140000_normalize_store_revision_presentation",

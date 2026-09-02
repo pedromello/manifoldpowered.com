@@ -2,6 +2,13 @@
 -- payloads. The lifecycle bridge owns structural reconciliation; this migration
 -- deliberately updates no identity, lifecycle, catalog, attribution, grant, or
 -- pointer field.
+BEGIN;
+
+SET LOCAL lock_timeout = '10s';
+SET LOCAL statement_timeout = '15min';
+
+LOCK TABLE "store_revisions" IN SHARE ROW EXCLUSIVE MODE;
+
 WITH "normalized_presentations" AS (
   SELECT
     revision."id",
@@ -112,3 +119,5 @@ SET "presentation" = normalized."normalized_presentation"
 FROM "normalized_presentations" AS normalized
 WHERE revision."id" = normalized."id"
   AND revision."presentation" IS DISTINCT FROM normalized."normalized_presentation";
+
+COMMIT;
