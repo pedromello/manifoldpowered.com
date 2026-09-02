@@ -10,11 +10,19 @@ import { useItemController } from "components/storefront/useItemController";
 import { PLATFORM_PALETTE } from "components/storefront/palette";
 import { resolveStorefront } from "storefronts/registry";
 import { storeSlugFromQuery } from "lib/store-context";
-import type { GameDetailApi, StoreApi } from "components/store/types";
+import {
+  storeContextFromApi,
+  type GameDetailApi,
+  type StoreApi,
+} from "components/store/types";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
 import { gameJsonLd, gameMetadata, socialImageUrl } from "lib/seo";
 import { fetchPageData } from "lib/page-data";
+import {
+  hasCreatorPreset,
+  resolveOutletDesign,
+} from "components/storefront/presets/config";
 
 type ItemPageProps = {
   game: GameDetailApi;
@@ -111,18 +119,23 @@ export default function GameDetailsPage({
     attributionStoreSlug: requestedStoreSlug ?? undefined,
     isPreview,
   });
+  const viewStore = store ? storeContextFromApi(store) : null;
 
   // An outlet with a bespoke storefront but no bespoke product page still gets
   // its palette here, so the click from its catalogue does not jump back to
   // Manifold's colours mid-journey.
-  const resolution = store ? resolveStorefront(store) : null;
+  const resolution = viewStore ? resolveStorefront(viewStore) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;
+  const outletDesign =
+    viewStore && !custom && hasCreatorPreset(viewStore)
+      ? resolveOutletDesign(viewStore)
+      : null;
   const ItemView = custom?.ItemPage ?? DefaultItemPage;
 
   const page = (
     <StorefrontShell
-      store={store}
-      palette={custom?.palette ?? PLATFORM_PALETTE}
+      store={viewStore}
+      palette={custom?.palette ?? outletDesign?.palette ?? PLATFORM_PALETTE}
       title={metadata.title}
       description={metadata.description}
       canonicalPath={`/item/${game.slug}`}
@@ -140,7 +153,7 @@ export default function GameDetailsPage({
       noIndex={isPreview}
     >
       {isPreview && store && <OutletPreviewBanner storeSlug={store.slug} />}
-      <ItemView {...controller} game={game} store={store} />
+      <ItemView {...controller} game={game} store={viewStore} />
     </StorefrontShell>
   );
 
@@ -148,5 +161,9 @@ export default function GameDetailsPage({
     return <StoreHomeLayout>{page}</StoreHomeLayout>;
   }
 
-  return <StorefrontRouteLayout store={store}>{page}</StorefrontRouteLayout>;
+  return (
+    <StorefrontRouteLayout store={viewStore} visitorPreview={isPreview}>
+      {page}
+    </StorefrontRouteLayout>
+  );
 }

@@ -915,6 +915,27 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
 
   if (feature === "read:public_store") {
     const storeOutput = resource as Store & Partial<StorefrontStore>;
+    if (
+      storeOutput.storefront_source !== "REVISION" ||
+      storeOutput.status !== "PUBLISHED" ||
+      !storeOutput.published_at ||
+      !storeOutput.published_revision
+    ) {
+      throw new InternalServerError({
+        action:
+          "Resolve the Outlet through the published Store revision read model",
+      });
+    }
+    const presentation =
+      storeOutput.presentation ??
+      resolveDraftPresentation({
+        theme_key: storeOutput.theme_key,
+        layout_preset: storeOutput.layout_preset,
+        tagline: storeOutput.tagline,
+        cover_url: storeOutput.cover_url,
+        social_links: storeOutput.social_links,
+        brand_tokens: storeOutput.brand_tokens,
+      });
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
@@ -922,9 +943,17 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
-      presentation:
-        storeOutput.presentation ??
-        resolveDraftPresentation({ slug: storeOutput.slug }),
+      theme_key: presentation.theme_key,
+      layout_preset: presentation.layout_preset,
+      tagline: presentation.tagline,
+      cover_url: presentation.cover_image_url,
+      social_links: presentation.social_links,
+      brand_tokens: presentation.brand_tokens,
+      presentation,
+      status: storeOutput.status,
+      published_at: storeOutput.published_at,
+      storefront_source: storeOutput.storefront_source,
+      published_revision: storeOutput.published_revision,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };
@@ -965,6 +994,16 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
 
   if (feature === "create:store" || feature === "update:store") {
     const storeOutput = resource as Store & Partial<StorefrontStore>;
+    const presentation =
+      storeOutput.presentation ??
+      resolveDraftPresentation({
+        theme_key: storeOutput.theme_key,
+        layout_preset: storeOutput.layout_preset,
+        tagline: storeOutput.tagline,
+        cover_url: storeOutput.cover_url,
+        social_links: storeOutput.social_links,
+        brand_tokens: storeOutput.brand_tokens,
+      });
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
@@ -978,9 +1017,13 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       published_at: storeOutput.published_at,
       last_published_at: storeOutput.last_published_at,
       published_revision: storeOutput.published_revision ?? null,
-      presentation:
-        storeOutput.presentation ??
-        resolveDraftPresentation({ slug: storeOutput.slug }),
+      theme_key: presentation.theme_key,
+      layout_preset: presentation.layout_preset,
+      tagline: presentation.tagline,
+      cover_url: presentation.cover_image_url,
+      social_links: presentation.social_links,
+      brand_tokens: presentation.brand_tokens,
+      presentation,
       storefront_source: storeOutput.storefront_source ?? "DRAFT",
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
@@ -1003,6 +1046,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         catalog_game_count: publicationOutput.readiness.catalog_game_count,
         checks: {
           brand_complete: publicationOutput.readiness.checks.brand_complete,
+          visual_identity: publicationOutput.readiness.checks.visual_identity,
           catalog_intentional:
             publicationOutput.readiness.checks.catalog_intentional,
           catalog_has_games:

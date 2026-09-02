@@ -1,38 +1,69 @@
 import { z } from "zod";
+import { STORE_THEME_KEYS } from "lib/storefront-theme-contract";
 import {
-  authoritativeStoreThemeKey,
+  DEFAULT_STORE_BRAND_TOKENS,
+  STORE_LAYOUT_PRESETS,
+  STORE_PALETTES,
+  STORE_PRESENTATION_VERSION,
+  STORE_SHAPES,
+  STORE_SOCIAL_PLATFORMS,
+  STORE_TYPOGRAPHIES,
+  type StoreSocialPlatform,
+} from "contracts/store-presentation";
+
+export {
+  DEFAULT_STORE_BRAND_TOKENS,
+  STORE_LAYOUT_PRESETS,
+  STORE_PALETTES,
+  STORE_PRESENTATION_VERSION,
+  STORE_SHAPES,
+  STORE_SOCIAL_PLATFORMS,
   STORE_THEME_KEYS,
-} from "lib/storefront-theme-contract";
+  STORE_TYPOGRAPHIES,
+};
 
-export const STORE_PRESENTATION_VERSION = 1 as const;
-export const STORE_LAYOUT_PRESETS = ["EDITORIAL"] as const;
-export const STORE_PALETTE_IDS = ["MANIFOLD"] as const;
-export const STORE_TYPOGRAPHY_IDS = ["MANIFOLD"] as const;
-export const STORE_SHAPE_IDS = ["MANIFOLD"] as const;
-export { STORE_THEME_KEYS } from "lib/storefront-theme-contract";
+const socialUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(2048)
+  .refine(
+    (value) => {
+      try {
+        return new URL(value).protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "URL must use https",
+    },
+  );
 
-const socialUrlSchema = z.string().url().max(2048);
+const socialLinkShape = Object.fromEntries(
+  STORE_SOCIAL_PLATFORMS.map((platform) => [
+    platform,
+    socialUrlSchema.optional(),
+  ]),
+) as Record<StoreSocialPlatform, z.ZodOptional<typeof socialUrlSchema>>;
+
+export const storeSocialLinksSchema = z.object(socialLinkShape).strict();
 
 // This is the sole presentation allowlist used by drafts, snapshots and public
 // projection. Keep it strict: adding a field is a versioned contract change.
 export const storePresentationSchema = z
   .object({
     version: z.literal(STORE_PRESENTATION_VERSION),
-    layout_preset: z.enum(STORE_LAYOUT_PRESETS),
-    palette_id: z.enum(STORE_PALETTE_IDS),
-    typography_id: z.enum(STORE_TYPOGRAPHY_IDS),
-    shape_id: z.enum(STORE_SHAPE_IDS),
+    // Null is the durable legacy value and renders as the classic storefront.
+    layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable(),
     tagline: z.string().trim().max(160).nullable(),
-    cover_image_url: z.string().url().max(2048).nullable(),
-    social_links: z
+    cover_image_url: socialUrlSchema.nullable(),
+    social_links: storeSocialLinksSchema,
+    brand_tokens: z
       .object({
-        website: socialUrlSchema.optional(),
-        youtube: socialUrlSchema.optional(),
-        twitch: socialUrlSchema.optional(),
-        x: socialUrlSchema.optional(),
-        discord: socialUrlSchema.optional(),
-        instagram: socialUrlSchema.optional(),
-        bluesky: socialUrlSchema.optional(),
+        palette: z.enum(STORE_PALETTES),
+        typography: z.enum(STORE_TYPOGRAPHIES),
+        shape: z.enum(STORE_SHAPES),
       })
       .strict(),
     theme_key: z.enum(STORE_THEME_KEYS).nullable(),
@@ -40,53 +71,56 @@ export const storePresentationSchema = z
   .strict();
 
 export type StorePresentation = z.infer<typeof storePresentationSchema>;
-export type StorePresentationDraft = Omit<StorePresentation, "theme_key">;
+export type StorePresentationDraft = Omit<StorePresentation, "theme_key"> & {
+  theme_key?: never;
+};
 
 export const DEFAULT_STORE_PRESENTATION: StorePresentationDraft = {
   version: STORE_PRESENTATION_VERSION,
-  layout_preset: "EDITORIAL",
-  palette_id: "MANIFOLD",
-  typography_id: "MANIFOLD",
-  shape_id: "MANIFOLD",
+  layout_preset: null,
   tagline: null,
   cover_image_url: null,
   social_links: {},
+  brand_tokens: DEFAULT_STORE_BRAND_TOKENS,
 };
 
 /**
- * Versioned seam for Sprint 3. The current Store table has no presentation
- * columns, so callers receive strict defaults. Once draft columns land they
- * can be passed here without changing snapshot or public-read contracts.
- * `theme_key` is always derived from the durable slug and cannot be supplied by
- * an owner-controlled payload.
+ * One strict projection is shared by draft previews and immutable revisions.
+ * `theme_key` is read from the platform-controlled Store column and is never
+ * part of the owner-facing update schema.
  */
 export function resolveDraftPresentation({
-  slug,
-  presentation = DEFAULT_STORE_PRESENTATION,
+  theme_key = null,
+  layout_preset = DEFAULT_STORE_PRESENTATION.layout_preset,
+  tagline = DEFAULT_STORE_PRESENTATION.tagline,
+  cover_url = DEFAULT_STORE_PRESENTATION.cover_image_url,
+  social_links = DEFAULT_STORE_PRESENTATION.social_links,
+  brand_tokens = DEFAULT_STORE_PRESENTATION.brand_tokens,
 }: {
-  slug: string;
-  presentation?: StorePresentationDraft;
-}): StorePresentation {
+  theme_key?: unknown;
+  layout_preset?: unknown;
+  tagline?: unknown;
+  cover_url?: unknown;
+  social_links?: unknown;
+  brand_tokens?: unknown;
+  // Compatibility-only input. It is deliberately ignored and is not an
+  // authority for theme selection.
+  slug?: string;
+} = {}): StorePresentation {
   return storePresentationSchema.parse({
-    ...presentation,
-    theme_key: authoritativeStoreThemeKey(slug),
+    version: STORE_PRESENTATION_VERSION,
+    theme_key,
+    layout_preset,
+    tagline,
+    cover_image_url: cover_url,
+    social_links,
+    brand_tokens,
   });
 }
 
 export function parseStorePresentationForSlug(
-  slug: string,
+  _slug: string,
   value: unknown,
 ): StorePresentation {
-  const parsed = storePresentationSchema.parse(value);
-  const authoritativeTheme = authoritativeStoreThemeKey(slug);
-  if (parsed.theme_key !== authoritativeTheme) {
-    throw new z.ZodError([
-      {
-        code: "custom",
-        path: ["theme_key"],
-        message: "theme_key does not match the authority for this Store slug",
-      },
-    ]);
-  }
-  return parsed;
+  return storePresentationSchema.parse(value);
 }

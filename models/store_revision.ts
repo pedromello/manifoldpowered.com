@@ -10,10 +10,15 @@ import {
   type StoreDraftCatalogMode,
 } from "models/store_catalog";
 import {
+  STORE_LAYOUT_PRESETS,
+  type StoreLayoutPreset,
+} from "contracts/store-presentation";
+import {
   parseStorePresentationForSlug,
   resolveDraftPresentation,
   type StorePresentation,
 } from "models/store_presentation";
+import { isBespokeThemeKey } from "storefronts/bespoke";
 import { z } from "zod";
 
 export const STORE_READINESS_VERSION = 2 as const;
@@ -35,6 +40,7 @@ export type StoreFeaturedSnapshotEntry = z.infer<
 
 export const STORE_READINESS_BLOCKER_CODES = [
   "BRAND_INCOMPLETE",
+  "VISUAL_IDENTITY_UNSELECTED",
   "CATALOG_MODE_UNDECIDED",
   "SELECTED_CATALOG_WITHOUT_INCLUSIONS",
   "CATALOG_TOO_SMALL",
@@ -61,6 +67,7 @@ export interface StorePublicationReadinessV2 {
   catalog_game_count: number;
   checks: {
     brand_complete: boolean;
+    visual_identity: boolean;
     catalog_intentional: boolean;
     catalog_has_games: boolean;
     editorial_highlight: boolean;
@@ -137,6 +144,15 @@ function isBrandComplete(
   return Boolean(store.description?.trim() && store.logo_url?.trim());
 }
 
+export function hasExplicitStoreVisualIdentity(
+  store: Pick<Store, "layout_preset" | "theme_key">,
+): boolean {
+  const hasAllowedPreset =
+    typeof store.layout_preset === "string" &&
+    STORE_LAYOUT_PRESETS.includes(store.layout_preset as StoreLayoutPreset);
+  return hasAllowedPreset || isBespokeThemeKey(store.theme_key);
+}
+
 async function assessDraft(
   storeId: string,
   client: StoreRevisionClient,
@@ -171,6 +187,14 @@ async function assessDraft(
     blockers.push({
       code: "BRAND_INCOMPLETE",
       message: "Add a non-empty description and logo before publishing.",
+    });
+  }
+
+  const visualIdentity = hasExplicitStoreVisualIdentity(store);
+  if (!visualIdentity) {
+    blockers.push({
+      code: "VISUAL_IDENTITY_UNSELECTED",
+      message: "Choose a supported layout preset before publishing this draft.",
     });
   }
 
@@ -290,6 +314,7 @@ async function assessDraft(
     catalog_game_count: catalogGameCount,
     checks: {
       brand_complete: brandComplete,
+      visual_identity: visualIdentity,
       catalog_intentional: catalogIntentional,
       catalog_has_games: catalogHasGames,
       editorial_highlight: editorialHighlight,
@@ -306,7 +331,14 @@ async function assessDraft(
             catalog_mode: draftCatalog.catalog_mode,
             catalog: publishableCatalog,
             featured_games: featuredGames,
-            presentation: resolveDraftPresentation({ slug: store.slug }),
+            presentation: resolveDraftPresentation({
+              theme_key: store.theme_key,
+              layout_preset: store.layout_preset,
+              tagline: store.tagline,
+              cover_url: store.cover_url,
+              social_links: store.social_links,
+              brand_tokens: store.brand_tokens,
+            }),
           }
         : null,
   };

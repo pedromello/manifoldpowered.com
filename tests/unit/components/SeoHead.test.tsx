@@ -4,15 +4,22 @@ import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context.sh
 
 import { SeoHead } from "components/SeoHead";
 
+type HeadElementProps = {
+  rel?: string;
+  property?: string;
+  name?: string;
+  type?: string;
+};
+
 function collectHead(privatePage: boolean) {
-  let head: ReactElement[] = [];
+  let head: ReactElement<HeadElementProps>[] = [];
 
   renderToStaticMarkup(
     <HeadManagerContext.Provider
       value={
         {
           mountedInstances: new Set(),
-          updateHead: (nextHead: ReactElement[]) => {
+          updateHead: (nextHead: ReactElement<HeadElementProps>[]) => {
             head = nextHead;
           },
         } as never

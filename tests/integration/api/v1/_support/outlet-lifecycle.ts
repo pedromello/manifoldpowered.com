@@ -56,8 +56,14 @@ export async function createReadyDraft(
   await expectSuccessfulResponse(
     fetch(`${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`, {
       method: "PATCH",
-      headers: authenticatedJsonHeaders(actor.sessionToken),
-      body: JSON.stringify({ catalog_mode: "ALL" }),
+      headers: {
+        ...authenticatedJsonHeaders(actor.sessionToken),
+        "If-Match": `"${createdStore.draft_revision}"`,
+      },
+      body: JSON.stringify({
+        catalog_mode: "ALL",
+        layout_preset: "channel",
+      }),
     }),
     200,
     "selecting the ALL catalog mode",

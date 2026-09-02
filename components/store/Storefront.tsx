@@ -9,6 +9,11 @@ import { useEffect } from "react";
 import { LockKeyhole } from "lucide-react";
 
 import { FollowOutletButton } from "components/store/FollowOutletButton";
+import { CreatorPresetStorefront } from "components/storefront/presets/CreatorPresetStorefront";
+import {
+  hasCreatorPreset,
+  resolveOutletDesign,
+} from "components/storefront/presets/config";
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
 
@@ -73,22 +78,25 @@ export function Storefront({
 
   useEffect(() => {
     if (!isPreview || !onPreviewStatusChange) return;
-    const error = controller.featuredError ?? controller.catalogError;
+    const error = controller.previewError;
     if (error) {
       onPreviewStatusChange({ ready: false, error: error.message });
     } else if (controller.isPreviewReady) {
       onPreviewStatusChange({ ready: true });
     }
   }, [
-    controller.catalogError,
-    controller.featuredError,
     controller.isPreviewReady,
+    controller.previewError,
     isPreview,
     onPreviewStatusChange,
   ]);
 
   const resolution = store ? resolveStorefront(store) : null;
   const custom = resolution?.kind === "custom" ? resolution.storefront : null;
+  const outletDesign =
+    store && !custom && hasCreatorPreset(store)
+      ? resolveOutletDesign(store)
+      : null;
   const followControl =
     store && isPreview ? (
       <button
@@ -111,14 +119,16 @@ export function Storefront({
   return (
     <StorefrontShell
       store={store}
-      palette={custom?.palette ?? PLATFORM_PALETTE}
+      palette={custom?.palette ?? outletDesign?.palette ?? PLATFORM_PALETTE}
       title={pageTitle}
       description={metaDescription}
       canonicalPath={canonicalPath}
       socialImage={socialImage}
       socialImageAlt={socialImageAlt}
       jsonLd={jsonLd}
-      themeKey={resolution?.themeKey ?? "platform"}
+      themeKey={
+        custom ? resolution?.themeKey : (outletDesign?.themeKey ?? "platform")
+      }
       enforceContract={!!store}
       hasGames={controller.games.length > 0}
       noIndex={isPreview}
@@ -126,6 +136,12 @@ export function Storefront({
       {store && isPreview && <OutletPreviewBanner storeSlug={store.slug} />}
       {custom && store ? (
         <custom.Storefront
+          {...controller}
+          store={store}
+          followControl={followControl}
+        />
+      ) : store && outletDesign ? (
+        <CreatorPresetStorefront
           {...controller}
           store={store}
           followControl={followControl}

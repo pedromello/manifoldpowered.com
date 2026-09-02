@@ -24,6 +24,7 @@ import {
   CREATOR_OUTLET_FUNNEL_VERSION,
   creatorFunnelAnalytics,
 } from "lib/creator-funnel-analytics";
+import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import {
   CreatorOutletRequestError,
   fetchOutletPublication,
@@ -300,11 +301,11 @@ export function CreatorOutletOnboarding() {
           `/api/v1/stores/${encodeURIComponent(activeSlug)}`,
           {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...storePayload,
-              expected_draft_revision: publication.draftRevision,
-            }),
+            headers: {
+              "Content-Type": "application/json",
+              "If-Match": `"${publication.draftRevision}"`,
+            },
+            body: JSON.stringify(storePayload),
           },
         );
         const body: unknown = await response.json().catch(() => null);
@@ -324,9 +325,7 @@ export function CreatorOutletOnboarding() {
         storeSlug: activeSlug,
         currentStep: "SELECTION",
       }));
-      await mutateGlobal(
-        `/api/v1/stores/${encodeURIComponent(activeSlug)}/publication`,
-      );
+      await revalidateOutletDraftCaches(mutateGlobal, activeSlug);
     } catch (error) {
       setFlowError(
         translateError(
@@ -359,9 +358,7 @@ export function CreatorOutletOnboarding() {
         gameSlugs: draft.selection.games.map((game) => game.slug),
         expectedDraftRevision: publication.draftRevision,
       });
-      await mutateGlobal(
-        `/api/v1/stores/${encodeURIComponent(draft.storeSlug)}/publication`,
-      );
+      await revalidateOutletDraftCaches(mutateGlobal, draft.storeSlug);
       if (
         draft.selection.strategy === "HANDPICKED" &&
         !firstSelectionTrackedRef.current
@@ -423,9 +420,7 @@ export function CreatorOutletOnboarding() {
             : responseMessage(body, "Failed to save your Featured pick."),
         );
       }
-      await mutateGlobal(
-        `/api/v1/stores/${encodeURIComponent(draft.storeSlug)}/publication`,
-      );
+      await revalidateOutletDraftCaches(mutateGlobal, draft.storeSlug);
       if (
         draft.selection.strategy === "FOCUSED" &&
         !firstSelectionTrackedRef.current

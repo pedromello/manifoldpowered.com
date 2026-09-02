@@ -535,6 +535,9 @@ export function PlatformStorefrontHome({
               {activeCategory && (
                 <input type="hidden" name="category" value={activeCategory} />
               )}
+              {Object.entries(searchHiddenFields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))}
             </Form>
 
             <div className="relative sm:w-44">

@@ -218,6 +218,7 @@ describe("Outlet publication lifecycle", () => {
         catalog_game_count: 0,
         checks: {
           brand_complete: false,
+          visual_identity: false,
           catalog_intentional: false,
           catalog_has_games: false,
           editorial_highlight: false,
@@ -227,6 +228,7 @@ describe("Outlet publication lifecycle", () => {
     expect(blockerCodes(initial)).toEqual(
       expect.arrayContaining([
         "BRAND_INCOMPLETE",
+        "VISUAL_IDENTITY_UNSELECTED",
         "CATALOG_MODE_UNDECIDED",
         "CATALOG_TOO_SMALL",
         "FEATURED_COUNT_INVALID",
@@ -237,7 +239,10 @@ describe("Outlet publication lifecycle", () => {
       `${webserver.getOrigin()}/api/v1/stores/${draft.slug}`,
       {
         method: "PATCH",
-        headers: authenticatedJsonHeaders(owner.sessionToken),
+        headers: {
+          ...authenticatedJsonHeaders(owner.sessionToken),
+          "If-Match": `"${draft.draft_revision}"`,
+        },
         body: JSON.stringify({
           description: "The brand is now complete.",
           logo_url: "https://example.com/readiness.png",
@@ -341,13 +346,15 @@ describe("Outlet publication lifecycle", () => {
         ],
         presentation: {
           version: 1,
-          layout_preset: "EDITORIAL",
-          palette_id: "MANIFOLD",
-          typography_id: "MANIFOLD",
-          shape_id: "MANIFOLD",
+          layout_preset: "channel",
           tagline: null,
           cover_image_url: null,
           social_links: {},
+          brand_tokens: {
+            palette: "manifold",
+            typography: "modern",
+            shape: "soft",
+          },
           theme_key: null,
         },
       }),
@@ -367,7 +374,10 @@ describe("Outlet publication lifecycle", () => {
       `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}`,
       {
         method: "PATCH",
-        headers: authenticatedJsonHeaders(fixture.sessionToken),
+        headers: {
+          ...authenticatedJsonHeaders(fixture.sessionToken),
+          "If-Match": `"${initialDraftRevision}"`,
+        },
         body: JSON.stringify({
           name: renamed,
           description: "This description is still only in the working draft.",
@@ -746,6 +756,84 @@ describe("Outlet publication lifecycle", () => {
         to_status: "DRAFT",
       }),
     );
+  });
+
+  test("grandfathers an already-published classic snapshot while requiring an explicit visual choice for the next publication", async () => {
+    const fixture = await createReadyDraft("Classic Snapshot Compatibility");
+    const firstPublishResponse = await publicationRequest(
+      fixture.store.slug,
+      fixture.sessionToken,
+      "publish",
+      fixture.store.draft_revision,
+    );
+    expect(firstPublishResponse.status).toBe(200);
+    const firstPublication = await firstPublishResponse.json();
+    const revisionId = firstPublication.published_revision.id as string;
+    const publishedRevision = await prisma.storeRevision.findUniqueOrThrow({
+      where: { id: revisionId },
+    });
+
+    // Simulate a snapshot written before explicit preset selection existed.
+    // Public rendering is revision-based, so this immutable historical shape
+    // remains serviceable even though a future draft publication is stricter.
+    await prisma.storeRevision.update({
+      where: { id: revisionId },
+      data: {
+        presentation: {
+          ...(publishedRevision.presentation as Record<string, unknown>),
+          theme_key: null,
+          layout_preset: null,
+        },
+      },
+    });
+    const classicDraft = await prisma.store.update({
+      where: { id: fixture.store.id },
+      data: {
+        layout_preset: null,
+        name: "A private classic-layout draft edit",
+        draft_revision: { increment: 1 },
+      },
+    });
+
+    const publicBeforeRepublish = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}`,
+    );
+    expect(publicBeforeRepublish.status).toBe(200);
+    const publicSnapshot = await publicBeforeRepublish.json();
+    expect(publicSnapshot).toEqual(
+      expect.objectContaining({
+        name: fixture.store.name,
+        layout_preset: null,
+      }),
+    );
+
+    const readinessResponse = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}/publication`,
+      { headers: { Cookie: `session_id=${fixture.sessionToken}` } },
+    );
+    const readiness = await readinessResponse.json();
+    expect(readiness.readiness.checks.visual_identity).toBe(false);
+    expect(blockerCodes(readiness)).toContain("VISUAL_IDENTITY_UNSELECTED");
+
+    const rejectedRepublish = await publicationRequest(
+      fixture.store.slug,
+      fixture.sessionToken,
+      "publish",
+      classicDraft.draft_revision,
+    );
+    expect(rejectedRepublish.status).toBe(400);
+    expect(blockerCodes((await rejectedRepublish.json()).context)).toContain(
+      "VISUAL_IDENTITY_UNSELECTED",
+    );
+    expect(
+      await prisma.storeRevision.count({
+        where: { store_id: fixture.store.id },
+      }),
+    ).toBe(1);
+    const publicAfterRejectedRepublish = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${fixture.store.slug}`,
+    );
+    expect(publicAfterRejectedRepublish.status).toBe(200);
   });
 });
 

@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import webserver from "infra/webserver";
 import { StorefrontRouteLayout } from "components/store/StorefrontRouteLayout";
 import { Storefront } from "components/store/Storefront";
-import type { StoreApi } from "components/store/types";
+import { storeContextFromApi, type StoreApi } from "components/store/types";
 import { fetchJson } from "lib/api-client";
 import { useI18n } from "lib/i18n";
 import { headersForInternalFetch } from "lib/internal-fetch";
@@ -86,10 +86,12 @@ export default function StorePage({
 }) {
   const { locale, t } = useI18n();
   const metadata = outletMetadata(store, locale);
-  const { data: currentUser } = useSWR<CurrentUser>("/api/v1/user", fetchJson, {
-    shouldRetryOnError: false,
-  });
-  const previewQuery = isPreview ? "?preview=1" : "";
+  const viewStore = storeContextFromApi(store);
+  const { data: currentUser } = useSWR<CurrentUser>(
+    isPreview ? null : "/api/v1/user",
+    fetchJson,
+    { shouldRetryOnError: false },
+  );
 
   const reportPreviewStatus = useCallback(
     ({ ready, error }: { ready: boolean; error?: string }) => {
@@ -109,17 +111,19 @@ export default function StorePage({
   );
 
   return (
-    <StorefrontRouteLayout store={store}>
+    <StorefrontRouteLayout store={viewStore} visitorPreview={isPreview}>
       <Storefront
-        featuredEndpoint={`/api/v1/stores/${store.slug}/featured${previewQuery}`}
-        listEndpoint={`/api/v1/stores/${store.slug}/search${previewQuery}`}
-        browsePath={`/store/${store.slug}${previewQuery}`}
-        searchPagePath={`/store/${store.slug}${previewQuery}`}
+        featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
+        listEndpoint={`/api/v1/stores/${store.slug}/search`}
+        browsePath={`/store/${store.slug}`}
+        searchPagePath={`/store/${store.slug}`}
         pageTitle={metadata.title}
         metaDescription={metadata.description}
         canonicalPath={`/store/${store.slug}`}
         socialImage={
-          isPreview ? undefined : socialImageUrl("outlet", locale, store.slug)
+          isPreview
+            ? undefined
+            : socialImageUrl("outlet", locale, store.slug, store.published_at)
         }
         socialImageAlt={
           isPreview
@@ -129,12 +133,12 @@ export default function StorePage({
               : `${store.name}'s game selection with Manifold branding`
         }
         jsonLd={isPreview ? undefined : outletJsonLd(store, locale)}
-        store={store}
+        store={viewStore}
         isPreview={isPreview}
         onPreviewStatusChange={reportPreviewStatus}
       />
 
-      {currentUser?.id === store.owner_id && (
+      {!isPreview && currentUser?.id === store.owner_id && (
         <Link
           href={`/store/${store.slug}/manage`}
           aria-label={t("Manage {name}", { name: store.name })}

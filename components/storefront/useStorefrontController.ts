@@ -13,7 +13,6 @@ import type {
   StorefrontQuery,
 } from "components/storefront/types";
 import { STOREFRONT_ORDERS } from "components/storefront/types";
-import { withLocale } from "lib/localized-api";
 
 type ListResponse = {
   games: GameApi[];
@@ -47,7 +46,7 @@ function relativeUrl(url: URL) {
 }
 
 export type StorefrontControllerOptions = {
-  /** Hero rail source. Receives no query params. */
+  /** Hero rail source. Receives locale and persistent preview params. */
   featuredEndpoint: string;
   /** Filtered list source. Receives q/tags/order/page. */
   listEndpoint: string;
@@ -118,20 +117,30 @@ export function useStorefrontController({
     else url.searchParams.delete("order");
     if (page > 1) url.searchParams.set("page", String(page));
     else url.searchParams.delete("page");
+    if (isPreview) url.searchParams.set("preview", "1");
     url.searchParams.set("locale", locale);
     return relativeUrl(url);
-  }, [listEndpoint, q, effectiveTags, order, page, locale]);
+  }, [listEndpoint, q, effectiveTags, order, page, isPreview, locale]);
+
+  const featuredUrl = useMemo(() => {
+    const url = localUrl(featuredEndpoint);
+    if (isPreview) url.searchParams.set("preview", "1");
+    url.searchParams.set("locale", locale);
+    return relativeUrl(url);
+  }, [featuredEndpoint, isPreview, locale]);
 
   const {
     data: featuredData,
-    error: featuredError,
+    error: featuredRequestError,
     isLoading: isFeaturedLoading,
-  } = useSWR<ListResponse>(withLocale(featuredEndpoint, locale), fetcher);
+    mutate: mutateFeatured,
+  } = useSWR<ListResponse>(featuredUrl, fetcher);
 
   const {
     data,
-    error: catalogError,
+    error: catalogRequestError,
     isLoading,
+    mutate: mutateCatalog,
   } = useSWR<ListResponse>(listUrl, fetcher);
 
   const browseHref = useCallback(
@@ -154,10 +163,11 @@ export function useStorefrontController({
       next.tags.forEach((tag) => url.searchParams.append("tags", tag));
       if (next.order !== "newest") url.searchParams.set("order", next.order);
       if (next.page > 1) url.searchParams.set("page", String(next.page));
+      if (isPreview) url.searchParams.set("preview", "1");
 
       return relativeUrl(url);
     },
-    [browsePath, q, activeCategory, tags, order, page],
+    [browsePath, q, activeCategory, tags, order, page, isPreview],
   );
 
   // Shallow so filtering never refetches the page's server props, matching how
@@ -195,18 +205,22 @@ export function useStorefrontController({
     featured: featuredData?.games || [],
     featuredMode: featuredData?.mode || "AUTOMATIC",
     isFeaturedLoading,
-    featuredError,
+    featuredError: Boolean(featuredRequestError),
+    retryFeatured: () => void mutateFeatured(),
 
     games: data?.games || [],
     isLoading,
-    catalogError,
+    catalogError: Boolean(catalogRequestError),
+    retryCatalog: () => void mutateCatalog(),
+    previewError: featuredRequestError ?? catalogRequestError,
     isPreviewReady:
+      isPreview &&
       featuredData !== undefined &&
       data !== undefined &&
       !isFeaturedLoading &&
       !isLoading &&
-      !featuredError &&
-      !catalogError,
+      !featuredRequestError &&
+      !catalogRequestError,
     pagination: data?.pagination,
     currency: data?.currency || "USD",
 

@@ -73,10 +73,12 @@ export function socialImageUrl(
   kind: "home" | "outlet" | "game",
   locale: AppLocale,
   slug?: string,
+  version?: string | null,
 ): string {
   const suffix = slug ? `/${encodeURIComponent(slug)}` : "";
   const url = new URL(`/api/og/${kind}${suffix}`, SITE_ORIGIN);
   url.searchParams.set("locale", locale);
+  if (version) url.searchParams.set("v", version);
   return url.toString();
 }
 
@@ -215,7 +217,12 @@ export function outletJsonLd(store: StoreApi, locale: AppLocale): JsonLd {
     url,
     inLanguage: locale,
     isPartOf: websiteReference(),
-    primaryImageOfPage: socialImageUrl("outlet", locale, store.slug),
+    primaryImageOfPage: socialImageUrl(
+      "outlet",
+      locale,
+      store.slug,
+      store.published_at,
+    ),
   };
 }
 

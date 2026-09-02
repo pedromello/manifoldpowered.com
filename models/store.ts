@@ -31,28 +31,87 @@ import {
   type StorePublicationReadinessV2,
 } from "models/store_revision";
 import {
+  DEFAULT_STORE_BRAND_TOKENS,
+  STORE_LAYOUT_PRESETS,
+  STORE_PALETTES,
+  STORE_SHAPES,
+  STORE_TYPOGRAPHIES,
   resolveDraftPresentation,
+  storeSocialLinksSchema,
   type StorePresentation,
 } from "models/store_presentation";
 
-export const storeSchema = z.object({
-  name: z.string().min(1).max(255),
-  description: z.string().max(1000).optional(),
-  logo_url: z.string().url().max(2048).optional(),
-  catalog_mode: z.enum(["UNDECIDED", "ALL", "SELECTED"]).optional(),
-});
+const httpsUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(2048)
+  .refine(
+    (value) => {
+      try {
+        return new URL(value).protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "URL must use https",
+    },
+  );
+
+export { storeSocialLinksSchema };
+
+export const storeBrandTokensSchema = z
+  .object({
+    palette: z.enum(STORE_PALETTES),
+    typography: z.enum(STORE_TYPOGRAPHIES),
+    shape: z.enum(STORE_SHAPES),
+  })
+  .strict();
+
+export const storeSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255),
+    description: z.string().trim().max(2000).nullable().optional(),
+    logo_url: httpsUrlSchema.nullable().optional(),
+    catalog_mode: z.enum(["UNDECIDED", "ALL", "SELECTED"]).optional(),
+    layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable().optional(),
+    tagline: z.string().trim().max(160).nullable().optional(),
+    cover_url: httpsUrlSchema.nullable().optional(),
+    social_links: storeSocialLinksSchema.nullable().optional(),
+    brand_tokens: storeBrandTokensSchema.nullable().optional(),
+  })
+  .strict();
 
 export const storeUpdateSchema = storeSchema
   .partial()
-  .extend({
-    catalog_mode: storeDraftCatalogModeSchema.optional(),
-    expected_draft_revision: z.number().int().min(1).optional(),
-  })
+  .extend({ catalog_mode: storeDraftCatalogModeSchema.optional() })
   .strict();
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
   owner_id: string;
 };
+
+export type StoreUpdateDto = z.infer<typeof storeUpdateSchema>;
+
+// Used by owner backfills and deterministic showcase fixtures. Presentation
+// travels through the canonical update permission; publication stays separate.
+export const STORE_OWNER_FEATURES = ["update:store", "publish:store"] as const;
+
+export function parseStoreDraftIfMatch(
+  value: string | string[] | undefined,
+): number {
+  const match =
+    typeof value === "string" ? /^(?:\"(\d+)\"|(\d+))$/.exec(value) : null;
+  const parsed = match ? Number(match[1] ?? match[2]) : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new ValidationError({
+      message: "A valid If-Match draft revision is required",
+      action: 'Send the current draft ETag, for example If-Match: "3"',
+    });
+  }
+  return parsed;
+}
 
 export const STORE_PUBLICATION_ACTIONS = ["publish", "unpublish"] as const;
 
@@ -93,6 +152,12 @@ export type StorefrontStore = Pick<
   | "published_at"
   | "last_published_at"
   | "draft_revision"
+  | "theme_key"
+  | "layout_preset"
+  | "tagline"
+  | "cover_url"
+  | "social_links"
+  | "brand_tokens"
   | "created_at"
   | "updated_at"
 > & {
@@ -177,6 +242,11 @@ async function create(storeData: StoreCreateDto) {
       owner_id: storeData.owner_id,
       slug,
       catalog_mode: storeData.catalog_mode ?? "UNDECIDED",
+      layout_preset: storeData.layout_preset ?? null,
+      tagline: storeData.tagline,
+      cover_url: storeData.cover_url,
+      social_links: storeData.social_links ?? {},
+      brand_tokens: storeData.brand_tokens ?? DEFAULT_STORE_BRAND_TOKENS,
     },
   });
 
@@ -415,6 +485,12 @@ function projectPublishedStore(
     draft_revision: storeRow.draft_revision,
     published_at: storeRow.published_at,
     last_published_at: storeRow.last_published_at,
+    theme_key: revision.presentation.theme_key,
+    layout_preset: revision.presentation.layout_preset,
+    tagline: revision.presentation.tagline,
+    cover_url: revision.presentation.cover_image_url,
+    social_links: revision.presentation.social_links,
+    brand_tokens: revision.presentation.brand_tokens,
     created_at: storeRow.created_at,
     updated_at: revision.created_at,
     presentation: revision.presentation,
@@ -474,7 +550,20 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
     last_published_at: storeRow.last_published_at,
     created_at: storeRow.created_at,
     updated_at: storeRow.updated_at,
-    presentation: resolveDraftPresentation({ slug: storeRow.slug }),
+    theme_key: storeRow.theme_key,
+    layout_preset: storeRow.layout_preset,
+    tagline: storeRow.tagline,
+    cover_url: storeRow.cover_url,
+    social_links: storeRow.social_links,
+    brand_tokens: storeRow.brand_tokens,
+    presentation: resolveDraftPresentation({
+      theme_key: storeRow.theme_key,
+      layout_preset: storeRow.layout_preset,
+      tagline: storeRow.tagline,
+      cover_url: storeRow.cover_url,
+      social_links: storeRow.social_links,
+      brand_tokens: storeRow.brand_tokens,
+    }),
     storefront_source: "DRAFT",
     published_revision: publishedRevision,
     catalog_snapshot:
@@ -547,21 +636,9 @@ async function findOneBySlugWithMembers(slug: string) {
 
 async function update(
   id: string,
-  updateData: z.infer<typeof storeUpdateSchema>,
+  updateData: StoreUpdateDto,
+  expectedDraftRevision: number,
 ) {
-  const existingStore = await prisma.store.findUnique({
-    where: {
-      id,
-    },
-  });
-
-  if (!existingStore) {
-    throw new NotFoundError({
-      message: "Store not found.",
-      action: "Check the store ID and try again.",
-    });
-  }
-
   const result = storeUpdateSchema.safeParse(updateData);
 
   if (!result.success) {
@@ -572,18 +649,41 @@ async function update(
     });
   }
 
-  const { expected_draft_revision, ...data } = result.data;
-  const expectedDraftRevision =
-    expected_draft_revision ?? existingStore.draft_revision;
+  const normalizedData = {
+    ...result.data,
+    ...(result.data.social_links === null ? { social_links: {} } : {}),
+    ...(result.data.brand_tokens === null
+      ? { brand_tokens: DEFAULT_STORE_BRAND_TOKENS }
+      : {}),
+  };
 
   try {
     return await prisma.$transaction(
       async (transaction) => {
+        const existingStore = await transaction.store.findUnique({
+          where: { id },
+        });
+        if (!existingStore) {
+          throw new NotFoundError({
+            message: "Store not found.",
+            action: "Check the store ID and try again.",
+          });
+        }
+        if (existingStore.draft_revision !== expectedDraftRevision) {
+          throw publicationConflict({
+            expectedDraftRevision,
+            actualDraftRevision: existingStore.draft_revision,
+          });
+        }
+
         const updated = await transaction.store.updateMany({
           where: { id, draft_revision: expectedDraftRevision },
           // Slugs are immutable after creation. Renaming changes display
           // identity, never the durable URL or attribution key.
-          data: { ...data, draft_revision: { increment: 1 } },
+          data: {
+            ...normalizedData,
+            draft_revision: { increment: 1 },
+          },
         });
         if (updated.count !== 1) {
           const latest = await transaction.store.findUnique({
@@ -601,10 +701,14 @@ async function update(
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      (error.code === "P2002" || error.code === "P2034")
-    ) {
+    const prismaCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : null;
+    if (prismaCode === "P2002" || prismaCode === "P2034") {
       const latest = await prisma.store.findUnique({
         where: { id },
         select: { draft_revision: true },

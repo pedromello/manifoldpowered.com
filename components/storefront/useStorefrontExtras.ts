@@ -6,8 +6,29 @@ import { withLocale } from "lib/localized-api";
 
 type ListResponse = { games: GameApi[] };
 
-const fetcher = (url: string): Promise<ListResponse> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<ListResponse> => {
+  const response = await fetch(url);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || `Request failed: ${response.status}`);
+  }
+  return body;
+};
+
+function outletRailUrl(
+  storeSlug: string,
+  rail: "trending" | "new-releases",
+  limit: number,
+  locale: "en" | "pt-BR",
+  preview: boolean,
+) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (preview) params.set("preview", "1");
+  return withLocale(
+    `/api/v1/stores/${storeSlug}/${rail}?${params.toString()}`,
+    locale,
+  );
+}
 
 /**
  * Optional rails a bespoke storefront can add that the default one does not
@@ -26,29 +47,43 @@ const fetcher = (url: string): Promise<ListResponse> =>
 export function useStorefrontTrending(storeSlug: string, limit = 8) {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
-  const preview = router.query.preview === "1" ? "&preview=1" : "";
-  const { data, isLoading } = useSWR<ListResponse>(
-    withLocale(
-      `/api/v1/stores/${storeSlug}/trending?limit=${limit}${preview}`,
+  const { data, isLoading, error, mutate } = useSWR<ListResponse>(
+    outletRailUrl(
+      storeSlug,
+      "trending",
+      limit,
       locale,
+      router.query.preview === "1",
     ),
     fetcher,
   );
 
-  return { games: data?.games || [], isLoading };
+  return {
+    games: data?.games || [],
+    isLoading,
+    hasError: Boolean(error),
+    retry: () => void mutate(),
+  };
 }
 
 export function useStorefrontNewReleases(storeSlug: string, limit = 8) {
   const router = useRouter();
   const locale = router.locale === "pt-BR" ? "pt-BR" : "en";
-  const preview = router.query.preview === "1" ? "&preview=1" : "";
-  const { data, isLoading } = useSWR<ListResponse>(
-    withLocale(
-      `/api/v1/stores/${storeSlug}/new-releases?limit=${limit}${preview}`,
+  const { data, isLoading, error, mutate } = useSWR<ListResponse>(
+    outletRailUrl(
+      storeSlug,
+      "new-releases",
+      limit,
       locale,
+      router.query.preview === "1",
     ),
     fetcher,
   );
 
-  return { games: data?.games || [], isLoading };
+  return {
+    games: data?.games || [],
+    isLoading,
+    hasError: Boolean(error),
+    retry: () => void mutate(),
+  };
 }

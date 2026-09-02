@@ -18,7 +18,19 @@ const store: StoreApi = {
   name: "Careful Curator",
   description: "  Hand-picked\n games for thoughtful players.  ",
   logo_url: null,
+  theme_key: null,
+  layout_preset: "editorial",
+  tagline: "Thoughtful games, carefully explained.",
+  cover_url: null,
+  social_links: {},
+  brand_tokens: {
+    palette: "manifold",
+    typography: "editorial",
+    shape: "crisp",
+  },
   owner_id: "owner-1",
+  status: "PUBLISHED",
+  published_at: "2026-01-02T00:00:00.000Z",
   created_at: "2026-01-01T00:00:00.000Z",
   updated_at: "2026-01-02T00:00:00.000Z",
 };
@@ -133,6 +145,19 @@ describe("SEO helpers", () => {
   test("uses a safe content-specific social image URL", () => {
     expect(socialImageUrl("outlet", "pt-BR", "careful curator")).toBe(
       "https://www.manifoldpowered.com/api/og/outlet/careful%20curator?locale=pt-BR",
+    );
+  });
+
+  test("versions published Outlet artwork without changing its canonical URL", () => {
+    expect(
+      socialImageUrl(
+        "outlet",
+        "en",
+        "careful-curator",
+        "2026-09-01T12:00:00.000Z",
+      ),
+    ).toBe(
+      "https://www.manifoldpowered.com/api/og/outlet/careful-curator?locale=en&v=2026-09-01T12%3A00%3A00.000Z",
     );
   });
 

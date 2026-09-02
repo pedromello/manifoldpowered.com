@@ -179,6 +179,59 @@ describe("models/authorization.ts", () => {
         }),
       ).toEqual({ is_followed: true });
     });
+
+    test("never upgrades a raw or draft Store into a public revision projection", () => {
+      const rawStore = {
+        id: "store-1",
+        slug: "private-draft",
+        name: "Private draft",
+        description: null,
+        logo_url: null,
+        owner_id: "owner-1",
+        status: "DRAFT",
+        catalog_mode: "UNDECIDED",
+        draft_revision: 1,
+        published_revision_id: null,
+        last_published_revision_id: null,
+        published_at: null,
+        last_published_at: null,
+        theme_key: null,
+        layout_preset: null,
+        tagline: null,
+        cover_url: null,
+        social_links: {},
+        brand_tokens: {
+          palette: "manifold",
+          typography: "modern",
+          shape: "soft",
+        },
+        commission_rate: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      expect(() =>
+        authorization.filterOutput(
+          { id: "visitor", features: ["read:public_store"] },
+          "read:public_store",
+          rawStore,
+        ),
+      ).toThrow(InternalServerError);
+
+      expect(() =>
+        authorization.filterOutput(
+          { id: "visitor", features: ["read:public_store"] },
+          "read:public_store",
+          {
+            ...rawStore,
+            status: "PUBLISHED",
+            published_at: new Date(),
+            storefront_source: "REVISION",
+            published_revision: null,
+          },
+        ),
+      ).toThrow(InternalServerError);
+    });
   });
 
   describe("Outlet follow features", () => {

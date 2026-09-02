@@ -129,7 +129,7 @@ export function useItemController({
     error: libraryError,
     mutate: mutateLibrary,
   } = useSWR(
-    `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
+    isPreview ? null : `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
     fetchJson,
     {
       shouldRetryOnError: false,
@@ -147,7 +147,7 @@ export function useItemController({
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
-    `/api/v1/wishlists?slug=${gameSlug}`,
+    isPreview ? null : `/api/v1/wishlists?slug=${gameSlug}`,
     (url) => fetch(url).then((res) => res.json()),
   );
 
@@ -156,7 +156,7 @@ export function useItemController({
   const isLoggedOut =
     libraryError instanceof ApiRequestError &&
     (libraryError.status === 401 || libraryError.status === 403);
-  const isCheckingLibrary = !libraryData && !libraryError;
+  const isCheckingLibrary = !isPreview && !libraryData && !libraryError;
   const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
     hasJustAcquired ||
@@ -401,10 +401,12 @@ export function useItemController({
     reviews: {
       // The viewer's own review is pinned separately by the view, so it is
       // filtered out of the general list here rather than in the markup.
-      list: (reviewsData?.reviews || []).filter(
-        (review) => review.id !== reviewsData?.user_review?.id,
-      ),
-      userReview: reviewsData?.user_review ?? null,
+      list: isPreview
+        ? reviewsData?.reviews || []
+        : (reviewsData?.reviews || []).filter(
+            (review) => review.id !== reviewsData?.user_review?.id,
+          ),
+      userReview: isPreview ? null : (reviewsData?.user_review ?? null),
       canReview: !isPreview && (reviewsData?.can_review ?? false),
       summary: reviewsData?.summary
         ? {

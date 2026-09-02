@@ -1,8 +1,9 @@
-import type {
+import {
   GameApi,
   GameDetailApi,
   PaginationApi,
   StoreApi,
+  storeContextFromApi,
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
 import type { ReactNode } from "react";
@@ -14,10 +15,12 @@ export type { GameApi, GameDetailApi, PaginationApi };
  * narrower than `StoreApi`: a theme has no business reading `owner_id`, and
  * keeping it out means a theme can never accidentally leak it into markup.
  */
-export type StoreContext = Pick<
-  StoreApi,
-  "id" | "slug" | "name" | "description" | "logo_url" | "presentation"
->;
+export type StoreContext = Omit<
+  ReturnType<typeof storeContextFromApi>,
+  "presentation"
+> & {
+  presentation?: StoreApi["presentation"];
+};
 
 /**
  * The order values `gameQuerySchema` accepts on the public list endpoints.
@@ -72,12 +75,16 @@ export type StorefrontViewProps = {
   /** Whether the Outlet chose these games or the catalog ranked them. */
   featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
-  featuredError?: Error;
+  featuredError: boolean;
+  retryFeatured: () => void;
 
   /** The required surface. A view that does not render this fails the contract. */
   games: GameApi[];
   isLoading: boolean;
-  catalogError?: Error;
+  catalogError: boolean;
+  retryCatalog: () => void;
+  /** Raw request failure used by the preview status callback. */
+  previewError?: Error;
   /** True only after both preview data sources completed successfully. */
   isPreviewReady: boolean;
   pagination?: PaginationApi;

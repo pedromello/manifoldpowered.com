@@ -500,6 +500,16 @@ model Store {
   published_at               DateTime?
   last_published_at          DateTime?
 
+  // Mutable presentation draft. `theme_key` is platform-assigned and is not
+  // accepted by the owner-facing schema; the other fields use strict
+  // allow-lists in models/store_presentation.ts.
+  theme_key     String? @unique @db.VarChar(64)
+  layout_preset String? @db.VarChar(32)
+  tagline       String? @db.VarChar(160)
+  cover_url     String? @db.VarChar(2048)
+  social_links  Json    @default("{}")
+  brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
+
   // What this outlet earns on a sale it referred, as a fraction of the gross.
   // Null means the platform default applies — most outlets never get a bespoke
   // rate, and a null is honest about that where a copied default would look

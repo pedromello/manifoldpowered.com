@@ -201,11 +201,15 @@ describe("models/commercial_terms.ts", () => {
       const storeModel = (await import("models/store")).default;
 
       await expect(
-        storeModel.update(store.id, {
-          name: "Renamed Outlet",
-          // @ts-expect-error deliberately outside the owner-facing schema
-          commission_rate: new Prisma.Decimal("0.99"),
-        }),
+        storeModel.update(
+          store.id,
+          {
+            name: "Renamed Outlet",
+            // @ts-expect-error deliberately outside the owner-facing schema
+            commission_rate: new Prisma.Decimal("0.99"),
+          },
+          store.draft_revision,
+        ),
       ).rejects.toMatchObject({ name: "ValidationError", statusCode: 400 });
 
       const reloaded = await storeModel.findOneBySlug(store.slug);

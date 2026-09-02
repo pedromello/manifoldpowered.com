@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 import controller from "infra/controller";
-import store from "models/store";
+import store, { parseStoreDraftIfMatch } from "models/store";
 import authorization from "models/authorization";
 import { ForbiddenError } from "infra/errors";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
@@ -20,6 +20,9 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     preview,
     user: req.context.user,
   });
+  if (preview) {
+    res.setHeader("ETag", `\"${foundStore.draft_revision}\"`);
+  }
 
   const secureOutputValues = authorization.filterOutput(
     req.context.user,
@@ -27,7 +30,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore,
   );
 
-  return res.status(200).json(secureOutputValues);
+  return sendJsonWithoutReplacingEtag(res, secureOutputValues);
 }
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -44,7 +47,14 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const updatedStore = await store.update(storeToUpdate.id, storeUpdateDto);
+  const expectedDraftRevision = parseStoreDraftIfMatch(req.headers["if-match"]);
+  const updatedStore = await store.update(
+    storeToUpdate.id,
+    storeUpdateDto,
+    expectedDraftRevision,
+  );
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("ETag", `\"${updatedStore.draft_revision}\"`);
 
   const secureOutputValues = authorization.filterOutput(
     userTryingToUpdate,
@@ -52,5 +62,17 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     updatedStore,
   );
 
-  return res.status(200).json(secureOutputValues);
+  return sendJsonWithoutReplacingEtag(res, secureOutputValues);
+}
+
+function sendJsonWithoutReplacingEtag(
+  res: NextApiResponse,
+  body: Record<string, unknown>,
+) {
+  // Next's res.json()/res.send() generates an ETag from the response body and
+  // replaces the draft-revision ETag set above. Ending the response directly
+  // keeps the revision as the sole optimistic-concurrency validator.
+  res.status(200);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  return res.end(JSON.stringify(body));
 }

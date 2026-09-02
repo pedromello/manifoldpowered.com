@@ -8,7 +8,11 @@ import type {
   ItemViewProps,
   StorefrontViewProps,
 } from "components/storefront/types";
-import { STOREFRONT_THEME } from "lib/storefront-theme-contract";
+import {
+  BESPOKE_THEME_KEYS,
+  isBespokeThemeKey,
+  type BespokeThemeKey,
+} from "storefronts/bespoke";
 
 /**
  * One bespoke outlet.
@@ -40,16 +44,18 @@ export type StorefrontResolution =
     };
 
 /**
- * Every outlet with a hand-built storefront, keyed by slug.
+ * Every Outlet with a hand-built storefront, keyed by an internal theme key.
  *
  * Entries must be static object literals with `next/dynamic` imports so the
  * bundler can split them. Building this map at runtime would defeat that and
  * ship all fifty outlets to every visitor.
  *
- * An outlet that is not listed here falls through to Manifold's own design.
+ * `theme_key` is migration/admin-controlled and intentionally absent from the
+ * owner-facing write schema. A creator can therefore never claim one of these
+ * entries by renaming an Outlet or by choosing a self-service preset.
  */
-const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
-  [STOREFRONT_THEME.NEON_ALLEY]: {
+const CUSTOM_STOREFRONTS: Record<BespokeThemeKey, CustomStorefront> = {
+  "neon-alley": {
     Storefront: dynamic(
       () =>
         import("storefronts/neon-alley/Storefront").then(
@@ -61,7 +67,7 @@ const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
     ),
     palette: neonAlleyPalette,
   },
-  [STOREFRONT_THEME.STRATEGOS_VOID]: {
+  "strategos-void": {
     Storefront: dynamic(
       () =>
         import("storefronts/strategos-void/Storefront").then(
@@ -76,19 +82,18 @@ const CUSTOM_STOREFRONTS: Record<string, CustomStorefront> = {
 /**
  * The single place a store becomes a theme.
  *
- * Takes the store object rather than a bare slug so moving this mapping into
- * the database later is a one-line change to this function body —
- * `CUSTOM_STOREFRONTS[store.theme_key ?? store.slug]` — with no call sites
- * touched. Anything unrecognised resolves explicitly to `standard`: a stale
- * or misspelled key degrades to Manifold's own design rather than erroring,
- * which is the right failure for a storefront that has to stay open.
+ * Bespoke resolution is deliberately independent from self-service
+ * `layout_preset`. Anything unrecognised resolves explicitly to `standard`: a
+ * stale key degrades safely instead of letting one Outlet impersonate another.
  */
 export function resolveStorefront(store: {
   slug: string;
-  presentation?: { theme_key?: string | null } | null;
+  theme_key?: string | null;
 }): StorefrontResolution {
-  const themeKey = store.presentation?.theme_key || store.slug;
-  const storefront = CUSTOM_STOREFRONTS[themeKey];
+  const themeKey = store.theme_key;
+  const storefront = isBespokeThemeKey(themeKey)
+    ? CUSTOM_STOREFRONTS[themeKey]
+    : null;
 
   if (!storefront) {
     return { kind: "standard", themeKey: "platform" };
@@ -101,7 +106,15 @@ export function resolveStorefront(store: {
   };
 }
 
-/** Registered slugs, for the conformance checklist in docs. */
+/** Registered theme keys, retained under the old name for docs/tooling callers. */
 export function registeredStorefrontSlugs(): string[] {
-  return Object.keys(CUSTOM_STOREFRONTS);
+  return [...BESPOKE_THEME_KEYS];
+}
+
+export const registeredStorefrontThemeKeys = registeredStorefrontSlugs;
+
+export function isRegisteredStorefrontThemeKey(
+  themeKey: string | null | undefined,
+): boolean {
+  return isBespokeThemeKey(themeKey);
 }

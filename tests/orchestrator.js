@@ -231,10 +231,16 @@ const createStore = async (ownerId, storeData = {}) => {
     name: storeData.name || uniqueFakerName(),
     description: storeData.description ?? faker.lorem.sentence(),
     logo_url: storeData.logo_url,
+    layout_preset: storeData.layout_preset,
+    tagline: storeData.tagline,
+    cover_url: storeData.cover_url,
+    social_links: storeData.social_links,
+    brand_tokens: storeData.brand_tokens,
+    catalog_mode: storeData.catalog_mode,
     owner_id: ownerId,
   });
 
-  if (storeData.status === "DRAFT") {
+  if (storeData.draft === true || storeData.status === "DRAFT") {
     if (storeData.catalog_mode) {
       return database.prisma.store.update({
         where: { id: createdStore.id },
@@ -263,7 +269,14 @@ const createStore = async (ownerId, storeData = {}) => {
         tag_filters: [],
         game_overrides: [],
         featured_games: [],
-        presentation: resolveDraftPresentation({ slug: createdStore.slug }),
+        presentation: resolveDraftPresentation({
+          theme_key: createdStore.theme_key,
+          layout_preset: createdStore.layout_preset,
+          tagline: createdStore.tagline,
+          cover_url: createdStore.cover_url,
+          social_links: createdStore.social_links,
+          brand_tokens: createdStore.brand_tokens,
+        }),
         created_at: now,
       },
     });

@@ -21,6 +21,7 @@ import {
 import { Pagination, type PaginationApi } from "components/Pagination";
 import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import { formatCatalogPrice } from "lib/price";
 import { itemHref } from "lib/store-context";
 
@@ -246,8 +247,7 @@ export function CatalogCurationWorkspace({
   async function refreshCatalogState() {
     await Promise.allSettled([
       mutate(),
-      mutateGlobal(`/api/v1/stores/${storeSlug}?preview=1`),
-      mutateGlobal(`/api/v1/stores/${storeSlug}/publication`),
+      revalidateOutletDraftCaches(mutateGlobal, storeSlug),
     ]);
   }
 
@@ -345,7 +345,7 @@ export function CatalogCurationWorkspace({
         return;
       }
 
-      await mutate();
+      await refreshCatalogState();
       setSelectedGames({});
       setPendingAction(null);
       setBulkPreview(null);
@@ -402,7 +402,7 @@ export function CatalogCurationWorkspace({
         });
         return;
       }
-      await mutate();
+      await refreshCatalogState();
       setFeedback({ tone: "success", message: t("Last change undone.") });
     } catch {
       // Undo is idempotent server-side. Keep the batch id visible so the
@@ -447,10 +447,7 @@ export function CatalogCurationWorkspace({
         });
         return;
       }
-      await Promise.all([
-        mutate(),
-        mutateGlobal(`/api/v1/stores/${storeSlug}`),
-      ]);
+      await refreshCatalogState();
       setFeedback({
         tone: "success",
         message: t(

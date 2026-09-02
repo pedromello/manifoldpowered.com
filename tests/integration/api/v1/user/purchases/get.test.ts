@@ -7,7 +7,7 @@ beforeAll(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
-async function getPurchases(sessionToken, query = "") {
+async function getPurchases(sessionToken?: string, query = "") {
   return await fetch(
     `${webserver.getOrigin()}/api/v1/user/purchases${query}`,
     sessionToken

@@ -22,12 +22,13 @@ export type StorefrontShellProps = {
   socialImage?: string;
   socialImageAlt?: string;
   jsonLd?: JsonLd;
+  /** Draft previews must not emit public canonicals, OG metadata, or JSON-LD. */
+  noIndex?: boolean;
   /** Identifies the theme in contract-guard messages. */
   themeKey?: string;
   /** Skipped on product pages, which are not catalogue surfaces. */
   enforceContract?: boolean;
   hasGames?: boolean;
-  noIndex?: boolean;
   children: ReactNode;
 };
 
@@ -54,10 +55,10 @@ export function StorefrontShell({
   socialImage,
   socialImageAlt,
   jsonLd,
+  noIndex = false,
   themeKey = "default",
   enforceContract = false,
   hasGames = false,
-  noIndex = false,
   children,
 }: StorefrontShellProps) {
   const { locale } = useI18n();
