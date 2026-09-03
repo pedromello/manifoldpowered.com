@@ -481,7 +481,11 @@ export const ptBR: Record<string, string> = {
     "A seção Destaques pode conter até três jogos.",
   "Featured is automatic": "Os Destaques são automáticos",
   "Featured recommendations saved.": "Recomendações em Destaques salvas.",
-  "Get in touch": "Fale conosco",
+  Contact: "Contato",
+  "Email Pedro Mello": "Enviar e-mail para Pedro Mello",
+  "Get in touch": "Entrar em contato",
+  "Have a question or want to talk about Manifold?":
+    "Tem alguma dúvida ou quer falar sobre a Manifold?",
   "Import a Game from Steam": "Importar um jogo da Steam",
   "Import from Steam": "Importar da Steam",
   "Import from Steam | Manifold": "Importar da Steam | Manifold",
