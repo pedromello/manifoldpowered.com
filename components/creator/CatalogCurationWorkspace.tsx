@@ -10,6 +10,7 @@ import {
   EyeOff,
   Flame,
   Loader2,
+  MessageSquareText,
   Pin,
   RotateCcw,
   Search,
@@ -143,6 +144,10 @@ export function CatalogCurationWorkspace({
   const [operationId, setOperationId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [reviewGame, setReviewGame] = useState<CurationGame | null>(null);
+  const [reviewHeadline, setReviewHeadline] = useState("");
+  const [reviewBody, setReviewBody] = useState("");
+  const [isSavingReview, setIsSavingReview] = useState(false);
   const feedbackRef = useRef<HTMLDivElement>(null);
 
   function replaceQuery(
@@ -253,6 +258,87 @@ export function CatalogCurationWorkspace({
       mutate(),
       revalidateOutletDraftCaches(mutateGlobal, storeSlug),
     ]);
+  }
+
+  function openReview(game: CurationGame) {
+    setReviewGame(game);
+    setReviewHeadline(game.outlet_review?.headline ?? "");
+    setReviewBody(game.outlet_review?.body ?? "");
+  }
+
+  async function saveReview() {
+    if (!data || !reviewGame || !reviewBody.trim()) return;
+    setIsSavingReview(true);
+    try {
+      const response = await fetch(
+        `/api/v1/stores/${storeSlug}/game-editorials/${reviewGame.slug}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            headline: reviewHeadline.trim() || null,
+            body: reviewBody.trim(),
+            expected_draft_revision: data.draft_revision,
+          }),
+        },
+      );
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.message || "Review save failed");
+      await refreshCatalogState();
+      setReviewGame(null);
+      setFeedback({
+        tone: "success",
+        message: t(
+          "Review saved to the draft. Publish the Outlet when it is ready for visitors.",
+        ),
+      });
+    } catch (saveError) {
+      setFeedback({
+        tone: "error",
+        message: translateError(
+          saveError instanceof Error ? saveError.message : undefined,
+          "The review could not be saved.",
+        ),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
+  }
+
+  async function deleteReview() {
+    if (!data || !reviewGame?.outlet_review) return;
+    setIsSavingReview(true);
+    try {
+      const response = await fetch(
+        `/api/v1/stores/${storeSlug}/game-editorials/${reviewGame.slug}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expected_draft_revision: data.draft_revision,
+          }),
+        },
+      );
+      const body = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(body?.message || "Review delete failed");
+      await refreshCatalogState();
+      setReviewGame(null);
+      setFeedback({
+        tone: "success",
+        message: t("Review removed from the draft."),
+      });
+    } catch (deleteError) {
+      setFeedback({
+        tone: "error",
+        message: translateError(
+          deleteError instanceof Error ? deleteError.message : undefined,
+          "The review could not be removed.",
+        ),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
   }
 
   function toggleGame(game: CurationGame) {
@@ -989,12 +1075,22 @@ export function CatalogCurationWorkspace({
                             )}
                             {t(game.in_outlet ? "In the Outlet" : "Outside")}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => openReview(game)}
+                            className="inline-flex items-center gap-1 rounded-full border border-violet-300/30 bg-violet-950/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-violet-100 backdrop-blur-md hover:bg-violet-900/90"
+                          >
+                            <MessageSquareText size={11} />
+                            {t(
+                              game.outlet_review ? "Edit review" : "Add review",
+                            )}
+                          </button>
                           {game.is_editorial && (
                             <Link
                               href={`/store/${encodeURIComponent(storeSlug)}/manage?tab=featured`}
                               className="inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-amber-950/75 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 backdrop-blur-md hover:bg-amber-900/80"
                             >
-                              <Sparkles size={11} /> {t("Edit Editorial")}
+                              <Sparkles size={11} /> {t("Edit Featured")}
                             </Link>
                           )}
                         </div>
@@ -1006,7 +1102,9 @@ export function CatalogCurationWorkspace({
                               {game.title}
                             </h3>
                             <p className="mt-1 truncate text-xs font-bold text-white/38">
-                              {game.developer_name}
+                              {t("By {studio}", {
+                                studio: game.developer_name,
+                              })}
                             </p>
                           </div>
                           <span className="shrink-0 text-sm font-black text-white/75">
@@ -1079,6 +1177,114 @@ export function CatalogCurationWorkspace({
           )}
         </div>
       </div>
+      {reviewGame && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="outlet-review-title"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target && !isSavingReview) {
+              setReviewGame(null);
+            }
+          }}
+        >
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-white/10 bg-[#17121f] p-5 shadow-2xl sm:rounded-3xl sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">
+                  {t("Outlet review")}
+                </p>
+                <h2
+                  id="outlet-review-title"
+                  className="mt-2 text-2xl font-black text-white"
+                >
+                  {reviewGame.title}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-white/45">
+                  {t(
+                    "This review is independent from Featured and stays in the draft until you publish.",
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewGame(null)}
+                disabled={isSavingReview}
+                aria-label={t("Close")}
+                className="rounded-xl border border-white/10 p-2 text-white/50 hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <label className="mt-6 block">
+              <span className="text-xs font-black uppercase tracking-wider text-white/55">
+                {t("Headline (optional)")}
+              </span>
+              <input
+                value={reviewHeadline}
+                onChange={(event) => setReviewHeadline(event.target.value)}
+                maxLength={120}
+                className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 font-bold text-white outline-none focus:border-violet-400/60"
+              />
+              <span className="mt-1 block text-right text-[10px] font-bold text-white/30">
+                {reviewHeadline.length}/120
+              </span>
+            </label>
+            <label className="mt-4 block">
+              <span className="text-xs font-black uppercase tracking-wider text-white/55">
+                {t("Your review")}
+              </span>
+              <textarea
+                value={reviewBody}
+                onChange={(event) => setReviewBody(event.target.value)}
+                maxLength={2000}
+                rows={8}
+                autoFocus
+                className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/20 p-4 text-sm font-semibold leading-6 text-white outline-none focus:border-violet-400/60"
+              />
+              <span className="mt-1 block text-right text-[10px] font-bold text-white/30">
+                {reviewBody.length}/2000
+              </span>
+            </label>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <div>
+                {reviewGame.outlet_review && (
+                  <button
+                    type="button"
+                    onClick={deleteReview}
+                    disabled={isSavingReview}
+                    className="min-h-11 rounded-xl border border-rose-300/20 px-4 text-sm font-black text-rose-200 hover:bg-rose-400/10 disabled:opacity-50"
+                  >
+                    {t("Remove review")}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setReviewGame(null)}
+                  disabled={isSavingReview}
+                  className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-black text-white/60 hover:bg-white/5"
+                >
+                  {t("Cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveReview}
+                  disabled={isSavingReview || !reviewBody.trim()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 text-sm font-black text-white hover:bg-violet-400 disabled:opacity-50"
+                >
+                  {isSavingReview && (
+                    <Loader2 size={16} className="animate-spin" />
+                  )}
+                  {isSavingReview ? t("Saving...") : t("Save review")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

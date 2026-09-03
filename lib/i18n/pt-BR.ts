@@ -1671,6 +1671,24 @@ export const ptBR: Record<string, string> = {
     "Remover sua recomendação editorial em Destaque e voltar ao Destaque automático?",
   "Remove all {count} editorial Featured recommendations and return to automatic Featured?":
     "Remover todas as {count} recomendações editoriais em Destaque e voltar ao Destaque automático?",
+  "By {studio}": "Por {studio}",
+  "Filters and sorting": "Filtros e ordenação",
+  "The view from {name}": "A visão de {name}",
+  "Why we recommend {game}": "Por que recomendamos {game}",
+  "About the game": "Sobre o jogo",
+  "Add review": "Adicionar review",
+  "Edit Featured": "Editar Destaques",
+  "Outlet review": "Review da Outlet",
+  "Headline (optional)": "Título (opcional)",
+  "Save review": "Salvar review",
+  "Remove review": "Remover review",
+  "Review saved to the draft. Publish the Outlet when it is ready for visitors.":
+    "Review salva no rascunho. Publique a Outlet quando estiver pronta para os visitantes.",
+  "Review removed from the draft.": "Review removida do rascunho.",
+  "The review could not be saved.": "Não foi possível salvar a review.",
+  "The review could not be removed.": "Não foi possível remover a review.",
+  "This review is independent from Featured and stays in the draft until you publish.":
+    "Esta review é independente dos Destaques e permanece no rascunho até você publicar.",
 
   // Error pages
   "Page not found": "Página não encontrada",

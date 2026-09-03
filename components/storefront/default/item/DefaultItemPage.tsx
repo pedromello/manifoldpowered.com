@@ -23,6 +23,7 @@ import { useI18n } from "lib/i18n";
 export function DefaultItemPage({
   game,
   store,
+  outletReview,
   isInLibrary,
   isCheckingLibrary,
   isRedeeming,
@@ -64,7 +65,11 @@ export function DefaultItemPage({
         />
 
         <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-10 border-t border-white/[0.08] px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-10 lg:py-14">
-          <ItemDescription game={game} />
+          <ItemDescription
+            game={game}
+            store={store}
+            outletReview={outletReview}
+          />
 
           <aside className="flex flex-col gap-8 lg:col-span-4">
             <PurchaseCard

@@ -13,6 +13,7 @@ import storeFeaturedGame, {
   MAX_FEATURED_GAMES,
 } from "models/store_featured_game";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
+import storeGameEditorial from "models/store_game_editorial";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -101,6 +102,16 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     const combinedGames = [...editorialResult.games, ...automaticGames];
+    const reviews = storeGameEditorial.mapForStorefront(
+      foundStore.storefront_source === "REVISION"
+        ? foundStore.game_editorials_snapshot.filter((review) =>
+            combinedGames.some(({ id }) => id === review.game_id),
+          )
+        : await storeGameEditorial.findDraftByStoreAndGameIds(
+            foundStore.id,
+            combinedGames.map(({ id }) => id),
+          ),
+    );
     const context = await storefrontPricing.contextFor(
       currency,
       combinedGames,
@@ -122,6 +133,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
         ...(editorialIds.has(featuredGame.id) && {
           recommendation_reason: reasonByGameId.get(featuredGame.id) ?? null,
         }),
+        outlet_review: reviews.get(featuredGame.id)
+          ? {
+              headline: reviews.get(featuredGame.id)!.headline,
+              body: reviews.get(featuredGame.id)!.body,
+            }
+          : null,
       }));
 
     return res.status(200).json({
@@ -146,6 +163,16 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   });
 
   const context = await storefrontPricing.contextFor(currency, games, req);
+  const reviews = storeGameEditorial.mapForStorefront(
+    foundStore.storefront_source === "REVISION"
+      ? foundStore.game_editorials_snapshot.filter((review) =>
+          games.some(({ id }) => id === review.game_id),
+        )
+      : await storeGameEditorial.findDraftByStoreAndGameIds(
+          foundStore.id,
+          games.map(({ id }) => id),
+        ),
+  );
 
   return res.status(200).json({
     games: storefrontPricing
@@ -153,6 +180,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
       .map((featuredGame) => ({
         ...featuredGame,
         featured_source: "AUTOMATIC",
+        outlet_review: reviews.get(featuredGame.id)
+          ? {
+              headline: reviews.get(featuredGame.id)!.headline,
+              body: reviews.get(featuredGame.id)!.body,
+            }
+          : null,
       })),
     pagination,
     currency,

@@ -81,6 +81,7 @@ type StoreRevisionClient = Pick<
   | "storeTagFilter"
   | "storeGameOverride"
   | "storeFeaturedGame"
+  | "storeGameEditorial"
   | "storeRevision"
   | "game"
   | "$queryRaw"
@@ -91,6 +92,7 @@ export interface StoreDraftSnapshot {
   catalog_mode: Exclude<StoreDraftCatalogMode, "UNDECIDED">;
   catalog: StoreCatalogSnapshot;
   featured_games: StoreFeaturedSnapshotEntry[];
+  game_editorials: StoreGameEditorialSnapshotEntry[];
   presentation: StorePresentation;
 }
 
@@ -105,9 +107,22 @@ export interface ParsedStoreRevision {
   description: string | null;
   logo_url: string | null;
   featured_games: StoreFeaturedSnapshotEntry[];
+  game_editorials: StoreGameEditorialSnapshotEntry[];
   presentation: StorePresentation;
   created_at: Date;
 }
+
+export const storeGameEditorialSnapshotEntrySchema = z
+  .object({
+    game_id: z.string().min(1),
+    headline: z.string().max(120).nullable(),
+    body: z.string().min(1).max(2000),
+  })
+  .strict();
+
+export type StoreGameEditorialSnapshotEntry = z.infer<
+  typeof storeGameEditorialSnapshotEntrySchema
+>;
 
 export function parseStoreRevision(
   revision: StoreRevision,
@@ -130,6 +145,9 @@ export function parseStoreRevision(
     featured_games: z
       .array(storeFeaturedSnapshotEntrySchema)
       .parse(revision.featured_games),
+    game_editorials: z
+      .array(storeGameEditorialSnapshotEntrySchema)
+      .parse(revision.game_editorials),
     presentation: parseStorePresentationForSlug(
       storeSlug,
       revision.presentation,
@@ -160,7 +178,7 @@ async function assessDraft(
   readiness: StorePublicationReadinessV2;
   draft: StoreDraftSnapshot | null;
 }> {
-  const [store, draftCatalog, featuredRows] = await Promise.all([
+  const [store, draftCatalog, featuredRows, editorialRows] = await Promise.all([
     client.store.findUnique({ where: { id: storeId } }),
     getDraftCatalogSnapshot(storeId, client),
     client.storeFeaturedGame.findMany({
@@ -171,6 +189,11 @@ async function assessDraft(
         position: true,
         recommendation_reason: true,
       },
+    }),
+    client.storeGameEditorial.findMany({
+      where: { store_id: storeId },
+      orderBy: [{ game_id: "asc" }],
+      select: { game_id: true, headline: true, body: true },
     }),
   ]);
 
@@ -331,6 +354,9 @@ async function assessDraft(
             catalog_mode: draftCatalog.catalog_mode,
             catalog: publishableCatalog,
             featured_games: featuredGames,
+            game_editorials: z
+              .array(storeGameEditorialSnapshotEntrySchema)
+              .parse(editorialRows),
             presentation: resolveDraftPresentation({
               theme_key: store.theme_key,
               layout_preset: store.layout_preset,
@@ -389,6 +415,7 @@ export async function createStoreRevision({
       tag_filters: draft.catalog.tag_filters as Prisma.InputJsonValue,
       game_overrides: draft.catalog.game_overrides as Prisma.InputJsonValue,
       featured_games: draft.featured_games as Prisma.InputJsonValue,
+      game_editorials: draft.game_editorials as Prisma.InputJsonValue,
       presentation: draft.presentation as Prisma.InputJsonValue,
     },
   });

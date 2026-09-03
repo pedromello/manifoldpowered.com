@@ -65,6 +65,11 @@ export type GameApi = {
   review_score?: string | null;
   /** Outlet-authored editorial copy; present only in editorial Featured feeds. */
   recommendation_reason?: string | null;
+  /** Independent Outlet × game review, available in an Outlet context. */
+  outlet_review?: {
+    headline: string | null;
+    body: string;
+  } | null;
   /** Distinguishes Outlet picks from automatic carousel fillers. */
   featured_source?: "EDITORIAL" | "AUTOMATIC";
 };

@@ -32,6 +32,7 @@ type ItemPageProps = {
   isPreview: boolean;
   /** Original attribution candidate, kept separate from public Store display. */
   requestedStoreSlug: string | null;
+  outletReview: GameDetailApi["outlet_review"];
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -72,6 +73,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     // `?store=` is visitor-supplied, so an unknown or malformed value must
     // degrade to an unattributed page rather than 404 a game that exists.
     let store: StoreApi | null = null;
+    let outletReview: GameDetailApi["outlet_review"] = null;
     if (storeSlug) {
       try {
         const storeUrl = new URL(
@@ -82,6 +84,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         const storeResponse = await fetch(storeUrl, { headers });
         if (storeResponse.ok) {
           store = await storeResponse.json();
+          const reviewUrl = new URL(
+            `/api/v1/stores/${encodeURIComponent(storeSlug)}/game-editorials/${encodeURIComponent(slug)}`,
+            webserver.getOrigin(),
+          );
+          if (isPreview) reviewUrl.searchParams.set("preview", "1");
+          const reviewResponse = await fetch(reviewUrl, { headers });
+          if (reviewResponse.ok) {
+            const payload = await reviewResponse.json();
+            outletReview = payload.review ?? null;
+          }
         } else if (isPreview) {
           return { notFound: true };
         }
@@ -97,6 +109,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         store,
         isPreview,
         requestedStoreSlug: storeSlug ?? null,
+        outletReview,
       },
     };
   } catch (error) {
@@ -110,6 +123,7 @@ export default function GameDetailsPage({
   store,
   isPreview,
   requestedStoreSlug,
+  outletReview,
 }: ItemPageProps) {
   const { locale } = useI18n();
   const metadata = gameMetadata(game, locale);
@@ -153,7 +167,12 @@ export default function GameDetailsPage({
       noIndex={isPreview}
     >
       {isPreview && store && <OutletPreviewBanner storeSlug={store.slug} />}
-      <ItemView {...controller} game={game} store={viewStore} />
+      <ItemView
+        {...controller}
+        game={game}
+        store={viewStore}
+        outletReview={outletReview}
+      />
     </StorefrontShell>
   );
 
