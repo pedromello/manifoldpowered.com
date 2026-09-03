@@ -5,6 +5,7 @@ import {
   GameArchiveFormat,
   GameArtifactStatus,
   GamePlatform,
+  GameReleasePatchStatus,
   GameReleaseStatus,
   Prisma,
 } from "generated/prisma/client";
@@ -747,6 +748,17 @@ async function markReady(id: string, input: GameArtifactReadyDto) {
       }
       gameRelease.assertReleaseMutable(release);
 
+      const readyPatch = await tx.gameReleasePatch.findFirst({
+        where: {
+          target_artifact_id: existing.id,
+          status: GameReleasePatchStatus.READY,
+        },
+        select: { id: true, target_artifact_sha256: true },
+      });
+      if (readyPatch && readyPatch.target_artifact_sha256 !== data.sha256) {
+        throw targetArtifactBoundToReadyPatch(existing.id, readyPatch.id);
+      }
+
       const manifest = installManifestSchema.parse({
         ...data.manifest,
         release_id: existing.release_id,
@@ -787,6 +799,17 @@ async function remove(id: string) {
         });
       }
       gameRelease.assertReleaseMutable(release);
+
+      const readyPatch = await tx.gameReleasePatch.findFirst({
+        where: {
+          target_artifact_id: existing.id,
+          status: GameReleasePatchStatus.READY,
+        },
+        select: { id: true },
+      });
+      if (readyPatch) {
+        throw targetArtifactBoundToReadyPatch(existing.id, readyPatch.id);
+      }
 
       return tx.gameArtifact.delete({ where: { id } });
     },
@@ -864,6 +887,13 @@ function invalidTransition(
   return new ValidationError({
     message: `Artifact "${id}" cannot transition from ${from} to ${to}.`,
     action: "Use the next valid verification workflow state.",
+  });
+}
+
+function targetArtifactBoundToReadyPatch(artifactId: string, patchId: string) {
+  return new ValidationError({
+    message: `Artifact "${artifactId}" is bound to READY patch "${patchId}" and cannot be replaced.`,
+    action: "Keep the target artifact or create a new target release.",
   });
 }
 

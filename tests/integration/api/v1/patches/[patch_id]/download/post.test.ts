@@ -1,4 +1,5 @@
 import storage from "infra/storage";
+import { prisma } from "infra/database";
 import gameRelease from "models/game_release";
 import gameReleasePatch from "models/game_release_patch";
 import orchestrator from "tests/orchestrator";
@@ -140,6 +141,21 @@ describe("POST /api/v1/patches/[patch_id]/download", () => {
         code: "INTEGRITY_FAILURE",
         retryable: false,
       },
+    });
+  });
+
+  test("does not authorize a READY patch bound to different target bytes", async () => {
+    const setup = await createPublishedPatch();
+    const { session } = await createBuyer(setup.game.id);
+    await prisma.gameReleasePatch.update({
+      where: { id: setup.patch.id },
+      data: { target_artifact_sha256: "f".repeat(64) },
+    });
+
+    const response = await requestPatchDownload(setup.patch.id, session.token);
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "NO_COMPATIBLE_RELEASE" },
     });
   });
 });

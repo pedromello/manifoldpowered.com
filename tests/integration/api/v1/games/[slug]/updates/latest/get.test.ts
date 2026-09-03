@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { prisma } from "infra/database";
 import gameRelease from "models/game_release";
 import orchestrator from "tests/orchestrator";
 import {
@@ -117,6 +118,38 @@ describe("GET /api/v1/games/[slug]/updates/latest", () => {
     await expect(response.json()).resolves.toMatchObject({
       strategy: "FULL",
       reason: "PATCH_EXCEEDS_SIZE_LIMIT",
+      fallback_artifact_id: target.artifact.id,
+    });
+  });
+
+  test("falls back to FULL when the READY patch no longer matches the target artifact", async () => {
+    const { owner, game, session } = await createOwnerGame();
+    const source = await publishDeclaredRelease(
+      await createDeclaredRelease(owner, game, "1.0.0", 1000),
+    );
+    const target = await createDeclaredRelease(owner, game, "1.1.0", 1000);
+    const ready = await createReadyPatch({
+      owner,
+      sessionToken: session.token,
+      source: source.release,
+      target: target.release,
+    });
+    await publishDeclaredRelease(target);
+    await prisma.gameReleasePatch.update({
+      where: { id: ready.patch.id },
+      data: { target_artifact_sha256: "f".repeat(64) },
+    });
+    const { session: buyerSession } = await createBuyer(game.id);
+
+    const response = await requestUpdate(
+      game.slug,
+      source.release.id,
+      buyerSession.token,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      strategy: "FULL",
+      reason: "PATCH_NOT_READY",
       fallback_artifact_id: target.artifact.id,
     });
   });

@@ -84,6 +84,7 @@ async function initiateUpload(
                 "Reuse the original declaration or create a new target release",
             });
           }
+          assertTargetArtifactBinding(existing, references.targetArtifact);
 
           return { patch: existing, created: false, gameId: references.gameId };
         }
@@ -102,6 +103,8 @@ async function initiateUpload(
             id: patchId,
             source_release_id: data.source_release_id,
             target_release_id: parsedTargetReleaseId,
+            target_artifact_id: references.targetArtifact.id,
+            target_artifact_sha256: references.targetArtifact.sha256!,
             platform: data.platform,
             architecture: data.architecture,
             algorithm: data.algorithm,
@@ -165,15 +168,17 @@ async function confirmUpload(id: string) {
 
   try {
     await prisma.$transaction(
-      (tx) =>
-        validateReferences(
+      async (tx) => {
+        const references = await validateReferences(
           tx,
           existing.target_release_id,
           existing.source_release_id,
           existing.platform,
           existing.architecture,
           true,
-        ),
+        );
+        assertTargetArtifactBinding(existing, references.targetArtifact);
+      },
       { isolationLevel: "Serializable" },
     );
 
@@ -193,7 +198,7 @@ async function confirmUpload(id: string) {
           if (!patch) throw patchNotFound(patchId);
           if (patch.status === GameReleasePatchStatus.READY) return patch;
 
-          await validateReferences(
+          const references = await validateReferences(
             tx,
             patch.target_release_id,
             patch.source_release_id,
@@ -201,6 +206,7 @@ async function confirmUpload(id: string) {
             patch.architecture,
             true,
           );
+          assertTargetArtifactBinding(patch, references.targetArtifact);
           if (!isSamePersistedPatch(existing, patch)) {
             throw new PatchIntegrityError(
               "Patch metadata changed during upload confirmation",
@@ -335,6 +341,16 @@ async function resolveLatestUpdate(
       }),
     } as const;
   }
+  if (!hasTargetArtifactBinding(patch, latest.artifact)) {
+    return {
+      state: "FOUND",
+      plan: updatePlanSchema.parse({
+        ...base,
+        strategy: "FULL",
+        reason: "PATCH_NOT_READY",
+      }),
+    } as const;
+  }
 
   const fullSize = latest.artifact.compressed_size_bytes!;
   if (
@@ -405,6 +421,7 @@ async function authorizeDownload(id: string, userId: string) {
     fallback.status !== GameArtifactStatus.READY ||
     fallback.archive_format !== GameArchiveFormat.ZIP ||
     !fallback.compressed_size_bytes ||
+    !hasTargetArtifactBinding(patch, fallback) ||
     patch.patch_size_bytes * BigInt(100) >
       fallback.compressed_size_bytes * BigInt(PATCH_MAX_FULL_SIZE_PERCENT)
   ) {
@@ -435,19 +452,21 @@ async function authorizeDownload(id: string, userId: string) {
     throw error;
   }
 
-  const finalPatch = await prisma.gameReleasePatch.findUnique({
-    where: { id: patch.id },
-  });
-  const finalTarget = await prisma.gameRelease.findUnique({
-    where: { id: target.id },
-  });
-  if (!finalPatch || !finalTarget) return { state: "MISSING" } as const;
+  const [finalPatch, finalTarget, finalFallback] = await Promise.all([
+    prisma.gameReleasePatch.findUnique({ where: { id: patch.id } }),
+    prisma.gameRelease.findUnique({ where: { id: target.id } }),
+    prisma.gameArtifact.findUnique({ where: { id: fallback.id } }),
+  ]);
+  if (!finalPatch || !finalTarget || !finalFallback) {
+    return { state: "MISSING" } as const;
+  }
   if (finalTarget.status === GameReleaseStatus.RETIRED) {
     return { state: "RETIRED", release: finalTarget } as const;
   }
   if (
     finalTarget.status !== GameReleaseStatus.PUBLISHED ||
     finalPatch.status !== GameReleasePatchStatus.READY ||
+    !hasTargetArtifactBinding(finalPatch, finalFallback) ||
     !isSamePersistedPatch(patch, finalPatch)
   ) {
     return { state: "UNAVAILABLE" } as const;
@@ -554,7 +573,8 @@ async function validateReferences(
   if (
     !targetArtifact ||
     targetArtifact.archive_format !== GameArchiveFormat.ZIP ||
-    !targetArtifact.compressed_size_bytes
+    !targetArtifact.compressed_size_bytes ||
+    !targetArtifact.sha256
   ) {
     throw new ValidationError({
       message: "The target release has no declared full ZIP fallback",
@@ -815,10 +835,40 @@ function isSameDeclaration(
   );
 }
 
+function hasTargetArtifactBinding(
+  patch: {
+    target_artifact_id: string;
+    target_artifact_sha256: string;
+  },
+  artifact: { id: string; sha256: string | null },
+) {
+  return (
+    patch.target_artifact_id === artifact.id &&
+    patch.target_artifact_sha256 === artifact.sha256
+  );
+}
+
+function assertTargetArtifactBinding(
+  patch: {
+    id: string;
+    target_artifact_id: string;
+    target_artifact_sha256: string;
+  },
+  artifact: { id: string; sha256: string | null },
+) {
+  if (hasTargetArtifactBinding(patch, artifact)) return;
+  throw new ValidationError({
+    message: `Target artifact changed after patch "${patch.id}" was declared`,
+    action: "Keep the original target artifact or create a new target release",
+  });
+}
+
 type PersistedPatchIdentity = Pick<
   GameReleasePatch,
   | "source_release_id"
   | "target_release_id"
+  | "target_artifact_id"
+  | "target_artifact_sha256"
   | "platform"
   | "architecture"
   | "algorithm"
@@ -839,6 +889,8 @@ function isSamePersistedPatch(
   return (
     first.source_release_id === second.source_release_id &&
     first.target_release_id === second.target_release_id &&
+    first.target_artifact_id === second.target_artifact_id &&
+    first.target_artifact_sha256 === second.target_artifact_sha256 &&
     first.platform === second.platform &&
     first.architecture === second.architecture &&
     first.algorithm === second.algorithm &&

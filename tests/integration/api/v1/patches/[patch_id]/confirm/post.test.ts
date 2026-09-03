@@ -1,4 +1,5 @@
 import storage from "infra/storage";
+import gameArtifact from "models/game_artifact";
 import gameReleasePatch from "models/game_release_patch";
 import orchestrator from "tests/orchestrator";
 import {
@@ -80,6 +81,30 @@ describe("POST /api/v1/patches/[patch_id]/confirm", () => {
     await expect(declarationRetry.json()).resolves.toMatchObject({
       patch: { id: setup.initiated.patch.id, status: "READY" },
       uploads: null,
+    });
+  });
+
+  test("prevents replacing the target artifact after its patch becomes READY", async () => {
+    const setup = await createPendingPatch();
+    await uploadPatchFiles(setup.initiated, setup.patchFile, setup.signature);
+
+    const confirmation = await requestPatchConfirmation(
+      setup.initiated.patch.id,
+      setup.session.token,
+    );
+    expect(confirmation.status).toBe(200);
+    await expect(
+      gameReleasePatch.findById(setup.initiated.patch.id),
+    ).resolves.toMatchObject({
+      target_artifact_id: setup.target.artifact.id,
+      target_artifact_sha256: setup.target.sha256,
+    });
+
+    await expect(
+      gameArtifact.remove(setup.target.artifact.id),
+    ).rejects.toMatchObject({
+      name: "ValidationError",
+      message: expect.stringContaining("READY patch"),
     });
   });
 
