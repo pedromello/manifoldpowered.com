@@ -9,54 +9,6 @@ beforeAll(async () => {
 });
 
 describe("GET /api/v1/stores/[slug]/curation-catalog", () => {
-  test("decorates management cards with the current draft review", async () => {
-    const owner = await orchestrator.createUser();
-    await orchestrator.activateUser(owner.id);
-    const session = await orchestrator.createSession(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id, {
-      catalog_mode: "ALL",
-    });
-    const reviewedGame = await orchestrator.createGame(owner.id, {
-      title: "Catalog Review Surface",
-    });
-    const plainGame = await orchestrator.createGame(owner.id, {
-      title: "Catalog Review Surface Plain",
-    });
-    await gameModel.makePublic(reviewedGame.id);
-    await gameModel.makePublic(plainGame.id);
-    await prisma.storeGameEditorial.create({
-      data: {
-        store_id: createdStore.id,
-        game_id: reviewedGame.id,
-        headline: "Catalog headline",
-        body: "Draft editorial copy shown to the catalog manager.",
-      },
-    });
-
-    const response = await fetch(
-      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/curation-catalog?q=Catalog%20Review%20Surface`,
-      { headers: { Cookie: `session_id=${session.token}` } },
-    );
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.games).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: reviewedGame.id,
-          outlet_review: {
-            headline: "Catalog headline",
-            body: "Draft editorial copy shown to the catalog manager.",
-          },
-        }),
-        expect.objectContaining({
-          id: plainGame.id,
-          outlet_review: null,
-        }),
-      ]),
-    );
-  });
-
   test("filters, sorts, counts and paginates the catalog before returning cards", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
@@ -199,5 +151,53 @@ describe("GET /api/v1/stores/[slug]/curation-catalog", () => {
         (game: { id: string }) => game.id === otherOutletBestSeller.id,
       ),
     ).toBe(false);
+  });
+
+  test("decorates management cards with the current draft review", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "ALL",
+    });
+    const reviewedGame = await orchestrator.createGame(owner.id, {
+      title: "Catalog Review Surface",
+    });
+    const plainGame = await orchestrator.createGame(owner.id, {
+      title: "Catalog Review Surface Plain",
+    });
+    await gameModel.makePublic(reviewedGame.id);
+    await gameModel.makePublic(plainGame.id);
+    await prisma.storeGameEditorial.create({
+      data: {
+        store_id: createdStore.id,
+        game_id: reviewedGame.id,
+        headline: "Catalog headline",
+        body: "Draft editorial copy shown to the catalog manager.",
+      },
+    });
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/curation-catalog?q=Catalog%20Review%20Surface`,
+      { headers: { Cookie: `session_id=${session.token}` } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.games).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: reviewedGame.id,
+          outlet_review: {
+            headline: "Catalog headline",
+            body: "Draft editorial copy shown to the catalog manager.",
+          },
+        }),
+        expect.objectContaining({
+          id: plainGame.id,
+          outlet_review: null,
+        }),
+      ]),
+    );
   });
 });
