@@ -39,7 +39,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  if (gameResource.status === "ONLY_DISPLAY") {
+  if (gameResource.status === "ONLY_DISPLAY" && !gameResource.studio_id) {
     throw new ValidationError({
       message: "Files cannot be uploaded to an unclaimed display-only game.",
       action: "Complete the ownership claim flow first.",
@@ -96,7 +96,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  if (gameResource.status === "ONLY_DISPLAY") {
+  if (gameResource.status === "ONLY_DISPLAY" && !gameResource.studio_id) {
     throw new ValidationError({
       message: "Files cannot be uploaded to an unclaimed display-only game.",
       action: "Complete the ownership claim flow first.",

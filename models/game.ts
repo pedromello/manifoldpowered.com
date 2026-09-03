@@ -139,6 +139,7 @@ export const gameQuerySchema = z
     locale: z.enum(["en", "pt-BR"]).default("en"),
     min_price: z.coerce.number().min(0).optional(),
     max_price: z.coerce.number().min(0).optional(),
+    ownership_status: z.enum(["UNCLAIMED", "CLAIMED"]).optional(),
   })
   .refine(
     (data) =>
@@ -290,7 +291,7 @@ async function refreshUnclaimedSteamGame(
 
   return prisma.$transaction(async (tx) => {
     const updatedGame = await tx.game.update({
-      where: { id, status: "ONLY_DISPLAY" },
+      where: { id, status: "ONLY_DISPLAY", studio_id: null },
       data: {
         ...refreshData,
         launch_date: new Date(refreshData.launch_date),
@@ -820,6 +821,7 @@ async function findAllPaginated({
   curationWhere,
   priceableGameIds,
   locale = "en",
+  ownership_status,
 }: {
   page?: number;
   limit?: number;
@@ -835,10 +837,14 @@ async function findAllPaginated({
   // undefined means every game is priceable, which is the common case.
   priceableGameIds?: string[] | null;
   locale?: AppLocale;
+  ownership_status?: "UNCLAIMED" | "CLAIMED";
 }) {
   const where: Prisma.GameWhereInput = {
     status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
   };
+
+  if (ownership_status === "UNCLAIMED") where.studio_id = null;
+  if (ownership_status === "CLAIMED") where.studio_id = { not: null };
 
   if (tags && tags.length > 0) {
     where.tags = {

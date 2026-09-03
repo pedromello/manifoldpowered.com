@@ -401,6 +401,64 @@ describe("Steam community import", () => {
     });
   });
 
+  test("Should not refresh a Steam game after ownership was granted", async () => {
+    const importer = await orchestrator.createUser();
+    await orchestrator.activateUser(importer.id);
+    const steamAppId = "920000099";
+    const imported = await steamImport.importGame({
+      userId: importer.id,
+      steamAppId,
+      gateway: {
+        fetchAppDetails: async () => ({
+          success: true,
+          data: { name: "Claimed Steam Catalog Game" },
+        }),
+      },
+    });
+    const studio = await orchestrator.createStudio(importer.id);
+    await prisma.game.update({
+      where: { id: imported.game.id },
+      data: { studio_id: studio.id },
+    });
+
+    let gatewayCalls = 0;
+    const result = await steamImport.importGame({
+      userId: importer.id,
+      steamAppId,
+      gateway: {
+        fetchAppDetails: async () => {
+          gatewayCalls += 1;
+          return {
+            success: true,
+            data: { name: "Untrusted Community Overwrite" },
+          };
+        },
+      },
+    });
+
+    expect(gatewayCalls).toBe(0);
+    expect(result.created).toBe(false);
+    expect(result.game).toMatchObject({
+      id: imported.game.id,
+      title: "Claimed Steam Catalog Game",
+      studio_id: studio.id,
+    });
+
+    await expect(
+      gameModel.refreshUnclaimedSteamGame(
+        imported.game.id,
+        mapSteamAppToGameData(
+          { name: "Concurrent Community Overwrite" },
+          steamAppId,
+        ),
+        [],
+      ),
+    ).rejects.toBeDefined();
+    await expect(
+      prisma.game.findUniqueOrThrow({ where: { id: imported.game.id } }),
+    ).resolves.toMatchObject({ title: "Claimed Steam Catalog Game" });
+  });
+
   test("Should report a service failure when no region returns usable data", async () => {
     const user = await orchestrator.createUser();
     await orchestrator.activateUser(user.id);

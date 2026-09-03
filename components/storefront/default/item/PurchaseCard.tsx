@@ -1,4 +1,5 @@
 import { useRouter } from "next/router";
+import Link from "next/link";
 import {
   Users,
   User,
@@ -7,6 +8,7 @@ import {
   ExternalLink,
   MessageSquare,
   Heart,
+  BadgeCheck,
 } from "lucide-react";
 import { IconBrandX, IconBrandSteam } from "@tabler/icons-react";
 
@@ -142,6 +144,16 @@ export function PurchaseCard({
             />
             {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
           </button>
+        )}
+
+        {game.ownership_status === "UNCLAIMED" && (
+          <Link
+            href={`/studio/ownership-claims?game=${encodeURIComponent(game.slug)}`}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-violet-400/25 bg-violet-500/[0.08] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-violet-200 transition-colors hover:border-violet-400/40 hover:bg-violet-500/15"
+          >
+            <BadgeCheck size={20} />
+            {t("Claim ownership")}
+          </Link>
         )}
 
         <div className="h-px bg-white/10" />
