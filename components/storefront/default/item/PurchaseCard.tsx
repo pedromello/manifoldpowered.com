@@ -58,21 +58,28 @@ export function PurchaseCard({
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
       <div className="flex flex-col gap-6">
         {hasDisplayedPrice && (
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              {!free && basePrice && (
-                <span className="text-sm font-semibold text-white/35 line-through">
-                  {basePrice}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">
+              {game.title}
+            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col">
+                {!free && basePrice && (
+                  <span className="text-sm font-semibold text-white/35 line-through">
+                    {basePrice}
+                  </span>
+                )}
+                <span
+                  className="text-3xl font-black uppercase tracking-tight"
+                  style={{ color: discountBadgeColor }}
+                >
+                  {free ? t("Free") : formatCatalogPrice(game)}
                 </span>
+              </div>
+              {!free && discountLabel && (
+                <DiscountBadge label={discountLabel} />
               )}
-              <span
-                className="text-3xl font-black uppercase tracking-tight"
-                style={{ color: discountBadgeColor }}
-              >
-                {free ? t("Free") : formatCatalogPrice(game)}
-              </span>
             </div>
-            {!free && discountLabel && <DiscountBadge label={discountLabel} />}
           </div>
         )}
 
