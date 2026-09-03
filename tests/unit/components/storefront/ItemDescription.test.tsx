@@ -62,7 +62,7 @@ describe("ItemDescription Outlet context", () => {
       />,
     );
 
-    expect(markup).toContain("The view from Signal Boost");
+    expect(markup).toContain("Outlet review");
     expect(markup).toContain("A creator headline");
     expect(markup).toContain("A creator-specific point of view.");
     expect(markup).toContain("About the game");
@@ -71,10 +71,30 @@ describe("ItemDescription Outlet context", () => {
     );
   });
 
+  test("does not invent a headline and embeds valid YouTube links", () => {
+    const markup = renderToStaticMarkup(
+      <ItemDescription
+        game={game}
+        store={store}
+        outletReview={{
+          headline: null,
+          body: "Watch my full analysis: https://youtu.be/dQw4w9WgXcQ",
+        }}
+      />,
+    );
+
+    expect(markup).toContain("Outlet review");
+    expect(markup).not.toContain("Why we recommend");
+    expect(markup).toContain(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    );
+    expect(markup).toContain('href="https://youtu.be/dQw4w9WgXcQ"');
+  });
+
   test("keeps the original page when there is no contextual review", () => {
     const markup = renderToStaticMarkup(<ItemDescription game={game} />);
 
-    expect(markup).not.toContain("The view from");
+    expect(markup).not.toContain("Outlet review");
     expect(markup).not.toContain("About the game");
     expect(markup).toContain("Official studio description.");
   });

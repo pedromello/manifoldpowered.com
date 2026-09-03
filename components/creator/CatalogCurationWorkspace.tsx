@@ -1246,6 +1246,11 @@ export function CatalogCurationWorkspace({
               <span className="mt-1 block text-right text-[10px] font-bold text-white/30">
                 {reviewBody.length}/2000
               </span>
+              <span className="mt-2 block text-xs font-semibold leading-5 text-white/40">
+                {t(
+                  "Paste a YouTube link in the review to show its video player.",
+                )}
+              </span>
             </label>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
               <div>

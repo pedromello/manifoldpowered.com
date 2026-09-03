@@ -6,6 +6,50 @@ import { MediaGallery } from "components/store/MediaGallery";
 import type { GameDetailApi, GameApi } from "components/store/types";
 import type { StoreContext } from "components/storefront/types";
 import { useI18n } from "lib/i18n";
+import { reviewTextParts, youtubeEmbedsFromText } from "lib/youtube";
+
+function OutletReviewContent({ body }: { body: string }) {
+  const { t } = useI18n();
+  const embeds = youtubeEmbedsFromText(body);
+
+  return (
+    <>
+      <p className="mt-4 whitespace-pre-line text-base leading-7 text-white/80">
+        {reviewTextParts(body).map((part, index) =>
+          part.kind === "link" ? (
+            <a
+              key={`${part.value}-${index}`}
+              href={part.value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all font-bold text-sf-accent underline decoration-sf-accent/40 underline-offset-4 hover:decoration-sf-accent"
+            >
+              {part.value}
+            </a>
+          ) : (
+            part.value
+          ),
+        )}
+      </p>
+      {embeds.map(({ id }) => (
+        <div
+          key={id}
+          className="mt-5 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black"
+        >
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${id}`}
+            title={t("YouTube video in Outlet review")}
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="h-full w-full border-0"
+          />
+        </div>
+      ))}
+    </>
+  );
+}
 
 /**
  * The gallery and the studio's own long-form copy.
@@ -35,15 +79,14 @@ export function ItemDescription({
       {store && outletReview && (
         <section className="rounded-xl border border-sf-accent/35 bg-sf-accent/[0.08] p-5 sm:p-8">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-sf-accent">
-            {t("The view from {name}", { name: store.name })}
+            {t("Outlet review")}
           </p>
-          <h2 className="mt-3 text-2xl font-black text-white">
-            {outletReview.headline ||
-              t("Why we recommend {game}", { game: game.title })}
-          </h2>
-          <p className="mt-4 whitespace-pre-line text-base leading-7 text-white/80">
-            {outletReview.body}
-          </p>
+          {outletReview.headline && (
+            <h2 className="mt-3 text-2xl font-black text-white">
+              {outletReview.headline}
+            </h2>
+          )}
+          <OutletReviewContent body={outletReview.body} />
         </section>
       )}
 

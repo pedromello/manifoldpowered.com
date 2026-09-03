@@ -1673,8 +1673,6 @@ export const ptBR: Record<string, string> = {
     "Remover todas as {count} recomendações editoriais em Destaque e voltar ao Destaque automático?",
   "By {studio}": "Por {studio}",
   "Filters and sorting": "Filtros e ordenação",
-  "The view from {name}": "A visão de {name}",
-  "Why we recommend {game}": "Por que recomendamos {game}",
   "About the game": "Sobre o jogo",
   "Add review": "Adicionar review",
   "Edit Featured": "Editar Destaques",
@@ -1689,6 +1687,9 @@ export const ptBR: Record<string, string> = {
   "The review could not be removed.": "Não foi possível remover a review.",
   "This review is independent from Featured and stays in the draft until you publish.":
     "Esta review é independente dos Destaques e permanece no rascunho até você publicar.",
+  "YouTube video in Outlet review": "Vídeo do YouTube na review da Outlet",
+  "Paste a YouTube link in the review to show its video player.":
+    "Cole um link do YouTube na review para exibir o player do vídeo.",
 
   // Error pages
   "Page not found": "Página não encontrada",
