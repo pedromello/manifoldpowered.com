@@ -17,7 +17,7 @@ export function FooterContact() {
         </p>
         <a
           href={`mailto:${CONTACT_EMAIL}`}
-          aria-label={t("Email Pedro Mello")}
+          aria-label={t("Email Manifold")}
           className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-black text-white transition-all hover:bg-indigo-400 hover:shadow-lg hover:shadow-indigo-500/20"
         >
           <IconMail size={18} aria-hidden="true" />

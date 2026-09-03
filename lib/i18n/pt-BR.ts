@@ -482,7 +482,7 @@ export const ptBR: Record<string, string> = {
   "Featured is automatic": "Os Destaques são automáticos",
   "Featured recommendations saved.": "Recomendações em Destaques salvas.",
   Contact: "Contato",
-  "Email Pedro Mello": "Enviar e-mail para Pedro Mello",
+  "Email Manifold": "Enviar e-mail para a Manifold",
   "Get in touch": "Entrar em contato",
   "Have a question or want to talk about Manifold?":
     "Tem alguma dúvida ou quer falar sobre a Manifold?",
