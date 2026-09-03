@@ -293,6 +293,7 @@ export function CatalogCurationWorkspace({
         ),
       });
     } catch (saveError) {
+      await refreshCatalogState();
       setFeedback({
         tone: "error",
         message: translateError(
@@ -329,6 +330,7 @@ export function CatalogCurationWorkspace({
         message: t("Review removed from the draft."),
       });
     } catch (deleteError) {
+      await refreshCatalogState();
       setFeedback({
         tone: "error",
         message: translateError(

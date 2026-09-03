@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
+import { prisma } from "infra/database";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -47,6 +48,53 @@ describe("GET /api/v1/stores/[slug]/search", () => {
       const titles = body.games.map((g: { title: string }) => g.title);
       expect(titles).toContain("Search RPG");
       expect(titles).toContain("Search Horror");
+    });
+
+    test("returns Outlet reviews from the published snapshot", async () => {
+      const owner = await orchestrator.createUser();
+      await orchestrator.activateUser(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
+      const reviewedGame = await orchestrator.createGame(owner.id, {
+        title: "Search Review Snapshot",
+      });
+      const plainGame = await orchestrator.createGame(owner.id, {
+        title: "Search Review Snapshot Plain",
+      });
+      await gameModel.makePublic(reviewedGame.id);
+      await gameModel.makePublic(plainGame.id);
+      await prisma.storeGameEditorial.create({
+        data: {
+          store_id: createdStore.id,
+          game_id: reviewedGame.id,
+          headline: "Search headline",
+          body: "Review frozen into the public search snapshot.",
+        },
+      });
+      await orchestrator.publishStore(createdStore.id, owner.id);
+
+      const response = await fetch(
+        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/search?q=Search%20Review%20Snapshot`,
+      );
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.games).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: reviewedGame.id,
+            outlet_review: {
+              headline: "Search headline",
+              body: "Review frozen into the public search snapshot.",
+            },
+          }),
+          expect.objectContaining({
+            id: plainGame.id,
+            outlet_review: null,
+          }),
+        ]),
+      );
     });
 
     test("A blacklisted tag excludes matching games from the results", async () => {
