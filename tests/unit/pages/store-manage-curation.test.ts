@@ -48,4 +48,20 @@ describe("creator curation accessibility structure", () => {
     expect(featuredSection).toContain('role="status"');
     expect(featuredSection).toContain('aria-live="polite"');
   });
+
+  test("keeps editor state stable across browser focus and reconnect events", () => {
+    expect(managePageSource).toContain("revalidateOnFocus: false");
+    expect(managePageSource).toContain("revalidateOnReconnect: false");
+  });
+
+  test("labels Featured saves as draft-only and exposes publication status", () => {
+    const featuredSection = managePageSource.slice(
+      managePageSource.indexOf("function FeaturedTab"),
+      managePageSource.indexOf("function CurationTab"),
+    );
+
+    expect(featuredSection).toContain('t("Save Featured to draft")');
+    expect(featuredSection).toContain('t("Draft saved — publication pending")');
+    expect(featuredSection).toContain('t("Review and publish")');
+  });
 });

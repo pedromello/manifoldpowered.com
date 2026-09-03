@@ -143,6 +143,11 @@ describe("OutletCustomizationForm", () => {
     expect(mockUseSWR).toHaveBeenCalledWith(
       ["/api/v1/stores/lantern-club/publication", "publication-raw"],
       expect.any(Function),
+      {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        shouldRetryOnError: false,
+      },
     );
   });
 

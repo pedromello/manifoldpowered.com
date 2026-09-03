@@ -191,7 +191,11 @@ export function CatalogCurationWorkspace({
     return `/api/v1/stores/${storeSlug}/curation-catalog?${params.toString()}`;
   }, [activeTag, locale, order, status, storeSlug, urlPage, urlQuery]);
   const { data, error, isLoading, isValidating, mutate } =
-    useSWR<CatalogResponse>(catalogKey, fetcher, { keepPreviousData: true });
+    useSWR<CatalogResponse>(catalogKey, fetcher, {
+      keepPreviousData: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    });
   useEffect(() => {
     if (data) onDraftRevisionChange?.(data.draft_revision);
   }, [data, onDraftRevisionChange]);
