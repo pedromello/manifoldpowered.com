@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { expect } from "@jest/globals";
 import type { Game, Store, User } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import webserver from "infra/webserver";
