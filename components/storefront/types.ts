@@ -149,4 +149,5 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
 export type ItemViewProps = ItemControllerResult & {
   game: GameDetailApi;
   store: StoreContext | null;
+  outletReview?: GameApi["outlet_review"];
 };

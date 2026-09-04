@@ -27,6 +27,7 @@ import {
   getReadyDraftSnapshot,
   getStorePublicationReadiness,
   parseStoreRevision,
+  type ParsedStoreRevision,
   type StoreFeaturedSnapshotEntry,
   type StorePublicationReadinessV2,
 } from "models/store_revision";
@@ -171,6 +172,7 @@ export type StorefrontStore = Pick<
   } | null;
   catalog_snapshot: StoreCatalogSnapshot | null;
   featured_games_snapshot: StoreFeaturedSnapshotEntry[];
+  game_editorials_snapshot: ParsedStoreRevision["game_editorials"];
 };
 
 // What an outlet owner can delegate. read:store_statement is here because the
@@ -502,35 +504,42 @@ function projectPublishedStore(
     },
     catalog_snapshot: revision.catalog,
     featured_games_snapshot: revision.featured_games,
+    game_editorials_snapshot: revision.game_editorials,
   };
 }
 
 async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
-  const [catalog, featuredGames, publishedRevision] = await Promise.all([
-    getDraftCatalogSnapshot(storeRow.id),
-    prisma.storeFeaturedGame.findMany({
-      where: { store_id: storeRow.id },
-      orderBy: [{ position: "asc" }, { id: "asc" }],
-      select: {
-        game_id: true,
-        position: true,
-        recommendation_reason: true,
-      },
-    }),
-    storeRow.published_revision_id
-      ? prisma.storeRevision.findFirst({
-          where: {
-            id: storeRow.published_revision_id,
-            store_id: storeRow.id,
-          },
-          select: {
-            id: true,
-            revision: true,
-            source_draft_revision: true,
-          },
-        })
-      : null,
-  ]);
+  const [catalog, featuredGames, gameEditorials, publishedRevision] =
+    await Promise.all([
+      getDraftCatalogSnapshot(storeRow.id),
+      prisma.storeFeaturedGame.findMany({
+        where: { store_id: storeRow.id },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: {
+          game_id: true,
+          position: true,
+          recommendation_reason: true,
+        },
+      }),
+      prisma.storeGameEditorial.findMany({
+        where: { store_id: storeRow.id },
+        orderBy: [{ game_id: "asc" }],
+        select: { game_id: true, headline: true, body: true },
+      }),
+      storeRow.published_revision_id
+        ? prisma.storeRevision.findFirst({
+            where: {
+              id: storeRow.published_revision_id,
+              store_id: storeRow.id,
+            },
+            select: {
+              id: true,
+              revision: true,
+              source_draft_revision: true,
+            },
+          })
+        : null,
+    ]);
 
   if (storeRow.status === "PUBLISHED" && !publishedRevision) {
     throw storeNotFound(storeRow.slug);
@@ -574,6 +583,7 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
             catalog_mode: catalog.catalog_mode,
           },
     featured_games_snapshot: featuredGames,
+    game_editorials_snapshot: gameEditorials,
   };
 }
 

@@ -237,6 +237,12 @@ const manageTabs: [Tab, string][] = [
   ["earnings", "Earnings"],
 ];
 
+const editorSwrOptions = {
+  shouldRetryOnError: false,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+} as const;
+
 function isManageTab(value: string): value is Tab {
   return manageTabs.some(([tab]) => tab === value);
 }
@@ -259,7 +265,7 @@ export default function StoreManagePage() {
   } = useSWR<StoreManagementShellApi>(
     slug ? managementShellEndpoint(slug) : null,
     fetcher,
-    { shouldRetryOnError: false },
+    editorSwrOptions,
   );
   const capabilities = managementShell?.capabilities;
   const canAccessDraft = Boolean(
@@ -282,7 +288,7 @@ export default function StoreManagePage() {
       ? `/api/v1/stores/${slug}?preview=1`
       : null,
     fetcher,
-    { shouldRetryOnError: false },
+    editorSwrOptions,
   );
   const {
     data: publication,
@@ -294,7 +300,7 @@ export default function StoreManagePage() {
       ? publicationEndpoint(slug)
       : null,
     () => fetchOutletPublication(slug as string),
-    { shouldRetryOnError: false },
+    editorSwrOptions,
   );
   const availableTabs = manageTabs.filter(([value]) => {
     if (!capabilities) return false;
@@ -383,6 +389,7 @@ export default function StoreManagePage() {
       ? `/api/v1/stores/${slug}/tag-filters`
       : null,
     fetcher,
+    editorSwrOptions,
   );
 
   if (
@@ -573,7 +580,7 @@ function CreatorOverviewPanel({ store }: { store: StoreApi }) {
   } = useSWR<OutletPublicationContract>(
     `/api/v1/stores/${store.slug}/publication`,
     () => fetchOutletPublication(store.slug),
-    { shouldRetryOnError: false },
+    editorSwrOptions,
   );
 
   useEffect(() => {
@@ -739,8 +746,10 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
   const { mutate: mutateGlobal } = useSWRConfig();
   const endpoint = publicationEndpoint(store.slug);
   const { data, error, isLoading, isValidating, mutate } =
-    useSWR<PublicationApi>([endpoint, "publication-raw"], ([url]) =>
-      fetcher(url),
+    useSWR<PublicationApi>(
+      [endpoint, "publication-raw"],
+      ([url]) => fetcher(url),
+      editorSwrOptions,
     );
   const [pendingAction, setPendingAction] = useState<
     "publish" | "unpublish" | "copy" | null
@@ -1162,11 +1171,12 @@ function FeaturedTab({
   const { data, isLoading, error, mutate } = useSWR<FeaturedResponse>(
     featuredKey,
     fetcher,
+    editorSwrOptions,
   );
   const { data: publication } = useSWR<OutletPublicationContract>(
     publicationEndpoint(storeSlug),
     () => fetchOutletPublication(storeSlug),
-    { shouldRetryOnError: false },
+    editorSwrOptions,
   );
   const [recommendations, setRecommendations] = useState<
     FeaturedRecommendationDraft[]
@@ -1175,6 +1185,12 @@ function FeaturedTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const hasUnpublishedChanges = Boolean(
+    publication?.status === "PUBLISHED" &&
+    publication.publishedRevision &&
+    publication.draftRevision >
+      publication.publishedRevision.sourceDraftRevision,
+  );
 
   useEffect(() => {
     setIsInitialized(false);
@@ -1283,11 +1299,15 @@ function FeaturedTab({
         );
         return;
       }
-      setSuccess(t("Featured recommendations saved."));
       await Promise.all([
         mutate(),
         revalidateOutletDraftCaches(mutateGlobal, storeSlug),
       ]);
+      setSuccess(
+        t(
+          "Featured saved to the draft. Visitors still see the published version until you publish these changes.",
+        ),
+      );
       if (!hadEditorialSelection) {
         creatorFunnelAnalytics.firstGameAdded({
           funnelVersion: CREATOR_OUTLET_FUNNEL_VERSION,
@@ -1345,11 +1365,15 @@ function FeaturedTab({
         return;
       }
       setRecommendations([]);
-      setSuccess(t("Automatic Featured restored."));
       await Promise.all([
         mutate(),
         revalidateOutletDraftCaches(mutateGlobal, storeSlug),
       ]);
+      setSuccess(
+        t(
+          "Automatic Featured saved to the draft. Visitors still see the published version until you publish these changes.",
+        ),
+      );
     } catch {
       setFormError(
         t("We couldn't reach Manifold. Try restoring Featured again."),
@@ -1383,6 +1407,46 @@ function FeaturedTab({
             { name: storeName },
           )}
         </p>
+      </div>
+
+      <div
+        aria-live="polite"
+        className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${
+          publication?.status === "DRAFT" || hasUnpublishedChanges
+            ? "border-amber-300/25 bg-amber-300/[0.07]"
+            : "border-emerald-300/20 bg-emerald-300/[0.06]"
+        }`}
+      >
+        <div>
+          <p className="text-sm font-black text-white">
+            {publication?.status === "DRAFT"
+              ? t("Private draft")
+              : hasUnpublishedChanges
+                ? t("Draft saved — publication pending")
+                : t("Published and up to date")}
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-white/50">
+            {publication?.status === "DRAFT"
+              ? t(
+                  "Only collaborators can see these Featured selections until the Outlet is published.",
+                )
+              : hasUnpublishedChanges
+                ? t(
+                    "Visitors still see the previous Featured selection. Publish the draft when it is ready.",
+                  )
+                : t(
+                    "The public Outlet already shows these Featured selections.",
+                  )}
+          </p>
+        </div>
+        {hasUnpublishedChanges && (
+          <Link
+            href={`/store/${encodeURIComponent(storeSlug)}/manage?tab=overview`}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-amber-200/25 bg-amber-200/10 px-4 text-xs font-black text-amber-100 hover:bg-amber-200/15"
+          >
+            {t("Review and publish")}
+          </Link>
+        )}
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
@@ -1527,7 +1591,7 @@ function FeaturedTab({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300"
+          className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100"
         >
           {success}
         </div>
@@ -1556,7 +1620,7 @@ function FeaturedTab({
           }
           className="min-h-11 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {isSubmitting ? t("Saving...") : t("Save Featured")}
+          {isSubmitting ? t("Saving...") : t("Save Featured to draft")}
         </button>
       </div>
     </div>
@@ -2029,6 +2093,7 @@ function GameOverridesPanel({
   const { data: overrides, isLoading } = useSWR<GameOverrideApi[]>(
     overridesKey,
     fetcher,
+    editorSwrOptions,
   );
 
   const [selectedGame, setSelectedGame] = useState<GameApi | null>(null);

@@ -1,5 +1,6 @@
 import Form from "next/form";
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -7,6 +8,8 @@ import {
   ChevronRight,
   Gamepad2,
   Search,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 import type { GameApi } from "components/store/types";
@@ -307,9 +310,7 @@ function SearchAndFilters({
         ))}
       </Form>
 
-      <div
-        className={`no-scrollbar flex gap-2 overflow-x-auto pb-1 ${row ? "lg:pb-0" : ""}`}
-      >
+      <div className={`flex flex-wrap gap-2 ${row ? "lg:pb-0" : ""}`}>
         {categories.map((label) => {
           const value = label === "For You" ? null : label;
           const active = activeCategory === value;
@@ -437,6 +438,7 @@ function ChannelGameCard({
   href: string;
   tokens: VisualTokens;
 }) {
+  const { t } = useI18n();
   return (
     <Link
       href={href}
@@ -451,11 +453,16 @@ function ChannelGameCard({
               {game.title}
             </h3>
             <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-              {game.developer_name}
+              {t("By {studio}", { studio: game.developer_name })}
             </p>
           </div>
           <GamePrice game={game} />
         </div>
+        {game.outlet_review?.body && (
+          <p className="mt-3 line-clamp-2 text-sm leading-5 text-sf-muted">
+            {game.outlet_review.body}
+          </p>
+        )}
         {game.tags?.length > 0 && (
           <p className="mt-4 truncate text-[11px] font-bold uppercase tracking-wider text-sf-muted">
             {game.tags.slice(0, 3).join(" · ")}
@@ -477,6 +484,7 @@ function EditorialGameRow({
   tokens: VisualTokens;
   index: number;
 }) {
+  const { t } = useI18n();
   return (
     <Link
       href={href}
@@ -494,11 +502,13 @@ function EditorialGameRow({
           {game.title}
         </p>
         <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-          {game.developer_name}
+          {t("By {studio}", { studio: game.developer_name })}
           {game.tags?.[0] ? ` · ${game.tags[0]}` : ""}
         </p>
         <p className="mt-2 hidden line-clamp-1 text-sm leading-6 text-sf-muted sm:block">
-          {game.recommendation_reason || game.description}
+          {game.outlet_review?.body ||
+            game.recommendation_reason ||
+            game.description}
         </p>
       </div>
       <span className="hidden sm:block">
@@ -519,6 +529,7 @@ function CommunityGameCard({
   tokens: VisualTokens;
   index: number;
 }) {
+  const { t } = useI18n();
   return (
     <Link
       href={href}
@@ -539,7 +550,7 @@ function CommunityGameCard({
             {game.title}
           </h3>
           <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-            {game.developer_name}
+            {t("By {studio}", { studio: game.developer_name })}
           </p>
         </div>
         <GamePrice game={game} />
@@ -706,6 +717,7 @@ function ChannelLayout(props: PresetLayoutProps) {
   const { store, followControl, featured, isFeaturedLoading, itemHref } = props;
   const picks = featured.slice(0, 4);
   const lead = picks[0];
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
     <main
@@ -787,7 +799,9 @@ function ChannelLayout(props: PresetLayoutProps) {
                         {lead.title}
                       </h3>
                       <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-sf-muted">
-                        {lead.recommendation_reason || lead.description}
+                        {lead.outlet_review?.body ||
+                          lead.recommendation_reason ||
+                          lead.description}
                       </p>
                     </div>
                     <ArrowRight
@@ -815,7 +829,9 @@ function ChannelLayout(props: PresetLayoutProps) {
                         {game.title}
                       </p>
                       <p className="mt-1 truncate text-xs text-sf-muted">
-                        {game.developer_name}
+                        {t("By {studio}", {
+                          studio: game.developer_name,
+                        })}
                       </p>
                     </div>
                   </Link>
@@ -826,8 +842,17 @@ function ChannelLayout(props: PresetLayoutProps) {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[1500px] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-10 lg:py-16">
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+      <section className="mx-auto grid max-w-[1500px] gap-6 px-4 py-12 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10 lg:px-10 lg:py-16">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className={`${tokens.control} inline-flex min-h-11 items-center justify-center gap-2 border border-sf-border bg-sf-surface px-4 text-sm font-black text-sf-fg lg:hidden`}
+        >
+          <SlidersHorizontal size={17} /> {t("Filters and sorting")}
+        </button>
+        <aside
+          className={`${tokens.card} hidden h-fit border border-sf-border bg-sf-surface/60 p-5 lg:sticky lg:top-24 lg:block lg:self-start`}
+        >
           <p className={`${tokens.eyebrow} mb-4 text-[10px] text-sf-accent`}>
             {t("Tune your catalog")}
           </p>
@@ -851,6 +876,37 @@ function ChannelLayout(props: PresetLayoutProps) {
           <CatalogPagination props={props} tokens={tokens} />
         </div>
       </section>
+      {filtersOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/70 backdrop-blur-sm lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="channel-filters-title"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setFiltersOpen(false);
+          }}
+        >
+          <div className="max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border border-sf-border bg-sf-bg p-5 pb-8 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h2
+                id="channel-filters-title"
+                className={`${tokens.heading} text-2xl text-sf-fg`}
+              >
+                {t("Filters and sorting")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                aria-label={t("Close")}
+                className={`${tokens.control} border border-sf-border p-2 text-sf-muted`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <SearchAndFilters props={props} tokens={tokens} direction="stack" />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -946,12 +1002,14 @@ function EditorialLayout(props: PresetLayoutProps) {
                     {lead.title}
                   </h3>
                   <p className="mt-4 line-clamp-5 text-sm leading-7 text-sf-muted">
-                    {lead.recommendation_reason || lead.description}
+                    {lead.outlet_review?.body ||
+                      lead.recommendation_reason ||
+                      lead.description}
                   </p>
                 </div>
                 <div className="mt-6 flex items-center justify-between border-t border-sf-border pt-4">
                   <span className="text-xs font-bold text-sf-muted">
-                    {lead.developer_name}
+                    {t("By {studio}", { studio: lead.developer_name })}
                   </span>
                   <GamePrice game={lead} />
                 </div>
@@ -981,7 +1039,9 @@ function EditorialLayout(props: PresetLayoutProps) {
                       {game.title}
                     </h3>
                     <p className="mt-2 hidden line-clamp-2 text-xs leading-5 text-sf-muted lg:block">
-                      {game.recommendation_reason || game.description}
+                      {game.outlet_review?.body ||
+                        game.recommendation_reason ||
+                        game.description}
                     </p>
                   </div>
                 </Link>
@@ -1111,7 +1171,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                     {game.title}
                   </h3>
                   <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-                    {game.developer_name}
+                    {t("By {studio}", { studio: game.developer_name })}
                   </p>
                 </div>
               </Link>

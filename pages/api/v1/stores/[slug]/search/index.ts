@@ -6,6 +6,7 @@ import game, { gameQuerySchema } from "models/game";
 import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
+import storeGameEditorial from "models/store_game_editorial";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -47,9 +48,32 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   });
 
   const context = await storefrontPricing.contextFor(currency, games, req);
+  const reviews = storeGameEditorial.mapForStorefront(
+    foundStore.storefront_source === "REVISION"
+      ? foundStore.game_editorials_snapshot.filter((review) =>
+          games.some(({ id }) => id === review.game_id),
+        )
+      : await storeGameEditorial.findDraftByStoreAndGameIds(
+          foundStore.id,
+          games.map(({ id }) => id),
+        ),
+  );
+  const pricedGames = storefrontPricing.filterAndPrice(
+    req.context.user,
+    games,
+    context,
+  );
 
   return res.status(200).json({
-    games: storefrontPricing.filterAndPrice(req.context.user, games, context),
+    games: pricedGames.map((catalogGame) => ({
+      ...catalogGame,
+      outlet_review: reviews.get(catalogGame.id)
+        ? {
+            headline: reviews.get(catalogGame.id)!.headline,
+            body: reviews.get(catalogGame.id)!.body,
+          }
+        : null,
+    })),
     pagination,
     currency,
   });

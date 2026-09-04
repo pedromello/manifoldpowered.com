@@ -339,7 +339,7 @@ export function OutletCustomizationForm({
 }: {
   store: StoreManagementApi;
 }) {
-  const { t, translateError } = useI18n();
+  const { t, translateError, locale } = useI18n();
   const { mutate } = useSWRConfig();
   const [savedStore, setSavedStore] = useState<StoreApi>(store);
   const savedPresentation = useMemo(
@@ -380,7 +380,11 @@ export function OutletCustomizationForm({
     isLoading: publicationIsLoading,
     isValidating: publicationIsValidating,
     mutate: mutatePublication,
-  } = useSWR<PublicationApi>(publicationKey, ([url]) => fetchPublication(url));
+  } = useSWR<PublicationApi>(publicationKey, ([url]) => fetchPublication(url), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+  });
   const publicationStatus = publication?.status ?? store.status ?? "DRAFT";
   const publicationReadiness = publication?.readiness;
   const hasUnpublishedChanges = Boolean(
@@ -599,6 +603,7 @@ export function OutletCustomizationForm({
   }
 
   const bespoke = isBespokeThemeKey(savedPresentation.theme_key);
+  const localizedPreviewHref = `${locale === "pt-BR" ? "/pt-BR" : ""}/store/${store.slug}?preview=1`;
   const pendingPublication = hasUnpublishedChanges || isDirty;
   const publicationActionStatus = publicationIsLoading
     ? t("Publishing is disabled while readiness is loading.")
@@ -994,7 +999,10 @@ export function OutletCustomizationForm({
                   </p>
                   <SegmentedControl
                     value={brandTokens.typography}
-                    options={TYPOGRAPHY_OPTIONS}
+                    options={TYPOGRAPHY_OPTIONS.map((option) => ({
+                      ...option,
+                      label: t(option.label),
+                    }))}
                     label={t("Typography")}
                     onChange={(typography) => {
                       setHasSelectedPreset(true);
@@ -1008,7 +1016,10 @@ export function OutletCustomizationForm({
                   </p>
                   <SegmentedControl
                     value={brandTokens.shape}
-                    options={SHAPE_OPTIONS}
+                    options={SHAPE_OPTIONS.map((option) => ({
+                      ...option,
+                      label: t(option.label),
+                    }))}
                     label={t("Shape")}
                     onChange={(shape) => {
                       setHasSelectedPreset(true);
@@ -1181,15 +1192,23 @@ export function OutletCustomizationForm({
                 </Link>
               </span>
             </div>
-            <div className="flex min-h-[680px] justify-center overflow-auto bg-black/30 py-2">
+            <div
+              className={`flex min-h-[680px] justify-center bg-black/30 py-2 ${
+                previewViewport === "mobile"
+                  ? "overflow-x-hidden"
+                  : "overflow-x-auto"
+              }`}
+            >
               <iframe
                 key={previewRevision}
                 title={t("Outlet public preview")}
-                src={`/store/${store.slug}?preview=1&revision=${previewRevision}`}
+                src={`${localizedPreviewHref}&revision=${previewRevision}`}
                 sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
                 referrerPolicy="no-referrer"
                 className={`h-[660px] shrink-0 border-0 bg-[#0b0812] transition-[width] duration-300 motion-reduce:transition-none ${
-                  previewViewport === "mobile" ? "w-[390px]" : "w-[1280px]"
+                  previewViewport === "mobile"
+                    ? "w-full max-w-[390px]"
+                    : "w-[1280px]"
                 }`}
               />
             </div>

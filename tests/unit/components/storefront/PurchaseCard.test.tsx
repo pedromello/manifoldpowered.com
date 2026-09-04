@@ -54,6 +54,10 @@ describe("PurchaseCard draft preview", () => {
     );
 
     expect(markup).toContain("$19.90");
+    expect(markup).toContain("Signal &amp; Sky");
+    expect(markup.indexOf("Signal &amp; Sky")).toBeLessThan(
+      markup.indexOf("$19.90"),
+    );
     expect(markup).toContain("Lantern Studio");
     expect(markup).toContain("Purchasing is disabled in preview");
     expect(markup).toContain(

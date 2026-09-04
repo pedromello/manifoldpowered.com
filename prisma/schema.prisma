@@ -546,6 +546,7 @@ model StoreRevision {
   tag_filters           Json
   game_overrides        Json
   featured_games        Json
+  game_editorials       Json                     @default("[]")
   presentation          Json
   // No updated_at: a published snapshot is immutable.
   created_at            DateTime                 @default(now())
@@ -706,6 +707,24 @@ model StoreFeaturedGame {
   @@index([store_id])
   @@index([game_id])
   @@map("store_featured_games")
+}
+
+// Outlet-authored editorial review. It belongs to the Outlet × game
+// relationship, not to a Featured slot, so rearranging or removing highlights
+// never destroys the creator's long-form opinion.
+model StoreGameEditorial {
+  id         String   @id @default(uuid())
+  store_id   String // Logical reference to Store.id
+  game_id    String // Logical reference to Game.id
+  headline   String?  @db.VarChar(120)
+  body       String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([store_id, game_id])
+  @@index([store_id])
+  @@index([game_id])
+  @@map("store_game_editorials")
 }
 
 model AdminActionLog {

@@ -205,6 +205,20 @@ export const ptBR: Record<string, string> = {
   "Saved. The preview is up to date.": "Salvo. A prévia está atualizada.",
   "Draft saved. The public Outlet has not changed.":
     "Draft salvo. A Outlet pública não mudou.",
+  "Draft saved — publication pending": "Rascunho salvo — publicação pendente",
+  "Published and up to date": "Publicado e atualizado",
+  "Only collaborators can see these Featured selections until the Outlet is published.":
+    "Somente colaboradores podem ver estes Destaques até a Outlet ser publicada.",
+  "Visitors still see the previous Featured selection. Publish the draft when it is ready.":
+    "Os visitantes ainda veem os Destaques anteriores. Publique o rascunho quando estiver pronto.",
+  "The public Outlet already shows these Featured selections.":
+    "A Outlet pública já mostra estes Destaques.",
+  "Review and publish": "Revisar e publicar",
+  "Featured saved to the draft. Visitors still see the published version until you publish these changes.":
+    "Destaques salvos no rascunho. Os visitantes continuam vendo a versão publicada até você publicar estas alterações.",
+  "Automatic Featured saved to the draft. Visitors still see the published version until you publish these changes.":
+    "Destaques automáticos salvos no rascunho. Os visitantes continuam vendo a versão publicada até você publicar estas alterações.",
+  "Save Featured to draft": "Salvar Destaques no rascunho",
   "Saved draft changes are private until you publish them.":
     "As alterações salvas no draft ficam privadas até você publicá-las.",
   Shape: "Forma",
@@ -1408,6 +1422,12 @@ export const ptBR: Record<string, string> = {
     "Grande estratégia · 4X · Construção de cidades",
 
   // Creator catalog curation workspace
+  "All games": "Todos os jogos",
+  "In the Outlet": "Na Outlet",
+  Outside: "Fora da Outlet",
+  "New releases": "Lançamentos recentes",
+  "Best sellers": "Mais vendidos",
+  "Catalog or tag rule": "Regra do catálogo ou de tag",
   "{changed} games updated · {unchanged} already matched":
     "{changed} jogos atualizados · {unchanged} já correspondiam",
   "No manual changes were needed.": "Nenhuma alteração manual foi necessária.",
@@ -1651,6 +1671,25 @@ export const ptBR: Record<string, string> = {
     "Remover sua recomendação editorial em Destaque e voltar ao Destaque automático?",
   "Remove all {count} editorial Featured recommendations and return to automatic Featured?":
     "Remover todas as {count} recomendações editoriais em Destaque e voltar ao Destaque automático?",
+  "By {studio}": "Por {studio}",
+  "Filters and sorting": "Filtros e ordenação",
+  "About the game": "Sobre o jogo",
+  "Add review": "Adicionar review",
+  "Edit Featured": "Editar Destaques",
+  "Outlet review": "Review da Outlet",
+  "Headline (optional)": "Título (opcional)",
+  "Save review": "Salvar review",
+  "Remove review": "Remover review",
+  "Review saved to the draft. Publish the Outlet when it is ready for visitors.":
+    "Review salva no rascunho. Publique a Outlet quando estiver pronta para os visitantes.",
+  "Review removed from the draft.": "Review removida do rascunho.",
+  "The review could not be saved.": "Não foi possível salvar a review.",
+  "The review could not be removed.": "Não foi possível remover a review.",
+  "This review is independent from Featured and stays in the draft until you publish.":
+    "Esta review é independente dos Destaques e permanece no rascunho até você publicar.",
+  "YouTube video in Outlet review": "Vídeo do YouTube na review da Outlet",
+  "Paste a YouTube link in the review to show its video player.":
+    "Cole um link do YouTube na review para exibir o player do vídeo.",
 
   // Error pages
   "Page not found": "Página não encontrada",

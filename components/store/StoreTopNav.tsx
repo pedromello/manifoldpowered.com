@@ -86,8 +86,8 @@ export function StoreTopNav({
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-sf-bg/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-4 md:px-10">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 w-full">
+    <header className="fixed top-0 inset-x-0 z-50 bg-sf-bg/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-3 sm:px-4 md:px-10">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
         <div className="flex items-center gap-6">
           <Link
             href={storeHref}
@@ -141,10 +141,12 @@ export function StoreTopNav({
           </nav>
         </div>
 
-        <div className="relative flex-1 max-w-lg flex justify-end items-center gap-4">
+        <div className="relative flex-1 max-w-lg flex justify-end items-center gap-2 sm:gap-4">
           <div
             className={`relative w-full transition-all duration-300 ease-out ${
-              isFocused ? "max-w-full" : "max-w-[160px] md:max-w-[280px]"
+              isFocused
+                ? "max-w-full"
+                : "max-w-11 sm:max-w-[160px] md:max-w-[280px]"
             }`}
           >
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/30">
@@ -153,7 +155,7 @@ export function StoreTopNav({
             <input
               type="text"
               placeholder={t("Search games...")}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-10 pr-2 py-2 text-base font-bold text-white outline-none transition-all duration-300 placeholder:text-transparent focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20 sm:pl-11 sm:pr-5 sm:placeholder:text-white/30 md:py-3 md:text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -246,16 +248,20 @@ export function StoreTopNav({
             )}
           </div>
 
-          <LanguageSwitcher compact />
-          {isPreview ? (
-            <Link
-              href="/login"
-              className="inline-flex h-10 items-center rounded-xl border border-white/10 px-3 text-xs font-bold text-white/70"
-            >
-              {t("Log in")}
-            </Link>
-          ) : (
-            <UserMenu />
+          {!isFocused && (
+            <>
+              <LanguageSwitcher compact />
+              {isPreview ? (
+                <Link
+                  href="/login"
+                  className="inline-flex h-10 items-center rounded-xl border border-white/10 px-3 text-xs font-bold text-white/70"
+                >
+                  {t("Log in")}
+                </Link>
+              ) : (
+                <UserMenu />
+              )}
+            </>
           )}
         </div>
       </div>
