@@ -1,11 +1,14 @@
 import { prisma } from "infra/database";
 import { ItemType, Prisma } from "generated/prisma/client";
-import { NotFoundError } from "infra/errors";
+import { NotFoundError, ValidationError } from "infra/errors";
 import game from "models/game";
-import store from "models/store";
 import pricing, { BASE_CURRENCY } from "models/pricing";
 import commercialTerms from "models/commercial_terms";
 import ledger, { LedgerEntryDto } from "models/ledger";
+import {
+  getSnapshotCurationWhereClause,
+  storeCatalogSnapshotSchema,
+} from "models/store_catalog";
 
 // Storage scale for money. Amounts are quantised to it before they reach the
 // ledger, which refuses anything finer rather than rounding it.
@@ -13,6 +16,7 @@ const MONEY_SCALE = 4;
 
 interface Affiliate {
   store_id: string;
+  store_revision_id: string;
 }
 
 async function acquireGame(
@@ -40,7 +44,6 @@ async function acquireGame(
     currencyCode,
   );
 
-  const affiliate = await resolveAffiliateLeniently(storeSlug);
   // A free acquisition still gets a Sale row so attribution and acquisition
   // history stay intact, but it moves no money. Looking up commercial terms or
   // writing a zero-value ledger set would be both unnecessary and invalid: the
@@ -49,55 +52,64 @@ async function acquireGame(
     ? null
     : await commercialTerms.supplierCostRateFor(existingGame);
 
-  return await prisma.$transaction(async (tx) => {
-    // The entitlement is idempotent; the Sale deliberately is not. A Sale
-    // records an acquisition *event*, so the same user acquiring the same game
-    // through a different outlet later keeps that outlet's attribution rather
-    // than being swallowed by the entitlement they already hold.
-    //
-    // Open question now that a sale also mints commission: whether a repeat
-    // acquisition through the *same* outlet should earn again. It currently
-    // does. See docs/payments-tasks.md.
-    const libraryItem = await tx.libraryItem.upsert({
-      where: {
-        user_id_item_id_item_type: {
+  return await prisma.$transaction(
+    async (tx) => {
+      const affiliate = await resolveAffiliateLeniently(
+        tx,
+        storeSlug,
+        existingGame.id,
+      );
+      // The entitlement is idempotent; the Sale deliberately is not. A Sale
+      // records an acquisition *event*, so the same user acquiring the same game
+      // through a different outlet later keeps that outlet's attribution rather
+      // than being swallowed by the entitlement they already hold.
+      //
+      // Open question now that a sale also mints commission: whether a repeat
+      // acquisition through the *same* outlet should earn again. It currently
+      // does. See docs/payments-tasks.md.
+      const libraryItem = await tx.libraryItem.upsert({
+        where: {
+          user_id_item_id_item_type: {
+            user_id: userId,
+            item_id: existingGame.id,
+            item_type: "GAME",
+          },
+        },
+        update: {},
+        create: {
           user_id: userId,
           item_id: existingGame.id,
           item_type: "GAME",
         },
-      },
-      update: {},
-      create: {
-        user_id: userId,
-        item_id: existingGame.id,
-        item_type: "GAME",
-      },
-    });
-
-    const sale = await tx.sale.create({
-      data: {
-        user_id: userId,
-        game_id: existingGame.id,
-        store_id: affiliate?.store_id ?? null,
-        price_at_sale: resolvedPrice.amount,
-        currency: resolvedPrice.currency,
-        exchange_rate: resolvedPrice.exchange_rate,
-      },
-    });
-
-    if (!resolvedPrice.amount.isZero() && supplierCostRate) {
-      await recordSaleEntries(tx, {
-        sale_id: sale.id,
-        gross: resolvedPrice.amount,
-        currency: resolvedPrice.currency,
-        exchange_rate: resolvedPrice.exchange_rate,
-        supplier_cost_rate: supplierCostRate,
-        affiliate,
       });
-    }
 
-    return libraryItem;
-  });
+      const sale = await tx.sale.create({
+        data: {
+          user_id: userId,
+          game_id: existingGame.id,
+          store_id: affiliate?.store_id ?? null,
+          store_revision_id: affiliate?.store_revision_id ?? null,
+          price_at_sale: resolvedPrice.amount,
+          currency: resolvedPrice.currency,
+          exchange_rate: resolvedPrice.exchange_rate,
+        },
+      });
+
+      if (!resolvedPrice.amount.isZero() && supplierCostRate) {
+        await recordSaleEntries(tx, {
+          sale_id: sale.id,
+          gross: resolvedPrice.amount,
+          currency: resolvedPrice.currency,
+          exchange_rate: resolvedPrice.exchange_rate,
+          supplier_cost_rate: supplierCostRate,
+          affiliate,
+        });
+      }
+
+      return libraryItem;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 interface SaleEntriesDto {
@@ -196,24 +208,106 @@ async function recordSaleEntries(
   );
 }
 
-// Resolve store_slug leniently: an absent or unknown store must never block
-// acquisition — it just means the sale isn't attributed to a store.
+// Resolve store_slug leniently when it is absent, genuinely unknown, or names
+// an initial Outlet shell that has never had a publishable catalog. That shell
+// is private and cannot earn attribution, but it should not stop an otherwise
+// valid acquisition merely because its slug was supplied.
+//
+// A configured or previously published draft must still block acquisition
+// rather than silently dropping attribution: otherwise an unpublished Outlet
+// could keep driving sales after its owner intentionally took it offline.
 //
 // The outlet is the payee, so there is nothing else to resolve. Who owns it does
 // not enter into it: an outlet keeps earning across a change of ownership, and
 // the commission is owed to the outlet whether or not anyone currently holds it.
 async function resolveAffiliateLeniently(
+  client: Prisma.TransactionClient,
   storeSlug?: string,
+  gameId?: string,
 ): Promise<Affiliate | null> {
   if (!storeSlug) return null;
 
-  try {
-    const foundStore = await store.findOneBySlug(storeSlug);
+  // Serialize acquisition with publish/unpublish. The lifecycle writer either
+  // commits first (we observe DRAFT) or waits until this Sale is committed.
+  const [knownStore] = await client.$queryRaw<
+    Array<{
+      id: string;
+      status: "DRAFT" | "PUBLISHED";
+      catalog_mode: "UNDECIDED" | "ALL" | "SELECTED";
+      published_revision_id: string | null;
+      last_published_revision_id: string | null;
+    }>
+  >`SELECT id, status, catalog_mode, published_revision_id,
+      last_published_revision_id
+    FROM stores
+    WHERE slug = ${storeSlug}
+    FOR SHARE`;
+  if (!knownStore) return null;
 
-    return { store_id: foundStore.id };
-  } catch {
-    return null;
+  if (knownStore.status !== "PUBLISHED" || !knownStore.published_revision_id) {
+    const isInitialPrivateShell =
+      knownStore.status === "DRAFT" &&
+      knownStore.catalog_mode === "UNDECIDED" &&
+      knownStore.last_published_revision_id === null;
+    if (isInitialPrivateShell) return null;
+
+    throw new ValidationError({
+      message: "This Outlet is not currently published.",
+      action: "Remove store_slug or acquire through a published Outlet.",
+      context: { store_slug: storeSlug },
+    });
   }
+
+  const publishedRevision = await client.storeRevision.findFirst({
+    where: {
+      id: knownStore.published_revision_id,
+      store_id: knownStore.id,
+    },
+    select: {
+      id: true,
+      catalog_mode: true,
+      tag_filters: true,
+      game_overrides: true,
+    },
+  });
+  if (!publishedRevision) {
+    throw new ValidationError({
+      message: "This Outlet does not have a valid live publication.",
+      action: "Remove store_slug or try again after the Outlet is republished.",
+      context: { store_slug: storeSlug },
+    });
+  }
+
+  const catalogSnapshot = storeCatalogSnapshotSchema.parse({
+    catalog_mode: publishedRevision.catalog_mode,
+    tag_filters: publishedRevision.tag_filters,
+    game_overrides: publishedRevision.game_overrides,
+  });
+  const curationWhere = await getSnapshotCurationWhereClause(
+    catalogSnapshot,
+    client,
+  );
+  const gameIsInLiveCatalog = gameId
+    ? await client.game.count({
+        where: {
+          id: gameId,
+          status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+          AND: [curationWhere],
+        },
+      })
+    : 0;
+  if (gameIsInLiveCatalog !== 1) {
+    throw new ValidationError({
+      message: "This game is not available in the Outlet's live publication.",
+      action: "Return to the published Outlet catalog and choose a live game.",
+      context: { store_slug: storeSlug },
+    });
+  }
+
+  return {
+    store_id: knownStore.id,
+    store_revision_id: publishedRevision.id,
+  };
 }
 
 async function add(

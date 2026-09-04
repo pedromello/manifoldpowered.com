@@ -467,11 +467,12 @@ model LibraryItem {
 // store_id is nullable: null means the acquisition happened through the
 // global storefront (no store attribution), not through a specific store.
 model Sale {
-  id            String  @id @default(uuid())
-  user_id       String // Logical reference to User.id (who acquired)
-  game_id       String // Logical reference to Game.id (what was acquired)
-  store_id      String? // Logical reference to Store.id; null = platform/global acquisition
-  price_at_sale Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
+  id                String  @id @default(uuid())
+  user_id           String // Logical reference to User.id (who acquired)
+  game_id           String // Logical reference to Game.id (what was acquired)
+  store_id          String? // Logical reference to Store.id; null = platform/global acquisition
+  store_revision_id String? // Logical StoreRevision snapshot used for attribution
+  price_at_sale     Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
 
   // The currency the buyer was charged in, and the rate that produced the
   // amount when it came from converting the USD base price. Without these a
@@ -484,18 +485,61 @@ model Sale {
   created_at DateTime @default(now())
 
   @@index([store_id, created_at])
+  @@index([store_revision_id])
   @@index([user_id])
   @@index([game_id])
   @@map("sales")
 }
 
+enum StoreStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum StoreLifecycleAction {
+  PUBLISH
+  UNPUBLISH
+}
+
+enum StoreCatalogMode {
+  // A new Outlet must make an explicit catalog decision before publication.
+  UNDECIDED
+  ALL
+  SELECTED
+}
+
+enum StoreRevisionCatalogMode {
+  // Backfilled snapshots preserve the pre-lifecycle behavior. New snapshots
+  // can only be ALL or SELECTED; LEGACY_ALL is migration-only.
+  LEGACY_ALL
+  ALL
+  SELECTED
+}
+
 model Store {
-  id          String  @id @default(uuid())
-  name        String  @db.VarChar(255)
-  slug        String  @unique @db.VarChar(255)
-  description String? @db.Text
-  logo_url    String? @db.VarChar(2048)
-  owner_id    String // Logical reference to User.id (creator/owner)
+  id                         String           @id @default(uuid())
+  name                       String           @db.VarChar(255)
+  slug                       String           @unique @db.VarChar(255)
+  description                String?          @db.Text
+  logo_url                   String?          @db.VarChar(2048)
+  owner_id                   String // Logical reference to User.id (creator/owner)
+  status                     StoreStatus      @default(DRAFT)
+  catalog_mode               StoreCatalogMode @default(UNDECIDED)
+  draft_revision             Int              @default(1)
+  published_revision_id      String? // Logical reference to StoreRevision.id
+  last_published_revision_id String? // Preserved after unpublish
+  published_at               DateTime?
+  last_published_at          DateTime?
+
+  // Mutable presentation draft. `theme_key` is platform-assigned and is not
+  // accepted by the owner-facing schema; the other fields use strict
+  // allow-lists in models/store_presentation.ts.
+  theme_key     String? @unique @db.VarChar(64)
+  layout_preset String? @db.VarChar(32)
+  tagline       String? @db.VarChar(160)
+  cover_url     String? @db.VarChar(2048)
+  social_links  Json    @default("{}")
+  brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
   // Null means the platform default applies — most outlets never get a bespoke
@@ -513,7 +557,53 @@ model Store {
 
   @@index([owner_id])
   @@index([slug])
+  @@index([status, updated_at])
+  @@index([published_revision_id])
   @@map("stores")
+}
+
+// Immutable storefront snapshot. Public reads resolve this row through
+// Store.published_revision_id and never read mutable draft identity/curation.
+model StoreRevision {
+  id                    String                   @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  revision              Int
+  source_draft_revision Int
+  actor_user_id         String // Logical reference to User.id
+  catalog_mode          StoreRevisionCatalogMode
+  name                  String                   @db.VarChar(255)
+  description           String?                  @db.Text
+  logo_url              String?                  @db.VarChar(2048)
+  tag_filters           Json
+  game_overrides        Json
+  featured_games        Json
+  game_editorials       Json                     @default("[]")
+  presentation          Json
+  // No updated_at: a published snapshot is immutable.
+  created_at            DateTime                 @default(now())
+
+  @@unique([store_id, revision])
+  @@index([store_id, created_at])
+  @@map("store_revisions")
+}
+
+// Append-only lifecycle audit history. Store/revision/user ids are logical
+// references: this schema deliberately carries no foreign keys.
+model StoreLifecycleEvent {
+  id                String               @id @default(uuid())
+  store_id          String
+  store_revision_id String?
+  draft_revision    Int
+  actor_user_id     String
+  action            StoreLifecycleAction
+  from_status       StoreStatus
+  to_status         StoreStatus
+  // No updated_at: lifecycle events are immutable audit records.
+  created_at        DateTime             @default(now())
+
+  @@index([store_id, created_at])
+  @@index([actor_user_id, created_at])
+  @@map("store_lifecycle_events")
 }
 
 model StoreMember {
@@ -596,6 +686,44 @@ model StoreGameOverride {
   @@map("store_game_overrides")
 }
 
+model StoreCurationBatch {
+  id                    String                 @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  operation_id          String                 @db.VarChar(64)
+  request_fingerprint   String                 @db.VarChar(64)
+  base_draft_revision   Int
+  result_draft_revision Int
+  action                GameOverrideBulkAction
+  changes               Json
+  undone_at             DateTime?
+  created_at            DateTime               @default(now())
+
+  @@unique([store_id, operation_id])
+  @@index([store_id, created_at])
+  @@map("store_curation_batches")
+}
+
+model StoreTagRuleChange {
+  id                    String         @id @default(uuid())
+  store_id              String // Logical reference to Store.id
+  tag                   String         @db.VarChar(100)
+  previous_mode         TagFilterMode?
+  applied_mode          TagFilterMode?
+  base_draft_revision   Int
+  result_draft_revision Int
+  undone_at             DateTime?
+  created_at            DateTime       @default(now())
+
+  @@index([store_id, created_at])
+  @@map("store_tag_rule_changes")
+}
+
+enum GameOverrideBulkAction {
+  SHOW
+  HIDE
+  PIN_SHOW
+}
+
 model StoreFeaturedGame {
   id                    String   @id @default(uuid())
   store_id              String // Logical reference to Store.id
@@ -610,6 +738,24 @@ model StoreFeaturedGame {
   @@index([store_id])
   @@index([game_id])
   @@map("store_featured_games")
+}
+
+// Outlet-authored editorial review. It belongs to the Outlet × game
+// relationship, not to a Featured slot, so rearranging or removing highlights
+// never destroys the creator's long-form opinion.
+model StoreGameEditorial {
+  id         String   @id @default(uuid())
+  store_id   String // Logical reference to Store.id
+  game_id    String // Logical reference to Game.id
+  headline   String?  @db.VarChar(120)
+  body       String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([store_id, game_id])
+  @@index([store_id])
+  @@index([game_id])
+  @@map("store_game_editorials")
 }
 
 model AdminActionLog {

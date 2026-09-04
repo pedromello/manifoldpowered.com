@@ -75,6 +75,7 @@ export function StrategosVoidStorefront({
   itemHref,
   browseHref,
   searchAction,
+  searchHiddenFields,
 }: StorefrontViewProps) {
   const { locale, t } = useI18n();
   const heroGame = featured[0] ?? games[0] ?? null;
@@ -136,7 +137,8 @@ export function StrategosVoidStorefront({
           </div>
 
           <p className="max-w-2xl text-base text-sf-muted md:text-lg">
-            {store.description ||
+            {store.presentation?.tagline ||
+              store.description ||
               t(
                 "Serious analysis of grand strategy, 4X, and city builders — empires, dynasties, and total wars, without simplifying the board.",
               )}
@@ -162,6 +164,9 @@ export function StrategosVoidStorefront({
           </div>
 
           <Form action={searchAction} className="w-full md:w-72">
+            {Object.entries(searchHiddenFields).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))}
             <input
               type="text"
               name="q"

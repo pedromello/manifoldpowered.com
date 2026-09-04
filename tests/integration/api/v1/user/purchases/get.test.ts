@@ -1,12 +1,13 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
 });
 
-async function getPurchases(sessionToken, query = "") {
+async function getPurchases(sessionToken?: string, query = "") {
   return await fetch(
     `${webserver.getOrigin()}/api/v1/user/purchases${query}`,
     sessionToken
@@ -104,6 +105,7 @@ describe("GET /api/v1/user/purchases", () => {
 
     test("Should record the outlet they bought through", async () => {
       const game = await createDeveloperWithGame();
+      await gameModel.makePublic(game.id);
 
       const referrer = await orchestrator.createUser();
       await orchestrator.activateUser(referrer.id);

@@ -1,8 +1,9 @@
-import type {
+import {
   GameApi,
   GameDetailApi,
   PaginationApi,
   StoreApi,
+  storeContextFromApi,
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
 import type { ReactNode } from "react";
@@ -14,10 +15,12 @@ export type { GameApi, GameDetailApi, PaginationApi };
  * narrower than `StoreApi`: a theme has no business reading `owner_id`, and
  * keeping it out means a theme can never accidentally leak it into markup.
  */
-export type StoreContext = Pick<
-  StoreApi,
-  "id" | "slug" | "name" | "description" | "logo_url"
->;
+export type StoreContext = Omit<
+  ReturnType<typeof storeContextFromApi>,
+  "presentation"
+> & {
+  presentation?: StoreApi["presentation"];
+};
 
 /**
  * The order values `gameQuerySchema` accepts on the public list endpoints.
@@ -58,6 +61,8 @@ export type StorefrontQuery = {
  */
 export type StorefrontViewProps = {
   store: StoreContext;
+  /** True only for the authenticated working-draft rendering. */
+  isPreview: boolean;
   /** Shared behavior; themes only decide where it belongs visually. */
   followControl: ReactNode;
 
@@ -70,10 +75,18 @@ export type StorefrontViewProps = {
   /** Whether the Outlet chose these games or the catalog ranked them. */
   featuredMode: "EDITORIAL" | "HYBRID" | "AUTOMATIC";
   isFeaturedLoading: boolean;
+  featuredError: boolean;
+  retryFeatured: () => void;
 
   /** The required surface. A view that does not render this fails the contract. */
   games: GameApi[];
   isLoading: boolean;
+  catalogError: boolean;
+  retryCatalog: () => void;
+  /** Raw request failure used by the preview status callback. */
+  previewError?: Error;
+  /** True only after both preview data sources completed successfully. */
+  isPreviewReady: boolean;
   pagination?: PaginationApi;
   /** ISO-4217 code the prices in `games` are denominated in. */
   currency: string;
@@ -100,6 +113,8 @@ export type StorefrontViewProps = {
   browseHref: (patch: Partial<StorefrontQuery>) => string;
   /** Target for a `<Form action=...>` so search still works without JS. */
   searchAction: string;
+  /** Query fields a GET search form must preserve, such as private preview. */
+  searchHiddenFields: Readonly<Record<string, string>>;
 };
 
 /**
@@ -134,4 +149,5 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
 export type ItemViewProps = ItemControllerResult & {
   game: GameDetailApi;
   store: StoreContext | null;
+  outletReview?: GameApi["outlet_review"];
 };

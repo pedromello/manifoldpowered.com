@@ -101,6 +101,10 @@ describe("DELETE /api/v1/stores/[slug]/members/[username]", () => {
       );
 
       expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({
+        name: "ForbiddenError",
+        message: "You do not have permission to update this store",
+      });
     });
   });
 

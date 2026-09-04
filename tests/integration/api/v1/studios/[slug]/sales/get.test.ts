@@ -1,12 +1,13 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
 });
 
-async function getSales(slug, sessionToken, query = "") {
+async function getSales(slug: string, sessionToken?: string, query = "") {
   return await fetch(
     `${webserver.getOrigin()}/api/v1/studios/${slug}/sales${query}`,
     sessionToken
@@ -28,6 +29,7 @@ async function seedStudioWithSale({ storeSlug = undefined } = {}) {
   const game = await orchestrator.createGame(developer.id, {
     studio_id: studio.id,
   });
+  if (storeSlug) await gameModel.makePublic(game.id);
 
   const buyer = await orchestrator.createUser();
   await orchestrator.activateUser(buyer.id);

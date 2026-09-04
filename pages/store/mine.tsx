@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { useI18n } from "lib/i18n";
 
@@ -12,6 +12,8 @@ interface Store {
   slug: string;
   name: string;
   owner_id: string;
+  status?: "DRAFT" | "PUBLISHED";
+  published_at?: string | null;
 }
 
 interface StoresResponse {
@@ -24,15 +26,22 @@ interface CurrentUser {
 
 const fetcher = (url: string) =>
   fetch(url).then(async (res) => {
-    if (!res.ok) throw new Error("Not logged in");
+    if (!res.ok) throw new OutletListError(res.status);
     return res.json();
   });
+
+class OutletListError extends Error {
+  constructor(readonly status: number) {
+    super(status === 401 ? "Not logged in" : "Could not load Outlets");
+    this.name = "OutletListError";
+  }
+}
 
 export default function MyStoresPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  const { data, isLoading, error } = useSWR<StoresResponse>(
+  const { data, isLoading, error, mutate } = useSWR<StoresResponse>(
     "/api/v1/stores",
     fetcher,
     { shouldRetryOnError: false },
@@ -45,10 +54,12 @@ export default function MyStoresPage() {
   useEffect(() => {
     if (isLoading) return;
 
-    if (error) {
+    if (error instanceof OutletListError && error.status === 401) {
       router.replace(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
       return;
     }
+
+    if (error) return;
 
     const stores = data?.stores ?? [];
 
@@ -70,6 +81,22 @@ export default function MyStoresPage() {
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#0b0812] px-4 py-10 text-white sm:px-6">
         {isLoading || (!error && stores.length <= 1) ? (
           <Loader2 className="animate-spin text-white/30" />
+        ) : error ? (
+          <div
+            role="alert"
+            className="flex w-full max-w-lg flex-col items-center gap-4 rounded-xl border border-rose-400/20 bg-rose-400/[0.08] p-6 text-center"
+          >
+            <p className="font-bold text-rose-200">
+              {t("We couldn't load your Outlets. Your work is safe.")}
+            </p>
+            <button
+              type="button"
+              onClick={() => void mutate()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-black text-white"
+            >
+              <RefreshCw size={16} /> {t("Try again")}
+            </button>
+          </div>
         ) : (
           <div className="flex w-full max-w-2xl flex-col gap-5 rounded-xl border border-white/[0.08] bg-[#14101c] p-6 sm:p-8">
             <div>
@@ -85,13 +112,28 @@ export default function MyStoresPage() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 font-bold text-white transition-colors hover:border-violet-400/30 hover:bg-white/[0.07]"
               >
                 <span className="truncate">{storeItem.name}</span>
-                {currentUser && (
-                  <span className="shrink-0 px-2 py-0.5 rounded-md bg-white/10 text-white/60 text-xs font-black uppercase tracking-wider">
-                    {storeItem.owner_id === currentUser.id
-                      ? t("Owner")
-                      : t("Member")}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-2">
+                  {storeItem.status && (
+                    <span
+                      className={`rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                        storeItem.status === "PUBLISHED"
+                          ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200"
+                          : "border-violet-300/20 bg-violet-400/10 text-violet-200"
+                      }`}
+                    >
+                      {storeItem.status === "PUBLISHED"
+                        ? t("Published")
+                        : t("Draft")}
+                    </span>
+                  )}
+                  {currentUser && (
+                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-white/60">
+                      {storeItem.owner_id === currentUser.id
+                        ? t("Owner")
+                        : t("Member")}
+                    </span>
+                  )}
+                </span>
               </Link>
             ))}
           </div>

@@ -1,7 +1,11 @@
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
-import type { GameDetailApi, StoreApi } from "components/store/types";
+import {
+  storeContextFromApi,
+  type GameDetailApi,
+  type StoreApi,
+} from "components/store/types";
 import type { AppLocale } from "lib/locale";
 import {
   cleanMetadataText,
@@ -11,17 +15,39 @@ import {
   SOCIAL_IMAGE_HEIGHT,
   SOCIAL_IMAGE_WIDTH,
 } from "lib/seo";
+import { BESPOKE_OG_ARTWORK, isBespokeThemeKey } from "storefronts/bespoke";
 
 export const config = { runtime: "edge" };
 
 const IMAGE_TIMEOUT_MS = 2500;
 const MAX_REMOTE_IMAGE_BYTES = 5 * 1024 * 1024;
+const SHARED_CACHE_CONTROL =
+  "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
+const VERSIONED_CACHE_CONTROL =
+  "public, max-age=31536000, s-maxage=31536000, immutable";
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 const ALLOWED_IMAGE_HOSTS = new Set([
   "images.unsplash.com",
   "shared.fastly.steamstatic.com",
   "shared.akamai.steamstatic.com",
   "cdn.akamai.steamstatic.com",
 ]);
+
+type ImageCandidate = {
+  url: string | null | undefined;
+  /** Only checked-in, root-relative assets may use the local HTTP dev origin. */
+  trustedInternalAsset?: boolean;
+};
+
+type PublishedStoreApi = StoreApi & {
+  storefront_source: "REVISION";
+  published_at: string;
+};
 
 const HOME_CATALOG_ART = [
   {
@@ -56,55 +82,158 @@ async function fetchPublicJson<T>(url: URL): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
-function bytesToDataUrl(bytes: ArrayBuffer, contentType: string): string {
-  const data = new Uint8Array(bytes);
+function bytesToDataUrl(bytes: Uint8Array, contentType: string): string {
   let binary = "";
 
-  for (let offset = 0; offset < data.length; offset += 0x8000) {
-    binary += String.fromCharCode(...data.subarray(offset, offset + 0x8000));
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
   }
 
   return `data:${contentType};base64,${btoa(binary)}`;
 }
 
-async function loadImageData(
-  candidate: string | null | undefined,
-  origin: string,
-): Promise<string | null> {
-  if (!candidate) return null;
+function isRootRelativeAsset(candidate: string): boolean {
+  return (
+    candidate.startsWith("/") &&
+    !candidate.startsWith("//") &&
+    !candidate.includes("\\")
+  );
+}
 
+function resolveImageUrl(
+  candidate: string,
+  origin: string,
+  trustedInternalAsset: boolean,
+): URL | null {
+  const isTrustedRelative =
+    trustedInternalAsset && isRootRelativeAsset(candidate);
   let url: URL;
+
   try {
-    url = new URL(candidate, origin);
+    // Untrusted presentation URLs must be absolute. This prevents values such
+    // as `/api/private` from turning the OG renderer into a same-origin proxy.
+    url = isTrustedRelative ? new URL(candidate, origin) : new URL(candidate);
   } catch {
     return null;
   }
 
-  const sameOrigin = url.origin === origin;
-  if (url.protocol !== "https:" && !(sameOrigin && url.protocol === "http:")) {
-    return null;
+  if (url.username || url.password) return null;
+
+  if (isTrustedRelative) {
+    return url.origin === origin ? url : null;
   }
+
+  if (url.protocol !== "https:") return null;
+
+  const sameOrigin = url.origin === origin;
   if (!sameOrigin && !ALLOWED_IMAGE_HOSTS.has(url.hostname)) return null;
+  if (!sameOrigin && url.port && url.port !== "443") return null;
+
+  return url;
+}
+
+function hasRasterSignature(bytes: Uint8Array, contentType: string): boolean {
+  if (contentType === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (contentType === "image/png") {
+    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    return signature.every((byte, index) => bytes[index] === byte);
+  }
+
+  if (contentType === "image/gif") {
+    const signature = String.fromCharCode(...bytes.subarray(0, 6));
+    return signature === "GIF87a" || signature === "GIF89a";
+  }
+
+  if (contentType === "image/webp") {
+    return (
+      String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
+    );
+  }
+
+  return false;
+}
+
+async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
+  if (!response.body) return null;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      byteLength += value.byteLength;
+      if (byteLength > MAX_REMOTE_IMAGE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return bytes;
+}
+
+export async function loadImageData(
+  candidate: string | null | undefined,
+  origin: string,
+  trustedInternalAsset = false,
+): Promise<string | null> {
+  if (!candidate) return null;
+
+  const url = resolveImageUrl(candidate, origin, trustedInternalAsset);
+  if (!url) return null;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, {
+      signal: controller.signal,
+      redirect: "manual",
+    });
     const contentType =
-      response.headers.get("content-type")?.split(";")[0] ?? "";
-    const declaredLength = Number(response.headers.get("content-length") || 0);
+      response.headers
+        .get("content-type")
+        ?.split(";")[0]
+        ?.trim()
+        .toLowerCase() ?? "";
+    const declaredLengthHeader = response.headers.get("content-length");
+    const declaredLength = declaredLengthHeader
+      ? Number(declaredLengthHeader)
+      : null;
 
     if (
       !response.ok ||
-      !contentType.startsWith("image/") ||
-      declaredLength > MAX_REMOTE_IMAGE_BYTES
+      response.redirected ||
+      !ALLOWED_IMAGE_TYPES.has(contentType) ||
+      (declaredLength !== null &&
+        (!Number.isSafeInteger(declaredLength) ||
+          declaredLength < 0 ||
+          declaredLength > MAX_REMOTE_IMAGE_BYTES))
     ) {
       return null;
     }
 
-    const bytes = await response.arrayBuffer();
-    if (bytes.byteLength > MAX_REMOTE_IMAGE_BYTES) return null;
+    const bytes = await readBoundedBody(response);
+    if (!bytes || !hasRasterSignature(bytes, contentType)) return null;
 
     return bytesToDataUrl(bytes, contentType);
   } catch {
@@ -112,6 +241,96 @@ async function loadImageData(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function loadFirstImageData(
+  candidates: ImageCandidate[],
+  origin: string,
+): Promise<string | null> {
+  for (const candidate of candidates) {
+    const image = await loadImageData(
+      candidate.url,
+      origin,
+      candidate.trustedInternalAsset,
+    );
+    if (image) return image;
+  }
+
+  return null;
+}
+
+export function publishedStoreFromResponse(
+  value: unknown,
+): PublishedStoreApi | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const isNullableString = (field: unknown) =>
+    field === null || typeof field === "string";
+  const presentation =
+    candidate.presentation && typeof candidate.presentation === "object"
+      ? (candidate.presentation as Record<string, unknown>)
+      : null;
+  if (
+    candidate.storefront_source !== "REVISION" ||
+    typeof candidate.published_at !== "string" ||
+    !Number.isFinite(Date.parse(candidate.published_at)) ||
+    typeof candidate.slug !== "string" ||
+    typeof candidate.name !== "string" ||
+    !isNullableString(candidate.description) ||
+    !isNullableString(candidate.logo_url) ||
+    !presentation ||
+    presentation.version !== 1 ||
+    !isNullableString(presentation.theme_key) ||
+    !isNullableString(presentation.layout_preset) ||
+    !isNullableString(presentation.tagline) ||
+    !isNullableString(presentation.cover_image_url) ||
+    !presentation.social_links ||
+    typeof presentation.social_links !== "object" ||
+    !presentation.brand_tokens ||
+    typeof presentation.brand_tokens !== "object"
+  ) {
+    return null;
+  }
+
+  return value as PublishedStoreApi;
+}
+
+export function outletArtworkCandidates(
+  store: PublishedStoreApi,
+): ImageCandidate[] {
+  const presentation = storeContextFromApi(store);
+  const bespokeArtwork = isBespokeThemeKey(presentation.theme_key)
+    ? BESPOKE_OG_ARTWORK[presentation.theme_key]
+    : null;
+
+  return [
+    ...(bespokeArtwork
+      ? [{ url: bespokeArtwork, trustedInternalAsset: true }]
+      : []),
+    { url: presentation.cover_url },
+    { url: store.logo_url },
+  ];
+}
+
+function publishedImageHeaders(
+  url: URL,
+  store: PublishedStoreApi,
+  locale: AppLocale,
+): Record<string, string> {
+  const publishedAt = new Date(store.published_at);
+  const version = store.published_at;
+  const requestedVersion = url.searchParams.get("v");
+
+  return {
+    "Cache-Control":
+      requestedVersion === version
+        ? VERSIONED_CACHE_CONTROL
+        : SHARED_CACHE_CONTROL,
+    "Content-Disposition": "inline",
+    ETag: `W/"og-outlet-${locale}-${publishedAt.getTime()}"`,
+    "Last-Modified": publishedAt.toUTCString(),
+  };
 }
 
 function BrandLockup({ logo }: { logo: string | null }) {
@@ -567,18 +786,23 @@ export default async function handler(request: NextRequest) {
   } catch {
     return new Response("Preview not found", { status: 404 });
   }
-  const brandLogo = await loadImageData(
-    "/images/brand/manifold-logo.png",
-    url.origin,
-  );
 
   let card: React.ReactElement;
+  let imageHeaders: Record<string, string> = {
+    "Cache-Control": SHARED_CACHE_CONTROL,
+    "Content-Disposition": "inline",
+  };
 
-  if (kind === "home" && !slug) {
+  if (kind === "home" && !slug && segments.length === 1) {
+    const brandLogo = await loadImageData(
+      "/images/brand/manifold-logo.png",
+      url.origin,
+      true,
+    );
     const catalogImages = await Promise.all(
       HOME_CATALOG_ART.map(async (art) => ({
         title: art.title,
-        image: await loadImageData(art.url, url.origin),
+        image: await loadImageData(art.url, url.origin, true),
       })),
     );
     card = (
@@ -590,17 +814,26 @@ export default async function handler(request: NextRequest) {
         )}
       />
     );
-  } else if (kind === "outlet" && slug) {
-    const store = await fetchPublicJson<StoreApi>(
+  } else if (kind === "outlet" && slug && segments.length === 2) {
+    // This deliberately uses the anonymous public endpoint and never forwards
+    // the OG request's cookies or `preview=1`. That endpoint projects only the
+    // immutable published revision; the runtime marker below makes us fail
+    // closed if that contract ever regresses.
+    const storeResponse = await fetchPublicJson<unknown>(
       new URL(`/api/v1/stores/${encodeURIComponent(slug)}`, url.origin),
     );
+    const store = publishedStoreFromResponse(storeResponse);
     if (!store) return new Response("Outlet not found", { status: 404 });
 
-    const customArtwork =
-      store.slug === "strategos-void"
-        ? "/storefronts/strategos-void/logo.jpg"
-        : store.logo_url;
-    const artwork = await loadImageData(customArtwork, url.origin);
+    imageHeaders = publishedImageHeaders(url, store, locale);
+    if (request.headers.get("if-none-match") === imageHeaders.ETag) {
+      return new Response(null, { status: 304, headers: imageHeaders });
+    }
+
+    const [brandLogo, artwork] = await Promise.all([
+      loadImageData("/images/brand/manifold-logo.png", url.origin, true),
+      loadFirstImageData(outletArtworkCandidates(store), url.origin),
+    ]);
     card = (
       <OutletCard
         store={store}
@@ -609,7 +842,7 @@ export default async function handler(request: NextRequest) {
         artwork={artwork}
       />
     );
-  } else if (kind === "game" && slug) {
+  } else if (kind === "game" && slug && segments.length === 2) {
     const gameUrl = new URL(
       `/api/v1/items/games/${encodeURIComponent(slug)}`,
       url.origin,
@@ -618,10 +851,15 @@ export default async function handler(request: NextRequest) {
     const game = await fetchPublicJson<GameDetailApi>(gameUrl);
     if (!game) return new Response("Game not found", { status: 404 });
 
-    const artwork = await loadImageData(
-      game.media?.banner || game.media?.screenshots?.[0],
-      url.origin,
-    );
+    const [brandLogo, artwork] = await Promise.all([
+      loadImageData("/images/brand/manifold-logo.png", url.origin, true),
+      loadFirstImageData(
+        [game.media?.banner, ...(game.media?.screenshots ?? [])].map(
+          (candidate) => ({ url: candidate }),
+        ),
+        url.origin,
+      ),
+    ]);
     card = (
       <GameCard
         game={game}
@@ -637,10 +875,6 @@ export default async function handler(request: NextRequest) {
   return new ImageResponse(card, {
     width: SOCIAL_IMAGE_WIDTH,
     height: SOCIAL_IMAGE_HEIGHT,
-    headers: {
-      "Cache-Control":
-        "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
-      "Content-Disposition": "inline",
-    },
+    headers: imageHeaders,
   });
 }

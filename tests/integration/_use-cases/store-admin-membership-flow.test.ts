@@ -50,6 +50,10 @@ describe("Use case: Store admin membership flow (association, permission change,
     );
 
     expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      name: "ForbiddenError",
+      message: "You do not have permission to update this store",
+    });
   });
 
   test("Owner associates the admin with manage:store_members permission", async () => {
@@ -105,6 +109,10 @@ describe("Use case: Store admin membership flow (association, permission change,
       },
     );
     expect(updateStoreResponse.status).toBe(403);
+    await expect(updateStoreResponse.json()).resolves.toMatchObject({
+      name: "ForbiddenError",
+      message: "You do not have permission to update this store",
+    });
   });
 
   test("Owner changes the admin's permission to update:store", async () => {
@@ -132,12 +140,16 @@ describe("Use case: Store admin membership flow (association, permission change,
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "If-Match": `"${createdStore.draft_revision}"`,
           Cookie: `session_id=${adminSession.token}`,
         },
         body: JSON.stringify({ description: "Now allowed" }),
       },
     );
     expect(updateStoreResponse.status).toBe(200);
+    const updatedStore = await updateStoreResponse.json();
+    expect(updatedStore.draft_revision).toBe(createdStore.draft_revision + 1);
+    createdStore = updatedStore;
 
     const listMembersResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/members`,
@@ -174,5 +186,9 @@ describe("Use case: Store admin membership flow (association, permission change,
     );
 
     expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      name: "ForbiddenError",
+      message: "You do not have permission to update this store",
+    });
   });
 });

@@ -53,6 +53,7 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Creators",
   "Curation",
   "Dashboard",
+  "Deselect {title}",
   "Developers",
   "Disabled",
   "Disabled currencies",
@@ -63,11 +64,17 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "For You",
   "Games",
   "Horror",
+  "Hide {count} selected games",
+  "Hide games tagged {tag}",
+  "Hidden",
   "Inactive",
   "Indie",
   "Last 30 days",
   "Last 7 days",
   "Manual",
+  "Manual choice",
+  "Advanced rule",
+  "Full catalog",
   "Mixed",
   "Mostly Negative",
   "Mostly Positive",
@@ -77,6 +84,7 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Newest First",
   "No Reviews",
   "Oldest First",
+  "Overview",
   "Outlets",
   "Overwhelmingly Negative",
   "Overwhelmingly Positive",
@@ -89,13 +97,21 @@ const DYNAMIC_TRANSLATION_KEYS = [
   "Revenue",
   "Sales",
   "Settings",
+  "Identity",
+  "Select {title}",
+  "Show {count} selected games",
+  "Show games tagged {tag}",
+  "Shown",
   "Simulation",
   "Strategy",
   "Studios",
   "Title (A-Z)",
   "Very Negative",
   "Very Positive",
+  "The selected games are now hidden from your Outlet.",
+  "The selected games are now shown in your Outlet.",
   "Your Games",
+  "Your games",
 ] as const;
 
 function placeholders(message: string) {
@@ -103,6 +119,14 @@ function placeholders(message: string) {
 }
 
 describe("i18n catalog", () => {
+  test("translates the creator workspace navigation exactly", () => {
+    expect(ptBR).toMatchObject({
+      Overview: "Visão geral",
+      Identity: "Identidade",
+      "Your games": "Seus jogos",
+    });
+  });
+
   test("every literal UI message has a pt-BR translation", () => {
     const missing = literalTranslationKeys().filter(
       (message) => !Object.prototype.hasOwnProperty.call(ptBR, message),
@@ -131,6 +155,15 @@ describe("i18n catalog", () => {
     expect(invalid).toEqual([]);
   });
 
+  test("uses masculine articles and contractions for Manifold in pt-BR", () => {
+    const feminineManifold = /\b(?:a|da|na|pela)\s+Manifold\b|à\s+Manifold\b/i;
+    const invalid = Object.values(ptBR).filter((translation) =>
+      feminineManifold.test(translation),
+    );
+
+    expect(invalid).toEqual([]);
+  });
+
   test.each(["Manifold", "Outlet", "Studio"])(
     "keeps the protected name %s when it appears in source copy",
     (protectedName) => {
@@ -145,4 +178,13 @@ describe("i18n catalog", () => {
       expect(invalid).toEqual([]);
     },
   );
+
+  test("uses masculine articles for Manifold in pt-BR copy", () => {
+    const feminineArticle = /\b(?:a|à|da|na|pela|uma)\s+Manifold\b/i;
+    const invalid = Object.entries(ptBR)
+      .filter(([, translation]) => feminineArticle.test(translation))
+      .map(([source]) => source);
+
+    expect(invalid).toEqual([]);
+  });
 });

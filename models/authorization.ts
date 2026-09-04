@@ -30,6 +30,8 @@ import {
   releaseSummarySchema,
   updatePlanSchema,
 } from "contracts/desktop/v1";
+import type { StorefrontStore, StorePublicationView } from "models/store";
+import { resolveDraftPresentation } from "models/store_presentation";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -57,6 +59,23 @@ function buyerRefFor(userId: string, storeId: string | null): string {
 type StoreWithMembers = Store & { members: StoreMember[] };
 type StudioWithMembers = Studio & { members: StudioMember[] };
 type GameWithStudio = Game & { studio: StudioWithMembers | null };
+
+export interface StoreManagementCapabilities {
+  identity: boolean;
+  curation: boolean;
+  featured: boolean;
+  sales: boolean;
+  earnings: boolean;
+  edit: boolean;
+  publish: boolean;
+  unpublish: boolean;
+}
+
+const STORE_DRAFT_READER_FEATURES = [
+  "update:store",
+  "manage:store_featured_games",
+  "publish:store",
+] as const;
 
 const AVAILABLE_FEATURES = [
   // User
@@ -128,6 +147,7 @@ const AVAILABLE_FEATURES = [
   "create:store",
   "read:public_store",
   "update:store",
+  "publish:store",
   "update:store:any",
   "manage:store_featured_games",
   "manage:store_members",
@@ -226,6 +246,7 @@ const ACTIVATED_USER_FEATURES = [
   "create:store",
   "read:public_store",
   "update:store",
+  "publish:store",
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",
@@ -383,6 +404,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
 
   if (
     (feature === "update:store" ||
+      feature === "publish:store" ||
       feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
       feature === "read:store_statement") &&
@@ -494,6 +516,45 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
   }
 
   return authorized;
+}
+
+/**
+ * Draft visibility follows the capabilities that can change or promote public
+ * creator content. Financial/member-only delegates do not gain draft access,
+ * while an editor or publish-only approver can inspect exactly what their
+ * delegated action affects.
+ */
+function canReadStoreDraft(user: Partial<User>, resource: StoreWithMembers) {
+  return STORE_DRAFT_READER_FEATURES.some((feature) =>
+    can(user, feature, resource),
+  );
+}
+
+/**
+ * One resource-scoped capability contract for every private Outlet-management
+ * surface. Keep financial permissions separate from draft visibility: a
+ * statement-only delegate can enter the management shell without gaining any
+ * route that exposes unpublished creator content.
+ */
+function storeManagementCapabilities(
+  user: Partial<User>,
+  resource: StoreWithMembers,
+): StoreManagementCapabilities {
+  const canEdit = can(user, "update:store", resource);
+  const canPublish = can(user, "publish:store", resource);
+
+  return {
+    identity: canEdit,
+    curation: canEdit,
+    featured: can(user, "manage:store_featured_games", resource),
+    // Sales deliberately keeps the existing update:store contract. Changing
+    // it here would silently broaden who can inspect per-sale information.
+    sales: canEdit,
+    earnings: can(user, "read:store_statement", resource),
+    edit: canEdit,
+    publish: canPublish,
+    unpublish: canPublish,
+  };
 }
 
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
@@ -916,12 +977,29 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     return downloadAuthorizationSchema.parse(resource);
   }
 
-  if (
-    feature === "create:store" ||
-    feature === "read:public_store" ||
-    feature === "update:store"
-  ) {
-    const storeOutput = resource as Store;
+  if (feature === "read:public_store") {
+    const storeOutput = resource as Store & Partial<StorefrontStore>;
+    if (
+      storeOutput.storefront_source !== "REVISION" ||
+      storeOutput.status !== "PUBLISHED" ||
+      !storeOutput.published_at ||
+      !storeOutput.published_revision
+    ) {
+      throw new InternalServerError({
+        action:
+          "Resolve the Outlet through the published Store revision read model",
+      });
+    }
+    const presentation =
+      storeOutput.presentation ??
+      resolveDraftPresentation({
+        theme_key: storeOutput.theme_key,
+        layout_preset: storeOutput.layout_preset,
+        tagline: storeOutput.tagline,
+        cover_url: storeOutput.cover_url,
+        social_links: storeOutput.social_links,
+        brand_tokens: storeOutput.brand_tokens,
+      });
     return {
       id: storeOutput.id,
       slug: storeOutput.slug,
@@ -929,8 +1007,123 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
+      theme_key: presentation.theme_key,
+      layout_preset: presentation.layout_preset,
+      tagline: presentation.tagline,
+      cover_url: presentation.cover_image_url,
+      social_links: presentation.social_links,
+      brand_tokens: presentation.brand_tokens,
+      presentation,
+      status: storeOutput.status,
+      published_at: storeOutput.published_at,
+      storefront_source: storeOutput.storefront_source,
+      published_revision: storeOutput.published_revision,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (
+    feature === "update:store" &&
+    typeof resource === "object" &&
+    resource !== null &&
+    "strategy" in resource &&
+    "catalog_game_count" in resource
+  ) {
+    const selection = resource as {
+      strategy: unknown;
+      catalog_mode: unknown;
+      tags: unknown;
+      game_slugs: unknown;
+      catalog_game_count: unknown;
+      minimum_game_count?: unknown;
+      can_apply?: unknown;
+      draft_revision: unknown;
+    };
+    return {
+      strategy: selection.strategy,
+      catalog_mode: selection.catalog_mode,
+      tags: selection.tags,
+      game_slugs: selection.game_slugs,
+      catalog_game_count: selection.catalog_game_count,
+      ...(selection.minimum_game_count !== undefined && {
+        minimum_game_count: selection.minimum_game_count,
+      }),
+      ...(selection.can_apply !== undefined && {
+        can_apply: selection.can_apply,
+      }),
+      draft_revision: selection.draft_revision,
+    };
+  }
+
+  if (feature === "create:store" || feature === "update:store") {
+    const storeOutput = resource as Store & Partial<StorefrontStore>;
+    const presentation =
+      storeOutput.presentation ??
+      resolveDraftPresentation({
+        theme_key: storeOutput.theme_key,
+        layout_preset: storeOutput.layout_preset,
+        tagline: storeOutput.tagline,
+        cover_url: storeOutput.cover_url,
+        social_links: storeOutput.social_links,
+        brand_tokens: storeOutput.brand_tokens,
+      });
+    return {
+      id: storeOutput.id,
+      slug: storeOutput.slug,
+      name: storeOutput.name,
+      description: storeOutput.description,
+      logo_url: storeOutput.logo_url,
+      owner_id: storeOutput.owner_id,
+      status: storeOutput.status,
+      catalog_mode: storeOutput.catalog_mode,
+      draft_revision: storeOutput.draft_revision,
+      published_at: storeOutput.published_at,
+      last_published_at: storeOutput.last_published_at,
+      published_revision: storeOutput.published_revision ?? null,
+      theme_key: presentation.theme_key,
+      layout_preset: presentation.layout_preset,
+      tagline: presentation.tagline,
+      cover_url: presentation.cover_image_url,
+      social_links: presentation.social_links,
+      brand_tokens: presentation.brand_tokens,
+      presentation,
+      storefront_source: storeOutput.storefront_source ?? "DRAFT",
+      created_at: storeOutput.created_at,
+      updated_at: storeOutput.updated_at,
+    };
+  }
+
+  if (feature === "publish:store") {
+    const publicationOutput = resource as StorePublicationView;
+
+    return {
+      status: publicationOutput.status,
+      catalog_mode: publicationOutput.catalog_mode,
+      draft_revision: publicationOutput.draft_revision,
+      published_at: publicationOutput.published_at,
+      last_published_at: publicationOutput.last_published_at,
+      published_revision: publicationOutput.published_revision,
+      readiness: {
+        version: 2,
+        ready: publicationOutput.readiness.ready,
+        catalog_game_count: publicationOutput.readiness.catalog_game_count,
+        checks: {
+          brand_complete: publicationOutput.readiness.checks.brand_complete,
+          visual_identity: publicationOutput.readiness.checks.visual_identity,
+          catalog_intentional:
+            publicationOutput.readiness.checks.catalog_intentional,
+          catalog_has_games:
+            publicationOutput.readiness.checks.catalog_has_games,
+          editorial_highlight:
+            publicationOutput.readiness.checks.editorial_highlight,
+        },
+        blockers: publicationOutput.readiness.blockers.map((blocker) => ({
+          code: blocker.code,
+          message: blocker.message,
+          ...(blocker.details && { details: blocker.details }),
+        })),
+      },
     };
   }
 
@@ -960,6 +1153,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       description: storeOutput.description,
       logo_url: storeOutput.logo_url,
       owner_id: storeOutput.owner_id,
+      status: storeOutput.status,
+      published_at: storeOutput.published_at,
       // Null means no bespoke rate, so the platform default applies. Serialised
       // at full scale for the same reason exchange rates are: the wire format
       // should not depend on how the driver stringifies a Decimal.
@@ -1348,6 +1543,8 @@ function validateFeature(feature: string) {
 
 const authorization = {
   can,
+  canReadStoreDraft,
+  storeManagementCapabilities,
   filterOutput,
   ACTIVATED_USER_FEATURES,
   ADMIN_ONLY_FEATURES,

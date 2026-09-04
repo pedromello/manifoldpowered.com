@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import library from "models/library";
 import webserver from "infra/webserver";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -27,6 +28,7 @@ async function getRevenue(sessionToken?: string, query = "") {
 async function seedSale({ price = 100, withOutlet = false } = {}) {
   const developer = await orchestrator.createUser();
   const game = await orchestrator.createGame(developer.id, { price });
+  await gameModel.makePublic(game.id);
 
   let store = null;
   if (withOutlet) {

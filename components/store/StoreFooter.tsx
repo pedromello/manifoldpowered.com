@@ -14,8 +14,16 @@ import { FooterContact } from "./FooterContact";
  * per-outlet configuration surface — the `store` prop only points the logo
  * back at the outlet the visitor came from.
  */
-export function StoreFooter({ store }: { store?: { slug: string } }) {
-  const homeHref = store ? `/store/${store.slug}` : "/store";
+export function StoreFooter({
+  store,
+  visitorPreview = false,
+}: {
+  store?: { slug: string };
+  visitorPreview?: boolean;
+}) {
+  const homeHref = store
+    ? `/store/${store.slug}${visitorPreview ? "?preview=1" : ""}`
+    : "/store";
   const { t } = useI18n();
 
   return (

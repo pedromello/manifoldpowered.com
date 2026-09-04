@@ -38,6 +38,24 @@ describe("models/store_follow", () => {
     ).toBe(0);
   });
 
+  test("does not follow, resolve status for, or list an unpublished Outlet", async () => {
+    const player = await orchestrator.createUser();
+    const owner = await orchestrator.createUser();
+    const draft = await orchestrator.createStore(owner.id, { draft: true });
+
+    await expect(
+      storeFollow.follow(player.id, draft.slug),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      storeFollow.status(player.id, draft.slug),
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    await prisma.storeFollow.create({
+      data: { user_id: player.id, store_id: draft.id },
+    });
+    await expect(storeFollow.listForUser(player.id)).resolves.toEqual([]);
+  });
+
   test("lists only one user's live Outlets in follow order", async () => {
     const player = await orchestrator.createUser();
     const otherPlayer = await orchestrator.createUser();

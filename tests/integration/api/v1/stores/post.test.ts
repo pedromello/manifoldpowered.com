@@ -54,13 +54,43 @@ describe("POST /api/v1/stores", () => {
         name: "Pixel Arcade",
         description: "Curated indie games",
         logo_url: null,
+        theme_key: null,
+        layout_preset: null,
+        tagline: null,
+        cover_url: null,
+        social_links: {},
+        brand_tokens: {
+          palette: "manifold",
+          typography: "modern",
+          shape: "soft",
+        },
         owner_id: user.id,
+        status: "DRAFT",
+        catalog_mode: "UNDECIDED",
+        draft_revision: 1,
+        published_at: null,
+        last_published_at: null,
+        published_revision: null,
+        presentation: {
+          version: 1,
+          layout_preset: null,
+          tagline: null,
+          cover_image_url: null,
+          social_links: {},
+          brand_tokens: {
+            palette: "manifold",
+            typography: "modern",
+            shape: "soft",
+          },
+          theme_key: null,
+        },
+        storefront_source: "DRAFT",
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });
     });
 
-    test("With a logo_url should persist and return it", async () => {
+    test("With allow-listed identity should persist and return it", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
@@ -74,6 +104,18 @@ describe("POST /api/v1/stores", () => {
         body: JSON.stringify({
           name: "Logo Store",
           logo_url: "https://example.com/logo.png",
+          tagline: "Games for thoughtful players",
+          cover_url: "https://example.com/cover.jpg",
+          layout_preset: "community",
+          social_links: {
+            website: "https://example.com",
+            twitch: "https://twitch.tv/example",
+          },
+          brand_tokens: {
+            palette: "ember",
+            typography: "rounded",
+            shape: "pill",
+          },
         }),
       });
 
@@ -81,6 +123,20 @@ describe("POST /api/v1/stores", () => {
 
       const responseBody = await response.json();
       expect(responseBody.logo_url).toBe("https://example.com/logo.png");
+      expect(responseBody).toMatchObject({
+        tagline: "Games for thoughtful players",
+        cover_url: "https://example.com/cover.jpg",
+        layout_preset: "community",
+        social_links: {
+          website: "https://example.com",
+          twitch: "https://twitch.tv/example",
+        },
+        brand_tokens: {
+          palette: "ember",
+          typography: "rounded",
+          shape: "pill",
+        },
+      });
     });
 
     test("With missing name should return 400", async () => {
