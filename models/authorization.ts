@@ -18,6 +18,7 @@ import {
   GameArtifact,
   GameRelease,
   GameReleasePatch,
+  GameOwnershipClaim,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
 import { InternalServerError } from "infra/errors";
@@ -110,6 +111,8 @@ const AVAILABLE_FEATURES = [
   // has no reason to be blocked from its price in another currency.
   "read:game_price",
   "update:game_price",
+  "create:game_ownership_claim",
+  "read:game_ownership_claim",
 
   // Wishlists
   "create:wishlist",
@@ -194,6 +197,8 @@ const AVAILABLE_FEATURES = [
   // the question it answers is not "what am I owed" but "what did the whole
   // book do", which nobody outside the platform has a scoped claim to.
   "read:platform_ledger:any",
+  "read:game_ownership_claim:any",
+  "decide:game_ownership_claim:any",
 
   // Pricing (admin)
   "read:currency:any",
@@ -267,6 +272,8 @@ const ADMIN_ONLY_FEATURES = [
   "update:game:status:any",
   "read:dashboard:any",
   "read:audit_log:any",
+  "read:game_ownership_claim:any",
+  "decide:game_ownership_claim:any",
   "read:currency:any",
   "create:currency:any",
   "update:currency:any",
@@ -377,6 +384,22 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     if (isOwner || isPermittedMember || can(user, "create:game:any")) {
       authorized = true;
     }
+  }
+
+  if (
+    (feature === "create:game_ownership_claim" ||
+      feature === "read:game_ownership_claim") &&
+    resource
+  ) {
+    authorized = false;
+    const studioResource = resource as StudioWithMembers;
+    const isOwner = user.id === studioResource.owner_id;
+    const isPermittedMember = studioResource.members?.some(
+      (member) =>
+        member.user_id === user.id && member.permissions.includes(feature),
+    );
+
+    if (isOwner || isPermittedMember) authorized = true;
   }
 
   if (
@@ -537,6 +560,47 @@ function storeManagementCapabilities(
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
+
+  if (
+    feature === "create:game_ownership_claim" ||
+    feature === "read:game_ownership_claim" ||
+    feature === "read:game_ownership_claim:any" ||
+    feature === "decide:game_ownership_claim:any"
+  ) {
+    type ClaimOutput = GameOwnershipClaim & {
+      game: {
+        id: string;
+        slug: string;
+        title: string;
+        status: string;
+        studio_id: string | null;
+      };
+      studio: { id: string; slug: string; name: string };
+      requested_by: { id: string; username: string };
+      decided_by: { id: string; username: string } | null;
+    };
+    const claim = resource as ClaimOutput;
+    return {
+      id: claim.id,
+      status: claim.status,
+      game: claim.game,
+      studio: claim.studio,
+      requested_by: claim.requested_by,
+      decided_by: claim.decided_by,
+      terms: {
+        version: claim.rights_attestation_version,
+        locale: claim.rights_attestation_locale,
+        text: claim.rights_attestation_text,
+        accepted_at: claim.rights_attested_at,
+      },
+      decision: {
+        reason: claim.decision_reason,
+        decided_at: claim.decided_at,
+      },
+      created_at: claim.created_at,
+      updated_at: claim.updated_at,
+    };
+  }
 
   if (feature === "read:user") {
     const userOutput = resource as User;

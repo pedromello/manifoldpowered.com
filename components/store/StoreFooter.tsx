@@ -6,6 +6,7 @@ import {
   IconCircleCheck,
 } from "@tabler/icons-react";
 import { useI18n } from "lib/i18n";
+import { FooterContact } from "./FooterContact";
 
 /**
  * Manifold's own footer. An outlet with a bespoke theme supplies its own via
@@ -121,14 +122,10 @@ export function StoreFooter({
               >
                 X (Twitter)
               </a>
-              <a
-                href="mailto:contact@pedro.tec.br"
-                className="px-2 py-2 rounded-xl text-white/40 font-bold hover:bg-white/5 hover:text-white transition-all"
-              >
-                {t("Get in touch")}
-              </a>
             </nav>
           </div>
+
+          <FooterContact />
         </div>
 
         {/* Footer Bottom */}

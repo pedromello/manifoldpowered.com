@@ -26,6 +26,8 @@ export const MEMBER_PERMISSIONS = [
   "create:game_artifact",
   "read:game_price",
   "update:game_price",
+  "create:game_ownership_claim",
+  "read:game_ownership_claim",
   // Sales of the studio's games. Delegable like the rest: someone can be given
   // the numbers without being given the studio.
   "read:studio_sale",

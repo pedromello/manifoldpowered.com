@@ -340,6 +340,82 @@ export const ptBR: Record<string, string> = {
   "Your account": "Sua conta",
   "Your Games": "Seus jogos",
 
+  // Game ownership claims
+  "Ownership claims": "Reivindicações de propriedade",
+  "Ownership claims | Manifold Admin":
+    "Reivindicações de propriedade | Administração Manifold",
+  "Game ownership claims | Manifold":
+    "Reivindicações de propriedade de jogos | Manifold",
+  "Claim a game for your Studio": "Reivindique um jogo para seu Studio",
+  "Claim ownership": "Reivindicar propriedade",
+  "Find an unclaimed catalog game, choose the Studio you represent, and submit a rights declaration for administrator review.":
+    "Encontre um jogo não reivindicado no catálogo, escolha o Studio que você representa e envie uma declaração de direitos para análise da administração.",
+  "You need a Studio before claiming a game.":
+    "Você precisa de um Studio antes de reivindicar um jogo.",
+  "1. Find the game": "1. Encontre o jogo",
+  "Only games that have not been claimed can be selected.":
+    "Somente jogos que ainda não foram reivindicados podem ser selecionados.",
+  "Search by game title...": "Buscar pelo título do jogo...",
+  "Failed to search games.": "Não foi possível buscar os jogos.",
+  "Search the catalog to begin.": "Busque no catálogo para começar.",
+  "No unclaimed games found for this search.":
+    "Nenhum jogo não reivindicado foi encontrado nesta busca.",
+  Unclaimed: "Não reivindicado",
+  "2. Declare your rights": "2. Declare seus direitos",
+  "Your confirmation is stored with this request.":
+    "Sua confirmação será armazenada junto com esta solicitação.",
+  "Select an unclaimed game to review the declaration.":
+    "Selecione um jogo não reivindicado para revisar a declaração.",
+  "Studio requesting ownership": "Studio que solicita a propriedade",
+  "Select a Studio...": "Selecione um Studio...",
+  "Rights declaration": "Declaração de direitos",
+  "Select a Studio to load the declaration for this specific game.":
+    "Selecione um Studio para carregar a declaração deste jogo específico.",
+  "Loading declaration...": "Carregando declaração...",
+  "Version {version}": "Versão {version}",
+  "I have read this declaration, confirm it is true, and understand that Manifold will store my acceptance for review.":
+    "Li esta declaração, confirmo que ela é verdadeira e entendo que o Manifold armazenará meu aceite para análise.",
+  "Submit ownership claim": "Enviar reivindicação de propriedade",
+  "Failed to submit ownership claim.":
+    "Não foi possível enviar a reivindicação de propriedade.",
+  "Accepted declaration · version {version}":
+    "Declaração aceita · versão {version}",
+  "Accepted by {username} on {date}": "Aceita por {username} em {date}",
+  "Administrator note": "Observação da administração",
+  "Previous request rejected": "Solicitação anterior rejeitada",
+  "You may submit a new request after reviewing the administrator note.":
+    "Você pode enviar uma nova solicitação após revisar a observação da administração.",
+  "Review the Studio, requester, and stored rights declaration before assigning a game.":
+    "Revise o Studio, o solicitante e a declaração de direitos armazenada antes de atribuir um jogo.",
+  "{count} requests": "{count} solicitações",
+  Approved: "Aprovado",
+  Rejected: "Rejeitado",
+  APPROVED: "Aprovado",
+  "Failed to load ownership claims.":
+    "Não foi possível carregar as reivindicações de propriedade.",
+  "No ownership claims in this state.":
+    "Não há reivindicações de propriedade neste estado.",
+  "Requesting Studio": "Studio solicitante",
+  Requester: "Solicitante",
+  "Accepted by": "Aceita por",
+  "Accepted at": "Aceita em",
+  "Stored rights declaration": "Declaração de direitos armazenada",
+  "Decision note": "Observação da decisão",
+  "Approve ownership claim?": "Aprovar reivindicação de propriedade?",
+  "Reject ownership claim?": "Rejeitar reivindicação de propriedade?",
+  "This assigns {game} to {studio}, keeps it display-only, enables uploads for that Studio, and rejects competing pending claims.":
+    "Isso atribui {game} ao Studio {studio}, mantém o jogo apenas para exibição, libera uploads para esse Studio e rejeita reivindicações pendentes concorrentes.",
+  "This request will be rejected without assigning the game.":
+    "Esta solicitação será rejeitada sem atribuir o jogo.",
+  "Decision note (optional)": "Observação da decisão (opcional)",
+  "Rejection reason": "Motivo da rejeição",
+  "Add context for the requesting Studio...":
+    "Adicione um contexto para o Studio solicitante...",
+  "Confirm approval": "Confirmar aprovação",
+  "Confirm rejection": "Confirmar rejeição",
+  "Failed to review ownership claim.":
+    "Não foi possível analisar a reivindicação de propriedade.",
+
   // Store and discovery
   "{current} of {total}": "{current} de {total}",
   "{label} OFF": "{label} DE DESCONTO",
@@ -699,7 +775,11 @@ export const ptBR: Record<string, string> = {
     "A seção Destaques pode conter até três jogos.",
   "Featured is automatic": "Os Destaques são automáticos",
   "Featured recommendations saved.": "Recomendações em Destaques salvas.",
-  "Get in touch": "Fale conosco",
+  Contact: "Contato",
+  "Email Manifold": "Enviar e-mail para o Manifold",
+  "Get in touch": "Entrar em contato",
+  "Have a question or want to talk about Manifold?":
+    "Tem alguma dúvida ou quer falar sobre o Manifold?",
   "Import a Game from Steam": "Importar um jogo da Steam",
   "Import from Steam": "Importar da Steam",
   "Import from Steam | Manifold": "Importar da Steam | Manifold",

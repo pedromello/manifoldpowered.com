@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 import {
   ArrowLeft,
+  BadgeCheck,
   Building2,
   Gamepad2,
   LayoutDashboard,
@@ -17,6 +18,11 @@ import { useI18n } from "lib/i18n";
 const links = [
   { href: "/store/mine", label: "Overview", icon: LayoutDashboard },
   { href: "/studio", label: "My Studios", icon: Building2 },
+  {
+    href: "/studio/ownership-claims",
+    label: "Ownership claims",
+    icon: BadgeCheck,
+  },
   { href: "/store/new?new=1", label: "Create Outlet", icon: Plus },
   { href: "/onboarding/create", label: "Create Studio", icon: Gamepad2 },
 ] as const;
@@ -26,7 +32,12 @@ export function CreatorWorkspaceLayout({ children }: { children: ReactNode }) {
   const { t } = useI18n();
 
   const isActive = (href: string) => {
-    if (href === "/studio") return router.pathname.startsWith("/studio");
+    if (href === "/studio") {
+      return (
+        router.pathname.startsWith("/studio") &&
+        !router.pathname.startsWith("/studio/ownership-claims")
+      );
+    }
     if (href === "/store/mine") {
       return (
         router.pathname === href ||

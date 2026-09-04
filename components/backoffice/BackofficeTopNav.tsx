@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   ShieldCheck,
+  Scale,
   Store,
   Users,
 } from "lucide-react";
@@ -21,6 +22,11 @@ const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
   { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
+  {
+    href: "/backoffice/ownership-claims",
+    label: "Ownership claims",
+    icon: Scale,
+  },
   { href: "/backoffice/users", label: "Users", icon: Users },
   { href: "/backoffice/studios", label: "Studios", icon: Building2 },
   { href: "/backoffice/stores", label: "Outlets", icon: Store },

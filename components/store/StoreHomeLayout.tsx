@@ -110,6 +110,13 @@ function StoreHomeFooter() {
           >
             X
           </a>
+          <a
+            href="mailto:pedro@manifoldpowered.com"
+            aria-label={t("Email Manifold")}
+            className="inline-flex items-center rounded-lg bg-violet-500 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-violet-400"
+          >
+            {t("Get in touch")}
+          </a>
         </nav>
 
         <div className="text-xs leading-5 text-white/25 sm:text-right">

@@ -91,6 +91,12 @@ enum GameStatus {
   PRIVATE
 }
 
+enum GameOwnershipClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum SteamImportAttemptOutcome {
   PENDING
   SUCCESS
@@ -180,6 +186,28 @@ model Game {
   @@index([slug])
   @@index([title])
   @@map("games")
+}
+
+model GameOwnershipClaim {
+  id                         String                   @id @default(uuid())
+  game_id                    String // Logical reference to Game.id
+  studio_id                  String // Logical reference to Studio.id
+  requested_by_user_id       String // Logical reference to User.id
+  status                     GameOwnershipClaimStatus @default(PENDING)
+  rights_attestation_text    String                   @db.Text
+  rights_attestation_version String                   @db.VarChar(32)
+  rights_attestation_locale  String                   @db.VarChar(5)
+  rights_attested_at         DateTime
+  decided_by_user_id         String? // Logical reference to User.id (admin)
+  decided_at                 DateTime?
+  decision_reason            String?                  @db.Text
+  created_at                 DateTime                 @default(now())
+  updated_at                 DateTime                 @updatedAt
+
+  @@index([game_id, status])
+  @@index([studio_id, status])
+  @@index([requested_by_user_id])
+  @@map("game_ownership_claims")
 }
 
 model GameExternalOffer {
@@ -390,6 +418,8 @@ model GameReleasePatch {
   id                           String                    @id @default(uuid())
   source_release_id            String // Logical reference to GameRelease.id
   target_release_id            String // Logical reference to GameRelease.id
+  target_artifact_id           String // Logical reference to the exact GameArtifact used to generate this patch
+  target_artifact_sha256       String                    @db.Char(64)
   platform                     GamePlatform
   architecture                 GameArchitecture
   algorithm                    GameReleasePatchAlgorithm @default(WHARF)
@@ -408,6 +438,7 @@ model GameReleasePatch {
   updated_at                   DateTime                  @updatedAt
 
   @@unique([source_release_id, target_release_id, platform, architecture])
+  @@index([target_artifact_id, status])
   @@index([target_release_id, status])
   @@index([source_release_id, target_release_id])
   @@map("game_release_patches")

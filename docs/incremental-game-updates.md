@@ -8,7 +8,7 @@ Este documento é a fonte técnica oficial do protocolo de atualização increme
 
 O Manifold já distribui releases imutáveis por plataforma e arquitetura. Cada release publicada possui pelo menos um `GameArtifact` ZIP completo, manifest versionado, tamanho e SHA-256. Esse ZIP continua obrigatório: instalação, reinstalação e qualquer falha incremental sempre têm um caminho completo conhecido.
 
-Antes desta mudança, o baseline confirmado do Desktop era de 59 testes TypeScript e 57 testes Rust passando. Após a implementação, a suíte completa do backend passou com 149 suítes e 1.026 testes; os quatro arquivos de integração incrementais somam 21 testes.
+Antes desta mudança, o baseline confirmado do Desktop era de 59 testes TypeScript e 57 testes Rust passando. Após a implementação, a suíte completa do backend passou com 149 suítes e 1.029 testes; os quatro arquivos de integração incrementais somam 24 testes.
 
 A atualização incremental acrescenta um `GameReleasePatch` entre duas releases compatíveis. A primeira versão cobre somente o predecessor compatível imediato. O Desktop publicador gera e valida localmente `patch.pwr` e `patch.pwr.sig` com Butler/Wharf; o backend não possui worker de geração.
 
@@ -132,13 +132,14 @@ As variantes de `FULL.reason` são:
 Os campos persistidos são:
 
 - ids de source e target, plataforma e arquitetura;
+- id e SHA-256 do artefato ZIP alvo usado na geração;
 - algoritmo, formato e status `PENDING | READY | FAILED`;
 - tamanho, SHA-256 e object key internos do `.pwr`;
 - tamanho, SHA-256 e object key internos do `.pwr.sig`;
 - `expected_installation_sha256`, autor e `generation_duration_ms`;
 - `created_at` e `updated_at`.
 
-O backend volta a conferir os objetos antes de autorizar download. Uma divergência depois da confirmação produz `INTEGRITY_FAILURE`, sem emitir URLs. Retirada da release alvo produz `RELEASE_RETIRED`; patch pendente, source incompatível ou artefato indisponível não podem ser baixados.
+O artefato alvo vinculado a um patch `READY` não pode ser removido ou substituído. A resolução e a autorização de download também comparam seu id e SHA-256 com o vínculo persistido; qualquer divergência força `FULL` ou torna o patch indisponível. O backend volta a conferir os objetos antes de autorizar download. Uma divergência depois da confirmação produz `INTEGRITY_FAILURE`, sem emitir URLs. Retirada da release alvo produz `RELEASE_RETIRED`; patch pendente, source incompatível ou artefato indisponível não podem ser baixados.
 
 O Wharf recomenda reconstruir arquivos alterados em staging e só consolidar depois de comparar a assinatura; em caso de mismatch, o staging pode ser descartado sem tocar na instalação ativa. Consulte [o algoritmo de aplicação do Wharf](https://itch.io/docs/wharf/algorithms/apply.html). O Desktop mantém backup até a nova release e o registry serem persistidos.
 
