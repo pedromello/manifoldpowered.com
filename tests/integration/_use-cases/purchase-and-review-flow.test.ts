@@ -2,10 +2,26 @@ import { Game, User, Session } from "generated/prisma/client";
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import gameModel from "models/game";
+import retry from "async-retry";
 
 const testClientAddress = orchestrator.createTestClientAddress(
   "purchase-and-review-flow",
 );
+
+async function waitForActivationId(recipient: string): Promise<string> {
+  // SMTP delivery can finish before Mailcatcher's HTTP index exposes it.
+  // The previous user's message must never activate the next account.
+  return retry(
+    async () => {
+      const lastEmail = await orchestrator.getLastEmail();
+      expect(lastEmail?.recipients).toContain(`<${recipient}>`);
+      const activationId = orchestrator.extractUUID(lastEmail.text);
+      expect(activationId).toEqual(expect.any(String));
+      return activationId;
+    },
+    { retries: 10, minTimeout: 100, maxTimeout: 1000, factor: 1.5 },
+  );
+}
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -40,14 +56,14 @@ describe("Use case: Purchase and Review Flow", () => {
       expect(response.status).toBe(201);
       seller = await response.json();
 
-      const lastEmail = await orchestrator.getLastEmail();
-      const activationId = orchestrator.extractUUID(lastEmail.text);
-      await fetch(
+      const activationId = await waitForActivationId(sellerData.email);
+      const activationResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/activations/${activationId}`,
         {
           method: "PATCH",
         },
       );
+      expect(activationResponse.status).toBe(200);
 
       // Grant developer features
       await orchestrator.addFeaturesToUser(seller.id, [
@@ -69,6 +85,7 @@ describe("Use case: Purchase and Review Flow", () => {
           }),
         },
       );
+      expect(loginResponse.status).toBe(201);
       sellerSession = await loginResponse.json();
     });
 
@@ -134,14 +151,14 @@ describe("Use case: Purchase and Review Flow", () => {
       expect(response.status).toBe(201);
       buyer = await response.json();
 
-      const lastEmail = await orchestrator.getLastEmail();
-      const activationId = orchestrator.extractUUID(lastEmail.text);
-      await fetch(
+      const activationId = await waitForActivationId(buyerData.email);
+      const activationResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/activations/${activationId}`,
         {
           method: "PATCH",
         },
       );
+      expect(activationResponse.status).toBe(200);
 
       const loginResponse = await fetch(
         `${webserver.getOrigin()}/api/v1/sessions`,
@@ -157,6 +174,7 @@ describe("Use case: Purchase and Review Flow", () => {
           }),
         },
       );
+      expect(loginResponse.status).toBe(201);
       buyerSession = await loginResponse.json();
     });
 

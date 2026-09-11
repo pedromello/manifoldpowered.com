@@ -108,13 +108,6 @@ export function ExternalGameRefreshButton({
               : store.messages.refresh,
         )}
       </button>
-      {cooling && next && (
-        <p>
-          {t("Next update available at {date}", {
-            date: new Date(next).toLocaleString(locale),
-          })}
-        </p>
-      )}
       {!error &&
         status?.refresh?.state === "failed" &&
         status.refresh.message && (

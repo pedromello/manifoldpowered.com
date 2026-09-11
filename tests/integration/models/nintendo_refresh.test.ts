@@ -7,6 +7,7 @@ import { nintendoHtml } from "tests/fixtures/nintendo";
 import { nintendoProductUrl, type NintendoCountry } from "lib/nintendo";
 import orchestrator from "tests/orchestrator";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 const slug = "test-knight-switch";
 const url = nintendoProductUrl(slug, "BR");
@@ -39,9 +40,14 @@ beforeEach(async () => {
 });
 
 test("100 users share one regional round; polling and BR/US cache hits do not fetch", async () => {
+  const runId = randomUUID().replace(/-/g, "");
   const users = await Promise.all(
-    Array.from({ length: 100 }, () =>
-      orchestrator.createUser({ password: null }),
+    Array.from({ length: 100 }, (_, index) =>
+      orchestrator.createUser({
+        username: `nintendo-${runId.slice(0, 16)}-${index}`,
+        email: `nintendo-refresh-${runId}-${index}@example.test`,
+        password: null,
+      }),
     ),
   );
   let release: () => void;

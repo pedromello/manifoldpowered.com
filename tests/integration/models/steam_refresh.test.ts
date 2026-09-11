@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { prisma } from "infra/database";
 import {
   NotFoundError,
@@ -28,9 +29,14 @@ beforeEach(async () => {
 });
 
 test("100 users share one Steam regional round and cached results", async () => {
+  const runId = randomUUID().replace(/-/g, "");
   const users = await Promise.all(
-    Array.from({ length: 100 }, () =>
-      orchestrator.createUser({ password: null }),
+    Array.from({ length: 100 }, (_, index) =>
+      orchestrator.createUser({
+        username: `steam-${runId.slice(0, 16)}-${index}`,
+        email: `steam-refresh-${runId}-${index}@example.test`,
+        password: null,
+      }),
     ),
   );
   let release: () => void;
