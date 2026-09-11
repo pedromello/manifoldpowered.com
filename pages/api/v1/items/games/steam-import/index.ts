@@ -1,7 +1,6 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { createRouter } from "next-connect";
+import type { NextApiRequest } from "next";
 import { z } from "zod";
-import controller from "infra/controller";
+import { createExternalImportController } from "infra/external_import_controller";
 import authorization from "models/authorization";
 import steamImport from "models/steam_import";
 import { ValidationError } from "infra/errors";
@@ -14,14 +13,31 @@ const steamImportRequestSchema = z.object({
     .regex(/^[1-9]\d*$/, "steam_app_id must be a positive integer string"),
 });
 
-export default createRouter<NextApiRequest, NextApiResponse>()
-  .use(controller.injectAnonymousOrUser)
-  .post(controller.canRequest("import:steam_game"), postHandler)
-  .get(controller.canRequest("import:steam_game"), getHandler)
-  .handler(controller.errorHandlers);
+type SteamStatusReference = { operationId: string } | { steamAppId: string };
 
-async function postHandler(req: NextApiRequest, res: NextApiResponse) {
-  const result = steamImportRequestSchema.safeParse(req.body);
+export default createExternalImportController({
+  permission: "import:steam_game",
+  parseInput,
+  parseStatus,
+  importGame(input, actor) {
+    return steamImport.importGame({ ...actor, steamAppId: input.steam_app_id });
+  },
+  status(reference) {
+    return "operationId" in reference
+      ? steamRefresh.status(reference.operationId)
+      : steamRefresh.statusForApp(reference.steamAppId);
+  },
+  present(game, req) {
+    return authorization.filterOutput(
+      req.context.user,
+      "import:steam_game",
+      game,
+    );
+  },
+});
+
+function parseInput(value: unknown) {
+  const result = steamImportRequestSchema.safeParse(value);
 
   if (!result.success) {
     throw new ValidationError({
@@ -31,76 +47,21 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const importResult = await steamImport
-    .importGame({
-      userId: req.context.user.id!,
-      steamAppId: result.data.steam_app_id,
-      isAdmin: authorization.can(req.context.user, "read:game:any"),
-    })
-    .catch((error: unknown) => {
-      const retry = z
-        .object({ context: z.object({ retry_after: z.number() }) })
-        .safeParse(error);
-      if (retry.success)
-        res.setHeader("Retry-After", retry.data.context.retry_after);
-      throw error;
-    });
-  return respond(req, res, importResult);
+  return result.data;
 }
 
-async function getHandler(req: NextApiRequest, res: NextApiResponse) {
+function parseStatus(query: NextApiRequest["query"]): SteamStatusReference {
   if (
-    typeof req.query.operation_id === "string" &&
-    z.uuid().safeParse(req.query.operation_id).success
+    typeof query.operation_id === "string" &&
+    z.uuid().safeParse(query.operation_id).success
   )
-    return respond(
-      req,
-      res,
-      await steamRefresh.status(req.query.operation_id),
-      true,
-    );
-  const input = steamImportRequestSchema.safeParse(req.query);
+    return { operationId: query.operation_id };
+  const input = steamImportRequestSchema.safeParse(query);
   if (!input.success)
     throw new ValidationError({
       message: "Invalid Steam update request.",
       action: "Check the operation or Steam app ID.",
       context: input.error.issues,
     });
-  return respond(
-    req,
-    res,
-    await steamRefresh.statusForApp(input.data.steam_app_id),
-    true,
-  );
-}
-
-async function respond(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  importResult: Awaited<ReturnType<typeof steamRefresh.statusForApp>>,
-  polling = false,
-) {
-  res.setHeader("Cache-Control", "private, no-store");
-  if (importResult.refresh?.state === "in_progress")
-    res.setHeader("Retry-After", "2");
-  if (!importResult.game)
-    return res
-      .status(
-        !polling && importResult.refresh?.state === "in_progress" ? 202 : 200,
-      )
-      .json({ refresh: importResult.refresh });
-  if (!["ACTIVE", "ONLY_DISPLAY"].includes(importResult.game.status))
-    return res
-      .status(200)
-      .json({ message: "This game is currently hidden from the catalog." });
-
-  const secureOutputValues = authorization.filterOutput(
-    req.context.user,
-    "import:steam_game",
-    importResult.game,
-  );
-
-  return res
-    .status(importResult.created ? 201 : 200)
-    .json({ ...secureOutputValues, refresh: importResult.refresh });
+  return { steamAppId: input.data.steam_app_id };
 }

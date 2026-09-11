@@ -3,6 +3,11 @@ import { useRouter } from "next/router";
 import useSWR from "swr";
 import { useI18n } from "lib/i18n";
 import {
+  externalImportStatusUrl,
+  getExternalStore,
+  type ExternalStoreProvider,
+} from "lib/external_stores";
+import {
   requestExternalImport,
   externalImportErrorMessage,
   type ExternalImportResponse,
@@ -17,14 +22,12 @@ export function ExternalGameRefreshButton({
   provider,
   value,
 }: {
-  provider: "nintendo" | "steam";
+  provider: ExternalStoreProvider;
   value: string;
 }) {
-  const permission =
-    provider === "steam" ? "import:steam_game" : "import:nintendo_game";
-  const parameter = provider === "steam" ? "steam_app_id" : "eshop_url";
-  const failureMessage =
-    provider === "steam" ? "Steam import failed." : "Nintendo import failed.";
+  const store = getExternalStore(provider);
+  const { permission } = store;
+  const failureMessage = store.messages.failure;
   const { data } = useSWR("/api/v1/user", userFetcher);
   const { t, translateError, locale } = useI18n();
   const router = useRouter();
@@ -33,7 +36,7 @@ export function ExternalGameRefreshButton({
   const controller = useRef<AbortController | null>(null);
   const [now, setNow] = useState(Date.now());
   const statusKey = data?.features?.includes(permission)
-    ? `/api/v1/items/games/${provider}-import?${parameter}=${encodeURIComponent(value)}`
+    ? externalImportStatusUrl(provider, value, { locale })
     : null;
   const { data: status, mutate } = useSWR<ExternalImportResponse>(
     statusKey,
@@ -102,9 +105,7 @@ export function ExternalGameRefreshButton({
             ? "Update in progress"
             : cooling && status?.refresh?.state !== "failed"
               ? "Data updated recently"
-              : provider === "steam"
-                ? "Update from Steam"
-                : "Update from eShop",
+              : store.messages.refresh,
         )}
       </button>
       {cooling && next && (

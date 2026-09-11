@@ -1,4 +1,9 @@
 import type { ExternalRefreshInfo } from "lib/external_refresh";
+import {
+  externalImportStatusUrl,
+  getExternalStore,
+  type ExternalStoreProvider,
+} from "lib/external_stores";
 
 export interface ExternalImportResponse {
   slug?: string;
@@ -8,35 +13,31 @@ export interface ExternalImportResponse {
 
 export function externalImportErrorMessage(
   error: unknown,
-  provider: "nintendo" | "steam",
+  provider: ExternalStoreProvider,
 ) {
-  if (error instanceof Error && error.name === "TimeoutError")
+  const isError = error instanceof Error || error instanceof DOMException;
+  if (isError && error.name === "TimeoutError")
     return "The update is still pending. Try again shortly.";
-  return error instanceof Error
-    ? error.message
-    : provider === "steam"
-      ? "Steam import failed."
-      : "Nintendo import failed.";
+  return isError ? error.message : getExternalStore(provider).messages.failure;
 }
 
 export async function requestExternalImport(
-  provider: "nintendo" | "steam",
+  provider: ExternalStoreProvider,
   value: string,
   locale: string,
   progress: (info: ExternalRefreshInfo) => void,
   signal: AbortSignal,
 ) {
-  const parameter = provider === "steam" ? "steam_app_id" : "eshop_url";
-  const fallback =
-    provider === "steam" ? "Steam import failed." : "Nintendo import failed.";
+  const store = getExternalStore(provider);
+  const fallback = store.messages.failure;
   const deadline = Date.now() + 30000;
   const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
   let response = await fetch(
-    `/api/v1/items/games/${provider}-import?locale=${locale}`,
+    `${store.endpoint}?locale=${encodeURIComponent(locale)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [parameter]: value }),
+      body: JSON.stringify({ [store.requestField]: value }),
       signal: requestSignal,
     },
   );
@@ -68,7 +69,10 @@ export async function requestExternalImport(
       else requestSignal.addEventListener("abort", abort, { once: true });
     });
     response = await fetch(
-      `/api/v1/items/games/${provider}-import?operation_id=${encodeURIComponent(body.refresh.operation_id)}&${parameter}=${encodeURIComponent(value)}&locale=${locale}`,
+      externalImportStatusUrl(provider, value, {
+        operationId: body.refresh.operation_id,
+        locale,
+      }),
       { signal: requestSignal },
     );
   }
