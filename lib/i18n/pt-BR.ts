@@ -1823,6 +1823,20 @@ export const ptBR: Record<string, string> = {
     "Cole um link do YouTube na review para exibir o player do vídeo.",
 
   // Error pages
+  "Add a game from Steam": "Adicionar um jogo da Steam",
+  "It will join the public catalog as an unclaimed game. Importing it does not give you ownership.":
+    "O jogo entrará no catálogo público sem um estúdio responsável. Importá-lo não concede propriedade sobre ele.",
+  "Update from Steam": "Atualizar da Steam",
+  "Steam import failed.":
+    "Não foi possível atualizar os dados da Steam. Os dados anteriores foram preservados.",
+  "Steam updates are busy. Try again shortly.":
+    "As atualizações da Steam estão ocupadas. Tente novamente em instantes.",
+  "This Steam update expired. Try again.":
+    "Esta atualização da Steam expirou. Tente novamente.",
+  "Steam update not found.": "Atualização da Steam não encontrada.",
+  "Invalid Steam update request.":
+    "Solicitação de atualização da Steam inválida.",
+  "Invalid Steam app ID.": "App ID da Steam inválido.",
   "Page not found": "Página não encontrada",
   "Page not found | Manifold": "Página não encontrada | Manifold",
   "This page may have moved or no longer exists.":

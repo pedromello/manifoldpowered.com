@@ -104,6 +104,11 @@ enum SteamImportAttemptOutcome {
   SERVICE_ERROR
   INVALID_DATA
   BLOCKED_ADULT
+  CACHE_HIT
+  CACHED_FAILURE
+  SHARED_IN_PROGRESS
+  CAPACITY_UNAVAILABLE
+  SKIPPED_MANAGED
 }
 
 enum GameLocalizationSource {
@@ -284,6 +289,25 @@ model NintendoImportAttempt {
 
   @@index([user_id, created_at])
   @@map("nintendo_import_attempts")
+}
+
+model SteamRefresh {
+  id                String   @id @default(uuid())
+  steam_app_id      String   @unique @db.VarChar(20)
+  game_id           String?
+  state             String   @default("IDLE")
+  last_completed_at DateTime?
+  next_allowed_at   DateTime?
+  lease_token       String?
+  lease_expires_at  DateTime?
+  error_name        String?
+  error_message     String?
+  regional_outcomes Json     @default("{}")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([lease_expires_at])
+  @@map("steam_refreshes")
 }
 
 model SteamImportAttempt {

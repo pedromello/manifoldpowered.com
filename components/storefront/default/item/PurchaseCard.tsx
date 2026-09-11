@@ -24,6 +24,8 @@ import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 import { useI18n } from "lib/i18n";
 import { NintendoRefreshButton } from "components/store/NintendoRefreshButton";
+import { ExternalGameRefreshButton } from "components/store/ExternalGameRefreshButton";
+import { extractSteamAppId } from "lib/steam";
 
 export function PurchaseCard({
   game,
@@ -55,6 +57,10 @@ export function PurchaseCard({
   const hasDisplayedPrice =
     isPlatformPurchase || game.external_offer?.amount != null;
   const isNintendo = game.purchase_mode === "NINTENDO_ONLY";
+  const refreshSteamId =
+    game.purchase_mode === "STEAM_ONLY" && game.ownership_status === "UNCLAIMED"
+      ? extractSteamAppId(game.social_links.steam_page ?? "")
+      : null;
   const externalUrl = isNintendo
     ? game.external_offer?.url
     : game.social_links.steam_page;
@@ -212,6 +218,25 @@ export function PurchaseCard({
             {!isPreview && externalUrl && (
               <NintendoRefreshButton url={externalUrl} />
             )}
+          </div>
+        )}
+
+        {!isPreview && refreshSteamId && (
+          <div className="text-xs leading-5 text-white/60">
+            {game.external_offer?.amount != null &&
+              game.external_offer.captured_at && (
+                <p>
+                  {t("Reference price · checked {date}", {
+                    date: new Date(
+                      game.external_offer.captured_at,
+                    ).toLocaleString(locale),
+                  })}
+                </p>
+              )}
+            <ExternalGameRefreshButton
+              provider="steam"
+              value={refreshSteamId}
+            />
           </div>
         )}
 

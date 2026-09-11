@@ -1,4 +1,10 @@
 import { prisma } from "infra/database";
+import { z } from "zod";
+import type {
+  SteamRefresh,
+  SteamImportAttemptOutcome,
+} from "generated/prisma/client";
+import * as refresh from "models/steam_refresh";
 import {
   NotFoundError,
   ServiceError,
@@ -53,19 +59,87 @@ async function importGame({
   isAdmin = false,
   gateway = steam,
 }: ImportSteamGameOptions) {
+  if (
+    !z
+      .string()
+      .regex(/^[1-9]\d{0,19}$/)
+      .safeParse(steamAppId).success
+  )
+    throw new ValidationError({
+      message: "Invalid Steam app ID.",
+      action: "Enter a positive numeric Steam app ID.",
+    });
+  const attempt = await reserveAttempt(userId, steamAppId, isAdmin);
   const existingGame = await game.findOneBySteamAppId(steamAppId);
   if (
     existingGame &&
     (existingGame.status !== "ONLY_DISPLAY" || existingGame.studio_id !== null)
   ) {
-    return { game: existingGame, created: false };
+    await finishAttempt(attempt.id, "SKIPPED_MANAGED");
+    return { game: existingGame, created: false, refresh: null };
   }
 
-  const attempt = await reserveAttempt(userId, steamAppId, isAdmin);
+  const reservation = await refresh
+    .reserve(steamAppId)
+    .catch(async (error: unknown) => {
+      await finishAttempt(attempt.id, "CAPACITY_UNAVAILABLE");
+      throw error;
+    });
+  if (!reservation.acquired) {
+    await finishAttempt(
+      attempt.id,
+      reservation.row.state === "RUNNING"
+        ? "SHARED_IN_PROGRESS"
+        : reservation.row.state === "FAILED"
+          ? "CACHED_FAILURE"
+          : "CACHE_HIT",
+    );
+    if (reservation.row.state === "FAILED")
+      throw refresh.failure(reservation.row);
+    return {
+      game: reservation.game,
+      created: false,
+      refresh: refresh.metadata(reservation.row, true),
+    };
+  }
+  const outcomes: Record<string, string> = {};
+  try {
+    return await performImport(
+      steamAppId,
+      gateway,
+      attempt.id,
+      reservation.row,
+      outcomes,
+    );
+  } catch (error) {
+    const reported =
+      error instanceof NotFoundError ||
+      error instanceof ServiceError ||
+      error instanceof UnsupportedContentError ||
+      error instanceof ValidationError
+        ? error
+        : new ServiceError({
+            message: "Steam import failed.",
+            action: "Try again later.",
+            cause: error,
+          });
+    await refresh.fail(reservation.row, reported, outcomes);
+    throw reported;
+  }
+}
+
+async function performImport(
+  steamAppId: string,
+  gateway: SteamDetailsGateway,
+  attemptId: string,
+  reservation: SteamRefresh,
+  outcomes: Record<string, string>,
+) {
+  const attempt = { id: attemptId };
 
   let regionalResults: Awaited<ReturnType<typeof fetchRegionalDetails>>;
   try {
-    regionalResults = await fetchRegionalDetails(gateway, steamAppId);
+    regionalResults = await fetchRegionalDetails(gateway, steamAppId, outcomes);
   } catch (error) {
     await finishAttempt(attempt.id, "SERVICE_ERROR");
     if (error instanceof ServiceError) throw error;
@@ -152,20 +226,49 @@ async function importGame({
     : undefined;
 
   try {
-    const importedGame = existingGame
-      ? await game.refreshUnclaimedSteamGame(
-          existingGame.id,
-          parsedData.data,
-          externalOffers,
-          localization,
-        )
-      : await game.createUnclaimedSteamGame(
-          parsedData.data,
-          externalOffers,
-          localization,
+    const result = await prisma.$transaction(
+      async (tx) => {
+        await refresh.fence(tx, reservation);
+        const existingGame = await tx.game.findUnique({
+          where: { steam_app_id: steamAppId },
+        });
+        // A claim or moderation decision may have arrived during the HTTP calls.
+        const managed =
+          existingGame &&
+          (existingGame.status !== "ONLY_DISPLAY" ||
+            existingGame.studio_id !== null);
+        const importedGame = managed
+          ? existingGame
+          : existingGame
+            ? await game.refreshUnclaimedSteamGame(
+                existingGame.id,
+                parsedData.data,
+                externalOffers,
+                localization,
+                tx,
+              )
+            : await game.createUnclaimedSteamGame(
+                parsedData.data,
+                externalOffers,
+                localization,
+                tx,
+              );
+        const completed = await refresh.complete(
+          tx,
+          reservation,
+          importedGame.id,
+          outcomes,
         );
+        return {
+          game: importedGame,
+          created: !existingGame,
+          refresh: refresh.metadata(completed),
+        };
+      },
+      { maxWait: 15000, timeout: 15000 },
+    );
     await finishAttempt(attempt.id, "SUCCESS", descriptorMetadata);
-    return { game: importedGame, created: !existingGame };
+    return result;
   } catch (error) {
     await finishAttempt(attempt.id, "INVALID_DATA", descriptorMetadata);
     throw error;
@@ -175,12 +278,24 @@ async function importGame({
 async function fetchRegionalDetails(
   gateway: SteamDetailsGateway,
   steamAppId: string,
+  outcomes: Record<string, string>,
 ) {
   const settled = await Promise.allSettled(
-    STEAM_REGIONS.map(async ({ country, countryCode, language }) => ({
-      country,
-      result: await gateway.fetchAppDetails(steamAppId, countryCode, language),
-    })),
+    STEAM_REGIONS.map(async ({ country, countryCode, language }) => {
+      try {
+        const result = await gateway.fetchAppDetails(
+          steamAppId,
+          countryCode,
+          language,
+        );
+        outcomes[country] =
+          result?.success && result.data ? "SUCCESS" : "NOT_FOUND";
+        return { country, result };
+      } catch (error) {
+        outcomes[country] = "SERVICE_ERROR";
+        throw error;
+      }
+    }),
   );
 
   const fulfilled = settled
@@ -263,12 +378,7 @@ async function reserveAttempt(
 
 async function finishAttempt(
   id: string,
-  outcome:
-    | "SUCCESS"
-    | "NOT_FOUND"
-    | "SERVICE_ERROR"
-    | "INVALID_DATA"
-    | "BLOCKED_ADULT",
+  outcome: SteamImportAttemptOutcome,
   metadata?: {
     content_descriptor_ids: number[];
     content_descriptors_present: boolean;

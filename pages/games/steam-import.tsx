@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import useSWR from "swr";
 import { Loader2 } from "lucide-react";
 import { extractSteamAppId } from "lib/steam";
+import { useI18n } from "lib/i18n";
+import {
+  requestExternalImport,
+  externalImportErrorMessage,
+} from "lib/external_import_client";
 
 interface CurrentUser {
   id: string;
   username: string;
+  features?: string[];
 }
 
 const userFetcher = (url: string) =>
@@ -18,18 +24,26 @@ const userFetcher = (url: string) =>
 
 export default function CommunitySteamImportPage() {
   const router = useRouter();
-  const { error: userError, isLoading } = useSWR<CurrentUser>(
-    "/api/v1/user",
-    userFetcher,
-    { shouldRetryOnError: false },
-  );
+  const { t, translateError, locale } = useI18n();
+  const {
+    data: user,
+    error: userError,
+    isLoading,
+  } = useSWR<CurrentUser>("/api/v1/user", userFetcher, {
+    shouldRetryOnError: false,
+  });
   const [input, setInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
 
-  if (!isLoading && userError) {
-    router.replace(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
-  }
+  useEffect(() => {
+    if (!isLoading && userError)
+      void router.replace(
+        `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+      );
+  }, [isLoading, userError, router]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -38,26 +52,27 @@ export default function CommunitySteamImportPage() {
     const steamAppId = extractSteamAppId(input);
     if (!steamAppId) {
       setFormError(
-        "Enter a valid Steam store link (e.g. https://store.steampowered.com/app/400/) or a numeric App ID.",
+        t(
+          "Enter a valid Steam store link (e.g. https://store.steampowered.com/app/400/) or a numeric App ID.",
+        ),
       );
       return;
     }
 
     setIsSubmitting(true);
+    controller.current = new AbortController();
     try {
-      const response = await fetch("/api/v1/items/games/steam-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ steam_app_id: steamAppId }),
-      });
-      const body = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        setFormError(body?.message || "Failed to import game from Steam.");
-        return;
-      }
-
-      router.push(`/item/${body.slug}`);
+      const body = await requestExternalImport(
+        "steam",
+        steamAppId,
+        locale,
+        () => {},
+        controller.current.signal,
+      );
+      await router.push(`/item/${body.slug}`);
+    } catch (error) {
+      const message = externalImportErrorMessage(error, "steam");
+      setFormError(translateError(message, "Steam import failed."));
     } finally {
       setIsSubmitting(false);
     }
@@ -66,25 +81,30 @@ export default function CommunitySteamImportPage() {
   return (
     <>
       <Head>
-        <title>Import from Steam | Manifold</title>
+        <title>{`${t("Import from Steam")} | Manifold`}</title>
       </Head>
       <div className="min-h-screen bg-[#1D0F3B] text-white flex items-center justify-center px-4">
         <div className="w-full max-w-md flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-black">Add a game from Steam</h1>
+            <h1 className="text-2xl font-black">
+              {t("Add a game from Steam")}
+            </h1>
             <p className="text-white/50 text-sm font-bold mt-1">
-              It will join the public catalog as an unclaimed game. Importing it
-              does not give you ownership.
+              {t(
+                "It will join the public catalog as an unclaimed game. Importing it does not give you ownership.",
+              )}
             </p>
           </div>
 
           {isLoading ? (
             <Loader2 className="animate-spin text-white/30" />
+          ) : user && !user.features?.includes("import:steam_game") ? (
+            <p>{t("Activate your account to import games.")}</p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="flex flex-col gap-2">
                 <span className="text-xs font-black uppercase tracking-wider text-white/40">
-                  Steam store link or App ID
+                  {t("Steam store link or App ID")}
                 </span>
                 <input
                   type="text"
@@ -106,7 +126,7 @@ export default function CommunitySteamImportPage() {
                 disabled={isSubmitting || !input.trim()}
                 className="px-4 py-3 rounded-xl bg-emerald-500 text-black font-black text-sm uppercase tracking-wider hover:bg-emerald-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Importing..." : "Add to catalog"}
+                {t(isSubmitting ? "Update in progress" : "Add to catalog")}
               </button>
             </form>
           )}

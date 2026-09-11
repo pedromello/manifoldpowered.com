@@ -292,6 +292,10 @@ describe("Steam community import", () => {
       },
     });
 
+    await prisma.steamRefresh.updateMany({
+      where: { steam_app_id: steamAppId },
+      data: { next_allowed_at: new Date(0) },
+    });
     const refreshed = await steamImport.importGame({
       userId: user.id,
       steamAppId,
@@ -357,6 +361,10 @@ describe("Steam community import", () => {
     expect(offers[1]).toMatchObject({ country: "US", currency: "USD" });
     expect(offers[1].amount?.toFixed(2)).toBe("29.99");
 
+    await prisma.steamRefresh.updateMany({
+      where: { steam_app_id: steamAppId },
+      data: { next_allowed_at: new Date(0) },
+    });
     const partialRefresh = await steamImport.importGame({
       userId: user.id,
       steamAppId,

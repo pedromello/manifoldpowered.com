@@ -243,6 +243,7 @@ async function createUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[] = [],
   localization?: SteamLocalizationInput,
+  tx: Prisma.TransactionClient = prisma,
 ) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
@@ -251,7 +252,7 @@ async function createUnclaimedSteamGame(
     await validateVideoUrls(gameData.media.videos);
   }
 
-  return await prisma.game.create({
+  return await tx.game.create({
     data: {
       ...gameData,
       studio_id: null,
@@ -286,6 +287,7 @@ async function refreshUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[],
   localization?: SteamLocalizationInput,
+  transaction?: Prisma.TransactionClient,
 ) {
   if (gameData.media.videos.length > 0) {
     await validateVideoUrls(gameData.media.videos);
@@ -295,12 +297,22 @@ async function refreshUnclaimedSteamGame(
     .omit({ steam_app_id: true, price: true, base_price: true })
     .parse(gameData);
 
-  return prisma.$transaction(async (tx) => {
+  const persist = async (tx: Prisma.TransactionClient) => {
     const previous = await tx.game.findUniqueOrThrow({ where: { id } });
     const updatedGame = await tx.game.update({
       where: { id, status: "ONLY_DISPLAY", studio_id: null },
       data: {
         ...refreshData,
+        // Missing Steam price information must not erase the last valid price.
+        ...(gameData.steam_price == null
+          ? {
+              steam_price: previous.steam_price,
+              steam_original_price: previous.steam_original_price,
+              steam_price_currency: previous.steam_price_currency,
+              steam_discount_percent: previous.steam_discount_percent,
+              steam_price_captured_at: previous.steam_price_captured_at,
+            }
+          : {}),
         launch_date: new Date(refreshData.launch_date),
         meta_tags: {
           ...refreshData.meta_tags,
@@ -316,6 +328,7 @@ async function refreshUnclaimedSteamGame(
     });
 
     for (const offer of externalOffers) {
+      if (offer.amount === null) continue;
       await tx.gameExternalOffer.upsert({
         where: {
           game_id_provider_country: {
@@ -338,7 +351,8 @@ async function refreshUnclaimedSteamGame(
     }
 
     return updatedGame;
-  });
+  };
+  return transaction ? persist(transaction) : prisma.$transaction(persist);
 }
 
 function generateSlug(title: string): string {
