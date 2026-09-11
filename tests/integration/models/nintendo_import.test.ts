@@ -33,7 +33,7 @@ beforeEach(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
-test("imports both languages, prefers BR prices and permits community reviews without ownership", async () => {
+test("imports both languages, returns requested BR prices and permits community reviews without ownership", async () => {
   const user = await orchestrator.createUser();
   await orchestrator.activateUser(user.id);
   const result = await nintendoImport.importGame({
@@ -57,7 +57,7 @@ test("imports both languages, prefers BR prices and permits community reviews wi
   expect(
     gameLocalization.apply(result.game, english.get(result.game.id)).title,
   ).toBe("Test Knight");
-  const context = await storefrontPricing.contextFor("USD", [result.game]);
+  const context = await storefrontPricing.contextFor("BRL", [result.game]);
   const output = storefrontPricing.filterAndPrice(
     user,
     [result.game],

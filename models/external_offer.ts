@@ -23,10 +23,10 @@ export async function regionalSteamOffers(
       const candidates = offersByGame.get(gameId) ?? [];
       const selected =
         candidates.find(
-          (offer) => offer.provider === "NINTENDO" && offer.country === "BR",
+          (offer) => offer.currency === requestedCurrency.toUpperCase(),
         ) ??
         candidates.find(
-          (offer) => offer.currency === requestedCurrency.toUpperCase(),
+          (offer) => offer.provider === "NINTENDO" && offer.country === "BR",
         ) ??
         candidates.find((offer) => offer.currency === "USD") ??
         candidates[0];

@@ -64,7 +64,9 @@ test("creator selects a Nintendo game, publishes its review and refreshes withou
     (await saved.json()).draft_revision,
   );
   expect(published.status).toBe(200);
-  const response = await fetch(`${base}/featured?locale=pt-BR`);
+  const response = await fetch(`${base}/featured?locale=pt-BR`, {
+    headers: { "x-vercel-ip-country": "BR" },
+  });
   expect(response.status).toBe(200);
   const body = await response.json();
   expect(JSON.stringify(body)).toContain(
