@@ -3,11 +3,12 @@ import { prisma } from "infra/database";
 export async function regionalSteamOffers(
   gameIds: string[],
   requestedCurrency: string,
+  providers: string[] = ["STEAM"],
 ) {
   if (gameIds.length === 0) return new Map();
 
   const offers = await prisma.gameExternalOffer.findMany({
-    where: { game_id: { in: gameIds }, provider: "STEAM" },
+    where: { game_id: { in: gameIds }, provider: { in: providers } },
     orderBy: [{ captured_at: "desc" }, { country: "asc" }],
   });
 
@@ -22,6 +23,9 @@ export async function regionalSteamOffers(
       const candidates = offersByGame.get(gameId) ?? [];
       const selected =
         candidates.find(
+          (offer) => offer.provider === "NINTENDO" && offer.country === "BR",
+        ) ??
+        candidates.find(
           (offer) => offer.currency === requestedCurrency.toUpperCase(),
         ) ??
         candidates.find((offer) => offer.currency === "USD") ??
@@ -32,6 +36,10 @@ export async function regionalSteamOffers(
   );
 }
 
-const externalOffer = { regionalSteamOffers };
+const externalOffer = {
+  regionalSteamOffers,
+  regionalOffers: (gameIds: string[], currency: string) =>
+    regionalSteamOffers(gameIds, currency, ["STEAM", "NINTENDO"]),
+};
 
 export default externalOffer;

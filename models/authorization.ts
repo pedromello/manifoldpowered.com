@@ -1,5 +1,6 @@
 import {
   Game,
+  GameExternalOffer,
   Session,
   User,
   UserActivationToken,
@@ -103,6 +104,7 @@ const AVAILABLE_FEATURES = [
   "create:game",
   "create:game:any",
   "import:steam_game",
+  "import:nintendo_game",
   "read:public_game",
   "update:game",
   "update:game:any",
@@ -230,6 +232,7 @@ const ACTIVATED_USER_FEATURES = [
   "update:user",
   "read:public_game",
   "import:steam_game",
+  "import:nintendo_game",
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
@@ -356,6 +359,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     authorized = false;
     const gameResource = resource as GameWithStudio;
     const studioResource = gameResource.studio;
+
+    if (gameResource.nintendo_nsuid) return false;
 
     const isOwner = Boolean(
       studioResource && user.id === studioResource.owner_id,
@@ -701,12 +706,18 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   if (
     feature === "create:game" ||
     feature === "import:steam_game" ||
+    feature === "import:nintendo_game" ||
     feature === "read:public_game" ||
     feature === "update:game" ||
     feature === "read:game:any" ||
     feature === "update:game:status:any"
   ) {
-    const gameOutput = resource as Game;
+    const gameOutput = resource as Game & {
+      external_offer_row?: GameExternalOffer;
+    };
+    const nintendoOffer = gameOutput.nintendo_nsuid
+      ? gameOutput.external_offer_row
+      : undefined;
     const steamPage =
       gameOutput.social_links &&
       typeof gameOutput.social_links === "object" &&
@@ -715,8 +726,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       typeof gameOutput.social_links.steam_page === "string"
         ? gameOutput.social_links.steam_page
         : null;
-    const purchaseMode =
-      gameOutput.status === "ACTIVE"
+    const purchaseMode = gameOutput.nintendo_nsuid
+      ? "NINTENDO_ONLY"
+      : gameOutput.status === "ACTIVE"
         ? "PLATFORM"
         : steamPage
           ? "STEAM_ONLY"
@@ -731,7 +743,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       launch_date: gameOutput.launch_date,
       // Display-only catalogue entries deliberately expose no local price.
       price:
-        gameOutput.status === "ONLY_DISPLAY"
+        gameOutput.nintendo_nsuid || gameOutput.status === "ONLY_DISPLAY"
           ? null
           : gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
@@ -744,15 +756,32 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       studio_id: gameOutput.studio_id,
       publisher_id: gameOutput.publisher_id,
       steam_app_id: gameOutput.steam_app_id,
+      nintendo_nsuid: gameOutput.nintendo_nsuid,
+      claimable:
+        !gameOutput.nintendo_nsuid &&
+        gameOutput.status === "ONLY_DISPLAY" &&
+        !gameOutput.studio_id,
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
-      base_price: gameOutput.base_price?.toFixed(2) ?? null,
+      base_price: gameOutput.nintendo_nsuid
+        ? null
+        : (gameOutput.base_price?.toFixed(2) ?? null),
       ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
       purchase_mode: purchaseMode,
-      external_offer:
-        purchaseMode === "STEAM_ONLY" && steamPage
+      external_offer: nintendoOffer
+        ? {
+            provider: "NINTENDO",
+            country: nintendoOffer.country,
+            amount: nintendoOffer.amount?.toFixed(2) ?? null,
+            original_amount: nintendoOffer.original_amount?.toFixed(2) ?? null,
+            discount_percent: nintendoOffer.discount_percent,
+            currency: nintendoOffer.currency,
+            url: nintendoOffer.url,
+            captured_at: nintendoOffer.captured_at.toISOString(),
+          }
+        : purchaseMode === "STEAM_ONLY" && steamPage
           ? {
               provider: "STEAM",
               amount: gameOutput.steam_price?.toFixed(2) ?? null,

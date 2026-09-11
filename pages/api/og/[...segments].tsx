@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { isNintendoImage } from "lib/nintendo";
 import type { NextRequest } from "next/server";
 
 import {
@@ -126,7 +127,12 @@ function resolveImageUrl(
   if (url.protocol !== "https:") return null;
 
   const sameOrigin = url.origin === origin;
-  if (!sameOrigin && !ALLOWED_IMAGE_HOSTS.has(url.hostname)) return null;
+  if (
+    !sameOrigin &&
+    !ALLOWED_IMAGE_HOSTS.has(url.hostname) &&
+    !isNintendoImage(url.href)
+  )
+    return null;
   if (!sameOrigin && url.port && url.port !== "443") return null;
 
   return url;

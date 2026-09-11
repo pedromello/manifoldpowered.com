@@ -43,7 +43,7 @@ async function createDraft(input: GameReleaseCreateDto) {
         async (tx) => {
           const game = await tx.game.findUnique({
             where: { id: data.game_id },
-            select: { id: true },
+            select: { id: true, nintendo_nsuid: true },
           });
 
           if (!game) {
@@ -53,6 +53,11 @@ async function createDraft(input: GameReleaseCreateDto) {
             });
           }
 
+          if (game.nintendo_nsuid)
+            throw new ValidationError({
+              message: "Nintendo games are catalog-only.",
+              action: "Open Nintendo eShop to access this game.",
+            });
           const latest = await tx.gameRelease.aggregate({
             where: { game_id: data.game_id },
             _max: { release_number: true },

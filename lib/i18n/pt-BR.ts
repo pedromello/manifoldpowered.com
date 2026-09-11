@@ -1,4 +1,55 @@
 export const ptBR: Record<string, string> = {
+  "This region has a different Nintendo edition. Submit the link again.":
+    "Esta região possui uma edição Nintendo diferente. Envie o link novamente.",
+  "Partial controller support": "Compatibilidade parcial com controle",
+  "Full controller support": "Compatibilidade completa com controle",
+  "At least {count}": "Pelo menos {count}",
+  "Up to {count}": "Até {count}",
+  "On one console": "No mesmo console",
+  "Local wireless": "Comunicação local entre consoles",
+  "Online players": "Jogadores online",
+  "Update in progress": "Atualização em andamento",
+  "Data updated recently": "Dados atualizados recentemente",
+  "Next update available at {date}": "Nova atualização disponível em {date}",
+  "The update is still pending. Try again shortly.":
+    "A atualização ainda está pendente. Tente novamente em instantes.",
+  "Nintendo updates are busy. Try again shortly.":
+    "As atualizações da Nintendo estão ocupadas. Tente novamente em instantes.",
+  "This Nintendo update expired. Try again.":
+    "Esta atualização da Nintendo expirou. Tente novamente.",
+  "Feedback from the player community.": "Opiniões da comunidade de jogadores.",
+  "{count} community review.": "{count} avaliação da comunidade.",
+  "{count} community reviews.": "{count} avaliações da comunidade.",
+  "Import from Nintendo eShop": "Importar da Nintendo eShop",
+  "To be announced": "A anunciar",
+  "Add to catalog": "Adicionar ao catálogo",
+  "View on Nintendo eShop": "Ver na Nintendo eShop",
+  "Nintendo eShop Brazil": "Nintendo eShop Brasil",
+  "Nintendo eShop United States": "Nintendo eShop Estados Unidos",
+  "Reference price · checked {date}":
+    "Preço de referência · consultado em {date}",
+  "Update from eShop": "Atualizar da eShop",
+  "Updating...": "Atualizando...",
+  "Nintendo eShop product link": "Link do produto na Nintendo eShop",
+  "Add Switch and Switch 2 games to the catalog to discover, recommend and review them.":
+    "Adicione jogos de Switch e Switch 2 ao catálogo para descobrir, recomendar e escrever reviews.",
+  "Use the link again to update an existing game. Purchases take place on Nintendo eShop.":
+    "Use o link novamente para atualizar um jogo existente. As compras acontecem na Nintendo eShop.",
+  "Activate your account to import games.":
+    "Ative sua conta para importar jogos.",
+  "Copy a Brazilian or US product page link from www.nintendo.com.":
+    "Copie o link de uma página de produto brasileira ou americana de www.nintendo.com.",
+  "Nintendo import failed.":
+    "Não foi possível importar da Nintendo. Tente novamente mais tarde.",
+  "Nintendo product data could not be read.":
+    "Não foi possível ler os dados do jogo na Nintendo. Tente novamente mais tarde.",
+  "Nintendo game not found.": "Jogo não encontrado na Nintendo.",
+  "Nintendo import limit exceeded.":
+    "Limite de consultas à Nintendo atingido. Aguarde antes de tentar novamente.",
+  "Only complete Nintendo Switch and Switch 2 digital games can be imported.":
+    "Somente jogos digitais completos de Nintendo Switch e Switch 2 podem ser importados.",
+  "This game is currently hidden from the catalog.":
+    "Este jogo está oculto do catálogo no momento.",
   // Navigation, shared actions, and common states
   About: "Sobre",
   Actions: "Ações",

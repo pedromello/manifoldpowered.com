@@ -37,11 +37,11 @@ export function ReviewsSection({
             </h2>
             <p className="max-w-xl text-sm font-medium leading-6 text-white/45">
               {reviews.total === 0
-                ? t("Feedback from players who own the game.")
+                ? t("Feedback from the player community.")
                 : t(
                     reviews.total === 1
-                      ? "{count} verified-player review."
-                      : "{count} verified-player reviews.",
+                      ? "{count} community review."
+                      : "{count} community reviews.",
                     { count: reviews.total.toLocaleString(locale) },
                   )}
             </p>

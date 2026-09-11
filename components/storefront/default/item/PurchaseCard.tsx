@@ -1,8 +1,6 @@
 import { useRouter } from "next/router";
 import Link from "next/link";
 import {
-  Users,
-  User,
   Gamepad2,
   Globe,
   ExternalLink,
@@ -13,7 +11,7 @@ import {
 import { IconBrandX, IconBrandSteam } from "@tabler/icons-react";
 
 import { DiscountBadge } from "components/store/DiscountBadge";
-import { MetaTag } from "components/store/MetaTag";
+import { GameFeatures } from "components/store/GameFeatures";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
 import {
@@ -25,6 +23,7 @@ import {
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 import { useI18n } from "lib/i18n";
+import { NintendoRefreshButton } from "components/store/NintendoRefreshButton";
 
 export function PurchaseCard({
   game,
@@ -54,7 +53,18 @@ export function PurchaseCard({
   const basePrice = formatCatalogBasePrice(game);
   const discountLabel = catalogDiscountLabel(game);
   const hasDisplayedPrice =
-    isPlatformPurchase || game.external_offer?.amount !== null;
+    isPlatformPurchase || game.external_offer?.amount != null;
+  const isNintendo = game.purchase_mode === "NINTENDO_ONLY";
+  const externalUrl = isNintendo
+    ? game.external_offer?.url
+    : game.social_links.steam_page;
+
+  const hasSocialLinks = Boolean(
+    game.social_links.twitter ||
+    game.social_links.discord ||
+    game.social_links.website ||
+    (!isPreview && game.social_links.steam_page),
+  );
 
   return (
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
@@ -141,15 +151,21 @@ export function PurchaseCard({
         )}
 
         {!isPreview &&
-          (game.social_links.steam_page ? (
+          (externalUrl ? (
             <a
-              href={game.social_links.steam_page}
+              href={externalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
             >
-              <IconBrandSteam size={24} className="text-white/65" />
-              <span>{t("View on Steam")}</span>
+              {isNintendo ? (
+                <Gamepad2 size={24} />
+              ) : (
+                <IconBrandSteam size={24} className="text-white/65" />
+              )}
+              <span>
+                {t(isNintendo ? "View on Nintendo eShop" : "View on Steam")}
+              </span>
               <ExternalLink
                 size={16}
                 className="opacity-60 transition-opacity group-hover:opacity-100"
@@ -174,15 +190,42 @@ export function PurchaseCard({
             </button>
           ))}
 
-        {game.ownership_status === "UNCLAIMED" && (
-          <Link
-            href={`/studio/ownership-claims?game=${encodeURIComponent(game.slug)}`}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-violet-400/25 bg-violet-500/[0.08] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-violet-200 transition-colors hover:border-violet-400/40 hover:bg-violet-500/15"
-          >
-            <BadgeCheck size={20} />
-            {t("Claim ownership")}
-          </Link>
+        {isNintendo && (
+          <div className="text-xs leading-5 text-white/60">
+            <p>
+              {t(
+                game.external_offer?.country === "BR"
+                  ? "Nintendo eShop Brazil"
+                  : "Nintendo eShop United States",
+              )}
+            </p>
+            {game.external_offer?.amount != null &&
+              game.external_offer.captured_at && (
+                <p>
+                  {t("Reference price · checked {date}", {
+                    date: new Date(
+                      game.external_offer.captured_at,
+                    ).toLocaleString(locale),
+                  })}
+                </p>
+              )}
+            {!isPreview && externalUrl && (
+              <NintendoRefreshButton url={externalUrl} />
+            )}
+          </div>
         )}
+
+        {!isNintendo &&
+          game.claimable !== false &&
+          game.ownership_status === "UNCLAIMED" && (
+            <Link
+              href={`/studio/ownership-claims?game=${encodeURIComponent(game.slug)}`}
+              className="flex w-full items-center justify-center gap-3 rounded-lg border border-violet-400/25 bg-violet-500/[0.08] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-violet-200 transition-colors hover:border-violet-400/40 hover:bg-violet-500/15"
+            >
+              <BadgeCheck size={20} />
+              {t("Claim ownership")}
+            </Link>
+          )}
 
         <div className="h-px bg-white/10" />
 
@@ -200,62 +243,50 @@ export function PurchaseCard({
               {t("Release Date")}
             </span>
             <span className="text-sm font-semibold text-white/80">
-              {new Date(game.launch_date).toLocaleDateString(locale, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {game.launch_date
+                ? new Date(game.launch_date).toLocaleDateString(locale, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : t("To be announced")}
             </span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
-            {t("Features")}
-          </h4>
-          <div className="grid grid-cols-1 gap-2">
-            {/* TODO: these three are hardcoded rather than read from
-                game.meta_tags. Left as-is here because changing them changes
-                what customers see, which does not belong in a refactor. */}
-            <MetaTag icon={User} label={t("Single Player")} active={true} />
-            <MetaTag icon={Users} label={t("Multiplayer")} active={false} />
-            <MetaTag
-              icon={Gamepad2}
-              label={t("Controller Support")}
-              active={true}
-            />
-          </div>
-        </div>
+        <GameFeatures meta={game.meta_tags} />
 
-        <div className="flex flex-col gap-3">
-          <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
-            {t("Stay Connected")}
-          </h4>
-          <div className="grid grid-cols-2 gap-2">
-            <SocialLink
-              icon={IconBrandX}
-              href={game.social_links.twitter}
-              label="X"
-            />
-            {!isPreview && (
+        {hasSocialLinks && (
+          <div className="flex flex-col gap-3">
+            <h4 className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">
+              {t("Stay Connected")}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
               <SocialLink
-                icon={IconBrandSteam}
-                href={game.social_links.steam_page}
-                label="Steam"
+                icon={IconBrandX}
+                href={game.social_links.twitter}
+                label="X"
               />
-            )}
-            <SocialLink
-              icon={MessageSquare}
-              href={game.social_links.discord}
-              label="Discord"
-            />
-            <SocialLink
-              icon={Globe}
-              href={game.social_links.website}
-              label={t("Website")}
-            />
+              {!isPreview && (
+                <SocialLink
+                  icon={IconBrandSteam}
+                  href={game.social_links.steam_page}
+                  label="Steam"
+                />
+              )}
+              <SocialLink
+                icon={MessageSquare}
+                href={game.social_links.discord}
+                label="Discord"
+              />
+              <SocialLink
+                icon={Globe}
+                href={game.social_links.website}
+                label={t("Website")}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

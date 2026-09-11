@@ -199,6 +199,13 @@ export function GameAutocomplete({
                 />
                 <span className="font-bold text-white text-sm truncate">
                   {game.title}
+                  {game.nintendo_nsuid && (
+                    <span className="ml-2 text-xs text-white/50">
+                      {game.tags.find((tag) =>
+                        tag.startsWith("Nintendo Switch"),
+                      )}
+                    </span>
+                  )}
                 </span>
               </button>
             ))

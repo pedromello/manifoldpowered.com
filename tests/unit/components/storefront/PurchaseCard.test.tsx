@@ -33,6 +33,58 @@ const game: GameDetailApi = {
 };
 
 describe("PurchaseCard draft preview", () => {
+  test.each([false, true])(
+    "Nintendo region, price and preview=%s",
+    (isPreview) => {
+      const markup = renderToStaticMarkup(
+        <PurchaseCard
+          game={{
+            ...game,
+            nintendo_nsuid: "70010000003208",
+            claimable: false,
+            price: null,
+            purchase_mode: "NINTENDO_ONLY",
+            ownership_status: "UNCLAIMED",
+            social_links: {},
+            external_offer: {
+              provider: "NINTENDO",
+              country: "BR",
+              currency: "BRL",
+              amount: "30.00",
+              original_amount: "60.00",
+              discount_percent: 50,
+              captured_at: "2026-09-07T12:00:00Z",
+              url: "https://www.nintendo.com/pt-br/store/products/test/",
+            },
+          }}
+          isPreview={isPreview}
+          isFreeGame={false}
+          isInLibrary={false}
+          isCheckingLibrary={false}
+          isRedeeming={false}
+          acquisitionError={null}
+          onRedeem={jest.fn()}
+          wishlist={{
+            count: 0,
+            isWishlisted: false,
+            isToggling: false,
+            toggle: jest.fn(),
+          }}
+        />,
+      );
+      expect(markup).toContain("Nintendo eShop Brazil");
+      expect(markup).toContain("Reference price");
+      expect(markup).not.toContain("Claim ownership");
+      expect(markup).not.toContain("Buy now");
+      expect(markup).not.toContain("Add to Library");
+      expect(markup).not.toContain("Stay Connected");
+      expect(
+        markup.includes(
+          'href="https://www.nintendo.com/pt-br/store/products/test/"',
+        ),
+      ).toBe(!isPreview);
+    },
+  );
   test("keeps price and product facts but removes acquisition and account controls", () => {
     const markup = renderToStaticMarkup(
       <PurchaseCard
@@ -68,5 +120,31 @@ describe("PurchaseCard draft preview", () => {
     expect(markup).not.toContain("View on Steam");
     expect(markup).not.toContain("Add to Wishlist");
     expect(markup).not.toContain("In Library");
+    expect(markup).not.toContain("Stay Connected");
   });
+  test.each([false, true])(
+    "social heading is present when visible links exist (preview=%s)",
+    (isPreview) => {
+      const markup = renderToStaticMarkup(
+        <PurchaseCard
+          game={{ ...game, social_links: { website: "https://example.test" } }}
+          isPreview={isPreview}
+          isFreeGame={false}
+          isInLibrary={false}
+          isCheckingLibrary={false}
+          isRedeeming={false}
+          acquisitionError={null}
+          onRedeem={jest.fn()}
+          wishlist={{
+            count: 0,
+            isWishlisted: false,
+            isToggling: false,
+            toggle: jest.fn(),
+          }}
+        />,
+      );
+      expect(markup).toContain("Stay Connected");
+      expect(markup).toContain('href="https://example.test"');
+    },
+  );
 });

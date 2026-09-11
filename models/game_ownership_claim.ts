@@ -165,7 +165,11 @@ async function create({
           action: "Sign in again and retry the request.",
         });
       }
-      if (game.status !== "ONLY_DISPLAY" || game.studio_id !== null) {
+      if (
+        game.nintendo_nsuid ||
+        game.status !== "ONLY_DISPLAY" ||
+        game.studio_id !== null
+      ) {
         throw new ValidationError({
           message: "Only unclaimed catalog games can receive ownership claims.",
           action: "Choose a game that is visible and has not been claimed yet.",
@@ -374,7 +378,12 @@ async function decide({
 
     if (decision === "APPROVED") {
       const assigned = await tx.game.updateMany({
-        where: { id: claim.game_id, status: "ONLY_DISPLAY", studio_id: null },
+        where: {
+          id: claim.game_id,
+          status: "ONLY_DISPLAY",
+          studio_id: null,
+          nintendo_nsuid: null,
+        },
         data: { studio_id: claim.studio_id },
       });
       if (assigned.count !== 1) {

@@ -108,6 +108,7 @@ enum SteamImportAttemptOutcome {
 
 enum GameLocalizationSource {
   STEAM
+  NINTENDO
   FALLBACK
 }
 
@@ -131,7 +132,7 @@ model Game {
   slug                 String     @unique @db.VarChar(255)
   description          String     @db.Text
   detailed_description String     @db.Text
-  launch_date          DateTime
+  launch_date          DateTime?
   status               GameStatus @default(PRIVATE)
 
   // Financial. Decimal(19,4) is the standard scale for amounts subject to
@@ -153,7 +154,8 @@ model Game {
   // Source Steam app id, set only for games imported via the Steam import
   // flow. Nullable + unique: multiple NULLs are allowed (manual games), but
   // the same Steam app can't be imported twice.
-  steam_app_id String? @unique @db.VarChar(20)
+  steam_app_id   String? @unique @db.VarChar(20)
+  nintendo_nsuid String? @unique @db.VarChar(14)
 
   // Informational Steam offer captured during import. These fields are kept
   // separate from price/base_price because they never make the game
@@ -251,6 +253,39 @@ model GameLocalization {
 
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
+model NintendoRefresh {
+  id                String   @id @default(uuid())
+  identity          String   @unique
+  game_id           String?
+  state             String   @default("IDLE")
+  last_completed_at DateTime?
+  next_allowed_at   DateTime?
+  lease_token       String?
+  lease_expires_at  DateTime?
+  error_name        String?
+  error_message     String?
+  regional_outcomes Json     @default("{}")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([game_id])
+  @@index([lease_expires_at])
+  @@map("nintendo_refreshes")
+}
+
+model NintendoImportAttempt {
+  id                String   @id @default(uuid())
+  user_id           String // Logical reference; intentionally no foreign key.
+  url               String   @db.Text
+  outcome           String   @default("PENDING") @db.VarChar(32)
+  regional_outcomes Json     @default("{}")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([user_id, created_at])
+  @@map("nintendo_import_attempts")
+}
+
 model SteamImportAttempt {
   id                          String                    @id @default(uuid())
   user_id                     String

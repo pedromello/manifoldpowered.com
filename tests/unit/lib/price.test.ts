@@ -8,6 +8,24 @@ import {
 } from "lib/price";
 
 describe("catalog price formatting", () => {
+  test("Nintendo unknown prices and free offers are distinct", () => {
+    const game = {
+      purchase_mode: "NINTENDO_ONLY",
+      price: null,
+      external_offer: {
+        provider: "NINTENDO" as const,
+        amount: null,
+        currency: "BRL",
+      },
+    };
+    expect(formatCatalogPrice(game)).toBe("Nintendo eShop");
+    expect(
+      formatCatalogPrice({
+        ...game,
+        external_offer: { ...game.external_offer, amount: "0.00" },
+      }),
+    ).toBe("Free");
+  });
   test("Should not classify a missing platform price as free", () => {
     expect(isFree({ price: null, display_price: null })).toBe(false);
   });
