@@ -49,7 +49,7 @@ async function contextFor(
   return {
     currency,
     displayPrices: await pricing.displayPricesFor(games, currency),
-    externalOffers: await externalOffer.regionalSteamOffers(
+    externalOffers: await externalOffer.regionalOffers(
       games.map((game) => game.id),
       externalOfferCurrency,
     ),
@@ -90,6 +90,7 @@ function filterAndPrice<T extends Game>(
       const gameWithRegionalOffer = regionalOffer
         ? {
             ...localizedGame,
+            external_offer_row: regionalOffer,
             steam_price: regionalOffer.amount,
             steam_original_price: regionalOffer.original_amount,
             steam_discount_percent: regionalOffer.discount_percent,

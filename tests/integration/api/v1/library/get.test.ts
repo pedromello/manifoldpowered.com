@@ -131,6 +131,8 @@ describe("GET /api/v1/library", () => {
         positive_reviews: game.positive_reviews,
         negative_reviews: game.negative_reviews,
         ownership_status: "CLAIMED",
+        claimable: false,
+        nintendo_nsuid: null,
         purchase_mode: "UNAVAILABLE",
         external_offer: null,
         review_score: game.review_score,

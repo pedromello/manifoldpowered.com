@@ -123,7 +123,16 @@ export function UserMenu({
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
             >
               <Download size={16} className="text-emerald-400" />
-              Add from Steam
+              {t("Import from Steam")}
+            </Link>
+
+            <Link
+              href="/games/nintendo-import"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/5"
+            >
+              <Download size={16} className="text-rose-400" />
+              {t("Import from Nintendo eShop")}
             </Link>
 
             <Link

@@ -315,6 +315,17 @@ async function add(
   itemId: string,
   itemType: ItemType = "GAME",
 ) {
+  if (itemType === "GAME") {
+    const target = await prisma.game.findUnique({
+      where: { id: itemId },
+      select: { nintendo_nsuid: true },
+    });
+    if (target?.nintendo_nsuid)
+      throw new ValidationError({
+        message: "Nintendo games are catalog-only.",
+        action: "Open Nintendo eShop to access this game.",
+      });
+  }
   return await prisma.libraryItem.upsert({
     where: {
       user_id_item_id_item_type: {
@@ -394,6 +405,13 @@ async function hasItem(
   itemId: string,
   itemType: ItemType = "GAME",
 ): Promise<boolean> {
+  if (itemType === "GAME") {
+    const target = await prisma.game.findUnique({
+      where: { id: itemId },
+      select: { nintendo_nsuid: true },
+    });
+    if (target?.nintendo_nsuid) return false;
+  }
   const item = await prisma.libraryItem.findUnique({
     where: {
       user_id_item_id_item_type: {

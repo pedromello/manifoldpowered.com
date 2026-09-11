@@ -1,6 +1,8 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import steamImport from "models/steam_import";
+import * as coordination from "models/steam_refresh";
+import { prisma } from "infra/database";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -8,6 +10,61 @@ beforeAll(async () => {
 });
 
 describe("POST /api/v1/items/games/steam-import", () => {
+  test("pending imports return 202, cached imports return 200, and capacity returns Retry-After", async () => {
+    await orchestrator.clearDatabaseRows();
+    const user = await orchestrator.createUser();
+    await orchestrator.activateUser(user.id);
+    const session = await orchestrator.createSession(user.id);
+    const post = (appId: string) =>
+      fetch(`${webserver.getOrigin()}/api/v1/items/games/steam-import`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        },
+        body: JSON.stringify({ steam_app_id: appId }),
+      });
+    const reserved = await coordination.reserve("990000301");
+    const pending = await post("990000301");
+    expect(pending.status).toBe(202);
+    expect(pending.headers.get("Retry-After")).toBe("2");
+    expect(await pending.json()).toMatchObject({
+      refresh: { state: "in_progress", operation_id: reserved.row.id },
+    });
+    const imported = await steamImport.importGame({
+      userId: user.id,
+      steamAppId: "990000302",
+      gateway: {
+        fetchAppDetails: async () => ({
+          success: true,
+          data: { name: "Steam Cached API Fixture" },
+        }),
+      },
+    });
+    const cached = await post("990000302");
+    expect(cached.status).toBe(200);
+    expect(await cached.json()).toMatchObject({
+      slug: imported.game!.slug,
+      refresh: { state: "cached" },
+    });
+    await prisma.steamRefresh.updateMany({
+      where: { steam_app_id: "990000302" },
+      data: { next_allowed_at: new Date(0) },
+    });
+    await coordination.reserve("990000302");
+    const existingPending = await post("990000302");
+    expect(existingPending.status).toBe(200);
+    expect(await existingPending.json()).toMatchObject({
+      slug: imported.game!.slug,
+      refresh: { state: "in_progress" },
+    });
+    await coordination.reserve("990000303");
+    await coordination.reserve("990000304");
+    const busy = await post("990000305");
+    expect(busy.status).toBe(503);
+    expect(busy.headers.get("Retry-After")).toBe("2");
+    await orchestrator.clearDatabaseRows();
+  });
   describe("Activated user", () => {
     test("Should expose the regional Steam offer for an imported catalog game", async () => {
       const user = await orchestrator.createUser();

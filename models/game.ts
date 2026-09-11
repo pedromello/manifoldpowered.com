@@ -1,4 +1,9 @@
 import { prisma } from "infra/database";
+import {
+  gameFeaturesSchema,
+  mergeGameFeatures,
+  steamFeatures,
+} from "lib/game_features";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
@@ -35,6 +40,7 @@ export const gameSchema = z.object({
       languages: z.array(z.string()).optional(),
       keywords: z.array(z.string()).optional(),
       platforms: z.array(z.string()).optional(),
+      features: gameFeaturesSchema.optional(),
     })
     .default({}),
   media: z
@@ -237,6 +243,7 @@ async function createUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[] = [],
   localization?: SteamLocalizationInput,
+  tx: Prisma.TransactionClient = prisma,
 ) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
@@ -245,7 +252,7 @@ async function createUnclaimedSteamGame(
     await validateVideoUrls(gameData.media.videos);
   }
 
-  return await prisma.game.create({
+  return await tx.game.create({
     data: {
       ...gameData,
       studio_id: null,
@@ -280,6 +287,7 @@ async function refreshUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[],
   localization?: SteamLocalizationInput,
+  transaction?: Prisma.TransactionClient,
 ) {
   if (gameData.media.videos.length > 0) {
     await validateVideoUrls(gameData.media.videos);
@@ -289,13 +297,30 @@ async function refreshUnclaimedSteamGame(
     .omit({ steam_app_id: true, price: true, base_price: true })
     .parse(gameData);
 
-  return prisma.$transaction(async (tx) => {
+  const persist = async (tx: Prisma.TransactionClient) => {
+    const previous = await tx.game.findUniqueOrThrow({ where: { id } });
     const updatedGame = await tx.game.update({
       where: { id, status: "ONLY_DISPLAY", studio_id: null },
       data: {
         ...refreshData,
+        // Missing Steam price information must not erase the last valid price.
+        ...(gameData.steam_price == null
+          ? {
+              steam_price: previous.steam_price,
+              steam_original_price: previous.steam_original_price,
+              steam_price_currency: previous.steam_price_currency,
+              steam_discount_percent: previous.steam_discount_percent,
+              steam_price_captured_at: previous.steam_price_captured_at,
+            }
+          : {}),
         launch_date: new Date(refreshData.launch_date),
-        meta_tags: refreshData.meta_tags || {},
+        meta_tags: {
+          ...refreshData.meta_tags,
+          features: mergeGameFeatures(
+            previous.meta_tags,
+            refreshData.meta_tags.features ?? {},
+          ),
+        },
         media: refreshData.media || {},
         social_links: refreshData.social_links || {},
         requirements: refreshData.requirements || {},
@@ -303,6 +328,7 @@ async function refreshUnclaimedSteamGame(
     });
 
     for (const offer of externalOffers) {
+      if (offer.amount === null) continue;
       await tx.gameExternalOffer.upsert({
         where: {
           game_id_provider_country: {
@@ -325,7 +351,8 @@ async function refreshUnclaimedSteamGame(
     }
 
     return updatedGame;
-  });
+  };
+  return transaction ? persist(transaction) : prisma.$transaction(persist);
 }
 
 function generateSlug(title: string): string {
@@ -489,6 +516,7 @@ export function mapSteamAppToGameData(
     tags,
     meta_tags: {
       category: steamGame.genres?.[0]?.description,
+      features: steamFeatures(steamGame),
       rating: toAgeRatingLabel(steamGame.required_age),
       languages,
       platforms,
@@ -682,6 +710,7 @@ async function update(
           languages: z.array(z.string()).optional(),
           keywords: z.array(z.string()).optional(),
           platforms: z.array(z.string()).optional(),
+          features: gameFeaturesSchema.optional(),
         })
         .optional(),
       media: z
@@ -843,7 +872,10 @@ async function findAllPaginated({
     status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
   };
 
-  if (ownership_status === "UNCLAIMED") where.studio_id = null;
+  if (ownership_status === "UNCLAIMED") {
+    where.studio_id = null;
+    where.nintendo_nsuid = null;
+  }
   if (ownership_status === "CLAIMED") where.studio_id = { not: null };
 
   if (tags && tags.length > 0) {
@@ -856,7 +888,7 @@ async function findAllPaginated({
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
-      ...(locale === "pt-BR"
+      ...(locale
         ? [
             {
               localizations: {
@@ -913,7 +945,7 @@ async function findAllPaginated({
     title_asc: { title: "asc" },
     featured: [{ positive_reviews: "desc" }, { created_at: "desc" }],
     trending: [{ updated_at: "desc" }, { positive_reviews: "desc" }],
-    new_releases: [{ launch_date: "desc" }],
+    new_releases: [{ launch_date: { sort: "desc", nulls: "last" } }],
   };
 
   if (order === "title_asc" && locale === "pt-BR") {
@@ -1130,7 +1162,7 @@ async function findCurationCatalogPage({
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
           { developer_name: { contains: q, mode: "insensitive" } },
-          ...(locale === "pt-BR"
+          ...(locale
             ? [
                 {
                   localizations: {
@@ -1295,6 +1327,14 @@ async function findCurationCatalogPage({
 }
 
 async function setStatus(id: string, status: GameStatus) {
+  if (status === "ACTIVE") {
+    const existing = await prisma.game.findUnique({ where: { id } });
+    if (existing?.nintendo_nsuid)
+      throw new ValidationError({
+        message: "Nintendo games are catalog-only.",
+        action: "Keep this game as display-only or hide it.",
+      });
+  }
   return await prisma.game.update({
     where: {
       id,
@@ -1309,8 +1349,11 @@ async function makePublic(id: string) {
   return await setStatus(id, "ACTIVE");
 }
 
-function ensurePurchasable(gameResource: { status: GameStatus }) {
-  if (gameResource.status === "ONLY_DISPLAY") {
+function ensurePurchasable(gameResource: {
+  status: GameStatus;
+  nintendo_nsuid?: string | null;
+}) {
+  if (gameResource.nintendo_nsuid || gameResource.status === "ONLY_DISPLAY") {
     throw new ValidationError({
       message: "This game is not available for purchase on the platform.",
       action: "Open the external store page when one is available.",

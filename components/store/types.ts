@@ -18,7 +18,8 @@ export {
 } from "contracts/store-presentation";
 
 export type ExternalOffer = {
-  provider: "STEAM";
+  provider: "STEAM" | "NINTENDO";
+  country?: string;
   amount: string | null;
   original_amount: string | null;
   discount_percent: number | null;
@@ -42,7 +43,7 @@ export type GameApi = {
   title: string;
   description: string;
   detailed_description: string;
-  launch_date: string;
+  launch_date: string | null;
   price: string | null;
   base_price?: string | null;
   display_price?: DisplayPrice | null;
@@ -58,7 +59,9 @@ export type GameApi = {
   };
   status?: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
   ownership_status?: "UNCLAIMED" | "CLAIMED";
-  purchase_mode: "STEAM_ONLY" | "UNAVAILABLE" | "PLATFORM";
+  purchase_mode: "STEAM_ONLY" | "NINTENDO_ONLY" | "UNAVAILABLE" | "PLATFORM";
+  nintendo_nsuid?: string | null;
+  claimable?: boolean;
   external_offer: ExternalOffer | null;
   positive_reviews?: number;
   negative_reviews?: number;
@@ -81,6 +84,7 @@ export type GameApi = {
  */
 export type GameDetailApi = GameApi & {
   meta_tags: {
+    features?: import("lib/game_features").GameFeatures;
     category?: string;
     rating?: string;
     languages?: string[];

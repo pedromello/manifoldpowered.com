@@ -283,6 +283,7 @@ describe("Use case: Purchase and Download Flow", () => {
         ownership_status: "CLAIMED",
         purchase_mode: "PLATFORM",
         external_offer: null,
+        claimable: false,
       };
       expect(gamesInLibrary).toContainEqual(gameWithDatesAsString);
 
