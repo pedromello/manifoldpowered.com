@@ -6,6 +6,7 @@ import {
   IconChevronRight,
 } from "@tabler/icons-react";
 import { useI18n } from "lib/i18n";
+import { nintendoVideoPoster } from "lib/nintendo";
 
 interface MediaGalleryProps {
   videos: string[];
@@ -15,7 +16,7 @@ interface MediaGalleryProps {
 
 type MediaItem = {
   type: "video" | "image";
-  videoType?: "youtube" | "steam";
+  videoType?: "youtube" | "direct";
   url: string;
   id?: string;
 };
@@ -23,12 +24,14 @@ type MediaItem = {
 // Steam serves newer trailers only as HLS (.m3u8) manifests, which play
 // natively in Safari/iOS but need hls.js everywhere else. Older mp4/webm
 // URLs (also passed through here) play fine as a direct <video src>.
-function SteamVideoPlayer({
+function DirectVideoPlayer({
   url,
   className,
+  title,
 }: {
   url: string;
   className: string;
+  title: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -61,6 +64,8 @@ function SteamVideoPlayer({
       autoPlay
       muted
       playsInline
+      aria-label={title}
+      poster={nintendoVideoPoster(url)}
       className={className}
     />
   );
@@ -155,7 +160,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
       const ytId = getYouTubeID(url);
       return {
         type: "video",
-        videoType: ytId ? "youtube" : "steam",
+        videoType: ytId ? "youtube" : "direct",
         url,
         id: ytId || "",
       };
@@ -206,8 +211,9 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
               allowFullScreen
             />
           ) : (
-            <SteamVideoPlayer
+            <DirectVideoPlayer
               url={activeMedia.url}
+              title={t("{title} trailer", { title: gameTitle })}
               className="absolute inset-0 w-full h-full object-cover"
             />
           )
@@ -273,7 +279,9 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                 item.type === "video"
                   ? item.videoType === "youtube"
                     ? `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`
-                    : images[0] || "/placeholder-game.png"
+                    : nintendoVideoPoster(item.url) ||
+                      images[0] ||
+                      "/placeholder-game.png"
                   : item.url;
 
               return (

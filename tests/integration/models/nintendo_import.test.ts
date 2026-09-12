@@ -1,5 +1,9 @@
 import { prisma } from "infra/database";
-import { parseNintendoProduct } from "infra/nintendo";
+import { fetchProduct, parseNintendoProduct } from "infra/nintendo";
+import {
+  bananzaHtml,
+  bananzaExpectedMedia,
+} from "tests/fixtures/nintendo-bananza";
 import {
   NotFoundError,
   ServiceError,
@@ -33,6 +37,44 @@ beforeEach(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
+test("Bananza imports and persists the exact Nintendo cover, screenshots and playable video URLs", async () => {
+  const user = await orchestrator.createUser();
+  await orchestrator.activateUser(user.id);
+  const request = jest
+    .spyOn(global, "fetch")
+    .mockImplementation(
+      async (input) =>
+        new Response(
+          bananzaHtml(String(input).includes("/pt-br/") ? "BR" : "US"),
+          { status: 200 },
+        ),
+    );
+  try {
+    const result = await nintendoImport.importGame({
+      userId: user.id,
+      eshopUrl:
+        "https://www.nintendo.com/pt-br/store/products/donkey-kong-bananza-switch-2/",
+      gateway: { fetchProduct },
+    });
+    expect(result.created).toBe(true);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(result.game).toMatchObject({
+      nintendo_nsuid: "70010000096809",
+      media: bananzaExpectedMedia,
+    });
+    const saved = await prisma.game.findUniqueOrThrow({
+      where: { id: result.game!.id },
+    });
+    expect(saved.media).toEqual(bananzaExpectedMedia);
+    const context = await storefrontPricing.contextFor("BRL", [saved]);
+    expect(
+      storefrontPricing.filterAndPrice(user, [saved], context)[0].media,
+    ).toEqual(bananzaExpectedMedia);
+  } finally {
+    request.mockRestore();
+  }
+});
+
 test("imports both languages, returns requested BR prices and permits community reviews without ownership", async () => {
   const user = await orchestrator.createUser();
   await orchestrator.activateUser(user.id);
@@ -50,7 +92,9 @@ test("imports both languages, returns requested BR prices and permits community 
   });
   expect(result.game.slug).toContain("switch-70010000003208");
   expect(result.game.media).toMatchObject({
-    videos: [],
+    videos: [
+      "https://assets.nintendo.com/video/upload/store/software/switch/70010000003208/Video/trailer.mp4",
+    ],
     screenshots: [expect.stringContaining("/screenshot")],
   });
   const english = await gameLocalization.forGames([result.game.id], "en");
