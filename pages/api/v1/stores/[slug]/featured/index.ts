@@ -14,6 +14,7 @@ import storeFeaturedGame, {
 } from "models/store_featured_game";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
 import storeGameEditorial from "models/store_game_editorial";
+import { filterStorefrontEditorial } from "models/storefront_editorial";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -133,12 +134,10 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
         ...(editorialIds.has(featuredGame.id) && {
           recommendation_reason: reasonByGameId.get(featuredGame.id) ?? null,
         }),
-        outlet_review: reviews.get(featuredGame.id)
-          ? {
-              headline: reviews.get(featuredGame.id)!.headline,
-              body: reviews.get(featuredGame.id)!.body,
-            }
-          : null,
+        outlet_review: filterStorefrontEditorial(
+          req.context.user,
+          reviews.get(featuredGame.id),
+        ),
       }));
 
     return res.status(200).json({
@@ -180,12 +179,10 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
       .map((featuredGame) => ({
         ...featuredGame,
         featured_source: "AUTOMATIC",
-        outlet_review: reviews.get(featuredGame.id)
-          ? {
-              headline: reviews.get(featuredGame.id)!.headline,
-              body: reviews.get(featuredGame.id)!.body,
-            }
-          : null,
+        outlet_review: filterStorefrontEditorial(
+          req.context.user,
+          reviews.get(featuredGame.id),
+        ),
       })),
     pagination,
     currency,

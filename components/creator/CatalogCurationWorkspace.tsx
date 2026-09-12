@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +22,9 @@ import {
 
 import { Pagination, type PaginationApi } from "components/Pagination";
 import type { GameApi } from "components/store/types";
+import type { OutletRating, OutletRatingScale } from "contracts/outlet-rating";
+import { OutletRatingInput } from "components/store/OutletRatingInput";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import { useI18n } from "lib/i18n";
 import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import { formatCatalogPrice } from "lib/price";
@@ -52,6 +56,7 @@ type CatalogResponse = {
   currency: string;
   catalog_mode: CatalogMode;
   draft_revision: number;
+  rating_scale: OutletRatingScale | null;
   totals: {
     all: number;
     in_outlet: number;
@@ -147,6 +152,10 @@ export function CatalogCurationWorkspace({
   const [reviewGame, setReviewGame] = useState<CurationGame | null>(null);
   const [reviewHeadline, setReviewHeadline] = useState("");
   const [reviewBody, setReviewBody] = useState("");
+  const [reviewRating, setReviewRating] = useState<OutletRating | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const reviewDialogRef = useRef<HTMLDivElement>(null);
+  const reviewTriggerRef = useRef<HTMLElement | null>(null);
   const [isSavingReview, setIsSavingReview] = useState(false);
   const feedbackRef = useRef<HTMLDivElement>(null);
 
@@ -261,14 +270,54 @@ export function CatalogCurationWorkspace({
   }
 
   function openReview(game: CurationGame) {
+    reviewTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     setReviewGame(game);
+    setReviewError(null);
     setReviewHeadline(game.outlet_review?.headline ?? "");
     setReviewBody(game.outlet_review?.body ?? "");
+    setReviewRating(game.outlet_review?.rating ?? null);
   }
 
+  useEffect(() => {
+    if (!reviewGame) return;
+    const trigger = reviewTriggerRef.current;
+    const dialog = reviewDialogRef.current;
+    dialog
+      ?.querySelector<HTMLElement>("button, input, select, textarea")
+      ?.focus();
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSavingReview) setReviewGame(null);
+      if (event.key !== "Tab" || !dialog) return;
+      const controls = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
+        ),
+      );
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      trigger?.focus();
+    };
+  }, [reviewGame, isSavingReview]);
+
   async function saveReview() {
-    if (!data || !reviewGame || !reviewBody.trim()) return;
+    if (!data || !reviewGame || (!reviewBody.trim() && reviewRating === null))
+      return;
     setIsSavingReview(true);
+    setReviewError(null);
     try {
       const response = await fetch(
         `/api/v1/stores/${storeSlug}/game-editorials/${reviewGame.slug}`,
@@ -278,11 +327,21 @@ export function CatalogCurationWorkspace({
           body: JSON.stringify({
             headline: reviewHeadline.trim() || null,
             body: reviewBody.trim(),
+            rating: reviewRating,
             expected_draft_revision: data.draft_revision,
           }),
         },
       );
       const body = await response.json().catch(() => null);
+      if (response.status === 409) {
+        setReviewGame(null);
+        setFeedback({
+          tone: "error",
+          message: t(
+            "This draft changed elsewhere. We reloaded the latest version.",
+          ),
+        });
+      }
       if (!response.ok) throw new Error(body?.message || "Review save failed");
       await refreshCatalogState();
       setReviewGame(null);
@@ -294,13 +353,12 @@ export function CatalogCurationWorkspace({
       });
     } catch (saveError) {
       await refreshCatalogState();
-      setFeedback({
-        tone: "error",
-        message: translateError(
+      setReviewError(
+        translateError(
           saveError instanceof Error ? saveError.message : undefined,
           "The review could not be saved.",
         ),
-      });
+      );
     } finally {
       setIsSavingReview(false);
     }
@@ -309,6 +367,7 @@ export function CatalogCurationWorkspace({
   async function deleteReview() {
     if (!data || !reviewGame?.outlet_review) return;
     setIsSavingReview(true);
+    setReviewError(null);
     try {
       const response = await fetch(
         `/api/v1/stores/${storeSlug}/game-editorials/${reviewGame.slug}`,
@@ -331,13 +390,12 @@ export function CatalogCurationWorkspace({
       });
     } catch (deleteError) {
       await refreshCatalogState();
-      setFeedback({
-        tone: "error",
-        message: translateError(
+      setReviewError(
+        translateError(
           deleteError instanceof Error ? deleteError.message : undefined,
           "The review could not be removed.",
         ),
-      });
+      );
     } finally {
       setIsSavingReview(false);
     }
@@ -853,13 +911,9 @@ export function CatalogCurationWorkspace({
                     key={game.slug}
                     className="flex min-w-44 max-w-56 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] p-2"
                   >
-                    <div
+                    <GameArtwork
+                      src={game.media?.banner}
                       className="h-9 w-14 shrink-0 rounded-lg bg-[#281d39]"
-                      style={{
-                        background: game.media?.banner
-                          ? `url(${game.media.banner}) center/cover no-repeat`
-                          : undefined,
-                      }}
                     />
                     <span className="min-w-0 flex-1 truncate text-xs font-black text-white/75">
                       {game.title}
@@ -1045,15 +1099,12 @@ export function CatalogCurationWorkspace({
                           : "border-white/[0.09] hover:border-white/20"
                       }`}
                     >
-                      <div
-                        className="relative aspect-[16/9] overflow-hidden bg-[#241a31]"
-                        style={{
-                          background: game.media?.banner
-                            ? `linear-gradient(to top, rgba(11,8,18,.82), transparent 58%), url(${game.media.banner}) center/cover no-repeat`
-                            : "linear-gradient(135deg, #281d39, #120e19)",
-                        }}
-                      >
-                        <label className="absolute left-3 top-3 flex cursor-pointer items-center gap-2 rounded-xl border border-white/15 bg-black/65 px-2.5 py-2 text-xs font-black text-white shadow-lg backdrop-blur-md">
+                      <GameArtwork
+                        src={game.media?.banner}
+                        className="aspect-[16/9]"
+                      />
+                      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/[0.07] p-3">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/15 bg-black/65 px-2.5 py-2 text-xs font-black text-white shadow-lg backdrop-blur-md">
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -1068,7 +1119,7 @@ export function CatalogCurationWorkspace({
                           />
                           {isSelected ? t("Selected") : t("Select")}
                         </label>
-                        <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] backdrop-blur-md ${
                               game.in_outlet
@@ -1120,6 +1171,9 @@ export function CatalogCurationWorkspace({
                           </span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">
+                          <OutletRatingBadge
+                            rating={game.outlet_review?.rating}
+                          />
                           {game.is_new_release && (
                             <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-sky-200">
                               {t("New release")}
@@ -1187,6 +1241,7 @@ export function CatalogCurationWorkspace({
       </div>
       {reviewGame && (
         <div
+          ref={reviewDialogRef}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-5"
           role="dialog"
           aria-modal="true"
@@ -1225,12 +1280,35 @@ export function CatalogCurationWorkspace({
                 <X size={18} />
               </button>
             </div>
+            <div className="mt-6">
+              {data?.rating_scale ? (
+                <OutletRatingInput
+                  scale={data.rating_scale}
+                  value={reviewRating}
+                  onChange={setReviewRating}
+                  label={t("Creator rating")}
+                  disabled={isSavingReview}
+                />
+              ) : (
+                <p className="text-sm leading-6 text-white/70">
+                  {t(
+                    "Configure a rating system in Outlet settings to add a score.",
+                  )}
+                </p>
+              )}
+              <p className="mt-3 text-sm text-white/60">
+                {t(
+                  "Write a review, add a rating, or both. Zero is a valid score.",
+                )}
+              </p>
+            </div>
             <label className="mt-6 block">
               <span className="text-xs font-black uppercase tracking-wider text-white/55">
                 {t("Headline (optional)")}
               </span>
               <input
                 value={reviewHeadline}
+                disabled={isSavingReview}
                 onChange={(event) => setReviewHeadline(event.target.value)}
                 maxLength={120}
                 className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 font-bold text-white outline-none focus:border-violet-400/60"
@@ -1245,10 +1323,10 @@ export function CatalogCurationWorkspace({
               </span>
               <textarea
                 value={reviewBody}
+                disabled={isSavingReview}
                 onChange={(event) => setReviewBody(event.target.value)}
                 maxLength={2000}
                 rows={8}
-                autoFocus
                 className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/20 p-4 text-sm font-semibold leading-6 text-white outline-none focus:border-violet-400/60"
               />
               <span className="mt-1 block text-right text-[10px] font-bold text-white/30">
@@ -1260,6 +1338,11 @@ export function CatalogCurationWorkspace({
                 )}
               </span>
             </label>
+            {reviewError && (
+              <p role="alert" className="mt-4 text-sm text-rose-200">
+                {reviewError}
+              </p>
+            )}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
               <div>
                 {reviewGame.outlet_review && (
@@ -1285,7 +1368,10 @@ export function CatalogCurationWorkspace({
                 <button
                   type="button"
                   onClick={saveReview}
-                  disabled={isSavingReview || !reviewBody.trim()}
+                  disabled={
+                    isSavingReview ||
+                    (!reviewBody.trim() && reviewRating === null)
+                  }
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 text-sm font-black text-white hover:bg-violet-400 disabled:opacity-50"
                 >
                   {isSavingReview && (

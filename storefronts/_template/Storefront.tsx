@@ -1,4 +1,7 @@
 import Form from "next/form";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { Pagination } from "components/Pagination";
 import Link from "next/link";
 
 import type { StorefrontViewProps } from "components/storefront/types";
@@ -41,6 +44,10 @@ export function TemplateStorefront({
   browseHref,
   searchAction,
   searchHiddenFields,
+  ratingFilter,
+  setRatingFilter,
+  pagination,
+  setPage,
 }: StorefrontViewProps) {
   const { t } = useI18n();
   return (
@@ -69,6 +76,7 @@ export function TemplateStorefront({
               className="rounded-3xl border border-sf-border bg-sf-surface p-6 min-h-40 flex flex-col justify-end"
             >
               <h2 className="text-2xl font-black">{game.title}</h2>
+              <OutletRatingBadge rating={game.outlet_review?.rating} />
               {game.recommendation_reason && (
                 <p className="line-clamp-2 text-sm text-sf-muted">
                   {game.recommendation_reason}
@@ -82,6 +90,11 @@ export function TemplateStorefront({
         </section>
       )}
 
+      <OutletRatingFilter
+        scale={store.rating_scale ?? null}
+        filter={ratingFilter}
+        onChange={setRatingFilter}
+      />
       {/* Required: search. */}
       <Form action={searchAction} className="w-full md:w-96">
         {Object.entries(searchHiddenFields).map(([name, value]) => (
@@ -140,6 +153,7 @@ export function TemplateStorefront({
             >
               <div className="min-w-0">
                 <h3 className="text-xl font-black truncate">{game.title}</h3>
+                <OutletRatingBadge rating={game.outlet_review?.rating} />
                 <p className="text-sf-muted text-sm truncate">
                   {(game.tags || []).join(", ")}
                 </p>
@@ -155,6 +169,7 @@ export function TemplateStorefront({
           </p>
         )}
       </section>
+      <Pagination pagination={pagination} onPageChange={setPage} />
     </main>
   );
 }

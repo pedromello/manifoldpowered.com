@@ -20,6 +20,7 @@ const PUBLIC_STORE_FIELDS = [
   "published_at",
   "storefront_source",
   "published_revision",
+  "rating_scale",
   "created_at",
   "updated_at",
 ].sort();

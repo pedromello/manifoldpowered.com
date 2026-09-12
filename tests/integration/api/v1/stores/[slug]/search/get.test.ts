@@ -87,6 +87,7 @@ describe("GET /api/v1/stores/[slug]/search", () => {
             outlet_review: {
               headline: "Search headline",
               body: "Review frozen into the public search snapshot.",
+              rating: null,
             },
           }),
           expect.objectContaining({

@@ -73,6 +73,7 @@ export function Storefront({
     browsePath,
     searchPagePath,
     storeSlug: store?.slug,
+    ratingScale: store?.rating_scale,
     isPreview,
   });
 

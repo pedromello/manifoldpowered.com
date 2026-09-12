@@ -1,9 +1,13 @@
 import Form from "next/form";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { Pagination } from "components/Pagination";
 import Link from "next/link";
 
 import { useStorefrontTrending } from "components/storefront/useStorefrontExtras";
 import type { StorefrontViewProps } from "components/storefront/types";
 import type { GameApi } from "components/store/types";
+import { GameArtwork } from "components/store/GameArtwork";
 import {
   formatCatalogBasePrice,
   formatCatalogPrice,
@@ -53,31 +57,28 @@ function Tile({
     <Link
       href={href}
       data-storefront="game-link"
-      // `block` matters: next/link renders an <a>, which is inline by default,
-      // and the shrink-to-fit width collapses the caption to a sliver.
-      className={`group relative block h-full overflow-hidden border border-sf-border bg-sf-surface transition-all duration-300 hover:border-sf-accent ${
-        large ? "min-h-[22rem]" : "min-h-[13rem]"
+      className={`group grid h-full min-w-0 overflow-hidden border border-sf-border bg-sf-surface transition-colors duration-300 hover:border-sf-accent ${
+        large
+          ? "min-h-[22rem] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+          : "min-h-[13rem]"
       }`}
       style={{ clipPath: "polygon(0 0, 100% 0, 100% 88%, 94% 100%, 0 100%)" }}
     >
-      <div
-        className="absolute inset-0 opacity-40 transition-transform duration-700 group-hover:scale-105"
-        style={{
-          background: game.media?.banner
-            ? `url(${game.media.banner}) center/cover no-repeat`
-            : "linear-gradient(140deg, #0b1220 0%, #05060a 70%)",
-        }}
+      <GameArtwork
+        src={game.media?.banner}
+        loading={large ? "eager" : "lazy"}
+        className={`aspect-[16/9] w-full ${large ? "md:aspect-auto" : ""}`}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#05060a] via-[#05060a]/60 to-transparent" />
 
-      <div className="relative h-full flex flex-col justify-end gap-2 p-5">
+      <div className="flex min-w-0 flex-col justify-center gap-2 bg-sf-surface p-5">
         <h3
           className={`font-black uppercase leading-none tracking-tight ${
-            large ? "text-3xl md:text-5xl" : "text-xl"
+            large ? "text-3xl" : "text-xl"
           }`}
         >
           {game.title}
         </h3>
+        <OutletRatingBadge rating={game.outlet_review?.rating} />
         {game.recommendation_reason && (
           <p className="line-clamp-2 text-sm font-semibold leading-relaxed text-sf-fg/80">
             {game.recommendation_reason}
@@ -107,6 +108,10 @@ export function NeonAlleyStorefront({
   browseHref,
   searchAction,
   searchHiddenFields,
+  ratingFilter,
+  setRatingFilter,
+  pagination,
+  setPage,
 }: StorefrontViewProps) {
   const { t } = useI18n();
   const trending = useStorefrontTrending(store.slug, 4);
@@ -177,11 +182,13 @@ export function NeonAlleyStorefront({
               placeholder={t("Search the alley")}
               className="w-full bg-transparent border-b-2 border-sf-border focus:border-sf-accent px-1 py-3 text-sf-fg placeholder:text-sf-muted outline-none transition-colors font-bold"
             />
-            {activeCategory && (
-              <input type="hidden" name="category" value={activeCategory} />
-            )}
           </Form>
 
+          <OutletRatingFilter
+            scale={store.rating_scale ?? null}
+            filter={ratingFilter}
+            onChange={setRatingFilter}
+          />
           <nav data-storefront="filters" className="flex flex-col">
             <span className="text-[10px] uppercase tracking-[0.35em] text-sf-accent font-black mb-3">
               {t("Channels")}
@@ -195,6 +202,7 @@ export function NeonAlleyStorefront({
                   key={category}
                   href={browseHref({
                     category: category === "For You" ? null : category,
+                    page: 1,
                   })}
                   className={`py-2 font-black uppercase tracking-wide text-sm border-l-2 pl-3 transition-all ${
                     isActive
@@ -247,6 +255,9 @@ export function NeonAlleyStorefront({
               {t("Nothing on this channel")}
             </p>
           )}
+          <div className="col-span-full">
+            <Pagination pagination={pagination} onPageChange={setPage} />
+          </div>
         </div>
       </section>
     </main>

@@ -1,4 +1,5 @@
 import { prisma } from "infra/database";
+import { ratingFromStorage } from "contracts/outlet-rating";
 import { z } from "zod";
 import {
   ConflictError,
@@ -159,6 +160,7 @@ export type StorefrontStore = Pick<
   | "cover_url"
   | "social_links"
   | "brand_tokens"
+  | "rating_scale"
   | "created_at"
   | "updated_at"
 > & {
@@ -480,6 +482,7 @@ function projectPublishedStore(
     slug: storeRow.slug,
     name: revision.name,
     description: revision.description,
+    rating_scale: revision.rating_scale,
     logo_url: revision.logo_url,
     owner_id: storeRow.owner_id,
     status: storeRow.status,
@@ -524,7 +527,13 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
       prisma.storeGameEditorial.findMany({
         where: { store_id: storeRow.id },
         orderBy: [{ game_id: "asc" }],
-        select: { game_id: true, headline: true, body: true },
+        select: {
+          game_id: true,
+          headline: true,
+          body: true,
+          rating_scale: true,
+          rating_value: true,
+        },
       }),
       storeRow.published_revision_id
         ? prisma.storeRevision.findFirst({
@@ -550,6 +559,7 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
     slug: storeRow.slug,
     name: storeRow.name,
     description: storeRow.description,
+    rating_scale: storeRow.rating_scale,
     logo_url: storeRow.logo_url,
     owner_id: storeRow.owner_id,
     status: storeRow.status,
@@ -583,7 +593,12 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
             catalog_mode: catalog.catalog_mode,
           },
     featured_games_snapshot: featuredGames,
-    game_editorials_snapshot: gameEditorials,
+    game_editorials_snapshot: gameEditorials.map((review) => ({
+      game_id: review.game_id,
+      headline: review.headline,
+      body: review.body,
+      rating: ratingFromStorage(review),
+    })),
   };
 }
 

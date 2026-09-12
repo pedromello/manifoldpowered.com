@@ -10,6 +10,7 @@ import store from "models/store";
 import storeCuration from "models/store_curation";
 import storefrontPricing from "models/storefront_pricing";
 import storeGameEditorial from "models/store_game_editorial";
+import { filterStorefrontEditorial } from "models/storefront_editorial";
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -111,12 +112,10 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
             : "RULE_OR_CATALOG",
       is_editorial: Boolean(featured),
       recommendation_reason: featured?.recommendation_reason ?? null,
-      outlet_review: reviews.get(catalogGame.id)
-        ? {
-            headline: reviews.get(catalogGame.id)!.headline,
-            body: reviews.get(catalogGame.id)!.body,
-          }
-        : null,
+      outlet_review: filterStorefrontEditorial(
+        req.context.user,
+        reviews.get(catalogGame.id),
+      ),
       editorial_position: featured?.position ?? null,
       sales_count: catalogPage.sales_by_game_id.get(catalogGame.id) ?? 0,
       is_new_release:
@@ -147,6 +146,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     currency,
     catalog_mode: state.catalog_mode,
     draft_revision: state.draft_revision,
+    rating_scale: foundStore.rating_scale,
     totals: catalogPage.totals,
     facets: catalogPage.facets,
     readiness,

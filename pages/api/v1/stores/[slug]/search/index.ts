@@ -7,6 +7,11 @@ import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
 import storeGameEditorial from "models/store_game_editorial";
+import { filterStorefrontEditorial } from "models/storefront_editorial";
+import {
+  getOutletRatingWhere,
+  parseOutletRatingFilter,
+} from "models/store_rating_filter";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -28,6 +33,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { order, sort_by, ...rest } = result.data;
+  const ratingFilter = parseOutletRatingFilter(req.query);
 
   const foundStore = await store.findOneForStorefront(slug as string, {
     preview,
@@ -35,6 +41,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   });
   const curationWhere =
     await store.getStorefrontCurationWhereClause(foundStore);
+  const ratingWhere = await getOutletRatingWhere(foundStore, ratingFilter);
 
   const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
@@ -44,7 +51,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     locale,
     ...rest,
     order: sort_by ?? order ?? "newest",
-    curationWhere,
+    curationWhere: { AND: [curationWhere, ratingWhere] },
   });
 
   const context = await storefrontPricing.contextFor(currency, games, req);
@@ -67,12 +74,10 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({
     games: pricedGames.map((catalogGame) => ({
       ...catalogGame,
-      outlet_review: reviews.get(catalogGame.id)
-        ? {
-            headline: reviews.get(catalogGame.id)!.headline,
-            body: reviews.get(catalogGame.id)!.body,
-          }
-        : null,
+      outlet_review: filterStorefrontEditorial(
+        req.context.user,
+        reviews.get(catalogGame.id),
+      ),
     })),
     pagination,
     currency,

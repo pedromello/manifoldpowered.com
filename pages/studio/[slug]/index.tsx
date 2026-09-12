@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -293,8 +294,6 @@ function StudioGameCard({ game }: { game: GameApi }) {
   const { locale, t } = useI18n();
 
   const free = isCatalogFree(game);
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   const launchDate = new Date(game.launch_date).toLocaleDateString(locale, {
     month: "short",
@@ -311,14 +310,7 @@ function StudioGameCard({ game }: { game: GameApi }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#14101c]">
-      <div
-        className="aspect-[16/9] w-full"
-        style={{
-          background: game.media.banner
-            ? `url(${game.media.banner}) center/cover no-repeat`
-            : defaultGradient,
-        }}
-      />
+      <GameArtwork src={game.media.banner} className="aspect-[16/9] w-full" />
 
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
