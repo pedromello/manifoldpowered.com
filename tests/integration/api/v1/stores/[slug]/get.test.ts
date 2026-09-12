@@ -47,6 +47,7 @@ describe("GET /api/v1/stores/[slug]", () => {
         status: "PUBLISHED",
         published_at: createdStore.published_at?.toISOString(),
         storefront_source: "REVISION",
+        rating_scale: null,
         published_revision: {
           id: createdStore.published_revision_id,
           revision: 1,

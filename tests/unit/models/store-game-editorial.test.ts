@@ -22,6 +22,7 @@ describe("Outlet game editorial input", () => {
     expect(
       storeGameEditorialInputSchema.safeParse({
         body: " ",
+        rating: null,
         expected_draft_revision: 1,
       }).success,
     ).toBe(false);
@@ -31,6 +32,26 @@ describe("Outlet game editorial input", () => {
         expected_draft_revision: 1,
       }).success,
     ).toBe(false);
+  });
+
+  test("accepts a note-only draft and defers omitted-rating validation to the existing record", () => {
+    expect(
+      storeGameEditorialInputSchema.parse({
+        rating: { scale: "STARS", value: 0 },
+        expected_draft_revision: 1,
+      }),
+    ).toEqual({
+      headline: null,
+      body: "",
+      rating: { scale: "STARS", value: 0 },
+      expected_draft_revision: 1,
+    });
+    expect(
+      storeGameEditorialInputSchema.safeParse({
+        body: "",
+        expected_draft_revision: 1,
+      }).success,
+    ).toBe(true);
   });
 
   test("requires optimistic concurrency for deletion", () => {

@@ -48,6 +48,7 @@ describe("GET /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
       review: {
         headline: "Published headline",
         body: "Published review body.",
+        rating: null,
       },
     });
 
@@ -66,6 +67,7 @@ describe("GET /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
       review: {
         headline: "Draft headline",
         body: "Draft review body.",
+        rating: null,
       },
     });
 

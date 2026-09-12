@@ -4,6 +4,7 @@ import { Calendar, ChevronDown, Download } from "lucide-react";
 
 import { DownloadSection, type GameFile } from "./DownloadSection";
 import type { GameApi } from "components/store/types";
+import { GameArtwork } from "components/store/GameArtwork";
 import { useI18n } from "lib/i18n";
 
 export function LibraryGameCard({
@@ -58,19 +59,10 @@ export function LibraryGameCard({
   return (
     <article className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#14101c] transition-colors hover:border-white/20">
       <div className="flex flex-col sm:flex-row">
-        <div className="aspect-[920/430] w-full shrink-0 overflow-hidden bg-[#21182f] sm:w-52">
-          {game.media?.banner ? (
-            // Game banners may be hosted outside Next's image allowlist.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={game.media.banner}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,#28183b,#15101d)]" />
-          )}
-        </div>
+        <GameArtwork
+          src={game.media?.banner}
+          className="aspect-[920/430] w-full shrink-0 sm:w-52"
+        />
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-5 p-5">
           <div className="min-w-0">

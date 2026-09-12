@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -323,13 +324,9 @@ export default function StudioOwnershipClaimsPage() {
                             : "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
                         }`}
                       >
-                        <div
-                          className="h-14 w-24 shrink-0 rounded-lg bg-white/5 bg-cover bg-center"
-                          style={
-                            game.media.banner
-                              ? { backgroundImage: `url(${game.media.banner})` }
-                              : undefined
-                          }
+                        <GameArtwork
+                          src={game.media.banner}
+                          className="h-14 w-24 shrink-0 rounded-lg"
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-black">{game.title}</p>

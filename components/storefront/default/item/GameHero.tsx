@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { ReviewSummary } from "components/store/ReviewSummary";
+import { GameArtwork } from "components/store/GameArtwork";
 import type { GameDetailApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
 
@@ -61,17 +62,12 @@ export function GameHero({
           />
         </div>
 
-        {game.media.banner && (
-          <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-white/10 bg-[#14101c]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={game.media.banner}
-              alt={t("{title} cover", { title: game.title })}
-              className="h-full w-full object-cover"
-            />
-            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.04]" />
-          </div>
-        )}
+        <GameArtwork
+          src={game.media.banner}
+          alt={t("{title} cover", { title: game.title })}
+          loading="eager"
+          className="aspect-[16/9] rounded-xl border border-white/10"
+        />
       </div>
     </section>
   );

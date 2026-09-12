@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import { type KeyboardEvent, useId, useState } from "react";
 import useSWR from "swr";
 import { Search, Loader2 } from "lucide-react";
@@ -54,8 +55,6 @@ export function GameAutocomplete({
     hasInteractiveSuggestions && activeIndex >= 0 && suggestions[activeIndex]
       ? `${listboxId}-option-${activeIndex}`
       : undefined;
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   function handleSelect(game: GameApi) {
     onSelect(game);
@@ -188,14 +187,10 @@ export function GameAutocomplete({
                   activeIndex === index ? "bg-white/10" : ""
                 }`}
               >
-                <div
+                <GameArtwork
+                  src={game.media.banner}
                   aria-hidden="true"
                   className="h-10 aspect-[16/9] rounded-lg shrink-0 border border-white/5"
-                  style={{
-                    background: game.media.banner
-                      ? `url(${game.media.banner}) center/cover no-repeat`
-                      : defaultGradient,
-                  }}
                 />
                 <span className="font-bold text-white text-sm truncate">
                   {game.title}

@@ -259,19 +259,19 @@ model GameLocalization {
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
 model NintendoRefresh {
-  id                String   @id @default(uuid())
-  identity          String   @unique
+  id                String    @id @default(uuid())
+  identity          String    @unique
   game_id           String?
-  state             String   @default("IDLE")
+  state             String    @default("IDLE")
   last_completed_at DateTime?
   next_allowed_at   DateTime?
   lease_token       String?
   lease_expires_at  DateTime?
   error_name        String?
   error_message     String?
-  regional_outcomes Json     @default("{}")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@index([game_id])
   @@index([lease_expires_at])
@@ -292,19 +292,19 @@ model NintendoImportAttempt {
 }
 
 model SteamRefresh {
-  id                String   @id @default(uuid())
-  steam_app_id      String   @unique @db.VarChar(20)
+  id                String    @id @default(uuid())
+  steam_app_id      String    @unique @db.VarChar(20)
   game_id           String?
-  state             String   @default("IDLE")
+  state             String    @default("IDLE")
   last_completed_at DateTime?
   next_allowed_at   DateTime?
   lease_token       String?
   lease_expires_at  DateTime?
   error_name        String?
   error_message     String?
-  regional_outcomes Json     @default("{}")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@index([lease_expires_at])
   @@map("steam_refreshes")
@@ -555,6 +555,12 @@ enum StoreStatus {
   PUBLISHED
 }
 
+enum OutletRatingScale {
+  STARS
+  NUMERIC_10
+  TIER
+}
+
 enum StoreLifecycleAction {
   PUBLISH
   UNPUBLISH
@@ -576,15 +582,16 @@ enum StoreRevisionCatalogMode {
 }
 
 model Store {
-  id                         String           @id @default(uuid())
-  name                       String           @db.VarChar(255)
-  slug                       String           @unique @db.VarChar(255)
-  description                String?          @db.Text
-  logo_url                   String?          @db.VarChar(2048)
+  id                         String             @id @default(uuid())
+  name                       String             @db.VarChar(255)
+  slug                       String             @unique @db.VarChar(255)
+  description                String?            @db.Text
+  logo_url                   String?            @db.VarChar(2048)
   owner_id                   String // Logical reference to User.id (creator/owner)
-  status                     StoreStatus      @default(DRAFT)
-  catalog_mode               StoreCatalogMode @default(UNDECIDED)
-  draft_revision             Int              @default(1)
+  status                     StoreStatus        @default(DRAFT)
+  catalog_mode               StoreCatalogMode   @default(UNDECIDED)
+  rating_scale               OutletRatingScale?
+  draft_revision             Int                @default(1)
   published_revision_id      String? // Logical reference to StoreRevision.id
   last_published_revision_id String? // Preserved after unpublish
   published_at               DateTime?
@@ -637,6 +644,7 @@ model StoreRevision {
   game_overrides        Json
   featured_games        Json
   game_editorials       Json                     @default("[]")
+  rating_scale          OutletRatingScale?
   presentation          Json
   // No updated_at: a published snapshot is immutable.
   created_at            DateTime                 @default(now())
@@ -803,18 +811,37 @@ model StoreFeaturedGame {
 // relationship, not to a Featured slot, so rearranging or removing highlights
 // never destroys the creator's long-form opinion.
 model StoreGameEditorial {
-  id         String   @id @default(uuid())
-  store_id   String // Logical reference to Store.id
-  game_id    String // Logical reference to Game.id
-  headline   String?  @db.VarChar(120)
-  body       String   @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id           String             @id @default(uuid())
+  store_id     String // Logical reference to Store.id
+  game_id      String // Logical reference to Game.id
+  headline     String?            @db.VarChar(120)
+  body         String             @db.Text
+  rating_scale OutletRatingScale?
+  // Numeric scales use half-point units; tiers use ascending rank (F=0).
+  rating_value Int?
+  created_at   DateTime           @default(now())
+  updated_at   DateTime           @updatedAt
 
   @@unique([store_id, game_id])
   @@index([store_id])
   @@index([game_id])
   @@map("store_game_editorials")
+}
+
+// Immutable, queryable rating projection written with its StoreRevision.
+// Logical references only; public reads require the published revision id.
+model StoreRevisionGameRating {
+  id           String            @id @default(uuid())
+  revision_id  String
+  game_id      String
+  rating_scale OutletRatingScale
+  rating_value Int
+  // No updated_at: published rating projections are immutable.
+  created_at   DateTime          @default(now())
+
+  @@unique([revision_id, game_id])
+  @@index([revision_id, rating_scale, rating_value, game_id], map: "store_revision_game_ratings_filter_idx")
+  @@map("store_revision_game_ratings")
 }
 
 model AdminActionLog {
