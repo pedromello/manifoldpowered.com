@@ -1,4 +1,5 @@
 export const ptBR: Record<string, string> = {
+  "Price unavailable": "Preço indisponível",
   "This region has a different Nintendo edition. Submit the link again.":
     "Esta região possui uma edição Nintendo diferente. Envie o link novamente.",
   "Partial controller support": "Compatibilidade parcial com controle",
@@ -310,6 +311,9 @@ export const ptBR: Record<string, string> = {
   "Use an HTTPS URL.": "Use uma URL HTTPS.",
   "View live": "Ver versão pública",
   "Warm Ember": "Âmbar quente",
+  "Crimson Red": "Vermelho vibrante",
+  "Catalog only": "Somente catálogo",
+  "Dark Burgundy": "Vinho escuro",
   "You have unsaved changes. Visitors still see the published version.":
     "Você tem alterações não salvas. Visitantes ainda veem a versão publicada.",
   X: "X",

@@ -28,6 +28,25 @@ export interface StorePersistenceBinding {
   fallbackLocales: string[];
   fallbackOnRefresh: boolean;
   createUnknownOffersOnRefresh: boolean;
+  preserveVideosWhenMissing?: boolean;
+}
+
+export function preserveMissingVideos(
+  media: Prisma.InputJsonObject,
+  previous: Prisma.JsonValue | undefined,
+) {
+  if (
+    !Array.isArray(media.videos) ||
+    media.videos.length > 0 ||
+    !previous ||
+    typeof previous !== "object" ||
+    Array.isArray(previous)
+  )
+    return media;
+  const videos = previous.videos;
+  return Array.isArray(videos) && videos.every((url) => typeof url === "string")
+    ? { ...media, videos }
+    : media;
 }
 
 export function createStorePersistence(binding: StorePersistenceBinding) {
@@ -44,6 +63,9 @@ export function createStorePersistence(binding: StorePersistenceBinding) {
     const fields = snapshot.fields;
     const data = {
       ...fields,
+      media: binding.preserveVideosWhenMissing
+        ? preserveMissingVideos(fields.media, previous?.media)
+        : fields.media,
       launch_date: fields.launch_date ?? previous?.launch_date ?? null,
       meta_tags: {
         ...fields.meta_tags,
