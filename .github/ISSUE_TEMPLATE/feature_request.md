@@ -19,4 +19,4 @@ labels: enhancement
 
 ## Additional context
 
-<!-- Anything else that helps explain the request. -->
+<!-- Anything else that helps explain the request. Do not include confidential partner identities or negotiation details. -->
