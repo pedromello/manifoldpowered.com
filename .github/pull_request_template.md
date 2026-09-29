@@ -21,4 +21,4 @@
 - [ ] `npm run lint:prettier:check` passes
 - [ ] `npm run test` passes
 - [ ] Added or updated tests where relevant
-- [ ] No confidential partner identity, negotiation details, credentials, or identifying clues appear in this PR or its commit history
+- [ ] This PR and its commit history do not reveal confidential partner identities, the existence or status of provider discussions, negotiation details, credentials, or identifying clues
