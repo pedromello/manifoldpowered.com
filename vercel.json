@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run prisma:generate && (if [ \"$VERCEL_ENV\" = \"production\" ]; then npm run migrate:deploy; fi) && npm run build"
+}
