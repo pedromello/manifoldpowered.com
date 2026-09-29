@@ -3,10 +3,10 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import store from "models/store";
 import game from "models/game";
-import storeCuration from "models/store_curation";
 import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
 import { z } from "zod";
+import { prepareStorefrontPreview } from "lib/storefront-preview";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -20,6 +20,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = req.query;
+  const preview = prepareStorefrontPreview(req, res);
 
   const result = listQuerySchema.safeParse(req.query);
 
@@ -31,10 +32,12 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const foundStore = await store.findOneBySlug(slug as string);
-  const curationWhere = await storeCuration.getCurationWhereClause(
-    foundStore.id,
-  );
+  const foundStore = await store.findOneForStorefront(slug as string, {
+    preview,
+    user: req.context.user,
+  });
+  const curationWhere =
+    await store.getStorefrontCurationWhereClause(foundStore);
 
   const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);

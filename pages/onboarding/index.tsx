@@ -45,10 +45,10 @@ export default function OnboardingHubPage() {
               <span className="w-fit rounded-xl bg-fuchsia-500/15 p-3 text-fuchsia-300">
                 <Store size={24} />
               </span>
-              <h2 className="text-2xl font-black">{t("I sell games")}</h2>
+              <h2 className="text-2xl font-black">{t("I create content")}</h2>
               <p className="text-white/60 font-bold flex-1">
                 {t(
-                  "Open an Outlet and earn by curating games for your audience.",
+                  "Turn the games you recommend into an Outlet your audience can recognize and revisit.",
                 )}
               </p>
               <Link

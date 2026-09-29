@@ -89,7 +89,11 @@ export default function StudioOwnershipClaimsPage() {
   }, [isLoadingStudios, router, studiosError]);
 
   useEffect(() => {
-    if (!requestedGame || requestedGame.ownership_status !== "UNCLAIMED") {
+    if (
+      !requestedGame ||
+      requestedGame.claimable === false ||
+      requestedGame.ownership_status !== "UNCLAIMED"
+    ) {
       return;
     }
     setSelectedGame(requestedGame);
@@ -131,6 +135,7 @@ export default function StudioOwnershipClaimsPage() {
     const searchResults = gamesData?.games ?? [];
     if (
       requestedGame?.ownership_status === "UNCLAIMED" &&
+      requestedGame.claimable !== false &&
       !searchResults.some((game) => game.id === requestedGame.id)
     ) {
       return [requestedGame, ...searchResults];

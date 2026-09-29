@@ -25,7 +25,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   // No owner_id filter: this returns every outlet, unlike the owner-scoped
   // GET /api/v1/stores. Powers the public "Discover other Outlets" browse.
-  const { stores, pagination } = await store.findAllPaginated({
+  const { stores, pagination } = await store.findAllPublishedPaginated({
     page,
     limit,
     q,

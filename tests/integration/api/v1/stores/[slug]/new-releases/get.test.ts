@@ -20,7 +20,9 @@ describe("GET /api/v1/stores/[slug]/new-releases", () => {
     test("Should order by launch date and apply curation rules", async () => {
       const owner = await orchestrator.createUser();
       await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+      const createdStore = await orchestrator.createStore(owner.id, {
+        catalog_mode: "ALL",
+      });
 
       const olderGame = await orchestrator.createGame(owner.id, {
         title: "Older Release",
@@ -48,6 +50,7 @@ describe("GET /api/v1/stores/[slug]/new-releases", () => {
         "horror",
         "BLACKLIST",
       );
+      await orchestrator.publishStore(createdStore.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/new-releases`,

@@ -1,4 +1,5 @@
 import orchestrator from "tests/orchestrator";
+import gameModel from "models/game";
 import webserver from "infra/webserver";
 import { version as uuidVersion } from "uuid";
 import { prisma } from "infra/database";
@@ -200,6 +201,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(game.id);
 
       const storeOwner = await orchestrator.createUser();
       await orchestrator.activateUser(storeOwner.id);

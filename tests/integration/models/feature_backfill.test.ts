@@ -3,7 +3,10 @@ import authorization from "models/authorization";
 import user from "models/user";
 import featureBackfill from "models/feature_backfill";
 import { MEMBER_PERMISSIONS as STUDIO_MEMBER_PERMISSIONS } from "models/studio";
-import { MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS } from "models/store";
+import {
+  MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS,
+  STORE_OWNER_FEATURES,
+} from "models/store";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -78,6 +81,9 @@ describe("models/feature_backfill.ts reconcileAll()", () => {
 
     const updatedOwner = await orchestrator.getUserById(owner.id);
     expect(updatedOwner.features).toContain("manage:store_featured_games");
+    expect(updatedOwner.features).toEqual(
+      expect.arrayContaining(STORE_OWNER_FEATURES),
+    );
 
     const unchangedUnrelated = await orchestrator.getUserById(unrelated.id);
     expect(unchangedUnrelated.features).not.toContain(

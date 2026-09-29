@@ -86,7 +86,12 @@ function countryFromRequest(req: NextApiRequest): string | null {
 function externalOfferCountryFromRequest(req: NextApiRequest): string | null {
   return (
     countryCodeFromHeader(req.headers[SSR_COUNTRY_HEADER]) ??
-    countryFromRequest(req)
+    countryFromRequest(req) ??
+    // Local previews have no Vercel geolocation. This opt-in affects only
+    // informational offers; production and Manifold checkout ignore it.
+    (process.env.NODE_ENV === "development"
+      ? countryCodeFromHeader(process.env.MANIFOLD_DEV_COUNTRY)
+      : null)
   );
 }
 

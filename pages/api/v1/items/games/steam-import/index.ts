@@ -1,24 +1,43 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { createRouter } from "next-connect";
+import type { NextApiRequest } from "next";
 import { z } from "zod";
-import controller from "infra/controller";
+import { createExternalImportController } from "infra/external_import_controller";
 import authorization from "models/authorization";
 import steamImport from "models/steam_import";
 import { ValidationError } from "infra/errors";
+import * as steamRefresh from "models/steam_refresh";
 
 const steamImportRequestSchema = z.object({
   steam_app_id: z
     .string()
+    .max(20)
     .regex(/^[1-9]\d*$/, "steam_app_id must be a positive integer string"),
 });
 
-export default createRouter<NextApiRequest, NextApiResponse>()
-  .use(controller.injectAnonymousOrUser)
-  .post(controller.canRequest("import:steam_game"), postHandler)
-  .handler(controller.errorHandlers);
+type SteamStatusReference = { operationId: string } | { steamAppId: string };
 
-async function postHandler(req: NextApiRequest, res: NextApiResponse) {
-  const result = steamImportRequestSchema.safeParse(req.body);
+export default createExternalImportController({
+  permission: "import:steam_game",
+  parseInput,
+  parseStatus,
+  importGame(input, actor) {
+    return steamImport.importGame({ ...actor, steamAppId: input.steam_app_id });
+  },
+  status(reference) {
+    return "operationId" in reference
+      ? steamRefresh.status(reference.operationId)
+      : steamRefresh.statusForApp(reference.steamAppId);
+  },
+  present(game, req) {
+    return authorization.filterOutput(
+      req.context.user,
+      "import:steam_game",
+      game,
+    );
+  },
+});
+
+function parseInput(value: unknown) {
+  const result = steamImportRequestSchema.safeParse(value);
 
   if (!result.success) {
     throw new ValidationError({
@@ -28,17 +47,21 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  const importResult = await steamImport.importGame({
-    userId: req.context.user.id!,
-    steamAppId: result.data.steam_app_id,
-    isAdmin: authorization.can(req.context.user, "read:game:any"),
-  });
+  return result.data;
+}
 
-  const secureOutputValues = authorization.filterOutput(
-    req.context.user,
-    "import:steam_game",
-    importResult.game,
-  );
-
-  return res.status(importResult.created ? 201 : 200).json(secureOutputValues);
+function parseStatus(query: NextApiRequest["query"]): SteamStatusReference {
+  if (
+    typeof query.operation_id === "string" &&
+    z.uuid().safeParse(query.operation_id).success
+  )
+    return { operationId: query.operation_id };
+  const input = steamImportRequestSchema.safeParse(query);
+  if (!input.success)
+    throw new ValidationError({
+      message: "Invalid Steam update request.",
+      action: "Check the operation or Steam app ID.",
+      context: input.error.issues,
+    });
+  return { steamAppId: input.data.steam_app_id };
 }

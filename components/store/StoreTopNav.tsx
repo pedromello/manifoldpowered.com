@@ -24,24 +24,51 @@ export type StoreNavContext = {
   logo_url?: string | null;
 };
 
-export function StoreTopNav({ store }: { store?: StoreNavContext }) {
+function withQuery(path: string, entries: Record<string, string | undefined>) {
+  const [pathname, existingQuery = ""] = path.split("?", 2);
+  const params = new URLSearchParams(existingQuery);
+  Object.entries(entries).forEach(([name, value]) => {
+    if (value === undefined) {
+      params.delete(name);
+    } else {
+      params.set(name, value);
+    }
+  });
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+export function StoreTopNav({
+  store,
+  visitorPreview = false,
+}: {
+  store?: StoreNavContext;
+  visitorPreview?: boolean;
+}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const { t, locale } = useI18n();
+  const isPreview = visitorPreview || router.query.preview === "1";
 
-  const storeHref = store ? `/store/${store.slug}` : "/store";
+  const previewQuery = isPreview && store ? "1" : undefined;
+  const storeHref = store
+    ? withQuery(`/store/${store.slug}`, { preview: previewQuery })
+    : "/store";
+  const searchResultsHref = store ? storeHref : "/search";
+
+  const searchParams = new URLSearchParams({
+    q: searchQuery.trim(),
+    limit: "5",
+  });
+  if (previewQuery) searchParams.set("preview", previewQuery);
   const searchEndpoint = store
     ? `/api/v1/stores/${store.slug}/search`
     : "/api/v1/games";
-  const searchResultsHref = store ? storeHref : "/search";
 
   const { data, isLoading } = useSWR<{ games: GameApi[] }>(
     searchQuery.trim()
-      ? withLocale(
-          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=5`,
-          locale,
-        )
+      ? withLocale(`${searchEndpoint}?${searchParams.toString()}`, locale)
       : null,
     (url) => fetch(url).then((res) => res.json()),
   );
@@ -51,9 +78,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       setIsFocused(false);
-      router.push(
-        `${searchResultsHref}?q=${encodeURIComponent(searchQuery.trim())}`,
-      );
+      router.push(withQuery(searchResultsHref, { q: searchQuery.trim() }));
     }
   };
 
@@ -61,8 +86,8 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
     "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-sf-bg/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-4 md:px-10">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 w-full">
+    <header className="fixed top-0 inset-x-0 z-50 bg-sf-bg/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-3 sm:px-4 md:px-10">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
         <div className="flex items-center gap-6">
           <Link
             href={storeHref}
@@ -116,10 +141,12 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
           </nav>
         </div>
 
-        <div className="relative flex-1 max-w-lg flex justify-end items-center gap-4">
+        <div className="relative flex-1 max-w-lg flex justify-end items-center gap-2 sm:gap-4">
           <div
             className={`relative w-full transition-all duration-300 ease-out ${
-              isFocused ? "max-w-full" : "max-w-[160px] md:max-w-[280px]"
+              isFocused
+                ? "max-w-full"
+                : "max-w-11 sm:max-w-[160px] md:max-w-[280px]"
             }`}
           >
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/30">
@@ -128,7 +155,7 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             <input
               type="text"
               placeholder={t("Search games...")}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-11 pr-5 py-2 md:py-3 text-base md:text-sm font-bold text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl pl-10 pr-2 py-2 text-base font-bold text-white outline-none transition-all duration-300 placeholder:text-transparent focus:bg-white/10 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] focus:border-white/20 sm:pl-11 sm:pr-5 sm:placeholder:text-white/30 md:py-3 md:text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -151,7 +178,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                       return (
                         <Link
                           key={game.id}
-                          href={itemHref(game.slug, store?.slug)}
+                          href={withQuery(itemHref(game.slug, store?.slug), {
+                            preview: previewQuery,
+                          })}
                           data-storefront="game-link"
                           className="flex items-center gap-4 px-4 py-2 transition-colors hover:bg-white/5"
                         >
@@ -199,7 +228,9 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
                     })}
                     <div className="px-4 py-2 mt-1 border-t border-white/5">
                       <Link
-                        href={`${searchResultsHref}?q=${encodeURIComponent(searchQuery)}`}
+                        href={withQuery(searchResultsHref, {
+                          q: searchQuery.trim(),
+                        })}
                         className="block w-full py-2 text-center rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
                       >
                         {t("View all results")}
@@ -217,8 +248,21 @@ export function StoreTopNav({ store }: { store?: StoreNavContext }) {
             )}
           </div>
 
-          <LanguageSwitcher compact />
-          <UserMenu />
+          {!isFocused && (
+            <>
+              <LanguageSwitcher compact />
+              {isPreview ? (
+                <Link
+                  href="/login"
+                  className="inline-flex h-10 items-center rounded-xl border border-white/10 px-3 text-xs font-bold text-white/70"
+                >
+                  {t("Log in")}
+                </Link>
+              ) : (
+                <UserMenu />
+              )}
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -22,6 +22,12 @@ module.exports = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "assets.nintendo.com",
+        port: "",
+        pathname: "/image/upload/**",
+      },
+      {
+        protocol: "https",
         hostname: "images.unsplash.com",
         port: "",
         pathname: "/**",

@@ -20,7 +20,7 @@ export interface PricedItem {
 
 export interface ExternalPricedItem {
   external_offer?: {
-    provider: "STEAM";
+    provider: "STEAM" | "NINTENDO";
     amount: string | null;
     original_amount?: string | null;
     discount_percent?: number | null;
@@ -112,7 +112,7 @@ export function formatExternalBasePrice(
 export function formatCatalogBasePrice(
   item: PricedItem & ExternalPricedItem & { purchase_mode: string },
 ): string | null {
-  return item.purchase_mode === "STEAM_ONLY"
+  return ["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)
     ? formatExternalBasePrice(item)
     : formatBasePrice(item);
 }
@@ -124,7 +124,7 @@ export function catalogDiscountLabel(
       discount_label?: string | null;
     },
 ): string | null {
-  if (item.purchase_mode === "STEAM_ONLY") {
+  if (["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)) {
     const percent = item.external_offer?.discount_percent;
     return percent && formatExternalBasePrice(item) ? `-${percent}%` : null;
   }
@@ -135,7 +135,7 @@ export function catalogDiscountLabel(
 export function isCatalogFree(
   item: PricedItem & ExternalPricedItem & { purchase_mode: string },
 ): boolean {
-  if (item.purchase_mode === "STEAM_ONLY") {
+  if (["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)) {
     const amount = item.external_offer?.amount;
     return amount !== null && amount !== undefined && Number(amount) === 0;
   }
@@ -149,6 +149,9 @@ export function formatCatalogPrice(
 ): string {
   if (item.purchase_mode === "STEAM_ONLY") {
     return formatExternalPrice(item) ?? "View on Steam";
+  }
+  if (item.purchase_mode === "NINTENDO_ONLY") {
+    return formatExternalPrice(item) ?? "Nintendo eShop";
   }
 
   if (item.purchase_mode !== "PLATFORM") {

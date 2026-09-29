@@ -1,4 +1,9 @@
 import { prisma } from "infra/database";
+import {
+  gameFeaturesSchema,
+  mergeGameFeatures,
+  steamFeatures,
+} from "lib/game_features";
 import { z } from "zod";
 import { NotFoundError, ValidationError } from "infra/errors";
 import { GameStatus, Prisma, ReviewScore } from "generated/prisma/client";
@@ -35,6 +40,7 @@ export const gameSchema = z.object({
       languages: z.array(z.string()).optional(),
       keywords: z.array(z.string()).optional(),
       platforms: z.array(z.string()).optional(),
+      features: gameFeaturesSchema.optional(),
     })
     .default({}),
   media: z
@@ -237,6 +243,7 @@ async function createUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[] = [],
   localization?: SteamLocalizationInput,
+  tx: Prisma.TransactionClient = prisma,
 ) {
   const slug = generateSlug(gameData.title);
   await validateUniqueSlug(slug);
@@ -245,7 +252,7 @@ async function createUnclaimedSteamGame(
     await validateVideoUrls(gameData.media.videos);
   }
 
-  return await prisma.game.create({
+  return await tx.game.create({
     data: {
       ...gameData,
       studio_id: null,
@@ -280,6 +287,7 @@ async function refreshUnclaimedSteamGame(
   gameData: SteamImportedGameData,
   externalOffers: SteamExternalOfferInput[],
   localization?: SteamLocalizationInput,
+  transaction?: Prisma.TransactionClient,
 ) {
   if (gameData.media.videos.length > 0) {
     await validateVideoUrls(gameData.media.videos);
@@ -289,13 +297,30 @@ async function refreshUnclaimedSteamGame(
     .omit({ steam_app_id: true, price: true, base_price: true })
     .parse(gameData);
 
-  return prisma.$transaction(async (tx) => {
+  const persist = async (tx: Prisma.TransactionClient) => {
+    const previous = await tx.game.findUniqueOrThrow({ where: { id } });
     const updatedGame = await tx.game.update({
       where: { id, status: "ONLY_DISPLAY", studio_id: null },
       data: {
         ...refreshData,
+        // Missing Steam price information must not erase the last valid price.
+        ...(gameData.steam_price == null
+          ? {
+              steam_price: previous.steam_price,
+              steam_original_price: previous.steam_original_price,
+              steam_price_currency: previous.steam_price_currency,
+              steam_discount_percent: previous.steam_discount_percent,
+              steam_price_captured_at: previous.steam_price_captured_at,
+            }
+          : {}),
         launch_date: new Date(refreshData.launch_date),
-        meta_tags: refreshData.meta_tags || {},
+        meta_tags: {
+          ...refreshData.meta_tags,
+          features: mergeGameFeatures(
+            previous.meta_tags,
+            refreshData.meta_tags.features ?? {},
+          ),
+        },
         media: refreshData.media || {},
         social_links: refreshData.social_links || {},
         requirements: refreshData.requirements || {},
@@ -303,6 +328,7 @@ async function refreshUnclaimedSteamGame(
     });
 
     for (const offer of externalOffers) {
+      if (offer.amount === null) continue;
       await tx.gameExternalOffer.upsert({
         where: {
           game_id_provider_country: {
@@ -325,7 +351,8 @@ async function refreshUnclaimedSteamGame(
     }
 
     return updatedGame;
-  });
+  };
+  return transaction ? persist(transaction) : prisma.$transaction(persist);
 }
 
 function generateSlug(title: string): string {
@@ -489,6 +516,7 @@ export function mapSteamAppToGameData(
     tags,
     meta_tags: {
       category: steamGame.genres?.[0]?.description,
+      features: steamFeatures(steamGame),
       rating: toAgeRatingLabel(steamGame.required_age),
       languages,
       platforms,
@@ -682,6 +710,7 @@ async function update(
           languages: z.array(z.string()).optional(),
           keywords: z.array(z.string()).optional(),
           platforms: z.array(z.string()).optional(),
+          features: gameFeaturesSchema.optional(),
         })
         .optional(),
       media: z
@@ -843,7 +872,10 @@ async function findAllPaginated({
     status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
   };
 
-  if (ownership_status === "UNCLAIMED") where.studio_id = null;
+  if (ownership_status === "UNCLAIMED") {
+    where.studio_id = null;
+    where.nintendo_nsuid = null;
+  }
   if (ownership_status === "CLAIMED") where.studio_id = { not: null };
 
   if (tags && tags.length > 0) {
@@ -856,7 +888,7 @@ async function findAllPaginated({
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
       { description: { contains: q, mode: "insensitive" } },
-      ...(locale === "pt-BR"
+      ...(locale
         ? [
             {
               localizations: {
@@ -913,7 +945,7 @@ async function findAllPaginated({
     title_asc: { title: "asc" },
     featured: [{ positive_reviews: "desc" }, { created_at: "desc" }],
     trending: [{ updated_at: "desc" }, { positive_reviews: "desc" }],
-    new_releases: [{ launch_date: "desc" }],
+    new_releases: [{ launch_date: { sort: "desc", nulls: "last" } }],
   };
 
   if (order === "title_asc" && locale === "pt-BR") {
@@ -1026,7 +1058,283 @@ async function findAllForSitemap() {
   });
 }
 
+async function findAllForCuration(priceableGameIds?: string[] | null) {
+  const andClauses: Prisma.GameWhereInput[] = [];
+  if (priceableGameIds !== null && priceableGameIds !== undefined) {
+    andClauses.push({
+      OR: [
+        { status: "ONLY_DISPLAY" },
+        { status: "ACTIVE", id: { in: priceableGameIds } },
+      ],
+    });
+  }
+
+  return prisma.game.findMany({
+    where: {
+      status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+      ...(andClauses.length > 0 && { AND: andClauses }),
+    },
+  });
+}
+
+type CurationCatalogStatus =
+  | "ALL"
+  | "IN_OUTLET"
+  | "OUTSIDE_OUTLET"
+  | "EDITORIAL"
+  | "NEW_RELEASES"
+  | "BEST_SELLERS";
+
+type CurationCatalogOrder = "TITLE_ASC" | "NEWEST" | "BEST_SELLING";
+
+function andGameWhere(
+  ...clauses: Array<Prisma.GameWhereInput | undefined>
+): Prisma.GameWhereInput {
+  const present = clauses.filter(
+    (clause): clause is Prisma.GameWhereInput =>
+      Boolean(clause) && Object.keys(clause ?? {}).length > 0,
+  );
+  return present.length > 0 ? { AND: present } : {};
+}
+
+/**
+ * Resolve the creator catalog page before the API decorates public game data.
+ *
+ * The previous endpoint loaded and priced every game, then filtered, sorted,
+ * counted and paginated in memory. This query keeps the response contract but
+ * only returns full records for the requested page. Totals are database counts;
+ * facets only select the small tags column; sales are grouped once for ranking
+ * and card metadata.
+ */
+async function findCurationCatalogPage({
+  storeId,
+  page,
+  limit,
+  q,
+  tag,
+  status,
+  order,
+  locale,
+  curationWhere,
+  featuredGameIds,
+  priceableGameIds,
+  newReleaseCutoff,
+}: {
+  storeId: string;
+  page: number;
+  limit: number;
+  q?: string;
+  tag?: string;
+  status: CurationCatalogStatus;
+  order: CurationCatalogOrder;
+  locale: AppLocale;
+  curationWhere: Prisma.GameWhereInput;
+  featuredGameIds: string[];
+  priceableGameIds?: string[] | null;
+  newReleaseCutoff: Date;
+}) {
+  const pricingWhere: Prisma.GameWhereInput | undefined = priceableGameIds
+    ? {
+        OR: [
+          { status: "ONLY_DISPLAY" },
+          { status: "ACTIVE", id: { in: priceableGameIds } },
+        ],
+      }
+    : undefined;
+  const baseWhere = andGameWhere(
+    { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
+    pricingWhere,
+  );
+
+  const saleRows = await prisma.sale.groupBy({
+    by: ["game_id"],
+    where: { store_id: storeId },
+    _count: { _all: true },
+  });
+  const salesByGameId = new Map(
+    saleRows.map((row) => [row.game_id, row._count._all]),
+  );
+  const bestSellerGameIds = saleRows.map((row) => row.game_id);
+
+  const searchWhere: Prisma.GameWhereInput | undefined = q
+    ? {
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+          { developer_name: { contains: q, mode: "insensitive" } },
+          ...(locale
+            ? [
+                {
+                  localizations: {
+                    some: {
+                      locale,
+                      OR: [
+                        {
+                          title: { contains: q, mode: "insensitive" as const },
+                        },
+                        {
+                          description: {
+                            contains: q,
+                            mode: "insensitive" as const,
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+      }
+    : undefined;
+  const tagWhere: Prisma.GameWhereInput | undefined = tag
+    ? { tags: { has: tag } }
+    : undefined;
+  const statusWhere: Prisma.GameWhereInput | undefined = (() => {
+    switch (status) {
+      case "IN_OUTLET":
+        return curationWhere;
+      case "OUTSIDE_OUTLET":
+        return { NOT: curationWhere };
+      case "EDITORIAL":
+        return { id: { in: featuredGameIds } };
+      case "NEW_RELEASES":
+        return { launch_date: { gte: newReleaseCutoff } };
+      case "BEST_SELLERS":
+        return { id: { in: bestSellerGameIds } };
+      default:
+        return undefined;
+    }
+  })();
+  const filteredWhere = andGameWhere(
+    baseWhere,
+    searchWhere,
+    tagWhere,
+    statusWhere,
+  );
+
+  const [all, inOutlet, editorial, newReleases, facetRows] = await Promise.all([
+    prisma.game.count({ where: baseWhere }),
+    prisma.game.count({ where: andGameWhere(baseWhere, curationWhere) }),
+    prisma.game.count({
+      where: andGameWhere(baseWhere, { id: { in: featuredGameIds } }),
+    }),
+    prisma.game.count({
+      where: andGameWhere(baseWhere, {
+        launch_date: { gte: newReleaseCutoff },
+      }),
+    }),
+    prisma.game.findMany({ where: baseWhere, select: { tags: true } }),
+  ]);
+  const bestSellers = await prisma.game.count({
+    where: andGameWhere(baseWhere, { id: { in: bestSellerGameIds } }),
+  });
+
+  let games;
+  let total;
+  if (order === "BEST_SELLING") {
+    // Prisma has no Sale relation because sale.game_id is intentionally a
+    // logical reference. Select only lightweight ranking fields, paginate the
+    // ranking, and fetch full records for that page afterwards.
+    const rankingRows = await prisma.game.findMany({
+      where: filteredWhere,
+      select: { id: true, title: true },
+    });
+    rankingRows.sort((left, right) => {
+      const salesDifference =
+        (salesByGameId.get(right.id) ?? 0) - (salesByGameId.get(left.id) ?? 0);
+      return salesDifference || left.title.localeCompare(right.title);
+    });
+    total = rankingRows.length;
+    const pageIds = rankingRows
+      .slice((page - 1) * limit, page * limit)
+      .map((row) => row.id);
+    const unorderedGames = await prisma.game.findMany({
+      where: { id: { in: pageIds } },
+    });
+    const byId = new Map(
+      unorderedGames.map((catalogGame) => [catalogGame.id, catalogGame]),
+    );
+    games = pageIds.flatMap((id) => {
+      const catalogGame = byId.get(id);
+      return catalogGame ? [catalogGame] : [];
+    });
+  } else {
+    const orderBy: Prisma.GameOrderByWithRelationInput =
+      order === "NEWEST" ? { created_at: "desc" } : { title: "asc" };
+    [games, total] = await Promise.all([
+      prisma.game.findMany({
+        where: filteredWhere,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.game.count({ where: filteredWhere }),
+    ]);
+  }
+
+  const [visibleRows, visibleFeaturedRows] = await Promise.all([
+    prisma.game.findMany({
+      where: andGameWhere(
+        { id: { in: games.map((catalogGame) => catalogGame.id) } },
+        curationWhere,
+      ),
+      select: { id: true },
+    }),
+    prisma.game.findMany({
+      where: andGameWhere({ id: { in: featuredGameIds } }, curationWhere),
+      select: { id: true },
+    }),
+  ]);
+  const facetsByKey = new Map<string, { tag: string; count: number }>();
+  for (const row of facetRows) {
+    for (const gameTag of row.tags) {
+      const key = gameTag.trim().toLowerCase();
+      if (!key) continue;
+      const current = facetsByKey.get(key);
+      facetsByKey.set(key, {
+        tag: current?.tag ?? gameTag,
+        count: (current?.count ?? 0) + 1,
+      });
+    }
+  }
+
+  return {
+    games,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+    totals: {
+      all,
+      in_outlet: inOutlet,
+      outside_outlet: all - inOutlet,
+      editorial,
+      new_releases: newReleases,
+      best_sellers: bestSellers,
+    },
+    facets: [...facetsByKey.values()].sort((left, right) =>
+      right.count === left.count
+        ? left.tag.localeCompare(right.tag)
+        : right.count - left.count,
+    ),
+    visible_ids: new Set(visibleRows.map((row) => row.id)),
+    visible_featured_ids: new Set(visibleFeaturedRows.map((row) => row.id)),
+    sales_by_game_id: salesByGameId,
+  };
+}
+
 async function setStatus(id: string, status: GameStatus) {
+  if (status === "ACTIVE") {
+    const existing = await prisma.game.findUnique({ where: { id } });
+    if (existing?.nintendo_nsuid)
+      throw new ValidationError({
+        message: "Nintendo games are catalog-only.",
+        action: "Keep this game as display-only or hide it.",
+      });
+  }
   return await prisma.game.update({
     where: {
       id,
@@ -1041,8 +1349,11 @@ async function makePublic(id: string) {
   return await setStatus(id, "ACTIVE");
 }
 
-function ensurePurchasable(gameResource: { status: GameStatus }) {
-  if (gameResource.status === "ONLY_DISPLAY") {
+function ensurePurchasable(gameResource: {
+  status: GameStatus;
+  nintendo_nsuid?: string | null;
+}) {
+  if (gameResource.nintendo_nsuid || gameResource.status === "ONLY_DISPLAY") {
     throw new ValidationError({
       message: "This game is not available for purchase on the platform.",
       action: "Open the external store page when one is available.",
@@ -1066,6 +1377,8 @@ const game = {
   findAllPaginated,
   findAllPaginatedAdmin,
   findAllForSitemap,
+  findAllForCuration,
+  findCurationCatalogPage,
   makePublic,
   setStatus,
   ensurePurchasable,

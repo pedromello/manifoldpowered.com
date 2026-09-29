@@ -16,19 +16,26 @@ import { resolveStorefront } from "storefronts/registry";
 export function StorefrontRouteLayout({
   children,
   store,
+  visitorPreview = false,
 }: {
   children: ReactNode;
   store: StoreContext;
+  visitorPreview?: boolean;
 }) {
   const resolution = resolveStorefront(store);
 
   if (resolution.kind === "standard") {
-    return <StoreHomeLayout>{children}</StoreHomeLayout>;
+    return (
+      <StoreHomeLayout visitorPreview={visitorPreview}>
+        {children}
+      </StoreHomeLayout>
+    );
   }
 
   return (
     <StoreLayout
       store={{ slug: store.slug, name: store.name, logo_url: store.logo_url }}
+      visitorPreview={visitorPreview}
     >
       {children}
     </StoreLayout>

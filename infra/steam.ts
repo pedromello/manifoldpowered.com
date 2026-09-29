@@ -22,6 +22,7 @@ export interface SteamAppDetailsData {
   screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
   genres?: { id: string; description: string }[];
   categories?: { id: number; description: string }[];
+  controller_support?: string;
   platforms?: { windows?: boolean; mac?: boolean; linux?: boolean };
   supported_languages?: string;
   website?: string;

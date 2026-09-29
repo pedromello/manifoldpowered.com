@@ -8,7 +8,7 @@ function localeForRequest(req: NextApiRequest): AppLocale {
 }
 
 async function forGames(gameIds: string[], locale: AppLocale) {
-  if (locale === "en" || gameIds.length === 0) {
+  if (gameIds.length === 0) {
     return new Map<string, GameLocalization>();
   }
 

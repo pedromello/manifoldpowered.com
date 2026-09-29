@@ -46,6 +46,7 @@ function props(
 
   return {
     store,
+    isPreview: false,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
@@ -57,8 +58,12 @@ function props(
     featured: [game],
     featuredMode: "EDITORIAL",
     isFeaturedLoading: false,
+    featuredError: false,
+    retryFeatured: () => undefined,
     games: [game],
     isLoading: false,
+    catalogError: false,
+    retryCatalog: () => undefined,
     currency: "USD",
     q: "",
     setQuery: jest.fn(),
@@ -74,6 +79,7 @@ function props(
     itemHref: (slug) => `/item/${slug}${storeQuery}`,
     browseHref: () => (store ? `/store/${store.slug}` : "/store"),
     searchAction: store ? `/store/${store.slug}` : "/search",
+    searchHiddenFields: {},
     showDiscover: !store,
   };
 }
@@ -88,6 +94,16 @@ describe("PlatformStorefrontHome", () => {
           name: "Outlet Teste 1",
           description: "Curadoria feita para esta comunidade.",
           logo_url: "https://example.com/outlet.png",
+          theme_key: null,
+          layout_preset: "channel",
+          tagline: "Jogos escolhidos ao vivo.",
+          cover_url: null,
+          social_links: {},
+          brand_tokens: {
+            palette: "manifold",
+            typography: "modern",
+            shape: "soft",
+          },
         })}
       />,
     );
@@ -116,6 +132,33 @@ describe("PlatformStorefrontHome", () => {
     expect(markup).toContain("Think Steam, but with creator-run storefronts.");
     expect(markup).toContain('action="/search"');
     expect(markup).not.toContain('data-storefront="follow-outlet"');
+  });
+
+  test("keeps draft preview context in the legacy classic search form", () => {
+    const previewProps = props({
+      id: "store-1",
+      slug: "classic-outlet",
+      name: "Classic Outlet",
+      description: null,
+      logo_url: null,
+      theme_key: null,
+      layout_preset: null,
+      tagline: null,
+      cover_url: null,
+      social_links: {},
+      brand_tokens: {
+        palette: "manifold",
+        typography: "modern",
+        shape: "soft",
+      },
+    });
+    previewProps.searchHiddenFields = { preview: "1" };
+
+    const markup = renderToStaticMarkup(
+      <PlatformStorefrontHome {...previewProps} />,
+    );
+
+    expect(markup).toContain('name="preview" value="1"');
   });
 
   test("renders a discounted Steam-only offer without a Steam suffix", () => {

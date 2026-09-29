@@ -8,8 +8,16 @@ import { useI18n } from "lib/i18n";
 
 export type ItemControllerOptions = {
   gameSlug: string;
-  /** The outlet this visit is attributed to, resolved server-side from `?store=`. */
+  /** Resolved public/preview Outlet used for back navigation and theming. */
   storeSlug?: string;
+  /**
+   * Original attacker-controlled `?store=` value. It deliberately survives a
+   * failed public Store projection so the library model can distinguish an
+   * unknown slug (leniently unattributed) from a known draft (rejected).
+   */
+  attributionStoreSlug?: string;
+  /** Authenticated working-draft preview; acquisition must stay inert. */
+  isPreview?: boolean;
 };
 
 export type ItemWishlist = {
@@ -49,6 +57,7 @@ export type ItemReviews = {
 };
 
 export type ItemControllerResult = {
+  isPreview: boolean;
   isLoggedOut: boolean;
   isInLibrary: boolean;
   isCheckingLibrary: boolean;
@@ -86,6 +95,16 @@ const okJson = async (res: Response) => {
 
 const fetchJson = (url: string) => fetch(url).then(okJson);
 
+export function itemAcquisitionBody(
+  gameSlug: string,
+  attributionStoreSlug?: string,
+) {
+  return {
+    slug: gameSlug,
+    store_slug: attributionStoreSlug,
+  };
+}
+
 /**
  * Everything the product page does beyond rendering: ownership, wishlist and
  * reviews, plus the acquisition itself.
@@ -98,6 +117,8 @@ const fetchJson = (url: string) => fetch(url).then(okJson);
 export function useItemController({
   gameSlug,
   storeSlug,
+  attributionStoreSlug = storeSlug,
+  isPreview = false,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
   const { t, translateError } = useI18n();
@@ -108,7 +129,7 @@ export function useItemController({
     error: libraryError,
     mutate: mutateLibrary,
   } = useSWR(
-    `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
+    isPreview ? null : `/api/v1/library?slug=${encodeURIComponent(gameSlug)}`,
     fetchJson,
     {
       shouldRetryOnError: false,
@@ -126,7 +147,7 @@ export function useItemController({
   );
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
-    `/api/v1/wishlists?slug=${gameSlug}`,
+    isPreview ? null : `/api/v1/wishlists?slug=${gameSlug}`,
     (url) => fetch(url).then((res) => res.json()),
   );
 
@@ -135,7 +156,7 @@ export function useItemController({
   const isLoggedOut =
     libraryError instanceof ApiRequestError &&
     (libraryError.status === 401 || libraryError.status === 403);
-  const isCheckingLibrary = !libraryData && !libraryError;
+  const isCheckingLibrary = !isPreview && !libraryData && !libraryError;
   const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
     hasJustAcquired ||
@@ -158,10 +179,15 @@ export function useItemController({
   const redeem = async () => {
     setAcquisitionError(null);
 
+    // Preview is a design/curation review surface, never a commerce surface.
+    // Keep this guard in the controller as well as the default button so a
+    // custom ItemPage cannot accidentally acquire a working-draft product.
+    if (isPreview) return;
+
     if (isLoggedOut) {
       router.push(
         `/login?callbackUrl=${encodeURIComponent(
-          withStore(`/item/${gameSlug}`, storeSlug),
+          withStore(`/item/${gameSlug}`, attributionStoreSlug, isPreview),
         )}`,
       );
       return;
@@ -174,7 +200,9 @@ export function useItemController({
       const res = await fetch("/api/v1/library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: gameSlug, store_slug: storeSlug }),
+        body: JSON.stringify(
+          itemAcquisitionBody(gameSlug, attributionStoreSlug),
+        ),
       });
 
       if (!res.ok) {
@@ -204,6 +232,7 @@ export function useItemController({
     message: string;
     recommended: boolean;
   }) => {
+    if (isPreview) return false;
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -241,6 +270,7 @@ export function useItemController({
     message: string;
     recommended: boolean;
   }) => {
+    if (isPreview) return false;
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -274,6 +304,7 @@ export function useItemController({
   };
 
   const removeReview = async () => {
+    if (isPreview) return false;
     setReviewActionError(null);
     setIsDeletingReview(true);
     try {
@@ -306,6 +337,7 @@ export function useItemController({
   };
 
   const toggleWishlist = async () => {
+    if (isPreview) return;
     if (!wishlistData || isToggling) return;
     setIsToggling(true);
 
@@ -342,6 +374,7 @@ export function useItemController({
   };
 
   return {
+    isPreview,
     isLoggedOut,
     isInLibrary,
     isCheckingLibrary,
@@ -368,11 +401,13 @@ export function useItemController({
     reviews: {
       // The viewer's own review is pinned separately by the view, so it is
       // filtered out of the general list here rather than in the markup.
-      list: (reviewsData?.reviews || []).filter(
-        (review) => review.id !== reviewsData?.user_review?.id,
-      ),
-      userReview: reviewsData?.user_review ?? null,
-      canReview: reviewsData?.can_review ?? false,
+      list: isPreview
+        ? reviewsData?.reviews || []
+        : (reviewsData?.reviews || []).filter(
+            (review) => review.id !== reviewsData?.user_review?.id,
+          ),
+      userReview: isPreview ? null : (reviewsData?.user_review ?? null),
+      canReview: !isPreview && (reviewsData?.can_review ?? false),
       summary: reviewsData?.summary
         ? {
             positiveReviews: reviewsData.summary.positive_reviews,
@@ -402,6 +437,8 @@ export function useItemController({
       clearError: () => setReviewActionError(null),
     },
 
-    backHref: storeSlug ? `/store/${storeSlug}` : "/store",
+    backHref: storeSlug
+      ? withStore(`/store/${storeSlug}`, undefined, isPreview)
+      : "/store",
   };
 }

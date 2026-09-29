@@ -17,13 +17,23 @@ jest.mock("components/store/StoreLayout", () => ({
   ),
 }));
 
-function store(slug: string): StoreContext {
+function store(slug: string, themeKey: string | null = null): StoreContext {
   return {
     id: `id-${slug}`,
     slug,
     name: slug,
     description: null,
     logo_url: null,
+    theme_key: themeKey,
+    layout_preset: "channel",
+    tagline: null,
+    cover_url: null,
+    social_links: {},
+    brand_tokens: {
+      palette: "manifold",
+      typography: "modern",
+      shape: "soft",
+    },
   };
 }
 
@@ -41,13 +51,26 @@ describe("StorefrontRouteLayout", () => {
 
   test("keeps an explicitly registered Outlet inside the custom shell", () => {
     const markup = renderToStaticMarkup(
-      <StorefrontRouteLayout store={store("strategos-void")}>
+      <StorefrontRouteLayout
+        store={store("renamed-strategos", "strategos-void")}
+      >
         <span>custom Outlet</span>
       </StorefrontRouteLayout>,
     );
 
     expect(markup).toContain('data-testid="custom-layout"');
-    expect(markup).toContain('data-store-slug="strategos-void"');
+    expect(markup).toContain('data-store-slug="renamed-strategos"');
     expect(markup).not.toContain('data-testid="platform-layout"');
+  });
+
+  test("keeps a forged bespoke slug in the platform shell", () => {
+    const markup = renderToStaticMarkup(
+      <StorefrontRouteLayout store={store("neon-alley")}>
+        <span>self-service Outlet</span>
+      </StorefrontRouteLayout>,
+    );
+
+    expect(markup).toContain('data-testid="platform-layout"');
+    expect(markup).not.toContain('data-testid="custom-layout"');
   });
 });

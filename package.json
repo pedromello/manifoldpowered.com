@@ -32,6 +32,7 @@
     "features:backfill": "tsx --env-file=.env.development scripts/backfill-features.ts",
     "features:backfill:ci": "tsx scripts/backfill-features.ts",
     "build": "next build",
+    "vercel:build": "tsx scripts/vercel-build.ts",
     "lint:prettier:check": "prettier --check .",
     "lint:prettier:fix": "prettier --write .",
     "lint:eslint:check": "eslint .",

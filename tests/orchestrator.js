@@ -20,6 +20,11 @@ import ledger from "models/ledger";
 import commercialTerms from "models/commercial_terms";
 import payoutAccount from "models/payout_account";
 import { Prisma } from "generated/prisma/client";
+import { resolveDraftPresentation } from "models/store_presentation";
+import {
+  createStoreRevision,
+  getReadyDraftSnapshot,
+} from "models/store_revision";
 
 const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
@@ -89,7 +94,8 @@ const clearDatabaseRows = async () => {
 const createUser = async (userDto = {}) => {
   return user.create({
     username:
-      userDto.username || faker.internet.username().replace(/[_.-]/g, ""),
+      userDto.username ||
+      faker.internet.username().replace(/[_.-]/g, "").slice(0, 30),
     email: userDto.email || faker.internet.email(),
     password:
       userDto.password !== undefined
@@ -221,10 +227,130 @@ const uniqueFakerName = () =>
 
 // Stores
 const createStore = async (ownerId, storeData = {}) => {
-  return store.create({
+  const createdStore = await store.create({
     name: storeData.name || uniqueFakerName(),
-    description: storeData.description || faker.lorem.sentence(),
+    description: storeData.description ?? faker.lorem.sentence(),
+    logo_url: storeData.logo_url,
+    layout_preset: storeData.layout_preset,
+    tagline: storeData.tagline,
+    cover_url: storeData.cover_url,
+    social_links: storeData.social_links,
+    brand_tokens: storeData.brand_tokens,
+    catalog_mode: storeData.catalog_mode,
     owner_id: ownerId,
+  });
+
+  if (storeData.draft === true || storeData.status === "DRAFT") {
+    if (storeData.catalog_mode) {
+      return database.prisma.store.update({
+        where: { id: createdStore.id },
+        data: { catalog_mode: storeData.catalog_mode },
+      });
+    }
+    return createdStore;
+  }
+
+  // Test-only compatibility fixture. Production store.create always returns a
+  // DRAFT/UNDECIDED row; legacy tests opt into a coherent live snapshot here.
+  return database.prisma.$transaction(async (transaction) => {
+    const now = new Date();
+    const revisionId = randomUUID();
+    await transaction.storeRevision.create({
+      data: {
+        id: revisionId,
+        store_id: createdStore.id,
+        revision: 1,
+        source_draft_revision: createdStore.draft_revision,
+        actor_user_id: ownerId,
+        catalog_mode: "LEGACY_ALL",
+        name: createdStore.name,
+        description: createdStore.description,
+        logo_url: createdStore.logo_url,
+        tag_filters: [],
+        game_overrides: [],
+        featured_games: [],
+        presentation: resolveDraftPresentation({
+          theme_key: createdStore.theme_key,
+          layout_preset: createdStore.layout_preset,
+          tagline: createdStore.tagline,
+          cover_url: createdStore.cover_url,
+          social_links: createdStore.social_links,
+          brand_tokens: createdStore.brand_tokens,
+        }),
+        created_at: now,
+      },
+    });
+    const publishedStore = await transaction.store.update({
+      where: { id: createdStore.id },
+      data: {
+        status: "PUBLISHED",
+        catalog_mode: storeData.catalog_mode || "ALL",
+        published_revision_id: revisionId,
+        last_published_revision_id: revisionId,
+        published_at: now,
+        last_published_at: now,
+      },
+    });
+    await transaction.storeLifecycleEvent.create({
+      data: {
+        store_id: createdStore.id,
+        store_revision_id: revisionId,
+        draft_revision: createdStore.draft_revision,
+        actor_user_id: ownerId,
+        action: "PUBLISH",
+        from_status: "DRAFT",
+        to_status: "PUBLISHED",
+        created_at: now,
+      },
+    });
+    return publishedStore;
+  });
+};
+
+// Explicitly freeze the current mutable draft into a new live revision. This
+// test-only compatibility fixture lets legacy endpoint suites exercise the
+// draft/live boundary without weakening production readiness checks or making
+// draft mutations visible through public reads.
+const publishStore = async (storeId, actorUserId) => {
+  return database.prisma.$transaction(async (transaction) => {
+    const existingStore = await transaction.store.findUniqueOrThrow({
+      where: { id: storeId },
+    });
+    const { draft } = await getReadyDraftSnapshot(storeId, transaction);
+    if (!draft) {
+      throw new Error(
+        "publishStore fixture requires an explicit ALL or SELECTED catalog mode",
+      );
+    }
+
+    const revision = await createStoreRevision({
+      draft,
+      actorUserId: actorUserId || existingStore.owner_id,
+      client: transaction,
+    });
+    const now = new Date();
+    const publishedStore = await transaction.store.update({
+      where: { id: storeId },
+      data: {
+        status: "PUBLISHED",
+        published_revision_id: revision.id,
+        last_published_revision_id: revision.id,
+        published_at: now,
+        last_published_at: now,
+      },
+    });
+    await transaction.storeLifecycleEvent.create({
+      data: {
+        store_id: storeId,
+        store_revision_id: revision.id,
+        draft_revision: existingStore.draft_revision,
+        actor_user_id: actorUserId || existingStore.owner_id,
+        action: "PUBLISH",
+        from_status: existingStore.status,
+        to_status: "PUBLISHED",
+      },
+    });
+    return publishedStore;
   });
 };
 
@@ -418,6 +544,7 @@ const orchestrator = {
   DO_NOT_FAKE_TIMERS_FOR_PRISMA,
   getFileDownloadUrl,
   createStore,
+  publishStore,
   addStoreMember,
   addStoreTagFilter,
   addStoreGameOverride,

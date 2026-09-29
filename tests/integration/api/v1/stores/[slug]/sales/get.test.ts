@@ -1,5 +1,6 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
+import gameModel from "models/game";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -39,6 +40,7 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const createdGame = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(createdGame.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -144,6 +146,7 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(game.id);
 
       const { responseBody, sale } = await saleAsSeenBy(
         outlet.store,
@@ -168,6 +171,8 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
       await orchestrator.activateUser(creator.id);
       const firstGame = await orchestrator.createGame(creator.id);
       const secondGame = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(firstGame.id);
+      await gameModel.makePublic(secondGame.id);
 
       await saleAsSeenBy(
         outlet.store,
@@ -199,6 +204,8 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
       await orchestrator.activateUser(creator.id);
       const firstGame = await orchestrator.createGame(creator.id);
       const secondGame = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(firstGame.id);
+      await gameModel.makePublic(secondGame.id);
 
       const first = await saleAsSeenBy(
         firstOutlet.store,

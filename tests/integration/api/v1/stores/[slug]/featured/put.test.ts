@@ -1,4 +1,5 @@
 import orchestrator from "tests/orchestrator";
+import { prisma } from "infra/database";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
 
@@ -13,18 +14,32 @@ async function createPublicGame(userId: string, title: string, tags = ["rpg"]) {
   return game;
 }
 
+async function currentDraftRevision(storeSlug: string) {
+  const store = await prisma.store.findUniqueOrThrow({
+    where: { slug: storeSlug },
+    select: { draft_revision: true },
+  });
+  return store.draft_revision;
+}
+
 async function putSelection(
   storeSlug: string,
   sessionToken: string,
   gameSlugs: string[],
+  expectedDraftRevision?: number,
 ) {
+  const revision =
+    expectedDraftRevision ?? (await currentDraftRevision(storeSlug));
   return fetch(`${webserver.getOrigin()}/api/v1/stores/${storeSlug}/featured`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Cookie: `session_id=${sessionToken}`,
     },
-    body: JSON.stringify({ game_slugs: gameSlugs }),
+    body: JSON.stringify({
+      game_slugs: gameSlugs,
+      expected_draft_revision: revision,
+    }),
   });
 }
 
@@ -35,14 +50,20 @@ async function putRecommendations(
     game_slug: string;
     recommendation_reason?: string | null;
   }[],
+  expectedDraftRevision?: number,
 ) {
+  const revision =
+    expectedDraftRevision ?? (await currentDraftRevision(storeSlug));
   return fetch(`${webserver.getOrigin()}/api/v1/stores/${storeSlug}/featured`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Cookie: `session_id=${sessionToken}`,
     },
-    body: JSON.stringify({ recommendations }),
+    body: JSON.stringify({
+      recommendations,
+      expected_draft_revision: revision,
+    }),
   });
 }
 
@@ -69,6 +90,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
         { game_slug: first.slug, recommendation_reason: null },
       ],
     });
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -110,6 +132,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
         { game_slug: second.slug, recommendation_reason: null },
       ],
     });
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -149,6 +172,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       },
     ]);
     expect(putResponse.status).toBe(200);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -209,6 +233,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
       ],
     );
     expect(invalidResponse.status).toBe(400);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -363,6 +388,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     expect(
       (await putSelection(store.slug, session.token, ["missing-game"])).status,
     ).toBe(400);
+    await orchestrator.publishStore(store.id);
 
     const publicResponse = await fetch(
       `${webserver.getOrigin()}/api/v1/stores/${store.slug}/featured`,
@@ -379,6 +405,51 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     ).toEqual([valid.slug]);
   });
 
+  test("A stale revision cannot replace Featured and rolls the transaction back", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const store = await orchestrator.createStore(owner.id);
+    const original = await createPublicGame(owner.id, "CAS Original Pick");
+    const replacement = await createPublicGame(
+      owner.id,
+      "CAS Replacement Pick",
+    );
+    const staleRevision = await currentDraftRevision(store.slug);
+
+    const firstResponse = await putSelection(
+      store.slug,
+      session.token,
+      [original.slug],
+      staleRevision,
+    );
+    expect(firstResponse.status).toBe(200);
+
+    const currentRevision = await currentDraftRevision(store.slug);
+    expect(currentRevision).toBe(staleRevision + 1);
+
+    const staleResponse = await putSelection(
+      store.slug,
+      session.token,
+      [replacement.slug],
+      staleRevision,
+    );
+    expect(staleResponse.status).toBe(409);
+    await expect(staleResponse.json()).resolves.toEqual(
+      expect.objectContaining({ name: "ConflictError" }),
+    );
+    await expect(currentDraftRevision(store.slug)).resolves.toBe(
+      currentRevision,
+    );
+    await expect(
+      prisma.storeFeaturedGame.findMany({
+        where: { store_id: store.id },
+        orderBy: { position: "asc" },
+        select: { game_id: true },
+      }),
+    ).resolves.toEqual([{ game_id: original.id }]);
+  });
+
   test("Public GET replaces a selected game that becomes unavailable with clearly automatic slides", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
@@ -389,6 +460,7 @@ describe("PUT /api/v1/stores/[slug]/featured", () => {
     expect(
       (await putSelection(store.slug, session.token, [game.slug])).status,
     ).toBe(200);
+    await orchestrator.publishStore(store.id);
     await gameModel.setStatus(game.id, "PRIVATE");
 
     const publicResponse = await fetch(

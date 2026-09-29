@@ -7,185 +7,216 @@ beforeAll(async () => {
 });
 
 describe("PATCH /api/v1/stores/[slug]", () => {
-  describe("Anonymous user", () => {
-    test("With valid body should return 403", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+  test("requires authentication and update permission", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      draft: true,
+    });
 
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "New Name" }),
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "If-Match": '"1"',
         },
-      );
+        body: JSON.stringify({ name: "New Name" }),
+      },
+    );
 
-      expect(response.status).toBe(403);
-
-      const responseBody = await response.json();
-      expect(responseBody).toEqual({
-        message: "You do not have permission to perform this action",
-        name: "ForbiddenError",
-        action: "Verify your user has the following features: update:store",
-        status_code: 403,
-      });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      name: "ForbiddenError",
+      action: "Verify your user has the following features: update:store",
     });
   });
 
-  describe("Owner", () => {
-    test("With valid body should update the store and return 200", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const ownerSession = await orchestrator.createSession(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id, {
-        name: "Old Name",
-      });
+  test("saves a draft with a stable slug and returns the next ETag", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      name: "Stable Outlet Name",
+      draft: true,
+    });
 
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${ownerSession.token}`,
-          },
-          body: JSON.stringify({ name: "New Name" }),
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+          "If-Match": '"1"',
         },
-      );
+        body: JSON.stringify({
+          name: "Renamed Outlet",
+          layout_preset: "editorial",
+          logo_url: "https://example.com/logo.png",
+          cover_url: "https://example.com/cover.jpg",
+          social_links: { x: "https://x.com/creator" },
+          brand_tokens: {
+            palette: "ocean",
+            typography: "editorial",
+            shape: "crisp",
+          },
+        }),
+      },
+    );
 
-      expect(response.status).toBe(200);
-
-      const responseBody = await response.json();
-      expect(responseBody.name).toBe("New Name");
-      expect(responseBody.slug).toBe("new-name");
-      expect(responseBody.owner_id).toBe(owner.id);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("etag")).toBe('"2"');
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toMatchObject({
+      slug: createdStore.slug,
+      name: "Renamed Outlet",
+      status: "DRAFT",
+      draft_revision: 2,
+      layout_preset: "editorial",
     });
   });
 
-  describe("Unrelated activated user", () => {
-    test("Targeting a store they do not own or administer should return 403", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+  test("rejects a missing or stale If-Match without changing the draft", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      name: "Concurrent Outlet",
+      draft: true,
+    });
+    const endpoint = `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`;
+    const commonHeaders = {
+      "Content-Type": "application/json",
+      Cookie: `session_id=${session.token}`,
+    };
 
-      const outsider = await orchestrator.createUser();
-      await orchestrator.activateUser(outsider.id);
-      const outsiderSession = await orchestrator.createSession(outsider.id);
+    const missing = await fetch(endpoint, {
+      method: "PATCH",
+      headers: commonHeaders,
+      body: JSON.stringify({ tagline: "Missing version" }),
+    });
+    expect(missing.status).toBe(400);
 
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${outsiderSession.token}`,
-          },
-          body: JSON.stringify({ name: "Hijacked Name" }),
-        },
-      );
+    const first = await fetch(endpoint, {
+      method: "PATCH",
+      headers: { ...commonHeaders, "If-Match": '"1"' },
+      body: JSON.stringify({ tagline: "First writer" }),
+    });
+    expect(first.status).toBe(200);
 
-      expect(response.status).toBe(403);
+    const stale = await fetch(endpoint, {
+      method: "PATCH",
+      headers: { ...commonHeaders, "If-Match": '"1"' },
+      body: JSON.stringify({ tagline: "Stale writer" }),
+    });
+    expect(stale.status).toBe(409);
 
-      const responseBody = await response.json();
-      expect(responseBody).toEqual({
-        message: "You do not have permission to update this store",
-        name: "ForbiddenError",
-        action: "Verify if you are an administrator of this store",
-        status_code: 403,
-      });
+    const preview = await fetch(`${endpoint}?preview=1`, {
+      headers: { Cookie: `session_id=${session.token}` },
+    });
+    expect(await preview.json()).toMatchObject({
+      tagline: "First writer",
+      draft_revision: 2,
     });
   });
 
-  describe("Store member with update:store permission", () => {
-    test("Should update the store and return 200", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
-
-      const member = await orchestrator.createUser();
-      await orchestrator.activateUser(member.id);
-      const memberSession = await orchestrator.createSession(member.id);
-      await orchestrator.addStoreMember(createdStore.id, member.username, [
-        "update:store",
-      ]);
-
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${memberSession.token}`,
-          },
-          body: JSON.stringify({ description: "Updated by member" }),
-        },
-      );
-
-      expect(response.status).toBe(200);
-
-      const responseBody = await response.json();
-      expect(responseBody.description).toBe("Updated by member");
+  test.each([
+    { layout_preset: "bespoke" },
+    {
+      brand_tokens: {
+        palette: "custom-hex",
+        typography: "modern",
+        shape: "soft",
+      },
+    },
+    { logo_url: "not-a-url" },
+    { logo_url: "http://example.com/logo.png" },
+    { cover_url: "javascript:alert(1)" },
+    { social_links: { myspace: "https://example.com/creator" } },
+  ])("rejects unsafe presentation input %#", async (body) => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      draft: true,
     });
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+          "If-Match": '"1"',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    expect(response.status).toBe(400);
   });
 
-  describe("Store member without update:store permission", () => {
-    test("Should return 403", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
-
-      const member = await orchestrator.createUser();
-      await orchestrator.activateUser(member.id);
-      const memberSession = await orchestrator.createSession(member.id);
-      await orchestrator.addStoreMember(createdStore.id, member.username, [
-        "manage:store_members",
-      ]);
-
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${memberSession.token}`,
-          },
-          body: JSON.stringify({ description: "Should not work" }),
-        },
-      );
-
-      expect(response.status).toBe(403);
+  test.each([
+    { slug: "forged-slug" },
+    { theme_key: "neon-alley" },
+    { commission_rate: "1" },
+  ])("cannot forge server-controlled Store fields %#", async (body) => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const session = await orchestrator.createSession(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      draft: true,
     });
+
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+          "If-Match": '"1"',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    expect(response.status).toBe(400);
   });
 
-  describe("Platform administrator (update:store:any)", () => {
-    test("Should update any store and return 200", async () => {
-      const owner = await orchestrator.createUser();
-      await orchestrator.activateUser(owner.id);
-      const createdStore = await orchestrator.createStore(owner.id);
+  test("delegates presentation writes through update:store", async () => {
+    const owner = await orchestrator.createUser();
+    await orchestrator.activateUser(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      draft: true,
+    });
+    const member = await orchestrator.createUser();
+    await orchestrator.activateUser(member.id);
+    await orchestrator.addStoreMember(createdStore.id, member.username, [
+      "update:store",
+    ]);
+    const memberSession = await orchestrator.createSession(member.id);
 
-      const admin = await orchestrator.createUser();
-      await orchestrator.activateUser(admin.id);
-      await orchestrator.addFeaturesToUser(admin.id, ["update:store:any"]);
-      const adminSession = await orchestrator.createSession(admin.id);
-
-      const response = await fetch(
-        `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: `session_id=${adminSession.token}`,
-          },
-          body: JSON.stringify({ description: "Updated by platform admin" }),
+    const response = await fetch(
+      `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${memberSession.token}`,
+          "If-Match": '"1"',
         },
-      );
+        body: JSON.stringify({ name: "Member takeover" }),
+      },
+    );
 
-      expect(response.status).toBe(200);
-
-      const responseBody = await response.json();
-      expect(responseBody.description).toBe("Updated by platform admin");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      name: "Member takeover",
+      draft_revision: 2,
     });
   });
 });

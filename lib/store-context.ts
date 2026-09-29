@@ -10,18 +10,29 @@
  */
 
 export const STORE_QUERY_PARAM = "store";
+export const PREVIEW_QUERY_PARAM = "preview";
 
-/** Link to a game's detail page, carrying attribution when there is any. */
-export function itemHref(gameSlug: string, storeSlug?: string | null): string {
-  return withStore(`/item/${gameSlug}`, storeSlug);
+/** Link to a game, preserving attribution and working-draft preview context. */
+export function itemHref(
+  gameSlug: string,
+  storeSlug?: string | null,
+  isPreview = false,
+): string {
+  return withStore(`/item/${gameSlug}`, storeSlug, isPreview);
 }
 
-/** Append `?store=` to a path that has no query string of its own. */
-export function withStore(path: string, storeSlug?: string | null): string {
-  if (!storeSlug) return path;
+/** Append Outlet context to a local path while preserving existing params. */
+export function withStore(
+  path: string,
+  storeSlug?: string | null,
+  isPreview = false,
+): string {
+  if (!storeSlug && !isPreview) return path;
 
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}${STORE_QUERY_PARAM}=${encodeURIComponent(storeSlug)}`;
+  const url = new URL(path, "http://manifold.local");
+  if (storeSlug) url.searchParams.set(STORE_QUERY_PARAM, storeSlug);
+  if (isPreview) url.searchParams.set(PREVIEW_QUERY_PARAM, "1");
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 /**

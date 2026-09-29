@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   ForbiddenError,
+  ConflictError,
   InternalServerError,
   MethodNotAllowedError,
   NotFoundError,
@@ -37,6 +38,7 @@ const onErrorHandler = (
 ) => {
   if (
     error instanceof ValidationError ||
+    error instanceof ConflictError ||
     error instanceof NotFoundError ||
     error instanceof ForbiddenError ||
     error instanceof RateLimitError ||

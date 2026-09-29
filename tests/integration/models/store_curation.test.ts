@@ -20,7 +20,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("With no filters or overrides configured, all active games are returned", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "ALL",
+    });
 
     const rpgGame = await orchestrator.createGame(owner.id, {
       title: "Baseline RPG",
@@ -42,7 +44,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("A blacklisted tag excludes games carrying it", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "ALL",
+    });
 
     const rpgGame = await orchestrator.createGame(owner.id, {
       title: "Blacklist RPG",
@@ -70,7 +74,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("A whitelisted tag only includes games carrying it", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "SELECTED",
+    });
 
     const rpgGame = await orchestrator.createGame(owner.id, {
       title: "Whitelist RPG",
@@ -94,7 +100,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("A force-show override wins over a blacklisted tag", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "ALL",
+    });
 
     const bannedGame = await orchestrator.createGame(owner.id, {
       title: "Force Show Horror",
@@ -120,7 +128,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("A force-hide override wins over a whitelisted tag", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "SELECTED",
+    });
 
     const allowedGame = await orchestrator.createGame(owner.id, {
       title: "Force Hide RPG",
@@ -149,7 +159,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("A filter matches games case-insensitively, regardless of the case the curator typed", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "SELECTED",
+    });
 
     // Games carry mixed-case catalog tags (as CATEGORIES / Steam produce them).
     const rpgGame = await orchestrator.createGame(owner.id, {
@@ -175,7 +187,9 @@ describe("models/store_curation.ts curation rules", () => {
   test("The same tag in a different case is the same filter: stored lowercase, deduped, and resolvable by any case", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
-    const createdStore = await orchestrator.createStore(owner.id);
+    const createdStore = await orchestrator.createStore(owner.id, {
+      catalog_mode: "SELECTED",
+    });
 
     const created = await orchestrator.addStoreTagFilter(
       createdStore.id,

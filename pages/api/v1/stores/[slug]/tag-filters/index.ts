@@ -65,6 +65,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     foundStore.id,
     result.data.tag,
     result.data.mode,
+    result.data.expected_draft_revision,
   );
 
   const secureOutputValues = authorization.filterOutput(

@@ -1,6 +1,6 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
-import { NotFoundError } from "infra/errors";
+import { NotFoundError, ValidationError } from "infra/errors";
 import storage from "infra/storage";
 import { GamePlatform } from "generated/prisma/client";
 
@@ -16,6 +16,15 @@ export const gameFileSchema = z.object({
 export type GameFileCreateDto = z.infer<typeof gameFileSchema>;
 
 async function create(data: GameFileCreateDto) {
+  const game = await prisma.game.findUnique({
+    where: { id: data.game_id },
+    select: { nintendo_nsuid: true },
+  });
+  if (game?.nintendo_nsuid)
+    throw new ValidationError({
+      message: "Nintendo games are catalog-only.",
+      action: "Open Nintendo eShop to access this game.",
+    });
   const result = await prisma.gameFile.create({
     data: {
       game_id: data.game_id,

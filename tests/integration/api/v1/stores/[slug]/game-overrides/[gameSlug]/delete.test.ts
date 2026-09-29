@@ -1,5 +1,6 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
+import { prisma } from "infra/database";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -41,6 +42,9 @@ describe("DELETE /api/v1/stores/[slug]/game-overrides/[gameSlug]", () => {
       );
       const listBody = await listResponse.json();
       expect(listBody).toHaveLength(0);
+      await expect(
+        prisma.store.findUniqueOrThrow({ where: { id: createdStore.id } }),
+      ).resolves.toMatchObject({ draft_revision: 3 });
     });
 
     test("For a game with no override should return 404", async () => {
@@ -62,6 +66,9 @@ describe("DELETE /api/v1/stores/[slug]/game-overrides/[gameSlug]", () => {
       );
 
       expect(response.status).toBe(404);
+      await expect(
+        prisma.store.findUniqueOrThrow({ where: { id: createdStore.id } }),
+      ).resolves.toMatchObject({ draft_revision: 1 });
     });
   });
 

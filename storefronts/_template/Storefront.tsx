@@ -40,6 +40,7 @@ export function TemplateStorefront({
   itemHref,
   browseHref,
   searchAction,
+  searchHiddenFields,
 }: StorefrontViewProps) {
   const { t } = useI18n();
   return (
@@ -83,6 +84,9 @@ export function TemplateStorefront({
 
       {/* Required: search. */}
       <Form action={searchAction} className="w-full md:w-96">
+        {Object.entries(searchHiddenFields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
         <input
           type="text"
           name="q"
