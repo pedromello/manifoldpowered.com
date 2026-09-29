@@ -7,7 +7,7 @@ machine (`CLAUDE_CODE_REMOTE` is unset), where the normal Docker path works.
 ## Why it exists
 
 The repo's normal setup is `docker compose -f infra/compose.yaml up -d`, which
-brings up Postgres, MailCatcher and MinIO.
+brings up Postgres, MailCatcher and RustFS.
 
 **In Claude Code on the web the Docker daemon runs but image pulls are blocked
 by the egress policy.** `docker compose up` fails with a 403 from Docker Hub's
@@ -19,11 +19,11 @@ likely conclusion is "tests can't run here", which is wrong.
 
 ## What it substitutes
 
-| Container            | Substitute                     | Port(s)    |
-| -------------------- | ------------------------------ | ---------- |
-| `postgres:16-alpine` | native PostgreSQL 16 binaries  | 6432       |
-| `sj26/mailcatcher`   | the `mailcatcher` Ruby gem     | 1025, 1080 |
-| `minio/minio`        | `moto[server]` (S3-compatible) | 9000       |
+| Container               | Substitute                     | Port(s)    |
+| ----------------------- | ------------------------------ | ---------- |
+| `postgres:16-alpine`    | native PostgreSQL 16 binaries  | 6432       |
+| `sj26/mailcatcher`      | the `mailcatcher` Ruby gem     | 1025, 1080 |
+| `ghcr.io/rustfs/rustfs` | `moto[server]` (S3-compatible) | 9000       |
 
 Same protocols on the same ports, so no application code or test knows the
 difference. Credentials and ports come from `.env.development`, which is

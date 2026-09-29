@@ -38,7 +38,7 @@ npm i
 npm run dev
 ```
 
-`npm run dev` handles everything — no manual `.env` needed. It spins up Postgres, MinIO, and Mailcatcher via `infra/compose.yaml`, waits for the database, runs `prisma generate` and migrations, then starts Next.js at [http://localhost:3000](http://localhost:3000).
+`npm run dev` handles everything — no manual `.env` needed. It spins up Postgres, RustFS, and Mailcatcher via `infra/compose.yaml`, waits for the database, runs `prisma generate` and migrations, then starts Next.js at [http://localhost:3000](http://localhost:3000).
 
 > Installing a new dependency? Pin the exact version with `npm install -E <package>`.
 

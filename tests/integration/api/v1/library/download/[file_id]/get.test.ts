@@ -44,7 +44,7 @@ describe("GET /api/v1/library/download/[file_id]", () => {
       await fetch(ownerUploadBody.upload_url, {
         method: "PUT",
         headers: { "Content-Type": "application/octet-stream" },
-        body: "hello world from minio",
+        body: "hello world from object storage",
       });
 
       // 3. Register GameFile
@@ -87,7 +87,7 @@ describe("GET /api/v1/library/download/[file_id]", () => {
       const downloadResponse = await fetch(responseBody.download_url);
       expect(downloadResponse.status).toBe(200);
       const downloadText = await downloadResponse.text();
-      expect(downloadText).toBe("hello world from minio");
+      expect(downloadText).toBe("hello world from object storage");
     });
   });
 

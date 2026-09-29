@@ -20,7 +20,7 @@ const s3Client = new S3Client({
     accessKeyId: process.env.STORAGE_ACCESS_KEY,
     secretAccessKey: process.env.STORAGE_SECRET_KEY,
   },
-  // Ensure path-style routing is false for R2, but true for MinIO.
+  // Ensure path-style routing is false for R2, but true for local S3 storage.
   // R2 uses virtual-hosted style (bucket.domain) or path depending on setup.
   forcePathStyle: process.env.NODE_ENV === "production" ? false : true,
 });

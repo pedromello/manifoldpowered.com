@@ -2,7 +2,7 @@
 # Provisions everything `npm run test` needs.
 #
 # The repo's normal path is `docker compose -f infra/compose.yaml up -d`
-# (Postgres, MailCatcher, MinIO). In Claude Code on the web the Docker daemon
+# (Postgres, MailCatcher, RustFS). In Claude Code on the web the Docker daemon
 # runs but image pulls are blocked by the egress policy, so compose fails and
 # the whole suite looks unrunnable. This falls back to native equivalents that
 # speak the same protocols on the same ports, so no application code or test
