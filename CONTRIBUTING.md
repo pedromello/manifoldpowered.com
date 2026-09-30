@@ -65,13 +65,16 @@ Common types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`. Running `npm r
 
 ## Testing
 
-Manifold favors **integration tests** that hit real API routes against real services.
+Manifold favors **integration tests** that hit real API routes against real
+services. No separate test-environment setup or integration-specific command is
+needed; the full suite already includes them.
 
 ```bash
 npm run test        # full suite from scratch (spins services up and down)
 ```
 
-For a tight feedback loop, run the dev server and the watcher in parallel:
+Alternatively, for a tight feedback loop, keep the dev server running and run
+the watcher in parallel:
 
 ```bash
 npm run dev         # terminal 1
