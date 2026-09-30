@@ -1,4 +1,18 @@
-import storage, { resolveDownloadExpiresInSeconds } from "infra/storage";
+import storage, {
+  getUploadUrl,
+  resolveDownloadExpiresInSeconds,
+} from "infra/storage";
+
+describe("legacy file upload authorization", () => {
+  test("does not sign an empty optional checksum for an unknown upload body", async () => {
+    const url = new URL(
+      await getUploadUrl("games/game/files/game.zip", "application/zip"),
+    );
+
+    expect(url.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+    expect(url.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(false);
+  });
+});
 
 describe("artifact download authorization configuration", () => {
   test("defaults production authorizations to fifteen minutes", () => {
