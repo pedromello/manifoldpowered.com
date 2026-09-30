@@ -44,7 +44,7 @@ describe("DELETE /api/v1/games/[slug]/files/[file_id]", () => {
       await fetch(ownerUploadBody.upload_url, {
         method: "PUT",
         headers: { "Content-Type": "application/octet-stream" },
-        body: "delete me from minio",
+        body: "delete me from object storage",
       });
 
       // 3. Register GameFile
