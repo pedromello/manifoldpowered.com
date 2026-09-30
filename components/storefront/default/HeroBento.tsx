@@ -147,7 +147,7 @@ export function HeroBento({
                   ? activeIsDemo
                     ? t("Free Demo")
                     : t("Free")
-                  : formatCatalogPrice(activeGame)}
+                  : t(formatCatalogPrice(activeGame))}
               </span>
               {!activeFree && activeBasePrice && (
                 <span className="text-base font-bold text-white/45 line-through md:text-lg">

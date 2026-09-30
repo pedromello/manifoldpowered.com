@@ -103,6 +103,7 @@ const steamPersistence = createStorePersistence({
 });
 const nintendoPersistence = createStorePersistence({
   source: "NINTENDO",
+  preserveVideosWhenMissing: true,
   identity: (nintendo_nsuid) => ({ nintendo_nsuid }),
   lock: (tx, nsuid) =>
     tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`nintendo-game:${nsuid}`}))) AS game_lock`,

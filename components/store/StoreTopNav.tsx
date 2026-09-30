@@ -206,7 +206,7 @@ export function StoreTopNav({
                                       : "rgba(255, 255, 255, 0.4)",
                                 }}
                               >
-                                {free ? t("Free") : formatCatalogPrice(game)}
+                                {free ? t("Free") : t(formatCatalogPrice(game))}
                               </p>
                               {!free && basePrice && (
                                 <p className="text-xs font-semibold line-through text-white/40">

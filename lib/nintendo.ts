@@ -47,3 +47,29 @@ export function isNintendoImage(url: string) {
     return false;
   }
 }
+
+/** Public trailers are served from the same Nintendo CDN as the gallery. */
+export function nintendoVideoUrl(publicId: string, nsuid: string) {
+  const id = publicId.replace(/^\//, "");
+  const match =
+    /^store\/software\/(switch|switch2)\/(700100\d{8})\/Video\/[a-zA-Z0-9_-]+$/.exec(
+      id,
+    );
+  if (!match || match[2] !== nsuid) return undefined;
+  return `https://assets.nintendo.com/video/upload/${id}.mp4`;
+}
+
+export function nintendoVideoPoster(url: string): string | undefined {
+  try {
+    const parsed = new URL(url);
+    const match =
+      /^\/video\/upload\/(store\/software\/(?:switch|switch2)\/(700100\d{8})\/Video\/[a-zA-Z0-9_-]+)\.mp4$/.exec(
+        parsed.pathname,
+      );
+    if (!match || nintendoVideoUrl(match[1], match[2]) !== url)
+      return undefined;
+    return url.replace(/\.mp4$/, ".jpg");
+  } catch {
+    return undefined;
+  }
+}

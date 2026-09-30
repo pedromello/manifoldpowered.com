@@ -15,6 +15,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "dev:nintendo": "cross-env POSTGRES_DB=nintendo_creator_demo MANIFOLD_DEV_COUNTRY=BR MANIFOLD_PREVIEW_ORIGIN=http://127.0.0.1:3001 NEXT_DIST_DIR=output/next-nintendo-demo next dev --webpack --hostname 127.0.0.1 --port 3001",
     "dev": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && next dev",
     "test": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
     "posttest": "npm run services:down",

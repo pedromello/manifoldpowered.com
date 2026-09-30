@@ -39,7 +39,7 @@ function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
       <span
         className={`${large ? "text-xl" : "text-sm"} font-black text-white`}
       >
-        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
+        {isCatalogFree(game) ? t("Free") : t(formatCatalogPrice(game))}
       </span>
     </div>
   );
@@ -53,7 +53,7 @@ function commercialLabel(game: GameApi, t: (message: string) => string) {
   if (discountLabel && formatCatalogBasePrice(game)) {
     return discountLabel;
   }
-  return formatCatalogPrice(game);
+  return t(formatCatalogPrice(game));
 }
 
 function HeroSkeleton() {

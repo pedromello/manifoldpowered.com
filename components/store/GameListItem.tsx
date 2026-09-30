@@ -85,7 +85,7 @@ export function GameListItem({
                     : {}
                 }
               >
-                {free ? t("Free") : formatCatalogPrice(game)}
+                {free ? t("Free") : t(formatCatalogPrice(game))}
               </div>
             </div>
           </div>

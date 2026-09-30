@@ -155,7 +155,7 @@ export function formatCatalogPrice(
   }
 
   if (item.purchase_mode !== "PLATFORM") {
-    return "Catalog only";
+    return "Price unavailable";
   }
 
   return isFree(item) ? freeLabel : formatPrice(item);

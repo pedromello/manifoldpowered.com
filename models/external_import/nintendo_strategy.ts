@@ -7,7 +7,11 @@ import {
   UnsupportedContentError,
   ValidationError,
 } from "infra/errors";
-import { parseNintendoUrl, type NintendoCountry } from "lib/nintendo";
+import {
+  parseNintendoUrl,
+  nintendoVideoUrl,
+  type NintendoCountry,
+} from "lib/nintendo";
 import { mergeGameFeatures, nintendoFeatures } from "lib/game_features";
 import type { StoreImportStrategy, StoreSnapshot } from "./contracts";
 
@@ -120,6 +124,21 @@ export function createNintendoStrategy(
       const screenshots = (primary.productGallery ?? [])
         .filter((asset) => asset.resourceType === "image")
         .flatMap((asset) => (imageUrl(asset) ? [imageUrl(asset)!] : []));
+      // Prefer the localized trailers; only fall back to the same NSUID in
+      // another region when the primary gallery has none. Never use upsells.
+      const videos =
+        [primary, ...matching.filter((product) => product !== primary)]
+          .map((product) => [
+            ...new Set(
+              (product.productGallery ?? [])
+                .filter((asset) => asset.resourceType === "video")
+                .flatMap((asset) => {
+                  const url = nintendoVideoUrl(asset.publicId, product.nsuid);
+                  return url ? [url] : [];
+                }),
+            ),
+          ])
+          .find((urls) => urls.length > 0) ?? [];
       const data = {
         title: copy.title,
         description: copy.description,
@@ -158,7 +177,7 @@ export function createNintendoStrategy(
         media: {
           ...(banner ? { banner, icon: banner } : {}),
           screenshots,
-          videos: [],
+          videos,
         },
       };
       const slugBase =

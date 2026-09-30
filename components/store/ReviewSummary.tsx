@@ -35,7 +35,7 @@ export function ReviewSummary({
   let label = "No Reviews";
   let color = "text-white/60";
 
-  if (reviewScore && SCORE_LABELS[reviewScore]) {
+  if (total > 0 && reviewScore && SCORE_LABELS[reviewScore]) {
     label = SCORE_LABELS[reviewScore].label;
     color = SCORE_LABELS[reviewScore].color;
   } else if (total > 0) {
