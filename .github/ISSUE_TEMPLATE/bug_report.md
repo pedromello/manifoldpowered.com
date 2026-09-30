@@ -21,7 +21,7 @@ labels: bug
 
 ## Actual behavior
 
-<!-- What actually happened. Include error messages or screenshots if helpful. -->
+<!-- What actually happened. Include error messages or screenshots if helpful, after removing confidential partner identities, the existence or status of provider discussions, and negotiation details. -->
 
 ## Environment
 
