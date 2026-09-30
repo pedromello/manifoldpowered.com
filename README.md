@@ -144,18 +144,28 @@ Deeper architectural conventions (MVC patterns, error handling, authorization, a
 
 ## 🧪 Testing
 
-Manifold favors robust **integration tests** that exercise real API routes against real services.
+Manifold favors robust **integration tests** that exercise real API routes against real services. No additional test-environment configuration is required.
+
+To run everything once, use the standalone command below. It starts the app and
+supporting services, runs the complete suite (including integration tests), and
+shuts the services down when it finishes:
 
 ```bash
 npm run test        # run the full suite from scratch (spins up services)
 ```
 
-For continuous testing while developing, run the dev server in one terminal and the watcher in another:
+For continuous testing while developing, keep the development environment
+running in one terminal and start Jest's watcher in another:
 
 ```bash
 npm run dev         # terminal 1
 npm run test:watch  # terminal 2
 ```
+
+These are alternative workflows: use `npm run test` by itself for a complete
+run, or use `npm run dev` together with `npm run test:watch` while changing
+code. A separate `test:integration` command or integration flag is unnecessary
+because integration tests are already part of the suite.
 
 Integration tests live in `tests/integration/`, with **one file per HTTP method** (`get.test.ts`, `post.test.ts`, …). The `tests/orchestrator.js` helper manages database state and test fixtures. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for testing conventions.
 
