@@ -21,3 +21,4 @@
 - [ ] `npm run lint:prettier:check` passes
 - [ ] `npm run test` passes
 - [ ] Added or updated tests where relevant
+- [ ] This PR and its commit history do not reveal confidential partner identities, the existence or status of provider discussions, negotiation details, credentials, or identifying clues
