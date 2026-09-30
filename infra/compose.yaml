@@ -12,13 +12,13 @@ services:
     ports:
       - "1025:1025"
       - "1080:1080"
-  minio:
-    container_name: "minio-dev"
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+  object-storage:
+    container_name: "seaweedfs-dev"
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      # Keep the existing host endpoint so application configuration does not change.
+      - "9000:8333"
     environment:
-      - MINIO_ROOT_USER=local_access_key
-      - MINIO_ROOT_PASSWORD=local_secret_key
-    command: server /data --console-address ":9001"
+      - AWS_ACCESS_KEY_ID=local_access_key
+      - AWS_SECRET_ACCESS_KEY=local_secret_key
+    command: mini -dir=/data

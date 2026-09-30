@@ -101,7 +101,7 @@ npm run dev  # start everything
 
 That's it. **No manual `.env` setup needed** — `npm run dev` handles the entire environment for you. Under the hood it:
 
-1. Spins up Postgres, MinIO (S3), and Mailcatcher via `infra/compose.yaml`
+1. Spins up Postgres, SeaweedFS (S3), and Mailcatcher via `infra/compose.yaml`
 2. Waits for Postgres to be ready
 3. Runs `prisma generate` and applies migrations (`migrate dev`)
 4. Starts the Next.js dev server
@@ -119,7 +119,7 @@ When it's ready, open **[http://localhost:3000](http://localhost:3000)**.
 | Database     | [PostgreSQL](https://www.postgresql.org) via [Prisma](https://www.prisma.io) |
 | API          | [next-connect](https://github.com/hoangvvo/next-connect) (MVC-style routes)  |
 | Styling      | [Tailwind CSS](https://tailwindcss.com)                                      |
-| Object store | S3-compatible (MinIO locally)                                                |
+| Object store | S3-compatible (SeaweedFS locally)                                            |
 | Deployment   | [Vercel](https://vercel.com)                                                 |
 
 ---
