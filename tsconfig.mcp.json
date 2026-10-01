@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "incremental": false
+  },
+  "include": [
+    "pages/api/mcp.ts",
+    "infra/public_catalog_mcp.ts",
+    "models/public_game_catalog.ts",
+    "tests/integration/api/mcp/**/*.ts",
+    "tests/integration/_use-cases/public-catalog-mcp-flow.test.ts",
+    "tests/unit/infra/public_catalog_mcp.test.ts"
+  ]
+}
