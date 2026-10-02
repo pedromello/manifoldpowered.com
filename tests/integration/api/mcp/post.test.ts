@@ -7,6 +7,7 @@ import gameModel from "models/game";
 import {
   catalogSearchResultSchema,
   catalogDetailResultSchema,
+  catalogReviewsResultSchema,
 } from "models/public_game_catalog";
 import orchestrator from "tests/orchestrator";
 
@@ -23,7 +24,8 @@ beforeAll(async () => {
   await orchestrator.activateUser(owner.id);
   active = await orchestrator.createGame(owner.id, {
     title: "Catalog Alpha",
-    description: "BUY https://checkout.example.invalid PRIVATE_SENTINEL",
+    description: "Catalog exploration",
+    detailed_description: "PRIVATE_SENTINEL https://checkout.example.invalid",
     tags: ["action", "catalog-fixture"],
     launch_date: "2024-01-01T00:00:00.000Z",
     social_links: { steam_page: "https://checkout.example.invalid" },
@@ -47,6 +49,44 @@ beforeAll(async () => {
   await prisma.gameLocalization.update({
     where: { game_id_locale: { game_id: active.id, locale: "pt-BR" } },
     data: { title: "Catálogo Alfa", description: "Exploração localizada" },
+  });
+  for (let index = 0; index < 4; index++) {
+    const author = await orchestrator.createUser({
+      username: `private-review-author-${index}`,
+    });
+    await prisma.review.create({
+      data: {
+        id: `00000000-0000-0000-0000-00000000000${index + 1}`,
+        game_id: displayOnly.id,
+        user_id: author.id,
+        message: [
+          "Combat is fun.",
+          "The map was confusing.",
+          "Fluid combat.",
+          "Beautiful atmosphere.",
+        ][index],
+        recommended: index !== 1,
+        created_at: new Date("2026-01-01T00:00:00Z"),
+      },
+    });
+  }
+  await prisma.game.update({
+    where: { id: displayOnly.id },
+    data: {
+      positive_reviews: 3,
+      negative_reviews: 1,
+      media: {
+        banner: "javascript:alert(1)",
+        screenshots: [
+          "https://shared.fastly.steamstatic.com/catalog-fixture.jpg",
+          "https://merchant.example.invalid/image.jpg",
+        ],
+        videos: [
+          "https://video.fastly.steamstatic.com/catalog-fixture.mp4",
+          "https://www.youtube.com/redirect?q=merchant",
+        ],
+      },
+    },
   });
   const admin = await orchestrator.createAdminUser();
   const session = await orchestrator.createSession(admin.id);
@@ -86,7 +126,27 @@ async function callTool(name: string, args = {}, headers = {}) {
 
 describe("POST /api/mcp", () => {
   describe("Anonymous user", () => {
-    test("Advertises exactly two noauth read-only tools and strict schemas", async () => {
+    test("Projects actual stored media against the same bounded CSP policy in both channels", async () => {
+      const result = await callTool("get_game", { slug: displayOnly.slug });
+      expect(
+        catalogDetailResultSchema.parse(result.structuredContent).game.media,
+      ).toEqual({
+        images: ["https://shared.fastly.steamstatic.com/catalog-fixture.jpg"],
+        videos: [
+          {
+            url: "https://video.fastly.steamstatic.com/catalog-fixture.mp4",
+            kind: "file",
+          },
+        ],
+      });
+      expect(result.content).toEqual([
+        { type: "text", text: JSON.stringify(result.structuredContent) },
+      ]);
+      expect(JSON.stringify(result)).not.toMatch(
+        /javascript|merchant|redirect/,
+      );
+    });
+    test("Advertises exactly three noauth read-only tools and strict schemas", async () => {
       const { response, body } = await rpc<{
         tools: Array<{
           name: string;
@@ -100,6 +160,7 @@ describe("POST /api/mcp", () => {
       expect(body.result.tools.map((tool) => tool.name)).toEqual([
         "search_games",
         "get_game",
+        "get_game_reviews",
       ]);
       for (const tool of body.result.tools) {
         expect(tool.securitySchemes).toEqual([{ type: "noauth" }]);
@@ -112,6 +173,159 @@ describe("POST /api/mcp", () => {
         expect(tool.inputSchema.additionalProperties).toBe(false);
         expect(tool.outputSchema.additionalProperties).toBe(false);
       }
+    });
+
+    test("Reviews filters, stable pagination, counters and sample stay separate", async () => {
+      const first = catalogReviewsResultSchema.parse(
+        (
+          await callTool("get_game_reviews", {
+            slug: displayOnly.slug,
+            limit: 2,
+          })
+        ).structuredContent,
+      );
+      const second = catalogReviewsResultSchema.parse(
+        (
+          await callTool("get_game_reviews", {
+            slug: displayOnly.slug,
+            limit: 2,
+            page: 2,
+          })
+        ).structuredContent,
+      );
+      expect(first.pagination).toEqual({
+        page: 1,
+        limit: 2,
+        total: 4,
+        pages: 2,
+      });
+      expect(first.sample).toEqual({
+        returned: 2,
+        recommendation: "all",
+        sort: "newest",
+      });
+      expect(first.game.review_summary).toEqual({
+        total: 4,
+        positive: 3,
+        negative: 1,
+        source: "catalog_counters",
+      });
+      expect(
+        [...first.reviews, ...second.reviews].map((r) => r.reference),
+      ).toEqual(
+        [4, 3, 2, 1].map((i) => `00000000-0000-0000-0000-00000000000${i}`),
+      );
+      const positive = catalogReviewsResultSchema.parse(
+        (
+          await callTool("get_game_reviews", {
+            slug: displayOnly.slug,
+            recommendation: "positive",
+            sort: "oldest",
+          })
+        ).structuredContent,
+      );
+      expect(positive.pagination.total).toBe(3);
+      expect(positive.reviews.every((r) => r.recommended)).toBe(true);
+      expect(positive.reviews[0].reference.endsWith("1")).toBe(true);
+      const negative = await callTool("get_game_reviews", {
+        slug: displayOnly.slug,
+        recommendation: "negative",
+      });
+      expect(
+        catalogReviewsResultSchema.parse(negative.structuredContent).pagination
+          .total,
+      ).toBe(1);
+      expect(negative.content).toEqual([
+        { type: "text", text: JSON.stringify(negative.structuredContent) },
+      ]);
+      expect(JSON.stringify(negative)).not.toMatch(
+        /username|user_id|game_id|email|private-review-author|can_review|user_review|price/,
+      );
+    });
+
+    test("Reviews empty/out-of-range pages and public visibility have honest results", async () => {
+      const empty = catalogReviewsResultSchema.parse(
+        (await callTool("get_game_reviews", { slug: active.slug }))
+          .structuredContent,
+      );
+      expect(empty.reviews).toEqual([]);
+      expect(empty.sample.returned).toBe(0);
+      expect(empty.pagination.pages).toBe(0);
+      const beyond = catalogReviewsResultSchema.parse(
+        (
+          await callTool("get_game_reviews", {
+            slug: displayOnly.slug,
+            page: 100,
+          })
+        ).structuredContent,
+      );
+      expect(beyond.reviews).toEqual([]);
+      expect(beyond.pagination.total).toBe(4);
+      for (const slug of [privateGame.slug, inactive.slug, "missing-game"]) {
+        const result = await callTool(
+          "get_game_reviews",
+          { slug },
+          { Cookie: adminCookie, Authorization: "Bearer ignored" },
+        );
+        expect(result).toEqual({
+          isError: true,
+          content: [{ type: "text", text: "Game not found." }],
+        });
+      }
+    });
+
+    test.each([
+      { page: 0 },
+      { page: 1.5 },
+      { limit: 21 },
+      { recommendation: "mixed" },
+      { sort: "popular" },
+      { confirmed: true },
+      { user_id: "other" },
+    ])("Reviews rejects invalid/unimplemented arguments: %j", async (extra) => {
+      const result = await callTool("get_game_reviews", {
+        slug: displayOnly.slug,
+        ...extra,
+      });
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toBeUndefined();
+    });
+
+    test("MCP resource returns branded bundled HTML, narrow CSP and inline hints", async () => {
+      const { body } = await rpc<{
+        contents: Array<{
+          uri: string;
+          mimeType: string;
+          text: string;
+          _meta: Record<string, unknown>;
+        }>;
+      }>("resources/read", { uri: "ui://manifold/game-card/v1.html" });
+      const resource = body.result.contents[0];
+      expect(resource.mimeType).toBe("text/html;profile=mcp-app");
+      expect(resource.text).toContain("--color-sf-bg: #1d0f3b");
+      expect(resource.text).toContain("data:image/png;base64,");
+      expect(resource.text).not.toContain("__MANIFOLD_LOGO__");
+      expect(resource._meta["openai/ui"]).toEqual({
+        availableDisplayModes: ["inline"],
+        preferredDisplayMode: "inline",
+      });
+      const ui = resource._meta.ui as {
+        csp: {
+          resourceDomains: string[];
+          connectDomains: string[];
+          frameDomains: string[];
+        };
+      };
+      expect(ui.csp.frameDomains).toEqual([]);
+      expect(ui.csp.connectDomains).toEqual([]);
+      expect(
+        ui.csp.resourceDomains.every(
+          (origin) => origin.startsWith("https://") && !origin.includes("*"),
+        ),
+      ).toBe(true);
+      expect(resource.text).not.toMatch(
+        /PRIVATE_SENTINEL|private-review-author/,
+      );
     });
 
     test("Search and pagination include ACTIVE and ONLY_DISPLAY, never private/inactive", async () => {
@@ -148,7 +362,8 @@ describe("POST /api/mcp", () => {
       );
       expect(empty).toEqual({
         games: [],
-        pagination: { page: 2, limit: 10, total: 0, pages: 0 },
+        pagination: { page: 2, limit: 5, total: 0, pages: 0 },
+        locale: "pt-BR",
       });
     });
 
@@ -164,6 +379,14 @@ describe("POST /api/mcp", () => {
       const expected = {
         slug: active.slug,
         title: "Catalog Alpha",
+        description: "Catalog exploration",
+        media: { images: [], videos: [] },
+        review_summary: {
+          total: 0,
+          positive: 0,
+          negative: 0,
+          source: "catalog_counters",
+        },
         tags: ["action", "catalog-fixture"],
         launch_date: "2024-01-01T00:00:00.000Z",
       };
@@ -171,7 +394,7 @@ describe("POST /api/mcp", () => {
         catalogSearchResultSchema.parse(search.structuredContent).games,
       ).toEqual([expected]);
       expect(catalogDetailResultSchema.parse(detail.structuredContent)).toEqual(
-        { game: expected },
+        { game: expected, locale: "en" },
       );
       for (const result of [search, detail]) {
         expect(result.content).toEqual([
@@ -263,7 +486,10 @@ describe("POST /api/mcp", () => {
       expect(await callTool("publish_review", {})).toEqual({
         isError: true,
         content: [
-          { type: "text", text: "Unknown tool. Use search_games or get_game." },
+          {
+            type: "text",
+            text: "Unknown tool. Use search_games, get_game or get_game_reviews.",
+          },
         ],
       });
     });

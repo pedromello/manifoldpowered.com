@@ -1,3 +1,5 @@
+> **Atualização de 2026-10-02:** esta página registra a primeira etapa (busca/detalhe mínimos). O incremento atual com card, mídia e leitura de reviews, e a confirmação de conexão por Pedro, estão em [10-card-descoberta.md](10-card-descoberta.md). Bloqueios antigos não são diagnóstico do host atual.
+
 # MVP implementado e conexão posterior
 
 **Escopo vigente:** MCP público de leitura, gestão Peach. Base `6cfc1e86ae8876bde68b38ab2a51cf6f3df5959e`, branch `docs/manifold-mcp-peach-plan-20261001`, worktree próprio `/workspace/manifold-mcp-planning`. A rodada inicial foi local; depois Pedro autorizou commit/push isolado e PR draft para preview Vercel. Publicação aguarda confirmação de ambiente não produção; merge/produção e alteração de contas/credenciais/permissões permanecem fora do escopo. Usuários/roles criados nos testes são fixtures sintéticas em serviços locais descartáveis.

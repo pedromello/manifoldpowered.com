@@ -1,3 +1,5 @@
+> **Incremento atual:** card Manifold e reviews públicas em implementação/validação na PR #272 draft; veja [estado, fonte do plugin e evidências](docs/manifold-mcp/10-card-descoberta.md). O recorte inicial e decisões posteriores abaixo permanecem como histórico.
+
 # Manifold no ChatGPT — MVP público de leitura
 
 **Gestão Peach. Base 6cfc1e86ae8876bde68b38ab2a51cf6f3df5959e. Branch docs/manifold-mcp-peach-plan-20261001. Implementação local e commit/push isolado + PR draft para preview Vercel autorizados. Push aguarda confirmação de ambiente não produção. Sem merge, produção ou configuração de contas/credenciais/permissões.**

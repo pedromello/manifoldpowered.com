@@ -1,6 +1,7 @@
 import { defaultLocale, locales } from "./lib/locale";
 
 module.exports = {
+  outputFileTracingIncludes: { "/api/mcp": ["./public/mcp/game-card.html"] },
   async redirects() {
     return [
       {

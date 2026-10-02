@@ -1,0 +1,22 @@
+{
+  "interface": {
+    "developerName": "Pedro Mello",
+    "defaultPrompt": "Busque jogos no catálogo público do Manifold.",
+    "longDescription": "Busque jogos no catálogo público do Manifold e consulte informações disponíveis sobre cada jogo. Conexão ao servidor MCP de preview.",
+    "displayName": "Manifold Store",
+    "shortDescription": "Busque jogos no Manifold",
+    "category": "Productivity",
+    "logo": "./assets/manifold-logo.png",
+    "composerIcon": "./assets/manifold-logo.png",
+    "capabilities": []
+  },
+  "name": "manifold-games",
+  "version": "0.1.2",
+  "description": "Search the public Manifold game catalog and retrieve game facts.",
+  "author": {
+    "name": "Pedro Mello"
+  },
+  "keywords": [],
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json"
+}

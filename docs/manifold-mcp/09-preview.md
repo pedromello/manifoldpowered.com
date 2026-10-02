@@ -1,3 +1,5 @@
+> **Atualização de 2026-10-02:** esta página registra a primeira etapa (busca/detalhe mínimos). O incremento atual com card, mídia e leitura de reviews, e a confirmação de conexão por Pedro, estão em [10-card-descoberta.md](10-card-descoberta.md). Bloqueios antigos não são diagnóstico do host atual.
+
 # Preview para testar no ChatGPT — investigação e gate de publicação
 
 Em 2026-10-01 Pedro autorizou commit/push isolado e PR **draft** para obter preview Vercel do MVP público. Merge, produção, novas contas/credenciais/grants e mudanças de proteção permanecem fora do escopo. Nada desta seção afirma deploy concluído ou conexão real ChatGPT.

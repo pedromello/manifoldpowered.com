@@ -21,3 +21,6 @@ tsconfig.tsbuildinfo
 docs/legal/**
 
 .worktrees
+
+# Reproducible MCP UI build output
+public/mcp/

@@ -10,6 +10,14 @@
     "models/public_game_catalog.ts",
     "tests/integration/api/mcp/**/*.ts",
     "tests/integration/_use-cases/public-catalog-mcp-flow.test.ts",
-    "tests/unit/infra/public_catalog_mcp.test.ts"
+    "tests/unit/infra/public_catalog_mcp.test.ts",
+    "contracts/public-game-catalog.ts",
+    "lib/public-catalog-media.ts",
+    "infra/public_catalog_ui.ts",
+    "components/mcp/**/*.tsx",
+    "components/mcp/**/*.ts",
+    "scripts/build-mcp-ui.ts",
+    "tests/unit/components/mcp/**/*.tsx",
+    "tests/unit/lib/public-catalog-media.test.ts"
   ]
 }

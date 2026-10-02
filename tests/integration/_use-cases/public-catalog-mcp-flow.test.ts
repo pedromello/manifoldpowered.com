@@ -8,6 +8,7 @@ import gameModel from "models/game";
 import {
   catalogSearchResultSchema,
   catalogDetailResultSchema,
+  catalogReviewsResultSchema,
 } from "models/public_game_catalog";
 import orchestrator from "tests/orchestrator";
 
@@ -48,6 +49,7 @@ describe("Public catalog discovery over real MCP HTTP", () => {
       expect(tools.tools.map((tool) => tool.name)).toEqual([
         "search_games",
         "get_game",
+        "get_game_reviews",
       ]);
       const search = catalogSearchResultSchema.parse(
         (
@@ -73,7 +75,32 @@ describe("Public catalog discovery over real MCP HTTP", () => {
       );
       expect(detail.game).toEqual(search.games[0]);
       expect(detail.game.title).toBe("Exploration Catalog Journey");
+      const reviews = catalogReviewsResultSchema.parse(
+        (
+          await client.callTool({
+            name: "get_game_reviews",
+            arguments: { slug: game.slug },
+          })
+        ).structuredContent,
+      );
+      expect(reviews.reviews).toEqual([]);
+      const resources = await client.listResources();
+      expect(resources.resources[0].uri).toBe(
+        "ui://manifold/game-card/v1.html",
+      );
+      expect(
+        (await client.readResource({ uri: resources.resources[0].uri }))
+          .contents[0].mimeType,
+      ).toBe("text/html;profile=mcp-app");
       await gameModel.setStatus(game.id, "PRIVATE");
+      expect(
+        (
+          await client.callTool({
+            name: "get_game_reviews",
+            arguments: { slug: game.slug },
+          })
+        ).isError,
+      ).toBe(true);
       const hidden = await client.callTool({
         name: "get_game",
         arguments: { slug: game.slug },

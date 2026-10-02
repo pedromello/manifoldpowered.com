@@ -7,53 +7,28 @@ import game from "models/game";
 import gameLocalization from "models/game_localization";
 import type { AppLocale } from "lib/locale";
 
-export const catalogSearchSchema = z
-  .object({
-    q: z.string().trim().max(200).default(""),
-    tags: z.array(z.string().trim().min(1).max(64)).max(5).optional(),
-    page: z.number().int().min(1).max(100).default(1),
-    limit: z.number().int().min(1).max(20).default(10),
-    locale: z.enum(["en", "pt-BR"]).default("pt-BR"),
-  })
-  .strict();
-
-export const catalogDetailSchema = z
-  .object({
-    slug: z.string().trim().min(1).max(255),
-    locale: z.enum(["en", "pt-BR"]).default("pt-BR"),
-  })
-  .strict();
-
-export const catalogGameSchema = z
-  .object({
-    slug: z.string(),
-    title: z.string().max(255),
-    tags: z.array(z.string().max(64)).max(10),
-    launch_date: z.iso.datetime().nullable(),
-  })
-  .strict();
-
-export const catalogSearchResultSchema = z
-  .object({
-    games: z.array(catalogGameSchema),
-    pagination: z
-      .object({
-        page: z.number().int(),
-        limit: z.number().int(),
-        total: z.number().int(),
-        pages: z.number().int(),
-      })
-      .strict(),
-  })
-  .strict();
-
-export const catalogDetailResultSchema = z
-  .object({ game: catalogGameSchema })
-  .strict();
+import review from "models/review";
+import { NotFoundError } from "infra/errors";
+import { projectCatalogMedia } from "lib/public-catalog-media";
+import {
+  catalogSearchSchema,
+  catalogDetailSchema,
+  catalogReviewsSchema,
+  catalogGameSchema,
+  catalogSearchResultSchema,
+  catalogDetailResultSchema,
+  catalogReviewsResultSchema,
+  catalogReviewSchema,
+} from "contracts/public-game-catalog";
+export * from "contracts/public-game-catalog";
 
 const publicFieldsSchema = z.object({
   slug: z.string(),
   title: z.string(),
+  description: z.string(),
+  media: z.unknown(),
+  positive_reviews: z.number(),
+  negative_reviews: z.number(),
   tags: z.array(z.string()),
   launch_date: z.date().nullable(),
 });
@@ -90,6 +65,14 @@ function projectGame(record: Game) {
   return catalogGameSchema.parse({
     slug: fields.slug,
     title: plainCatalogText(fields.title, 255),
+    description: plainCatalogText(fields.description, 600),
+    media: projectCatalogMedia(fields.media),
+    review_summary: {
+      total: fields.positive_reviews + fields.negative_reviews,
+      positive: fields.positive_reviews,
+      negative: fields.negative_reviews,
+      source: "catalog_counters",
+    },
     tags: fields.tags
       .slice(0, 10)
       .map((tag) => plainCatalogText(tag, 64))
@@ -115,6 +98,7 @@ async function search(input: unknown) {
   return catalogSearchResultSchema.parse({
     games,
     pagination: result.pagination,
+    locale: query.locale,
   });
 }
 
@@ -126,8 +110,73 @@ async function findBySlug(input: unknown) {
   });
   if (!record) return null;
   const [projected] = await projectGames([record], query.locale);
-  return catalogDetailResultSchema.parse({ game: projected });
+  return catalogDetailResultSchema.parse({
+    game: projected,
+    locale: query.locale,
+  });
 }
 
-const publicGameCatalog = { search, findBySlug };
+async function findReviews(input: unknown) {
+  const query = validateInput(catalogReviewsSchema, input);
+  const detail = await findBySlug({ slug: query.slug, locale: query.locale });
+  if (!detail) return null;
+  try {
+    const result = await review.getPaginatedReviewsBySlug(
+      query.slug,
+      query.page,
+      query.limit,
+      undefined,
+      {
+        recommended:
+          query.recommendation === "all"
+            ? undefined
+            : query.recommendation === "positive",
+        order: query.sort === "newest" ? "desc" : "asc",
+      },
+    );
+    // Re-read visibility after the domain query; never forward viewer fields.
+    if (!(await findBySlug({ slug: query.slug, locale: query.locale })))
+      return null;
+    const reviews = result.reviews.map((record) => {
+      const view = authorization.filterOutput(
+        { features: authorization.ANONYMOUS_USER_FEATURES },
+        "read:review",
+        record,
+      ) as {
+        id: string;
+        message: string;
+        recommended: boolean;
+        created_at: Date;
+        updated_at: Date;
+      };
+      return catalogReviewSchema.parse({
+        reference: view.id,
+        message: plainCatalogText(view.message, 3000),
+        recommended: view.recommended,
+        created_at: view.created_at.toISOString(),
+        updated_at: view.updated_at.toISOString(),
+      });
+    });
+    return catalogReviewsResultSchema.parse({
+      ...detail,
+      reviews,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: result.pagination.total_items,
+        pages: result.pagination.total_pages,
+      },
+      sample: {
+        returned: reviews.length,
+        recommendation: query.recommendation,
+        sort: query.sort,
+      },
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+}
+
+const publicGameCatalog = { search, findBySlug, findReviews };
 export default publicGameCatalog;

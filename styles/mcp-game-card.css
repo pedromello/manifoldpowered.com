@@ -1,0 +1,247 @@
+/* Storefront colors are injected from styles/global.css by the UI build. */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: transparent;
+}
+.manifold-card {
+  max-width: 720px;
+  margin: auto;
+  padding: 24px;
+  background: var(--color-sf-bg);
+  color: var(--color-sf-fg);
+  border: 1px solid var(--color-sf-border);
+  border-radius: 12px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-sf-border);
+}
+.brand img {
+  height: 32px;
+  width: auto;
+}
+.brand span,
+.muted,
+blockquote footer {
+  color: var(--color-sf-muted);
+}
+.brand span,
+.fine,
+blockquote footer {
+  font-size: 12px;
+}
+h1 {
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  margin: 14px 0;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+h2 {
+  font-size: 18px;
+  margin: 16px 0 10px;
+}
+p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.description {
+  color: var(--color-sf-muted);
+  margin: 0 0 18px;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tags span {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--color-sf-border);
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--color-sf-muted);
+  background: var(--color-sf-surface);
+}
+.hero-image,
+video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--color-sf-surface);
+  border: 1px solid var(--color-sf-border);
+}
+video {
+  object-fit: contain;
+}
+.thumbnails {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+.thumbnails button {
+  padding: 0;
+  flex-shrink: 0;
+  width: 88px;
+  overflow: hidden;
+}
+.thumbnails button span {
+  display: block;
+  padding: 14px 0;
+}
+.media-unavailable {
+  padding: 16px;
+  border: 1px solid var(--color-sf-border);
+  border-radius: 12px;
+  background: var(--color-sf-surface);
+}
+.thumbnails button[aria-pressed="true"] {
+  border-color: var(--color-sf-accent);
+}
+.thumbnails img {
+  width: 100%;
+  display: block;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+}
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+  background: var(--color-sf-surface);
+  border: 1px solid var(--color-sf-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-width: 100%;
+}
+button {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+button:hover {
+  border-color: var(--color-sf-accent);
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-sf-accent);
+  outline-offset: 2px;
+}
+option {
+  background: var(--color-sf-bg);
+}
+.text-button {
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--color-sf-accent);
+}
+.catalog-video {
+  margin-top: 12px;
+}
+.reviews {
+  border-top: 1px solid var(--color-sf-border);
+  margin-top: 20px;
+  padding-top: 6px;
+}
+.recommendation {
+  color: #34d399;
+} /* Same emerald review indicator as ReviewSummary. */
+.negative {
+  color: #fb7185;
+}
+.review-controls {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.review-controls label {
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+blockquote {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--color-sf-border);
+  background: var(--color-sf-surface);
+  border-radius: 12px;
+  font-size: 13px;
+}
+blockquote p {
+  white-space: pre-wrap;
+  margin: 8px 0;
+}
+.review-reference {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 14px;
+}
+.search-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.search-cards article {
+  border: 1px solid var(--color-sf-border);
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--color-sf-surface);
+}
+.search-cards img {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.search-cards p {
+  font-size: 12px;
+  color: var(--color-sf-muted);
+}
+.search-cards button {
+  margin-top: 12px;
+}
+[role="alert"] {
+  color: #fb7185;
+}
+@media (max-width: 480px) {
+  .manifold-card {
+    padding: 16px;
+  }
+  .search-cards {
+    grid-template-columns: 1fr;
+  }
+  .brand span {
+    max-width: 150px;
+  }
+}
