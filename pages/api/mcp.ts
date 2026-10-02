@@ -8,10 +8,8 @@ import { MCP_BODY_LIMIT, publicCatalogMcp } from "infra/public_catalog_mcp";
 import webserver from "infra/webserver";
 
 const canonicalHostname = new URL(webserver.getOrigin()).hostname;
-const allowedHostnames =
-  process.env.NODE_ENV === "production"
-    ? [canonicalHostname]
-    : [canonicalHostname, "localhost", "127.0.0.1", "[::1]"];
+const mcpAllowedHostnames = process.env.MCP_ALLOWED_HOSTNAMES?.split(",") ?? [];
+const allowedHostnames = [canonicalHostname, ...mcpAllowedHostnames]
 const validateHost = hostHeaderValidation(allowedHostnames);
 const validateOrigin = originValidation(allowedHostnames);
 const handleMcp = toNodeHandler(publicCatalogMcp, {
