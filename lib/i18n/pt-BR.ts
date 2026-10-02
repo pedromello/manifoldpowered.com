@@ -1,4 +1,58 @@
 export const ptBR: Record<string, string> = {
+  "Reveal code": "Revelar código",
+  "View order": "Ver pedido",
+  "Confirm code disclosure": "Confirmar revelação do código",
+  "Confirm and reveal": "Confirmar e revelar",
+  "The gift card could not be revealed. Try again.":
+    "Não foi possível revelar o gift card. Tente novamente.",
+  "Revealing the code records disclosure and may affect refund eligibility. Applicable exceptions still apply.":
+    "Revelar o código registra sua divulgação e pode afetar a elegibilidade para reembolso. As exceções aplicáveis continuam válidas.",
+  "Confirming will reveal the code and record this disclosure. This may affect refund eligibility, subject to applicable exceptions.":
+    "Ao confirmar, o código será revelado e essa divulgação será registrada. Isso pode afetar a elegibilidade para reembolso, respeitando as exceções aplicáveis.",
+  "Payment verification could not finish. Reopen this order later or retry delivery if payment is already confirmed.":
+    "A verificação do pagamento não foi concluída. Reabra este pedido mais tarde ou tente a entrega novamente se o pagamento já estiver confirmado.",
+  "Gift cards | Manifold": "Gift cards | Manifold",
+  "Gift cards": "Gift cards",
+  "Test purchases": "Compras de teste",
+  "Test payments only. Demo gift cards have no real value and cannot be redeemed.":
+    "Somente pagamentos de teste. Os gift cards demonstrativos não têm valor real e não podem ser resgatados.",
+  "Activate your account to buy gift cards.":
+    "Ative sua conta para comprar gift cards.",
+  "Gift card purchases are temporarily unavailable.":
+    "As compras de gift cards estão temporariamente indisponíveis.",
+  "Test checkout is unavailable. You can review your purchases here.":
+    "O checkout de teste está indisponível. Você pode consultar suas compras aqui.",
+  "Your return from checkout does not confirm payment. Delivery will appear after payment verification.":
+    "O retorno do checkout não confirma o pagamento. A entrega aparecerá após a verificação do pagamento.",
+  "Checkout was closed. Resume the purchase or cancel it below.":
+    "O checkout foi fechado. Retome ou cancele a compra abaixo.",
+  "Available gift cards": "Gift cards disponíveis",
+  "Buy in test mode": "Comprar em modo de teste",
+  "Purchase already in progress": "Compra já em andamento",
+  "Your gift card purchases": "Suas compras de gift cards",
+  "No gift card purchases yet.": "Você ainda não comprou gift cards.",
+  "Checkout needs another attempt": "O checkout precisa de uma nova tentativa",
+  "Awaiting payment confirmation": "Aguardando confirmação do pagamento",
+  "Payment confirmed · issuing gift card":
+    "Pagamento confirmado · emitindo gift card",
+  "Payment confirmed · delivery pending":
+    "Pagamento confirmado · entrega pendente",
+  "Gift card delivered": "Gift card entregue",
+  "Purchase cancelled": "Compra cancelada",
+  "Payment failed": "Pagamento falhou",
+  Order: "Pedido",
+  "The payment attempt failed. You can retry in the same checkout.":
+    "A tentativa de pagamento falhou. Você pode tentar novamente no mesmo checkout.",
+  "You do not need to pay again. Retry delivery for this purchase.":
+    "Você não precisa pagar novamente. Tente a entrega desta compra outra vez.",
+  "Demo gift card code": "Código de gift card demonstrativo",
+  "Resume checkout": "Retomar checkout",
+  "Cancel purchase": "Cancelar compra",
+  "Retry delivery": "Tentar entrega novamente",
+  "The purchase could not be updated. Try again.":
+    "Não foi possível atualizar a compra. Tente novamente.",
+  "Payment confirmation is still pending. This purchase cannot be cancelled yet.":
+    "A confirmação do pagamento ainda está pendente. Esta compra ainda não pode ser cancelada.",
   "This region has a different Nintendo edition. Submit the link again.":
     "Esta região possui uma edição Nintendo diferente. Envie o link novamente.",
   "Partial controller support": "Compatibilidade parcial com controle",

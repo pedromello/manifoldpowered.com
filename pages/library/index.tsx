@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import useSWR from "swr";
-import { BookMarked, PackageX, Receipt } from "lucide-react";
+import { BookMarked, Gift, PackageX, Receipt } from "lucide-react";
 
 import { LibraryGameCard } from "components/library/LibraryGameCard";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
@@ -58,13 +58,24 @@ export default function LibraryPage() {
           </div>
 
           {!isLoggedOut && (
-            <Link
-              href="/library/purchases"
-              className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
-            >
-              <Receipt size={16} />
-              {t("Purchase history")}
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              {process.env.NODE_ENV === "development" && (
+                <Link
+                  href="/library/gift-cards"
+                  className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
+                >
+                  <Gift size={16} />
+                  {t("Gift cards")}
+                </Link>
+              )}
+              <Link
+                href="/library/purchases"
+                className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
+              >
+                <Receipt size={16} />
+                {t("Purchase history")}
+              </Link>
+            </div>
           )}
         </header>
 
