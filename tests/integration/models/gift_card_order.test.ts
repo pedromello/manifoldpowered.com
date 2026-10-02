@@ -6,18 +6,21 @@ import {
 } from "models/gift_card_order";
 import {
   checkoutFixture,
+  checkoutFlowFixture,
   paymentEvent,
 } from "tests/fixtures/gift_card_checkout";
 
 const buyerIds: string[] = [];
 let buyer: string;
 let fixture: ReturnType<typeof checkoutFixture>;
-let service: ReturnType<typeof createGiftCardOrderService>;
+let service: ReturnType<typeof checkoutFlowFixture>;
+let payments: ReturnType<typeof createGiftCardOrderService>;
 beforeEach(() => {
   buyer = randomUUID();
   buyerIds.push(buyer);
   fixture = checkoutFixture();
-  service = createGiftCardOrderService(fixture);
+  payments = createGiftCardOrderService(fixture);
+  service = checkoutFlowFixture(fixture);
 });
 afterAll(async () => {
   const orders = await prisma.giftCardOrder.findMany({
@@ -37,6 +40,24 @@ afterAll(async () => {
 const begin = () => service.begin(buyer, "sandbox-brl-25", randomUUID());
 
 describe("gift card buyer checkout with real PostgreSQL and payment fixtures", () => {
+  test("payment confirmation commits its receipt without calling the supplier", async () => {
+    const order = await begin();
+    const event = paymentEvent(fixture.pay(order.id));
+    await payments.receive(event);
+    expect(await service.findOwn(buyer, order.id)).toMatchObject({
+      status: "PAID",
+      paid_at: expect.any(Date),
+      gift_card_code: null,
+    });
+    expect(
+      await prisma.giftCardPaymentEvent.count({ where: { id: event.id } }),
+    ).toBe(1);
+    expect(fixture.provider.issue).not.toHaveBeenCalled();
+    expect(
+      await prisma.libraryItem.count({ where: { item_id: order.id } }),
+    ).toBe(0);
+  });
+
   test("snapshots the server price and grants nothing before webhook confirmation", async () => {
     const order = await begin();
     expect(order).toMatchObject({
@@ -102,7 +123,7 @@ describe("gift card buyer checkout with real PostgreSQL and payment fixtures", (
   test("concurrent duplicate and distinct success notifications deliver once", async () => {
     const order = await begin();
     const event = paymentEvent(fixture.pay(order.id));
-    await Promise.all([
+    await Promise.allSettled([
       service.receive(event),
       service.receive(event),
       service.receive(paymentEvent(fixture.getSession(order.id))),
@@ -156,8 +177,8 @@ describe("gift card buyer checkout with real PostgreSQL and payment fixtures", (
     expect(
       await prisma.libraryItem.count({ where: { item_id: order.id } }),
     ).toBe(0);
-    const freshWorker = createGiftCardOrderService(fixture);
-    await Promise.all([
+    const freshWorker = checkoutFlowFixture(fixture);
+    await Promise.allSettled([
       freshWorker.receive(event),
       freshWorker.retryIssuance(buyer, order.id),
     ]);
@@ -348,7 +369,7 @@ describe("gift card buyer checkout with real PostgreSQL and payment fixtures", (
     expect(output).not.toHaveProperty("user_id");
     expect(output).not.toHaveProperty("stripe_session_id");
     expect(output).not.toHaveProperty("idempotency_key");
-    expect(output.gift_card_code).toBeNull();
+    expect(output).not.toHaveProperty("gift_card_code");
   });
 
   test("unknown products cannot create an order or start payment", async () => {
@@ -360,4 +381,24 @@ describe("gift card buyer checkout with real PostgreSQL and payment fixtures", (
       await prisma.giftCardOrder.count({ where: { user_id: buyer } }),
     ).toBe(0);
   });
+});
+
+test("late validated payment after cancellation remains durable even with a replacement checkout", async () => {
+  const old = await begin();
+  await service.cancel(buyer, old.id);
+  const replacement = await begin();
+  // Synthetic fault injection: if Stripe's current trusted session says paid,
+  // a locally cancelled order cannot lose that fact to an active-order index.
+  const event = paymentEvent(fixture.pay(old.id));
+  await payments.receive(event);
+  expect(await service.findOwn(buyer, old.id)).toMatchObject({
+    status: "PAID",
+    paid_at: expect.any(Date),
+  });
+  expect((await service.findOwn(buyer, replacement.id)).status).toBe(
+    "AWAITING_PAYMENT",
+  );
+  expect(
+    await prisma.giftCardPaymentEvent.count({ where: { id: event.id } }),
+  ).toBe(1);
 });

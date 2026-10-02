@@ -521,26 +521,33 @@ enum GiftCardOrderStatus {
 // Buyer checkout, separate from game acquisitions and affiliate payouts.
 // Amounts are an immutable server-side snapshot in minor currency units.
 model GiftCardOrder {
-  id                          String              @id @default(uuid())
-  user_id                     String
-  idempotency_key             String              @db.VarChar(64)
-  product_code                String              @db.VarChar(100)
-  product_name                String              @db.VarChar(200)
-  amount_minor                Int
-  currency                    String              @db.VarChar(3)
-  status                      GiftCardOrderStatus @default(CHECKOUT_PENDING)
-  stripe_session_id           String?             @unique
-  stripe_payment_intent_id    String?             @unique
-  checkout_url                String?
-  checkout_expires_at         DateTime?
-  checkout_started_at         DateTime            @default(now())
-  paid_at                     DateTime?
-  fulfilled_at                DateTime?
-  provider_reference          String?             @unique
-  gift_card_code              String?
-  last_error                  String?             @db.VarChar(50)
-  created_at                  DateTime            @default(now())
-  updated_at                  DateTime            @updatedAt
+  id                                 String              @id @default(uuid())
+  user_id                            String
+  idempotency_key                    String              @db.VarChar(64)
+  product_code                       String              @db.VarChar(100)
+  product_name                       String              @db.VarChar(200)
+  amount_minor                       Int
+  currency                           String              @db.VarChar(3)
+  status                             GiftCardOrderStatus @default(CHECKOUT_PENDING)
+  stripe_session_id                  String?             @unique
+  stripe_payment_intent_id           String?             @unique
+  checkout_url                       String?
+  checkout_expires_at                DateTime?
+  checkout_started_at                DateTime            @default(now())
+  paid_at                            DateTime?
+  fulfilled_at                       DateTime?
+  provider_reference                 String?             @unique
+  gift_card_code                     String?
+  first_revealed_at                  DateTime?
+  issuance_started_at                DateTime?
+  delivery_claim_token               String?
+  delivery_claim_expires_at          DateTime?
+  payment_reconcile_after            DateTime?
+  payment_reconcile_claim_token      String?
+  payment_reconcile_claim_expires_at DateTime?
+  last_error                         String?             @db.VarChar(50)
+  created_at                         DateTime            @default(now())
+  updated_at                         DateTime            @updatedAt
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, created_at])

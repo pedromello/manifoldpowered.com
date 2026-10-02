@@ -19,9 +19,23 @@ export interface GiftCardDelivery {
   code: string;
 }
 
+export type GiftCardReconciliation =
+  | { status: "issued"; delivery: GiftCardDelivery }
+  // Definitive absence, including no previous request still running. A plain
+  // "not found" from an eventually consistent lookup is not enough.
+  | { status: "not_issued" }
+  | { status: "pending" | "unknown" };
+
 export interface GiftCardProvider {
   products(): Promise<GiftCardProduct[]>;
-  issue(request: GiftCardIssueRequest): Promise<GiftCardDelivery>;
+  issue(
+    request: GiftCardIssueRequest,
+    signal?: AbortSignal,
+  ): Promise<GiftCardDelivery>;
+  reconcile(
+    request: GiftCardIssueRequest,
+    signal?: AbortSignal,
+  ): Promise<GiftCardReconciliation>;
 }
 
 export function assertGiftCardSandbox() {
@@ -55,21 +69,31 @@ export const simulatedGiftCardProvider: GiftCardProvider = {
     assertGiftCardSandbox();
     return products.map((product) => ({ ...product }));
   },
-  async issue({ request_id, product }) {
-    assertGiftCardSandbox();
-    const registered = products.find((item) => item.code === product.code);
-    if (
-      !registered ||
-      registered.amount_minor !== product.amount_minor ||
-      registered.currency !== product.currency
-    ) {
-      throw new NotFoundError({ message: "Gift card product is unavailable." });
-    }
-    // Deterministic, explicitly nonredeemable, and independent of process
-    // memory. A DB rollback or a restarted worker returns the same delivery.
-    return {
-      reference: `simulated:${request_id}`,
-      code: `SIMULATED-NOT-REDEEMABLE-${request_id}`,
-    };
+  async issue(request) {
+    return simulatedDelivery(request);
+  },
+  async reconcile(request) {
+    return { status: "issued", delivery: simulatedDelivery(request) };
   },
 };
+
+function simulatedDelivery({
+  request_id,
+  product,
+}: GiftCardIssueRequest): GiftCardDelivery {
+  assertGiftCardSandbox();
+  const registered = products.find((item) => item.code === product.code);
+  if (
+    !registered ||
+    registered.amount_minor !== product.amount_minor ||
+    registered.currency !== product.currency
+  ) {
+    throw new NotFoundError({ message: "Gift card product is unavailable." });
+  }
+  // Deterministic, explicitly nonredeemable, and independent of process
+  // memory. A DB rollback or a restarted worker returns the same delivery.
+  return {
+    reference: `simulated:${request_id}`,
+    code: `SIMULATED-NOT-REDEEMABLE-${request_id}`,
+  };
+}

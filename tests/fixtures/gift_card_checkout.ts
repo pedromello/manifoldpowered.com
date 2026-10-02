@@ -2,7 +2,14 @@
 import { randomUUID } from "node:crypto";
 import type Stripe from "stripe";
 import type { CheckoutGateway, CheckoutRequest } from "infra/stripe_checkout";
-import { simulatedGiftCardProvider } from "infra/gift_card_provider";
+import { createGiftCardOrderService } from "models/gift_card_order";
+import { createGiftCardDeliveryService } from "models/gift_card_delivery";
+import {
+  type GiftCardDelivery,
+  type GiftCardIssueRequest,
+  type GiftCardReconciliation,
+  simulatedGiftCardProvider,
+} from "infra/gift_card_provider";
 
 // Payment responses live exclusively in the test layer. Application runtime
 // always uses the real Stripe SDK; no fake payment gateway can be selected.
@@ -44,9 +51,26 @@ export function checkoutFixture() {
       return { ...session };
     }),
   };
+  const deliveries = new Map<string, GiftCardDelivery>();
   const provider = {
     products: simulatedGiftCardProvider.products,
-    issue: jest.fn(simulatedGiftCardProvider.issue),
+    issue: jest.fn(async (request: GiftCardIssueRequest) => {
+      const delivery =
+        deliveries.get(request.request_id) ??
+        (await simulatedGiftCardProvider.issue(request));
+      deliveries.set(request.request_id, delivery);
+      return delivery;
+    }),
+    reconcile: jest.fn(
+      async (
+        request: GiftCardIssueRequest,
+      ): Promise<GiftCardReconciliation> => {
+        const delivery = deliveries.get(request.request_id);
+        return delivery
+          ? { status: "issued", delivery }
+          : { status: "not_issued" };
+      },
+    ),
   };
   const getSession = (orderId: string) => sessions.get(byOrder.get(orderId)!)!;
   function pay(orderId: string) {
@@ -57,7 +81,7 @@ export function checkoutFixture() {
     session.url = null;
     return session;
   }
-  return { gateway, provider, create, sessions, getSession, pay };
+  return { gateway, provider, create, sessions, deliveries, getSession, pay };
 }
 
 export function paymentEvent(
@@ -73,4 +97,19 @@ export function paymentEvent(
     created: Math.floor(Date.now() / 1000),
     data: { object: { ...session, metadata: { ...session.metadata } } },
   } as unknown as Stripe.Event;
+}
+
+export function checkoutFlowFixture(
+  fixture: ReturnType<typeof checkoutFixture>,
+) {
+  const orders = createGiftCardOrderService(fixture);
+  const delivery = createGiftCardDeliveryService(fixture);
+  return {
+    ...orders,
+    retryIssuance: (userId: string, id: string) => delivery.fulfill(id, userId),
+    receive: async (event: Stripe.Event) => {
+      const order = await orders.receive(event);
+      if (order) await delivery.fulfill(order.id);
+    },
+  };
 }

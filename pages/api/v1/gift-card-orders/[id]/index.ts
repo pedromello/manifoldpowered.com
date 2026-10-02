@@ -4,9 +4,18 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import controller from "infra/controller";
 import { ValidationError } from "infra/errors";
 import giftCardOrder, { giftCardOrderOutput } from "models/gift_card_order";
+import giftCardDelivery from "models/gift_card_delivery";
+import paymentReconciliation from "models/gift_card_payment_reconciliation";
 
 const actionSchema = z
-  .object({ action: z.enum(["checkout", "cancel", "retry_issuance"]) })
+  .object({
+    action: z.enum([
+      "checkout",
+      "cancel",
+      "retry_issuance",
+      "reconcile_payment",
+    ]),
+  })
   .strict();
 
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -36,12 +45,20 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       throw new ValidationError({ message: "Invalid gift card order action." });
     const userId = req.context.user.id!;
     const id = req.query.id as string;
+    if (body.data.action === "reconcile_payment") {
+      const result = await paymentReconciliation.reconcileOwn(userId, id);
+      const order = result.needsDelivery
+        ? await giftCardDelivery.fulfill(id, userId)
+        : result.order;
+      res.status(200).json(giftCardOrderOutput(order));
+      return;
+    }
     const order =
       body.data.action === "checkout"
         ? await giftCardOrder.checkout(userId, id)
         : body.data.action === "cancel"
           ? await giftCardOrder.cancel(userId, id)
-          : await giftCardOrder.retryIssuance(userId, id);
+          : await giftCardDelivery.fulfill(id, userId);
     res.status(200).json(giftCardOrderOutput(order));
   })
   .handler(controller.errorHandlers);

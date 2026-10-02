@@ -1,11 +1,16 @@
 name: Automated Tests
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main, feat/gift-card-test-checkout]
+  workflow_dispatch:
 
 jobs:
   jest:
     name: Jest Ubuntu
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,4 +19,23 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run test
+      - run: npm run services:up
+      - run: npm run services:wait:database
+      # Apply the committed migrations to the disposable local database.
+      # test:no-docker preserves the selected Jest exit code through concurrently.
+      - run: npm run test:no-docker
+      - if: always()
+        run: npm run services:down
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run build

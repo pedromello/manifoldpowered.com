@@ -78,7 +78,6 @@ test("list and detail expose only the buyer's safe projection with no-store cach
   });
   expect(body.orders.find((order) => order.id === orderId)).toMatchObject({
     status: "CHECKOUT_PENDING",
-    gift_card_code: null,
   });
   expect(body.orders[0]).not.toHaveProperty("stripe_payment_intent_id");
   expect(body.orders[0]).not.toHaveProperty("user_id");
@@ -96,7 +95,6 @@ test("success and cancel query parameters cannot confirm a payment or deliver a 
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
     status: "CHECKOUT_PENDING",
-    gift_card_code: null,
     paid_at: null,
   });
 });
@@ -141,7 +139,12 @@ test("another buyer cannot read, resume, cancel or retry delivery", async () => 
     expect((await fetch(`${endpoint()}/${orderId}`, { headers })).status).toBe(
       404,
     );
-    for (const action of ["checkout", "cancel", "retry_issuance"]) {
+    for (const action of [
+      "checkout",
+      "cancel",
+      "retry_issuance",
+      "reconcile_payment",
+    ]) {
       expect(
         (
           await fetch(`${endpoint()}/${orderId}`, {

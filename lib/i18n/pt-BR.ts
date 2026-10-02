@@ -1,4 +1,16 @@
 export const ptBR: Record<string, string> = {
+  "Reveal code": "Revelar código",
+  "View order": "Ver pedido",
+  "Confirm code disclosure": "Confirmar revelação do código",
+  "Confirm and reveal": "Confirmar e revelar",
+  "The gift card could not be revealed. Try again.":
+    "Não foi possível revelar o gift card. Tente novamente.",
+  "Revealing the code records disclosure and may affect refund eligibility. Applicable exceptions still apply.":
+    "Revelar o código registra sua divulgação e pode afetar a elegibilidade para reembolso. As exceções aplicáveis continuam válidas.",
+  "Confirming will reveal the code and record this disclosure. This may affect refund eligibility, subject to applicable exceptions.":
+    "Ao confirmar, o código será revelado e essa divulgação será registrada. Isso pode afetar a elegibilidade para reembolso, respeitando as exceções aplicáveis.",
+  "Payment verification could not finish. Reopen this order later or retry delivery if payment is already confirmed.":
+    "A verificação do pagamento não foi concluída. Reabra este pedido mais tarde ou tente a entrega novamente se o pagamento já estiver confirmado.",
   "Gift cards | Manifold": "Gift cards | Manifold",
   "Gift cards": "Gift cards",
   "Test purchases": "Compras de teste",

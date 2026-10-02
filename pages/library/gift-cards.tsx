@@ -9,6 +9,8 @@ import { useI18n } from "lib/i18n";
 import { formatMoney } from "lib/price";
 import type { GiftCardProduct } from "infra/gift_card_provider";
 import type { giftCardOrderOutput } from "models/gift_card_order";
+import { GiftCardReveal } from "components/GiftCardReveal";
+import { useGiftCardEntry } from "lib/useGiftCardEntry";
 
 type Order = ReturnType<typeof giftCardOrderOutput>;
 type Catalogue = {
@@ -39,6 +41,7 @@ async function request<T>(url: string, body?: unknown): Promise<T> {
       ? undefined
       : {
           method: "POST",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         },
@@ -63,20 +66,38 @@ function GiftCardsContent() {
     Error & { status: number }
   >("/api/v1/gift-card-orders", request, {
     shouldRetryOnError: false,
-    refreshInterval: (value) =>
-      value?.orders.some((order) => pending.includes(order.status)) ? 3000 : 0,
+    revalidateOnFocus: false,
   });
   const selectedId =
     typeof router.query.order === "string" ? router.query.order : null;
-  const { data: selectedOrder } = useSWR<Order>(
+  const { data: selectedOrder, mutate: mutateSelected } = useSWR<Order>(
     selectedId
       ? `/api/v1/gift-card-orders/${encodeURIComponent(selectedId)}`
       : null,
     request,
     {
       shouldRetryOnError: false,
-      refreshInterval: (order) =>
-        order && pending.includes(order.status) ? 3000 : 0,
+      revalidateOnFocus: false,
+    },
+  );
+  useGiftCardEntry(
+    selectedId,
+    selectedOrder?.id,
+    Boolean(selectedOrder && pending.includes(selectedOrder.status)),
+    async (id) => {
+      try {
+        await request<Order>(`/api/v1/gift-card-orders/${id}`, {
+          action: "reconcile_payment",
+        });
+      } catch {
+        setMessage(
+          t(
+            "Payment verification could not finish. Reopen this order later or retry delivery if payment is already confirmed.",
+          ),
+        );
+      } finally {
+        await Promise.allSettled([mutate(), mutateSelected()]);
+      }
     },
   );
   const orders = data?.orders ?? [];
@@ -108,7 +129,7 @@ function GiftCardsContent() {
         product_code: product.code,
         idempotency_key: key,
       });
-      await mutate();
+      await Promise.allSettled([mutate(), mutateSelected()]);
       if (order.checkout_url) window.location.assign(order.checkout_url);
     } catch {
       setMessage(t("The purchase could not be updated. Try again."));
@@ -318,13 +339,21 @@ function GiftCardsContent() {
                           )}
                         </p>
                       )}
-                      {order.gift_card_code && (
-                        <p
-                          className="mt-4 rounded-lg bg-white/5 p-4 font-mono text-xs break-all"
-                          aria-label={t("Demo gift card code")}
-                        >
-                          {order.gift_card_code}
-                        </p>
+                      <Link
+                        href={`/library/gift-cards?order=${order.id}`}
+                        prefetch={false}
+                        className="mt-3 inline-block text-sm text-violet-300"
+                      >
+                        {t("View order")}
+                      </Link>
+                      {order.status === "FULFILLED" && (
+                        <GiftCardReveal
+                          key={order.id}
+                          orderId={order.id}
+                          onRevealed={() =>
+                            Promise.all([mutate(), mutateSelected()])
+                          }
+                        />
                       )}
                       <div className="mt-4 flex flex-wrap gap-3">
                         {["CHECKOUT_PENDING", "AWAITING_PAYMENT"].includes(
@@ -347,7 +376,7 @@ function GiftCardsContent() {
                             </button>
                           </>
                         )}
-                        {order.status === "ISSUANCE_FAILED" && (
+                        {["PAID", "ISSUANCE_FAILED"].includes(order.status) && (
                           <button
                             disabled={busy}
                             onClick={() => act(order, "retry_issuance")}

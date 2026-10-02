@@ -27,7 +27,7 @@ const baseOrder = {
   amount_minor: 2500,
   currency: "BRL",
   created_at: "2026-10-01T00:00:00Z",
-  gift_card_code: null,
+  first_revealed_at: null,
 };
 beforeEach(() => {
   jest.clearAllMocks();
@@ -84,10 +84,11 @@ test("paid issuance failure offers delivery retry without a checkout action", ()
   expect(html).not.toContain("Resume checkout");
 });
 
-test("delivered demo card is visible only in the fulfilled state", () => {
+test("delivered code is hidden even if a stale payload contains it", () => {
   const html = render("FULFILLED");
   expect(html).toContain("Gift card delivered");
-  expect(html).toContain("SIMULATED-NOT-REDEEMABLE-fixture");
+  expect(html).not.toContain("SIMULATED-NOT-REDEEMABLE-fixture");
+  expect(html).toContain("Reveal code");
   expect(html).not.toContain("Retry delivery");
 });
 
