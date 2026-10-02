@@ -9,7 +9,7 @@ import webserver from "infra/webserver";
 
 const canonicalHostname = new URL(webserver.getOrigin()).hostname;
 const mcpAllowedHostnames = process.env.MCP_ALLOWED_HOSTNAMES?.split(",") ?? [];
-const allowedHostnames = [canonicalHostname, ...mcpAllowedHostnames]
+const allowedHostnames = [canonicalHostname, ...mcpAllowedHostnames];
 const validateHost = hostHeaderValidation(allowedHostnames);
 const validateOrigin = originValidation(allowedHostnames);
 const handleMcp = toNodeHandler(publicCatalogMcp, {
