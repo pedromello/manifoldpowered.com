@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowRight, MessageSquare, ThumbsDown, ThumbsUp } from "lucide-react";
 import type {
   CatalogGame,
   CatalogReviewsResult,
@@ -20,6 +21,7 @@ export const labels = {
     next: "Próxima página",
     previous: "Página anterior",
     video: "Assistir vídeo do catálogo",
+    videos: "Vídeos do catálogo",
     fallback: "Se o vídeo não reproduzir aqui, abra o link.",
     gallery: "Imagem do catálogo",
     imageError: "Não foi possível carregar esta imagem aqui.",
@@ -50,6 +52,7 @@ export const labels = {
     next: "Next page",
     previous: "Previous page",
     video: "Watch catalog video",
+    videos: "Catalog videos",
     fallback: "If the video cannot play here, open the link.",
     gallery: "Catalog image",
     imageError: "This image could not load here.",
@@ -107,27 +110,17 @@ function CatalogVideo({
 function GameMedia({
   game,
   locale,
-  openLink,
 }: {
   game: CatalogGame;
   locale: CardLocale;
-  openLink: (url: string) => Promise<void>;
 }) {
   const [index, setIndex] = useState(0);
-  const [link, setLink] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(
     () => new Set(),
   );
   const t = labels[locale];
   function imageFailed(url: string) {
     setFailedImages((previous) => new Set([...previous, url]));
-  }
-  async function open(url: string) {
-    try {
-      await openLink(url);
-    } catch {
-      setLink(url);
-    }
   }
   return (
     <section className="game-media" aria-label={t.gallery}>
@@ -174,6 +167,32 @@ function GameMedia({
       ) : (
         <p className="muted">{t.media}</p>
       )}
+    </section>
+  );
+}
+
+function CatalogVideos({
+  game,
+  locale,
+  openLink,
+}: {
+  game: CatalogGame;
+  locale: CardLocale;
+  openLink: (url: string) => Promise<void>;
+}) {
+  const [link, setLink] = useState<string | null>(null);
+  const t = labels[locale];
+  async function open(url: string) {
+    try {
+      await openLink(url);
+    } catch {
+      setLink(url);
+    }
+  }
+  if (!game.media.videos.length) return null;
+  return (
+    <section className="catalog-videos" aria-label={t.videos}>
+      <h2>{t.videos}</h2>
       {game.media.videos.map((video, i) => (
         <div className="catalog-video" key={video.url}>
           {video.kind === "file" && (
@@ -229,32 +248,46 @@ export function CatalogCard({
   const sort = reviews?.sample.sort ?? "newest";
   return (
     <article className="game-detail">
-      <div className="tags">
-        {game.tags.map((tag) => (
-          <span key={tag}>{tag}</span>
-        ))}
+      <div className="game-hero">
+        <div className="game-copy">
+          <div className="tags">
+            {game.tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+          <h1>{game.title}</h1>
+          <p className="description">{game.description || t.description}</p>
+          {summary.total ? (
+            <div className="review-summary">
+              <div className="summary-count">
+                <strong>
+                  {summary.total} {t.total}
+                </strong>
+                <span className="muted fine">{t.source}</span>
+              </div>
+              <span className="summary-ratio recommendation">
+                <ThumbsUp size={12} aria-hidden="true" />
+                {Math.round((summary.positive / summary.total) * 100)}%
+                <span className="sr-only"> {t.positive.toLowerCase()}</span>
+              </span>
+            </div>
+          ) : (
+            <p className="muted fine">{t.none}</p>
+          )}
+        </div>
+        <GameMedia key={game.slug} game={game} locale={locale} />
       </div>
-      <h1>{game.title}</h1>
-      <p className="description">{game.description || t.description}</p>
-      <GameMedia
+      <CatalogVideos
         key={game.slug}
         game={game}
         locale={locale}
         openLink={openLink}
       />
       <section className="reviews" aria-label={t.reviews}>
-        <h2>{t.reviews}</h2>
-        {summary.total ? (
-          <p>
-            <strong className="recommendation">
-              {Math.round((summary.positive / summary.total) * 100)}%
-            </strong>{" "}
-            {t.positive.toLowerCase()} · {summary.total} {t.total}
-          </p>
-        ) : (
-          <p className="muted">{t.none}</p>
-        )}
-        <p className="muted fine">{t.source}</p>
+        <h2>
+          <MessageSquare size={22} aria-hidden="true" />
+          {t.reviews}
+        </h2>
         <div className="review-controls">
           <label>
             {t.filter}
@@ -306,8 +339,13 @@ export function CatalogCard({
             {reviews.reviews.map((review) => (
               <blockquote key={review.reference}>
                 <strong
-                  className={review.recommended ? "recommendation" : "negative"}
+                  className={`review-verdict ${review.recommended ? "recommendation" : "negative"}`}
                 >
+                  {review.recommended ? (
+                    <ThumbsUp size={14} aria-hidden="true" />
+                  ) : (
+                    <ThumbsDown size={14} aria-hidden="true" />
+                  )}
                   {review.recommended ? t.positive : t.negative}
                 </strong>
                 <p>{review.message}</p>
@@ -371,24 +409,30 @@ export function CatalogSearchCards({
     <div className="search-cards">
       {games.map((game) => (
         <article key={game.slug}>
-          {game.media.images[0] && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={game.media.images[0]} alt={game.title} loading="lazy" />
-          )}
-          <h2>{game.title}</h2>
-          <p>{game.description || t.description}</p>
-          <div className="tags">
-            {game.tags.slice(0, 3).map((tag) => (
-              <span key={tag}>{tag}</span>
-            ))}
+          <div className="search-card-art">
+            {game.media.images[0] && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={game.media.images[0]} alt={game.title} loading="lazy" />
+            )}
           </div>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => selectGame(game.slug)}
-          >
-            {t.details}
-          </button>
+          <div className="search-card-copy">
+            <h2>{game.title}</h2>
+            <p>{game.description || t.description}</p>
+            <div className="tags">
+              {game.tags.slice(0, 3).map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </div>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={pending}
+              onClick={() => selectGame(game.slug)}
+            >
+              {t.details}
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
         </article>
       ))}
     </div>

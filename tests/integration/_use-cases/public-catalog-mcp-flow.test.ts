@@ -86,7 +86,7 @@ describe("Public catalog discovery over real MCP HTTP", () => {
       expect(reviews.reviews).toEqual([]);
       const resources = await client.listResources();
       expect(resources.resources[0].uri).toBe(
-        "ui://manifold/game-card/v1.html",
+        "ui://manifold/game-card/v2.html",
       );
       expect(
         (await client.readResource({ uri: resources.resources[0].uri }))

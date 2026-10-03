@@ -40,7 +40,7 @@ Definir explicitamente inline como modo disponível/preferido no recurso e na ca
 
 Metadados e arquivos foram lidos via Plugin Creator, não inferidos pelo nome da skill. Plugin `manifold-games`, ID `plugins_6ac016770530819183971606dd458348`, escopo USER, PRIVATE, versão `0.1.1`, release `pluginrel_6ac0177889e48191aa67faec6f70ac03` no momento da leitura. Fonte editável do pacote: `plugin.json`, `.codex-plugin/plugin.json`, `skills/find-games/SKILL.md`, `mcp.json`, `.mcp.json`, asset de logo.
 
-Preparar a skill em seu caminho original, preservando identidade, defaultPrompt completo, logo, servidor Vercel e audiência. A instalação atual continua na release lida até autorização de atualização explícita; não republicar silenciosamente. Antes de eventual upload, reler release e reconciliar mudanças concorrentes. Não interpretar ausência de tools nesta tarefa como desconexão do host de Pedro.
+Preparar a skill em seu caminho original, preservando identidade, defaultPrompt completo, logo, servidor Vercel e audiência. Pedro autorizou explicitamente atualizar seu plugin pessoal privado em 2026-10-03. A atualização guardada de 0.1.1 para 0.1.2 foi salva e relida; detalhes em [11-visual-atual.md](11-visual-atual.md). Antes de eventual upload, reler release e reconciliar mudanças concorrentes. Não interpretar ausência de tools nesta tarefa como desconexão do host de Pedro.
 
 ### Comportamento da skill proposto
 
@@ -66,11 +66,11 @@ A revisão automática inicialmente aplicou o pedido antigo de planejamento e ne
 
 ## Implementação em verificação
 
-Schemas em `contracts/public-game-catalog.ts`; projeção no model existente; filtros opcionais em `models/review.ts`; recurso em `infra/public_catalog_ui.ts`; view/controller em `components/mcp`. Build inline reproduzível reaproveita o logo binário oficial e lê os tokens de `styles/global.css`. Hooks npm constroem o asset antes de dev/test/build; Next inclui explicitamente o HTML no trace de `/api/mcp`. Workflows permanecem iguais. A configuração de Host/Origin de Pedro foi preservada.
+Schemas em `contracts/public-game-catalog.ts`; projeção no model existente; filtros opcionais em `models/review.ts`; recurso em `infra/public_catalog_ui.ts`; view/controller em `components/mcp`. Build inline reproduzível reaproveita o logo binário oficial. Após correção solicitada por Pedro, o widget acompanha as superfícies e composição da home/ficha atuais; os tokens legados `sf-` de `styles/global.css` não alimentam mais o card. Referências renderizadas e validação em [11-visual-atual.md](11-visual-atual.md). Hooks npm constroem o asset antes de dev/test/build; Next inclui explicitamente o HTML no trace de `/api/mcp`. Workflows permanecem iguais. A configuração de Host/Origin de Pedro foi preservada.
 
-O overlay da skill e versões de manifests, preservando seus demais campos, está em `plugins/manifold-games`. Não é pacote novo completo nem release instalada. A versão do plugin instalado permanece `0.1.1`.
+O overlay da skill e versões de manifests, preservando seus demais campos, está em `plugins/manifold-games`. Não é pacote novo completo. O overlay foi aplicado à mesma identidade pessoal privada por autorização de Pedro; a fonte instalada está na versão `0.1.2`.
 
-Checks focados: 7 suítes / 53 testes passaram (incluindo a rota pública antiga de reviews). A inclusão posterior do cenário de mídia válido/negado entra na suíte completa. Foram corrigidos o contrato de ferramenta desconhecida e a transformação ESM do SDK UI no Jest; isso não é validação de host. Typecheck MCP passou. Suíte completa/build/CI e screenshot serão registrados abaixo com resultados reais.
+Checks focados: 7 suítes / 53 testes passaram (incluindo a rota pública antiga de reviews). A inclusão posterior do cenário de mídia válido/negado entra na suíte completa. Foram corrigidos o contrato de ferramenta desconhecida e a transformação ESM do SDK UI no Jest; isso não é validação de host. Typecheck MCP passou. Suíte completa/CI passaram; evidência visual e checkpoint final estão abaixo.
 
 ## Evidência visual e limites reais
 
@@ -85,3 +85,24 @@ A tentativa atual de consulta ao `/api/mcp` Vercel deste executor falhou no prox
 `npm ci` → hooks `build:mcp-ui` → testes HTTP/caso de uso/UI markup e suíte inteira com serviços locais; scripts de lint completos e `typecheck:mcp`; `npm run build` recompõe o recurso e Next rastreia o HTML. Mesmo fluxo de build é usado em Vercel, sem novas migrations. Nenhuma credencial de produção é exigida pelo build da UI.
 
 CI existente executa npm ci + npm run test e lint separado. O gate de Jest inclui os cenários novos e build do widget via pretest. Typecheck MCP/build local e Vercel são evidências separadas; ainda não há gate autônomo de browser/ChatGPT nem garantia automática do comportamento conversacional da skill. Os scripts temporários de screenshot/bridge não são um host de produção. Não alterar workflows nesta etapa. Suite/counts não estabelecem suporte de codec, política do host ou representatividade das reviews.
+
+## Checkpoint do incremento anterior (antes da correção visual)
+
+Commit de implementação e SHA remoto conferido: `ac41fef66f12aef26a160ff067d6ee27637b4fd0`. PR #272 permanece draft, sem merge/produção ou alteração da release do plugin instalado.
+
+| Verificação                                        | Resultado comprovado                                                                                                                                                    |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suíte inteira local (`npm run test`, Node 24.13.1) | 243 suítes / 1.559 testes / 0 snapshots, todos passaram, 409,66 s, exit 0. posttest encerrou/removeu os três serviços locais                                            |
+| Suíte inteira no CI do mesmo SHA                   | [Automated Tests](https://github.com/pedromello/manifoldpowered.com/actions/runs/37079055154): 243 suítes / 1.559 testes, 280,24 s, success                             |
+| Lint no CI do mesmo SHA                            | [Linting](https://github.com/pedromello/manifoldpowered.com/actions/runs/37079055130): success                                                                          |
+| Checks locais                                      | Prettier/ESLint completos e typecheck:mcp passaram                                                                                                                      |
+| Build local no mesmo SHA                           | `npm run build` passou (exit 0); trace `.next/server/pages/api/mcp.js.nft.json` inclui `../../../../public/mcp/game-card.html`                                          |
+| Vercel no mesmo SHA                                | [Deploy](https://vercel.com/pedro-mellos-projects-0447d2d6/manifoldpowered-com/6E5zrdcLUCqf9upChLj3iEw7nx1W) Ready/success; comentário da PR aponta o preview da branch |
+
+As duas primeiras tentativas locais da suíte completa abortaram no startup por conflito com o servidor usado para a captura. Depois ele foi encerrado pela sessão controlada, a terceira execução passou e fez cleanup. Nenhum teste foi ignorado/alterado para contornar a falha. Jest ainda emitiu o aviso de operações assíncronas abertas; o comando saiu com sucesso e a causa do aviso não foi isolada. Isso já ocorria na primeira etapa.
+
+### Revisão visual e próximo teste no host
+
+[Preview da branch](https://manifoldpowered-com-git-d-5305b1-pedro-mellos-projects-0447d2d6.vercel.app). O endpoint conectado continua `/api/mcp`; não há ficha standalone publicada nem fixture inserida na base remota. `/mcp/game-card.html` é somente o asset do recurso MCP Apps: sem o host/bridge e seu resultado inicial, ele não consulta a API e não mostra uma ficha real. Não apresentá-lo como link funcional de jogo ou como validação do ChatGPT.
+
+Para revisar agora, usar a captura real da Library com a fixture claramente identificada. Para testar dados reais no ChatGPT, atualizar a descoberta de ferramentas da conexão existente ou iniciar uma conversa nova com o plugin, consultar `search_games` e chamar `get_game` para um slug realmente retornado. Verificar se o card aparece, se a mídia carrega e se o filtro de reviews/refusado-link funciona. Pedir explicitamente leitura de `get_game_reviews` e comparação entre total e amostra; a skill foi atualizada para 0.1.2 em 2026-10-03; confirmar que a nova conversa utiliza a release atual. Ausência do novo tool exige conferir descoberta/cache, sem substituir o plugin ou alterar proteções por suposição.

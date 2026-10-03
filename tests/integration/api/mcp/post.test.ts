@@ -299,10 +299,12 @@ describe("POST /api/mcp", () => {
           text: string;
           _meta: Record<string, unknown>;
         }>;
-      }>("resources/read", { uri: "ui://manifold/game-card/v1.html" });
+      }>("resources/read", { uri: "ui://manifold/game-card/v2.html" });
       const resource = body.result.contents[0];
       expect(resource.mimeType).toBe("text/html;profile=mcp-app");
-      expect(resource.text).toContain("--color-sf-bg: #1d0f3b");
+      expect(resource.text).toContain("--mcp-bg: #0b0812");
+      expect(resource.text).toContain("--mcp-surface: #14101c");
+      expect(resource.text).not.toContain("--color-sf-accent: #ffb400");
       expect(resource.text).toContain("data:image/png;base64,");
       expect(resource.text).not.toContain("__MANIFOLD_LOGO__");
       expect(resource._meta["openai/ui"]).toEqual({

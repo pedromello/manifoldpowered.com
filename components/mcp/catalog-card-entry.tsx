@@ -13,9 +13,12 @@ function CatalogApp() {
   return (
     <main className="manifold-card" lang={locale}>
       <header className="brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="__MANIFOLD_LOGO__" alt="Manifold" />
-        <span>
+        <div className="brand-name" aria-label="Manifold">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="__MANIFOLD_LOGO__" alt="" />
+          <span>MANIFOLD</span>
+        </div>
+        <span className="brand-caption">
           {locale === "en"
             ? "Discover your next game"
             : "Descubra seu próximo jogo"}
