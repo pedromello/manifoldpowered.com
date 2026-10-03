@@ -19,6 +19,8 @@ import {
   catalogDetailResultSchema,
   catalogReviewsResultSchema,
   catalogReviewSchema,
+  catalogPresentationSchema,
+  catalogSelectionResultSchema,
 } from "contracts/public-game-catalog";
 export * from "contracts/public-game-catalog";
 
@@ -187,5 +189,51 @@ async function findReviews(input: unknown) {
   }
 }
 
-const publicGameCatalog = { search, findBySlug, findReviews };
+async function preparePresentation(input: unknown) {
+  const query = validateInput(catalogPresentationSchema, input);
+  const slug = query.slugs[0];
+  if (query.view === "reviews")
+    return findReviews({
+      slug,
+      locale: query.locale,
+      page: query.page,
+      limit: query.limit,
+      recommendation: query.recommendation,
+      sort: query.sort,
+    });
+  if (query.view === "detail")
+    return findBySlug({ slug, locale: query.locale });
+  // Resolve references through the same public projection; never accept model facts.
+  const details = await Promise.all(
+    query.slugs.map((slug) => findBySlug({ slug, locale: query.locale })),
+  );
+  if (details.some((detail) => !detail)) return null;
+  return catalogSelectionResultSchema.parse({
+    games: details.flatMap((detail) =>
+      detail
+        ? [
+            {
+              ...detail.game,
+              matching_tags: detail.game.tags
+                .filter((tag) =>
+                  query.tags?.some(
+                    (requested) =>
+                      requested.toLowerCase() === tag.toLowerCase(),
+                  ),
+                )
+                .slice(0, 5),
+            },
+          ]
+        : [],
+    ),
+    locale: query.locale,
+  });
+}
+
+const publicGameCatalog = {
+  search,
+  findBySlug,
+  findReviews,
+  preparePresentation,
+};
 export default publicGameCatalog;

@@ -119,7 +119,7 @@ describe("Catalog card host-mediated flows", () => {
     });
     expect(controller.getSnapshot().error).toBeTruthy();
   });
-  test("review click sends actual evidence then a conversation request, never duplicates lookup", async () => {
+  test("reading and paging comments never starts a conversation; discussion explicitly sends current evidence", async () => {
     receive({ game, locale: "en" });
     host.callServerTool.mockResolvedValueOnce({ structuredContent: reviews });
     controller.readReviews(1, "all", "newest");
@@ -135,14 +135,115 @@ describe("Catalog card host-mediated flows", () => {
         sort: "newest",
       },
     });
+    expect(host.updateModelContext).not.toHaveBeenCalled();
+    expect(host.sendMessage).not.toHaveBeenCalled();
+    const page2 = {
+      ...reviews,
+      pagination: { ...reviews.pagination, page: 2 },
+    };
+    host.callServerTool.mockResolvedValueOnce({ structuredContent: page2 });
+    controller.loadReviews(2, "all", "newest");
+    await settle();
+    expect(host.sendMessage).not.toHaveBeenCalled();
+    controller.discussReviews();
+    await settle();
+    expect(host.callServerTool).toHaveBeenCalledTimes(2);
     expect(host.updateModelContext).toHaveBeenCalledWith({
-      structuredContent: { manifold_review_evidence: reviews },
+      structuredContent: { manifold_review_evidence: page2 },
     });
     expect(host.sendMessage).toHaveBeenCalledTimes(1);
     expect(controller.getSnapshot()).toMatchObject({
-      reviews,
+      reviews: page2,
       pending: false,
       error: null,
+    });
+  });
+  test("final selection is rendered without a second lookup", () => {
+    receive({ games: [game], locale: "en" });
+    expect(controller.getSnapshot()).toMatchObject({
+      games: [game],
+      selected: null,
+      pending: false,
+    });
+    expect(host.callServerTool).not.toHaveBeenCalled();
+  });
+  test("same-game host input keeps the current game/evidence through loading and cancellation", () => {
+    receive(reviews);
+    host.ontoolinput?.({ arguments: { view: "reviews", slugs: [game.slug] } });
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: game,
+      reviews,
+      pending: true,
+    });
+    host.ontoolcancelled?.({});
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: game,
+      reviews,
+      pending: false,
+    });
+    expect(controller.getSnapshot().error).toBeTruthy();
+    host.ontoolinput?.({ arguments: { view: "list", slugs: [game.slug] } });
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: null,
+      reviews: null,
+      pending: true,
+    });
+  });
+  test("rapid game changes clear previous media and ignore out-of-order results", async () => {
+    receive({ game, locale: "en" });
+    let resolveB!: (value: { structuredContent: unknown }) => void;
+    let resolveC!: (value: { structuredContent: unknown }) => void;
+    host.callServerTool.mockReturnValueOnce(
+      new Promise((done) => {
+        resolveB = done;
+      }),
+    );
+    host.callServerTool.mockReturnValueOnce(
+      new Promise((done) => {
+        resolveC = done;
+      }),
+    );
+    controller.selectGame("game-b");
+    expect(controller.getSnapshot().selected).toBeNull();
+    controller.selectGame("game-c");
+    const current = { ...game, slug: "game-c", title: "Game C" };
+    resolveC({ structuredContent: { game: current, locale: "en" } });
+    await settle();
+    resolveB({
+      structuredContent: { game: { ...game, slug: "game-b" }, locale: "en" },
+    });
+    await settle();
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: current,
+      pending: false,
+    });
+  });
+  test("same-game loading/failure preserves the game; explicit visibility denial removes it", async () => {
+    receive({ game, locale: "en" });
+    host.callServerTool.mockRejectedValueOnce(new Error("Network failure"));
+    controller.readReviews(1, "all", "newest");
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: game,
+      pending: true,
+    });
+    await settle();
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: game,
+      pending: false,
+    });
+    expect(controller.getSnapshot().error).toBeTruthy();
+    expect(host.sendMessage).not.toHaveBeenCalled();
+    host.callServerTool.mockResolvedValueOnce({
+      isError: true,
+      content: [{ type: "text", text: "Game not found." }],
+    });
+    controller.readReviews(1, "all", "newest");
+    await settle();
+    expect(controller.getSnapshot()).toMatchObject({
+      selected: null,
+      reviews: null,
+      games: null,
+      pending: false,
     });
   });
   test.each(["unsupported", "context-rejected", "message-rejected"])(

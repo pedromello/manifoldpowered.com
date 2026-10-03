@@ -8,6 +8,7 @@ import {
   catalogSearchResultSchema,
   catalogDetailResultSchema,
   catalogReviewsResultSchema,
+  catalogSelectionResultSchema,
 } from "models/public_game_catalog";
 import orchestrator from "tests/orchestrator";
 
@@ -16,11 +17,13 @@ let displayOnly: Game;
 let privateGame: Game;
 let inactive: Game;
 let adminCookie: string;
+let catalogOwnerId: string;
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
   await orchestrator.clearDatabaseRows();
   const owner = await orchestrator.createUser();
+  catalogOwnerId = owner.id;
   await orchestrator.activateUser(owner.id);
   active = await orchestrator.createGame(owner.id, {
     title: "Catalog Alpha",
@@ -150,14 +153,20 @@ describe("POST /api/mcp", () => {
         /javascript|merchant|redirect/,
       );
     });
-    test("Advertises exactly three noauth read-only tools and strict schemas", async () => {
+    test("Only the presentation tool attaches UI; all four tools preserve noauth, visibility and strict schemas", async () => {
       const { response, body } = await rpc<{
         tools: Array<{
           name: string;
+          _meta: Record<string, unknown> & {
+            ui: { resourceUri?: string; visibility: string[] };
+          };
           securitySchemes: Array<{ type: string }>;
           annotations: Record<string, boolean>;
           inputSchema: { additionalProperties: boolean; properties: object };
-          outputSchema: { additionalProperties: boolean };
+          outputSchema: {
+            additionalProperties?: boolean;
+            anyOf?: Array<{ additionalProperties: boolean }>;
+          };
         }>;
       }>("tools/list");
       expect(response.status).toBe(200);
@@ -165,6 +174,7 @@ describe("POST /api/mcp", () => {
         "search_games",
         "get_game",
         "get_game_reviews",
+        "show_catalog",
       ]);
       for (const tool of body.result.tools) {
         expect(tool.securitySchemes).toEqual([{ type: "noauth" }]);
@@ -175,9 +185,152 @@ describe("POST /api/mcp", () => {
           openWorldHint: true,
         });
         expect(tool.inputSchema.additionalProperties).toBe(false);
-        expect(tool.outputSchema.additionalProperties).toBe(false);
+        expect(tool._meta.securitySchemes).toEqual(tool.securitySchemes);
+        expect(tool._meta.ui.visibility).toEqual(["model", "app"]);
+        expect(tool._meta["openai/toolInvocation/invoking"]).toEqual(
+          expect.any(String),
+        );
+        expect(tool._meta["openai/toolInvocation/invoked"]).toEqual(
+          expect.any(String),
+        );
+        if (tool.name === "show_catalog") {
+          expect(tool._meta.ui.resourceUri).toBe(
+            "ui://manifold/game-card/v4.html",
+          );
+          expect(tool._meta["openai/outputTemplate"]).toBe(
+            tool._meta.ui.resourceUri,
+          );
+          expect(tool.outputSchema.anyOf).toHaveLength(3);
+          for (const variant of tool.outputSchema.anyOf ?? [])
+            expect(variant.additionalProperties).toBe(false);
+        } else {
+          expect(tool._meta.ui.resourceUri).toBeUndefined();
+          expect(tool._meta["openai/outputTemplate"]).toBeUndefined();
+          expect(tool.outputSchema.additionalProperties).toBe(false);
+        }
       }
     });
+    test("Presentation resolves chosen slugs in order, matching only actual tags and public facts", async () => {
+      const result = await callTool("show_catalog", {
+        view: "list",
+        slugs: [displayOnly.slug, active.slug],
+        tags: ["rpg", "invented-tag"],
+        locale: "en",
+      });
+      const data = catalogSelectionResultSchema.parse(result.structuredContent);
+      expect(data.games.map((game) => game.slug)).toEqual([
+        displayOnly.slug,
+        active.slug,
+      ]);
+      expect(data.games.map((game) => game.matching_tags)).toEqual([
+        ["rpg"],
+        [],
+      ]);
+      expect(JSON.stringify(result)).not.toMatch(
+        /PRIVATE_SENTINEL|checkout|private-review-author|invented-tag/,
+      );
+      expect(result.content).toEqual([
+        { type: "text", text: JSON.stringify(data) },
+      ]);
+      const detail = await callTool("show_catalog", {
+        view: "detail",
+        slugs: [displayOnly.slug],
+      });
+      expect(detail.structuredContent).toEqual(
+        (await callTool("get_game", { slug: displayOnly.slug }))
+          .structuredContent,
+      );
+      const reviews = await callTool("show_catalog", {
+        view: "reviews",
+        slugs: [displayOnly.slug],
+        limit: 2,
+        recommendation: "negative",
+        sort: "oldest",
+      });
+      const evidence = catalogReviewsResultSchema.parse(
+        reviews.structuredContent,
+      );
+      expect(evidence.reviews.map((review) => review.message)).toEqual([
+        "The map was confusing.",
+      ]);
+      expect(evidence.sample).toEqual({
+        returned: 1,
+        recommendation: "negative",
+        sort: "oldest",
+      });
+      expect(evidence.pagination).toEqual({
+        page: 1,
+        limit: 2,
+        total: 1,
+        pages: 1,
+      });
+      expect(JSON.stringify(reviews)).not.toMatch(
+        /private-review-author|user_id|checkout/,
+      );
+    });
+    test.each(["detail", "reviews", "list"])(
+      "Presentation view=%s revalidates visibility after a prior public lookup",
+      async (view) => {
+        const game = await orchestrator.createGame(catalogOwnerId, {
+          title: `Presentation status fixture ${view}`,
+        });
+        await gameModel.setStatus(game.id, "ONLY_DISPLAY");
+        expect(
+          (await callTool("get_game", { slug: game.slug })).isError,
+        ).toBeUndefined();
+        await gameModel.setStatus(game.id, "PRIVATE");
+        const result = await callTool("show_catalog", {
+          view,
+          slugs: view === "list" ? [active.slug, game.slug] : [game.slug],
+        });
+        expect(result).toEqual({
+          isError: true,
+          content: [{ type: "text", text: "Game not found." }],
+        });
+      },
+    );
+    test.each(["detail", "reviews", "list"])(
+      "Presentation view=%s denies private, inactive and missing references",
+      async (view) => {
+        for (const slug of [
+          privateGame.slug,
+          inactive.slug,
+          "missing-presentation-game",
+        ])
+          expect(
+            await callTool("show_catalog", { view, slugs: [slug] }),
+          ).toEqual({
+            isError: true,
+            content: [{ type: "text", text: "Game not found." }],
+          });
+      },
+    );
+    test.each([
+      { slugs: [] },
+      { slugs: ["a", "b", "c", "d", "e", "f"] },
+      { slugs: ["same", "same"] },
+      { view: "detail", slugs: ["a", "b"] },
+      { view: "reviews", slugs: ["a", "b"] },
+      { view: "other" },
+      { game: { title: "Fabricated facts" } },
+      { reviews: [{ message: "Fabricated opinion" }] },
+      { media: { videos: ["https://merchant.example.invalid"] } },
+      { confirmed: true },
+      { page: 0 },
+      { limit: 21 },
+      { recommendation: "unknown" },
+    ])(
+      "Presentation rejects invalid references or model facts: %j",
+      async (extra) => {
+        const result = await callTool("show_catalog", {
+          view: "list",
+          slugs: [active.slug],
+          ...extra,
+        });
+        expect(result.isError).toBe(true);
+        expect(result.structuredContent).toBeUndefined();
+      },
+    );
 
     test("Reviews filters, stable pagination, counters and sample stay separate", async () => {
       const first = catalogReviewsResultSchema.parse(
@@ -303,7 +456,7 @@ describe("POST /api/mcp", () => {
           text: string;
           _meta: Record<string, unknown>;
         }>;
-      }>("resources/read", { uri: "ui://manifold/game-card/v3.html" });
+      }>("resources/read", { uri: "ui://manifold/game-card/v4.html" });
       const resource = body.result.contents[0];
       expect(resource.mimeType).toBe("text/html;profile=mcp-app");
       expect(resource.text).toContain("--color-background-primary");
@@ -494,7 +647,7 @@ describe("POST /api/mcp", () => {
         content: [
           {
             type: "text",
-            text: "Unknown tool. Use search_games, get_game or get_game_reviews.",
+            text: "Unknown tool. Use search_games, get_game, get_game_reviews or show_catalog.",
           },
         ],
       });

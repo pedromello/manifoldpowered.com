@@ -6,9 +6,9 @@ import {
   CATALOG_VIDEO_ORIGINS,
 } from "lib/public-catalog-media";
 
-export const CATALOG_CARD_URI = "ui://manifold/game-card/v3.html";
+export const CATALOG_CARD_URI = "ui://manifold/game-card/v4.html";
 export const catalogCardToolMeta = {
-  ui: { resourceUri: CATALOG_CARD_URI },
+  ui: { resourceUri: CATALOG_CARD_URI, visibility: ["model", "app"] },
   "openai/outputTemplate": CATALOG_CARD_URI,
 };
 
@@ -23,6 +23,8 @@ export function readCatalogCard() {
           "utf8",
         ),
         _meta: {
+          "openai/widgetDescription":
+            "Manifold presents a final public game selection or a trailer-first game card. Reading comments stays in the card; discussing reviews starts a conversation only after an explicit click. Give a brief grounded follow-up without repeating the card or claiming host expansion.",
           ui: {
             prefersBorder: true,
             csp: {

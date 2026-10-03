@@ -306,6 +306,7 @@ function ReviewSummary({
 export function CatalogCard({
   game,
   locale,
+  reviews,
   pending,
   error,
   loadReviews,
@@ -349,6 +350,7 @@ export function CatalogCard({
           <button
             type="button"
             disabled={pending}
+            aria-expanded={Boolean(reviews)}
             onClick={() => loadReviews(1, "all", "newest")}
           >
             <MessageSquare size={16} aria-hidden="true" />
@@ -380,6 +382,7 @@ export function CatalogReviewEvidence({
   error,
   loadReviews,
   discuss,
+  showGameHeader = true,
 }: {
   reviews: CatalogReviewsResult;
   locale: CardLocale;
@@ -387,23 +390,27 @@ export function CatalogReviewEvidence({
   error: string | null;
   loadReviews: (page: number, filter: ReviewFilter, sort: ReviewSort) => void;
   discuss: () => void;
+  showGameHeader?: boolean;
 }) {
   const t = labels[locale];
   const { game, sample, pagination } = reviews;
   return (
     <section className="review-evidence" aria-label={t.reviews}>
-      <div className="review-scope">
-        <CatalogImage
-          key={game.slug}
-          url={game.media.cover ?? game.media.images[0]}
-          alt={`${game.title} — ${t.cover}`}
-          className="mini-cover"
-        />
-        <div>
-          <h1>{game.title}</h1>
-          <ReviewSummary game={game} locale={locale} />
+      {!showGameHeader && <h2>{t.reviews}</h2>}
+      {showGameHeader && (
+        <div className="review-scope">
+          <CatalogImage
+            key={game.slug}
+            url={game.media.cover ?? game.media.images[0]}
+            alt={`${game.title} — ${t.cover}`}
+            className="mini-cover"
+          />
+          <div>
+            <h1>{game.title}</h1>
+            <ReviewSummary game={game} locale={locale} />
+          </div>
         </div>
-      </div>
+      )}
       <p className="muted fine">
         {sample.returned} {t.sample} · {pagination.total} {t.filtered} ·{" "}
         {sample.recommendation === "all" ? t.all : t[sample.recommendation]} ·{" "}
@@ -414,7 +421,7 @@ export function CatalogReviewEvidence({
         {pending ? t.loading : t.discuss}
       </button>
       {error && <p role="alert">{error}</p>}
-      <details className="review-comments">
+      <details className="review-comments" open>
         <summary>{t.evidence}</summary>
         {!reviews.reviews.length && <p>{t.noComments}</p>}
         {reviews.reviews.map((review) => (

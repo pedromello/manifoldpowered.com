@@ -11,7 +11,7 @@
     "capabilities": []
   },
   "name": "manifold-games",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Search the public Manifold game catalog and retrieve game facts.",
   "author": {
     "name": "Pedro Mello"

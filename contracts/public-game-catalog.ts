@@ -25,6 +25,29 @@ export const catalogReviewsSchema = z
     sort: z.enum(["newest", "oldest"]).default("newest"),
   })
   .strict();
+export const catalogPresentationSchema = z
+  .object({
+    view: z.enum(["list", "detail", "reviews"]),
+    slugs: z.array(slug).min(1).max(5),
+    locale,
+    tags: catalogSearchSchema.shape.tags,
+    page,
+    limit: limit.default(10),
+    recommendation: catalogReviewsSchema.shape.recommendation,
+    sort: catalogReviewsSchema.shape.sort,
+  })
+  .strict()
+  .superRefine((input, context) => {
+    if (
+      new Set(input.slugs).size !== input.slugs.length ||
+      (input.view !== "list" && input.slugs.length !== 1)
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["slugs"],
+        message: "Use distinct slugs; detail/reviews require exactly one game.",
+      });
+  });
 export const catalogGameSchema = z
   .object({
     slug: z.string(),
@@ -105,6 +128,14 @@ export const catalogReviewsResultSchema = z
       .strict(),
   })
   .strict();
+export const catalogSelectionResultSchema = z
+  .object({ games: z.array(catalogGameSchema).min(1).max(5), locale })
+  .strict();
+export const catalogPresentationResultSchema = z.union([
+  catalogSelectionResultSchema,
+  catalogDetailResultSchema,
+  catalogReviewsResultSchema,
+]);
 export type CatalogGame = z.infer<typeof catalogGameSchema>;
 export type CatalogReview = z.infer<typeof catalogReviewSchema>;
 export type CatalogReviewsResult = z.infer<typeof catalogReviewsResultSchema>;

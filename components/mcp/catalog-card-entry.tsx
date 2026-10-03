@@ -30,7 +30,17 @@ function CatalogApp() {
               {labels[locale].back}
             </button>
           )}
-          {reviews ? (
+          <CatalogCard
+            key={selected.slug}
+            game={selected}
+            locale={locale}
+            reviews={reviews}
+            pending={pending}
+            error={reviews ? null : error}
+            loadReviews={controller.readReviews}
+            openLink={controller.openLink}
+          />
+          {reviews && (
             <CatalogReviewEvidence
               reviews={reviews}
               locale={locale}
@@ -38,17 +48,7 @@ function CatalogApp() {
               error={error}
               loadReviews={controller.loadReviews}
               discuss={controller.discussReviews}
-            />
-          ) : (
-            <CatalogCard
-              key={selected.slug}
-              game={selected}
-              locale={locale}
-              reviews={reviews}
-              pending={pending}
-              error={error}
-              loadReviews={controller.readReviews}
-              openLink={controller.openLink}
+              showGameHeader={false}
             />
           )}
         </>

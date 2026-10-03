@@ -9,6 +9,7 @@ import {
   catalogSearchResultSchema,
   catalogDetailResultSchema,
   catalogReviewsResultSchema,
+  catalogSelectionResultSchema,
 } from "models/public_game_catalog";
 import orchestrator from "tests/orchestrator";
 
@@ -50,6 +51,7 @@ describe("Public catalog discovery over real MCP HTTP", () => {
         "search_games",
         "get_game",
         "get_game_reviews",
+        "show_catalog",
       ]);
       const search = catalogSearchResultSchema.parse(
         (
@@ -65,6 +67,20 @@ describe("Public catalog discovery over real MCP HTTP", () => {
       );
       expect(search.games.map((item) => item.slug)).toEqual([game.slug]);
       expect(search.pagination.total).toBe(1);
+      const selection = catalogSelectionResultSchema.parse(
+        (
+          await client.callTool({
+            name: "show_catalog",
+            arguments: {
+              view: "list",
+              slugs: search.games.map((game) => game.slug),
+              tags: ["journey-fixture"],
+              locale: "pt-BR",
+            },
+          })
+        ).structuredContent,
+      );
+      expect(selection.games).toEqual(search.games);
       const detail = catalogDetailResultSchema.parse(
         (
           await client.callTool({
@@ -86,15 +102,48 @@ describe("Public catalog discovery over real MCP HTTP", () => {
         ).structuredContent,
       );
       expect(reviews.reviews).toEqual([]);
+      expect(
+        catalogDetailResultSchema.parse(
+          (
+            await client.callTool({
+              name: "show_catalog",
+              arguments: {
+                view: "detail",
+                slugs: [game.slug],
+                locale: "pt-BR",
+              },
+            })
+          ).structuredContent,
+        ),
+      ).toEqual(detail);
+      expect(
+        catalogReviewsResultSchema.parse(
+          (
+            await client.callTool({
+              name: "show_catalog",
+              arguments: { view: "reviews", slugs: [game.slug] },
+            })
+          ).structuredContent,
+        ),
+      ).toEqual(reviews);
       const resources = await client.listResources();
       expect(resources.resources[0].uri).toBe(
-        "ui://manifold/game-card/v3.html",
+        "ui://manifold/game-card/v4.html",
       );
       expect(
         (await client.readResource({ uri: resources.resources[0].uri }))
           .contents[0].mimeType,
       ).toBe("text/html;profile=mcp-app");
       await gameModel.setStatus(game.id, "PRIVATE");
+      for (const view of ["list", "detail", "reviews"])
+        expect(
+          (
+            await client.callTool({
+              name: "show_catalog",
+              arguments: { view, slugs: [game.slug] },
+            })
+          ).isError,
+        ).toBe(true);
       expect(
         (
           await client.callTool({

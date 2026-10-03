@@ -8,6 +8,7 @@ import {
   catalogSearchResultSchema,
   catalogDetailResultSchema,
   catalogReviewsResultSchema,
+  catalogSelectionResultSchema,
   type CatalogGame,
   type CatalogReviewsResult,
 } from "contracts/public-game-catalog";
@@ -19,7 +20,7 @@ import {
 } from "components/mcp/CatalogCard";
 
 const app = new App(
-  { name: "Manifold game card", version: "0.1.0" },
+  { name: "Manifold game card", version: "0.2.0" },
   { availableDisplayModes: ["inline"] },
 );
 interface CardState {
@@ -44,9 +45,13 @@ function update(changes: Partial<CardState>) {
   state = { ...state, ...changes };
   listeners.forEach((listener) => listener());
 }
-function receive(data: unknown, isError?: boolean) {
+function receive(data: unknown, isError?: boolean, unavailable = false) {
   if (isError) {
-    update({ pending: false, error: labels[state.locale].error });
+    update({
+      ...(unavailable ? { selected: null, reviews: null, games: null } : {}),
+      pending: false,
+      error: labels[state.locale].error,
+    });
     return;
   }
   const reviews = catalogReviewsResultSchema.safeParse(data);
@@ -71,7 +76,9 @@ function receive(data: unknown, isError?: boolean) {
     });
     return;
   }
-  const search = catalogSearchResultSchema.safeParse(data);
+  const search = catalogSearchResultSchema
+    .or(catalogSelectionResultSchema)
+    .safeParse(data);
   if (search.success) {
     update({
       games: search.data.games,
@@ -87,11 +94,23 @@ function receive(data: unknown, isError?: boolean) {
 }
 async function call(name: string, args: Record<string, unknown>) {
   const version = ++requestVersion;
-  update({ pending: true, error: null });
+  update({
+    ...(args.slug && args.slug !== state.selected?.slug
+      ? { selected: null, reviews: null }
+      : {}),
+    pending: true,
+    error: null,
+  });
   try {
     const result = await app.callServerTool({ name, arguments: args });
     if (version === requestVersion) {
-      receive(result.structuredContent, result.isError);
+      receive(
+        result.structuredContent,
+        result.isError,
+        result.content?.some(
+          (item) => item.type === "text" && item.text === "Game not found.",
+        ),
+      );
       return result.isError ? undefined : version;
     }
   } catch {
@@ -173,8 +192,6 @@ export const catalogCardController = {
       page,
       recommendation,
       sort,
-    }).then((version) => {
-      if (version === requestVersion && state.reviews) void discussReviews();
     });
   },
   discussReviews() {
@@ -189,13 +206,30 @@ export const catalogCardController = {
     if (result.isError) throw new Error("Link unavailable");
   },
   connect() {
-    app.ontoolinput = () => {
+    app.ontoolinput = ({ arguments: args }) => {
       ++requestVersion;
-      update({ selected: null, reviews: null, pending: true, error: null });
+      const sameGame =
+        state.selected &&
+        args?.view !== "list" &&
+        (args?.slug === state.selected.slug ||
+          (Array.isArray(args?.slugs) &&
+            args.slugs.length === 1 &&
+            args.slugs[0] === state.selected.slug));
+      update({
+        ...(sameGame ? {} : { selected: null, reviews: null }),
+        pending: true,
+        error: null,
+      });
     };
     app.ontoolresult = (result) => {
       ++requestVersion;
-      receive(result.structuredContent, result.isError);
+      receive(
+        result.structuredContent,
+        result.isError,
+        result.content?.some(
+          (item) => item.type === "text" && item.text === "Game not found.",
+        ),
+      );
     };
     app.ontoolcancelled = () => {
       ++requestVersion;
