@@ -221,6 +221,7 @@ async function getPaginatedReviewsBySlug(
   page: number,
   limit: number,
   userId?: string,
+  options: { recommended?: boolean; order?: "asc" | "desc" } = {},
 ) {
   const game = await findReviewableGame(slug);
 
@@ -232,16 +233,20 @@ async function getPaginatedReviewsBySlug(
   }
 
   const skip = (page - 1) * limit;
+  const where = { game_id: game.id, recommended: options.recommended };
 
   const [reviews, totalCount] = await Promise.all([
     prisma.review.findMany({
-      where: { game_id: game.id },
-      orderBy: { created_at: "desc" },
+      where,
+      orderBy: [
+        { created_at: options.order ?? "desc" },
+        { id: options.order ?? "desc" },
+      ],
       skip,
       take: limit,
     }),
     prisma.review.count({
-      where: { game_id: game.id },
+      where,
     }),
   ]);
 

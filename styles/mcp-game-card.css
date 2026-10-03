@@ -1,0 +1,317 @@
+/* Conversation-native Manifold MCP App. Host tokens take precedence. */
+:root {
+  color-scheme: light dark;
+  --mcp-bg: #ffffff;
+  --mcp-surface: #f5f5f5;
+  --mcp-border: #dedede;
+  --mcp-fg: #202024;
+  --mcp-muted: #66636b;
+  --mcp-accent: #7d35be;
+}
+:root[data-theme="dark"] {
+  --mcp-bg: #252525;
+  --mcp-surface: #303030;
+  --mcp-border: #484848;
+  --mcp-fg: #f5f5f5;
+  --mcp-muted: #b5b5b5;
+  --mcp-accent: #d8b9ff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: transparent;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+.manifold-card {
+  max-width: 640px;
+  margin: auto;
+  padding: 16px;
+  color: var(--color-text-primary, var(--mcp-fg));
+  background: var(--color-background-primary, var(--mcp-bg));
+  border: 1px solid var(--color-border-primary, var(--mcp-border));
+  border-radius: var(--border-radius-lg, 16px);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.brand img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+h1 {
+  font-size: 23px;
+  line-height: 1.25;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+  overflow-wrap: anywhere;
+}
+p {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.muted,
+.tags,
+.short-description,
+blockquote footer {
+  color: var(--color-text-secondary, var(--mcp-muted));
+}
+.fine,
+.tags {
+  font-size: 12px;
+}
+.tags {
+  margin: 0 0 12px;
+}
+.search-cards h1 {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+button,
+a,
+summary {
+  font: inherit;
+}
+button {
+  color: inherit;
+  cursor: pointer;
+  min-height: 44px;
+  border: 1px solid var(--color-border-primary, var(--mcp-border));
+  border-radius: 10px;
+  background: var(--color-background-secondary, var(--mcp-surface));
+  padding: 10px 12px;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+button:hover:not(:disabled) {
+  background: var(--color-background-tertiary, var(--mcp-surface));
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+video:focus-visible {
+  outline: 2px solid var(--mcp-accent);
+  outline-offset: 3px;
+}
+a {
+  color: var(--mcp-accent);
+  overflow-wrap: anywhere;
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  color: var(--mcp-accent);
+  font-size: 12px;
+}
+.search-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid var(--color-border-primary, var(--mcp-border));
+  border-radius: 0;
+  padding: 14px 0;
+  background: transparent;
+}
+.search-cover {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 9px;
+}
+.search-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.search-copy strong {
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+.short-description {
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-copy .tags {
+  font-size: 11px;
+  margin: 0;
+}
+.match-reason {
+  color: var(--mcp-accent);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background-secondary, var(--mcp-surface));
+  color: var(--color-text-secondary, var(--mcp-muted));
+}
+.hero-image,
+video,
+.media-unavailable {
+  width: 100%;
+  aspect-ratio: 16/9;
+  display: block;
+  object-fit: cover;
+  border-radius: 11px;
+  background: var(--color-background-secondary, var(--mcp-surface));
+}
+video {
+  object-fit: contain;
+}
+.media-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+}
+.media-status {
+  font-size: 11px;
+  margin: 8px 0;
+}
+.video-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-top: 8px;
+}
+.video-link p {
+  margin: 0;
+}
+.detail-copy {
+  padding-top: 16px;
+}
+.description {
+  font-size: 14px;
+  margin: 0;
+}
+.review-summary {
+  font-size: 12px;
+  margin: 12px 0;
+  color: var(--color-text-secondary, var(--mcp-muted));
+}
+.review-summary strong {
+  color: var(--color-text-primary, var(--mcp-fg));
+  font-weight: 600;
+}
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.detail-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.game-screenshots {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.review-scope {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-primary, var(--mcp-border));
+  border-bottom: 1px solid var(--color-border-primary, var(--mcp-border));
+}
+.mini-cover {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.review-scope h1 {
+  font-size: 17px;
+  margin: 0;
+}
+.review-scope .review-summary {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+.review-evidence > button {
+  font-size: 12px;
+}
+.review-comments {
+  margin-top: 16px;
+}
+summary {
+  cursor: pointer;
+  color: var(--mcp-accent);
+  font-size: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+}
+blockquote {
+  margin: 12px 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-primary, var(--mcp-border));
+  font-size: 13px;
+}
+blockquote p {
+  white-space: pre-wrap;
+}
+blockquote footer {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.pagination button {
+  font-size: 11px;
+}
+[role="alert"] {
+  color: var(--color-text-danger, #b43a45);
+  font-size: 12px;
+}
+@media (max-width: 360px) {
+  .manifold-card {
+    padding: 12px;
+  }
+  .search-cover {
+    width: 64px;
+    height: 64px;
+  }
+  .search-row {
+    gap: 10px;
+  }
+}

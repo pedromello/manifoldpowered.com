@@ -16,3 +16,11 @@ build
 
 # TypeScript incremental build info
 tsconfig.tsbuildinfo
+
+# Legal documents
+docs/legal/**
+
+.worktrees
+
+# Reproducible MCP UI build output
+public/mcp/

@@ -1,0 +1,9 @@
+# Source overlay for the installed Manifold plugin
+
+This is a source overlay, **not a complete new plugin**. Pedro explicitly authorized its guarded update to his existing private personal plugin on 2026-10-03; version `0.1.2` was saved and read back. It preserves the current plugin's name, owner, defaultPrompt (including its original type/value), branding, MCP URL/configuration and audience. Only the skill changes and the two existing manifest versions advance to `0.1.2`; unchanged MCP files and binary logo are intentionally omitted from this overlay and remain in the owned source.
+
+The exact owned source and release guard are recorded in [the implementation checkpoint](../../docs/manifold-mcp/10-card-descoberta.md#fonte-do-plugin-instalado). Current source was inspected through Plugin Creator. Do not publish this directory as a replacement plugin or infer ownership/audience from its manifest. The update was saved as release `pluginrel_6ac0486463b88191b0f4b549c37ef19c`, preserving USER scope and PRIVATE audience. Both MCP configurations were read back unchanged; the existing binary logo remains.
+
+For a future authorized update: reread the current source/release, reconcile concurrent changes, compare effective configuration, package only this overlay at its original relative paths, and preserve unchanged files through the supported guarded update. A release save does not prove skill behavior or card rendering in ChatGPT; test them in the intended host afterward.
+
+Manual behavior checks: broad discovery with no preferences; known tastes already supplied; a direct game question requiring no follow-up; small/empty review sample; contradictory filtered comments; missing media/player failure; PC already specified but requirements unavailable; MCP tool failure. These are host evaluation cases, not guarantees established by Jest fixtures.
