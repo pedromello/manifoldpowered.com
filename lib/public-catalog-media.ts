@@ -39,12 +39,20 @@ export function projectCatalogMedia(input: unknown) {
     input && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
-  const screenshots: unknown[] = Array.isArray(media.screenshots)
+  const storedScreenshots: unknown[] = Array.isArray(media.screenshots)
     ? media.screenshots
     : [];
+  const cover = allowedUrl(media.banner, CATALOG_IMAGE_ORIGINS)?.href ?? null;
+  const screenshots = [
+    ...new Set(
+      storedScreenshots
+        .map((value) => allowedUrl(value, CATALOG_IMAGE_ORIGINS)?.href)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ].slice(0, 6);
   const images = [
     ...new Set(
-      [media.banner, ...screenshots]
+      [cover, ...screenshots]
         .map((value) => allowedUrl(value, CATALOG_IMAGE_ORIGINS)?.href)
         .filter((value): value is string => Boolean(value)),
     ),
@@ -80,5 +88,5 @@ export function projectCatalogMedia(input: unknown) {
       ];
     })
     .slice(0, 2);
-  return { images, videos };
+  return { images, videos, cover, screenshots };
 }

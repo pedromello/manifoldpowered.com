@@ -73,7 +73,9 @@ describe("Public catalog discovery over real MCP HTTP", () => {
           })
         ).structuredContent,
       );
-      expect(detail.game).toEqual(search.games[0]);
+      const { matching_tags, ...selected } = search.games[0];
+      expect(matching_tags).toEqual(["journey-fixture"]);
+      expect(detail.game).toEqual(selected);
       expect(detail.game.title).toBe("Exploration Catalog Journey");
       const reviews = catalogReviewsResultSchema.parse(
         (
@@ -86,7 +88,7 @@ describe("Public catalog discovery over real MCP HTTP", () => {
       expect(reviews.reviews).toEqual([]);
       const resources = await client.listResources();
       expect(resources.resources[0].uri).toBe(
-        "ui://manifold/game-card/v2.html",
+        "ui://manifold/game-card/v3.html",
       );
       expect(
         (await client.readResource({ uri: resources.resources[0].uri }))

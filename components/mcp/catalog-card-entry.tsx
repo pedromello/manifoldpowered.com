@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import {
   CatalogCard,
   CatalogSearchCards,
+  CatalogReviewEvidence,
   labels,
 } from "components/mcp/CatalogCard";
 import { catalogCardController as controller } from "components/mcp/catalog-card-controller";
@@ -13,16 +14,9 @@ function CatalogApp() {
   return (
     <main className="manifold-card" lang={locale}>
       <header className="brand">
-        <div className="brand-name" aria-label="Manifold">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="__MANIFOLD_LOGO__" alt="" />
-          <span>MANIFOLD</span>
-        </div>
-        <span className="brand-caption">
-          {locale === "en"
-            ? "Discover your next game"
-            : "Descubra seu próximo jogo"}
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="__MANIFOLD_LOGO__" alt="" />
+        <span>Manifold</span>
       </header>
       {selected ? (
         <>
@@ -36,15 +30,27 @@ function CatalogApp() {
               {labels[locale].back}
             </button>
           )}
-          <CatalogCard
-            game={selected}
-            locale={locale}
-            reviews={reviews}
-            pending={pending}
-            error={error}
-            loadReviews={controller.loadReviews}
-            openLink={controller.openLink}
-          />
+          {reviews ? (
+            <CatalogReviewEvidence
+              reviews={reviews}
+              locale={locale}
+              pending={pending}
+              error={error}
+              loadReviews={controller.loadReviews}
+              discuss={controller.discussReviews}
+            />
+          ) : (
+            <CatalogCard
+              key={selected.slug}
+              game={selected}
+              locale={locale}
+              reviews={reviews}
+              pending={pending}
+              error={error}
+              loadReviews={controller.readReviews}
+              openLink={controller.openLink}
+            />
+          )}
         </>
       ) : (
         <>

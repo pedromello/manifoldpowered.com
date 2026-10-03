@@ -6,7 +6,7 @@ import {
   CATALOG_VIDEO_ORIGINS,
 } from "lib/public-catalog-media";
 
-export const CATALOG_CARD_URI = "ui://manifold/game-card/v2.html";
+export const CATALOG_CARD_URI = "ui://manifold/game-card/v3.html";
 export const catalogCardToolMeta = {
   ui: { resourceUri: CATALOG_CARD_URI },
   "openai/outputTemplate": CATALOG_CARD_URI,

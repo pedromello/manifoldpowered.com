@@ -31,10 +31,13 @@ export const catalogGameSchema = z
     title: z.string().max(255),
     description: z.string().max(600),
     tags: z.array(z.string().max(64)).max(10),
+    matching_tags: z.array(z.string().max(64)).max(5).optional(),
     launch_date: z.iso.datetime().nullable(),
     media: z
       .object({
         images: z.array(z.url()).max(6),
+        cover: z.url().nullable().optional(),
+        screenshots: z.array(z.url()).max(6).optional(),
         videos: z
           .array(
             z

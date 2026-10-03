@@ -132,6 +132,10 @@ describe("POST /api/mcp", () => {
         catalogDetailResultSchema.parse(result.structuredContent).game.media,
       ).toEqual({
         images: ["https://shared.fastly.steamstatic.com/catalog-fixture.jpg"],
+        cover: null,
+        screenshots: [
+          "https://shared.fastly.steamstatic.com/catalog-fixture.jpg",
+        ],
         videos: [
           {
             url: "https://video.fastly.steamstatic.com/catalog-fixture.mp4",
@@ -299,11 +303,11 @@ describe("POST /api/mcp", () => {
           text: string;
           _meta: Record<string, unknown>;
         }>;
-      }>("resources/read", { uri: "ui://manifold/game-card/v2.html" });
+      }>("resources/read", { uri: "ui://manifold/game-card/v3.html" });
       const resource = body.result.contents[0];
       expect(resource.mimeType).toBe("text/html;profile=mcp-app");
-      expect(resource.text).toContain("--mcp-bg: #0b0812");
-      expect(resource.text).toContain("--mcp-surface: #14101c");
+      expect(resource.text).toContain("--color-background-primary");
+      expect(resource.text).toContain("--color-text-primary");
       expect(resource.text).not.toContain("--color-sf-accent: #ffb400");
       expect(resource.text).toContain("data:image/png;base64,");
       expect(resource.text).not.toContain("__MANIFOLD_LOGO__");
@@ -382,7 +386,7 @@ describe("POST /api/mcp", () => {
         slug: active.slug,
         title: "Catalog Alpha",
         description: "Catalog exploration",
-        media: { images: [], videos: [] },
+        media: { images: [], videos: [], cover: null, screenshots: [] },
         review_summary: {
           total: 0,
           positive: 0,
@@ -394,7 +398,7 @@ describe("POST /api/mcp", () => {
       };
       expect(
         catalogSearchResultSchema.parse(search.structuredContent).games,
-      ).toEqual([expected]);
+      ).toEqual([{ ...expected, matching_tags: [] }]);
       expect(catalogDetailResultSchema.parse(detail.structuredContent)).toEqual(
         { game: expected, locale: "en" },
       );

@@ -12,6 +12,8 @@ describe("MCP catalog media policy", () => {
       }),
     ).toEqual({
       images: [image],
+      cover: image,
+      screenshots: [image],
       videos: [
         { url: file, kind: "file" },
         {
@@ -47,7 +49,12 @@ describe("MCP catalog media policy", () => {
   ])(
     "omits missing/unsafe/merchant media without inventing fallback: %j",
     (input) => {
-      expect(projectCatalogMedia(input)).toEqual({ images: [], videos: [] });
+      expect(projectCatalogMedia(input)).toEqual({
+        images: [],
+        videos: [],
+        cover: null,
+        screenshots: [],
+      });
     },
   );
 });

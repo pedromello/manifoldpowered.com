@@ -96,7 +96,16 @@ async function search(input: unknown) {
   const result = await game.findAllPaginated({ ...query, order: "newest" });
   const games = await projectGames(result.games, query.locale);
   return catalogSearchResultSchema.parse({
-    games,
+    games: games.map((item) => ({
+      ...item,
+      matching_tags: item.tags
+        .filter((tag) =>
+          query.tags?.some(
+            (requested) => requested.toLowerCase() === tag.toLowerCase(),
+          ),
+        )
+        .slice(0, 5),
+    })),
     pagination: result.pagination,
     locale: query.locale,
   });

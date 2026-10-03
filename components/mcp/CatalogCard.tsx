@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRight, MessageSquare, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronRight, Images, MessageSquare } from "lucide-react";
 import type {
   CatalogGame,
   CatalogReviewsResult,
@@ -15,18 +15,15 @@ export const labels = {
     reviews: "Avaliações da comunidade",
     none: "Sem avaliações no catálogo.",
     read: "Ler avaliações",
-    all: "Todas",
     positive: "Recomendam",
     negative: "Não recomendam",
     next: "Próxima página",
     previous: "Página anterior",
-    video: "Assistir vídeo do catálogo",
-    videos: "Vídeos do catálogo",
-    fallback: "Se o vídeo não reproduzir aqui, abra o link.",
+    video: "Abrir vídeo do catálogo",
     gallery: "Imagem do catálogo",
+    gameplay: "Imagem de gameplay",
+    cover: "Capa do catálogo",
     imageError: "Não foi possível carregar esta imagem aqui.",
-    order: "Ordem",
-    filter: "Filtro",
     total: "avaliações no catálogo",
     sample: "comentários nesta página",
     filtered: "no filtro",
@@ -35,7 +32,20 @@ export const labels = {
     loading: "Carregando…",
     newest: "Mais recentes",
     oldest: "Mais antigas",
+    all: "Todas",
     source: "Contadores do catálogo; comentários consultados separadamente.",
+    trailer: "Vídeo do catálogo",
+    manual:
+      "Use os controles para reproduzir. O autoplay pode ser bloqueado aqui.",
+    unavailableVideo:
+      "Este vídeo não reproduziu aqui. Você pode abrir o vídeo do catálogo.",
+    images: "Ver imagens",
+    selection: "Para explorar",
+    match: "Combina com suas tags:",
+    evidence: "Ver comentários e datas consultados",
+    discuss: "Conversar sobre as avaliações",
+    conversationError:
+      "O host não aceitou enviar à conversa. As avaliações continuam disponíveis abaixo; peça a análise na conversa.",
   },
   en: {
     details: "View details",
@@ -46,18 +56,15 @@ export const labels = {
     reviews: "Community reviews",
     none: "No catalog reviews.",
     read: "Read reviews",
-    all: "All",
     positive: "Recommend",
     negative: "Do not recommend",
     next: "Next page",
     previous: "Previous page",
-    video: "Watch catalog video",
-    videos: "Catalog videos",
-    fallback: "If the video cannot play here, open the link.",
+    video: "Open catalog video",
     gallery: "Catalog image",
+    gameplay: "Gameplay image",
+    cover: "Catalog cover",
     imageError: "This image could not load here.",
-    order: "Order",
-    filter: "Filter",
     total: "catalog reviews",
     sample: "comments on this page",
     filtered: "matching the filter",
@@ -66,112 +73,143 @@ export const labels = {
     loading: "Loading…",
     newest: "Newest",
     oldest: "Oldest",
+    all: "All",
     source: "Catalog counters; comments consulted separately.",
+    trailer: "Catalog video",
+    manual: "Use the controls to play. Autoplay may be blocked here.",
+    unavailableVideo:
+      "This video could not play here. You can open the catalog video.",
+    images: "View images",
+    selection: "Games to explore",
+    match: "Matches your tags:",
+    evidence: "View consulted comments and dates",
+    discuss: "Discuss these reviews",
+    conversationError:
+      "The host did not accept sending to the conversation. Reviews remain available below; ask for analysis in the conversation.",
   },
 };
 export type CardLocale = keyof typeof labels;
 export type ReviewFilter = "all" | "positive" | "negative";
 export type ReviewSort = "newest" | "oldest";
 
-function CatalogVideo({
+function CatalogImage({
   url,
-  title,
-  poster,
+  alt,
+  className,
 }: {
-  url: string;
-  title: string;
-  poster?: string;
+  url?: string | null;
+  alt: string;
+  className?: string;
 }) {
-  const hls = new URL(url).pathname.endsWith(".m3u8");
-  const [playable, setPlayable] = useState(
-    () =>
-      !hls ||
-      (typeof document !== "undefined" &&
-        Boolean(
-          document
-            .createElement("video")
-            .canPlayType("application/vnd.apple.mpegurl"),
-        )),
-  );
-  if (!playable) return null;
+  const [failed, setFailed] = useState(false);
+  if (!url || failed)
+    return (
+      <span
+        className={`image-placeholder ${className ?? ""}`}
+        role="img"
+        aria-label={alt}
+      >
+        <Images size={24} aria-hidden="true" />
+      </span>
+    );
+  // URLs have passed the public media allowlist and match the resource CSP.
   return (
-    <video
-      controls
-      playsInline
-      preload="none"
-      poster={poster}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={url}
-      aria-label={title}
-      onError={() => setPlayable(false)}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setFailed(true)}
     />
   );
 }
 
-function GameMedia({
-  game,
+export function CatalogVideo({
+  url,
+  poster,
+  title,
   locale,
 }: {
-  game: CatalogGame;
+  url: string;
+  poster?: string;
+  title: string;
   locale: CardLocale;
 }) {
-  const [index, setIndex] = useState(0);
-  const [failedImages, setFailedImages] = useState<Set<string>>(
-    () => new Set(),
+  const ref = useRef<HTMLVideoElement>(null);
+  const [status, setStatus] = useState<"manual" | "playing" | "unavailable">(
+    "manual",
   );
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    let active = true;
+    video.muted = true;
+    // One best-effort attempt per mounted source. The host/browser may refuse it.
+    void video.play().catch((error: unknown) => {
+      if (active)
+        setStatus(
+          video.error ||
+            (error instanceof DOMException &&
+              error.name === "NotSupportedError")
+            ? "unavailable"
+            : "manual",
+        );
+    });
+    return () => {
+      active = false;
+      video.pause();
+    };
+  }, [url]);
   const t = labels[locale];
-  function imageFailed(url: string) {
-    setFailedImages((previous) => new Set([...previous, url]));
-  }
   return (
-    <section className="game-media" aria-label={t.gallery}>
-      {game.media.images.length > 0 ? (
-        <>
-          {failedImages.has(game.media.images[index]) ? (
-            <p className="media-unavailable muted">{t.imageError}</p>
-          ) : (
-            // Catalog images are already projected against the resource CSP.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="hero-image"
-              src={game.media.images[index]}
-              alt={`${game.title} — ${t.gallery} ${index + 1}`}
-              onError={() => imageFailed(game.media.images[index])}
-            />
-          )}
-          {game.media.images.length > 1 && (
-            <div className="thumbnails">
-              {game.media.images.map((url, i) => (
-                <button
-                  key={url}
-                  type="button"
-                  aria-label={`${t.gallery} ${i + 1}`}
-                  aria-pressed={index === i}
-                  onClick={() => setIndex(i)}
-                >
-                  {failedImages.has(url) ? (
-                    <span>{i + 1}</span>
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={url}
-                      alt=""
-                      loading="lazy"
-                      onError={() => imageFailed(url)}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+    <>
+      {status === "unavailable" ? (
+        <CatalogImage url={poster} className="hero-image" alt={title} />
       ) : (
-        <p className="muted">{t.media}</p>
+        <video
+          ref={ref}
+          controls
+          muted
+          playsInline
+          preload="metadata"
+          poster={poster}
+          src={url}
+          aria-label={title}
+          onPlaying={() => setStatus("playing")}
+          onPause={() =>
+            setStatus((previous) =>
+              previous === "unavailable" ? previous : "manual",
+            )
+          }
+          onError={(event) => {
+            event.currentTarget.pause();
+            setStatus("unavailable");
+          }}
+        />
       )}
-    </section>
+      {status !== "playing" && (
+        <p className="media-status muted" role="status">
+          {status === "unavailable" ? t.unavailableVideo : t.manual}
+        </p>
+      )}
+    </>
   );
 }
 
-function CatalogVideos({
+function canPlayVideo(url: string) {
+  const pathname = new URL(url).pathname.toLowerCase();
+  if (!pathname.endsWith(".m3u8")) return true;
+  return (
+    typeof document !== "undefined" &&
+    Boolean(
+      document
+        .createElement("video")
+        .canPlayType("application/vnd.apple.mpegurl"),
+    )
+  );
+}
+function GameTrailer({
   game,
   locale,
   openLink,
@@ -180,55 +218,94 @@ function CatalogVideos({
   locale: CardLocale;
   openLink: (url: string) => Promise<void>;
 }) {
-  const [link, setLink] = useState<string | null>(null);
   const t = labels[locale];
-  async function open(url: string) {
-    try {
-      await openLink(url);
-    } catch {
-      setLink(url);
-    }
-  }
-  if (!game.media.videos.length) return null;
+  const video =
+    game.media.videos.find(
+      (item) => item.kind === "file" && canPlayVideo(item.url),
+    ) ?? game.media.videos[0];
+  const image =
+    game.media.screenshots?.[0] ?? game.media.cover ?? game.media.images[0];
+  const [linkError, setLinkError] = useState(false);
+  const playable = video?.kind === "file" && canPlayVideo(video.url);
   return (
-    <section className="catalog-videos" aria-label={t.videos}>
-      <h2>{t.videos}</h2>
-      {game.media.videos.map((video, i) => (
-        <div className="catalog-video" key={video.url}>
-          {video.kind === "file" && (
-            <CatalogVideo
-              url={video.url}
-              poster={game.media.images[0]}
-              title={`${game.title} — ${t.video} ${i + 1}`}
-            />
-          )}
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => open(video.url)}
-          >
-            {t.video}
-            {game.media.videos.length > 1 ? ` ${i + 1}` : ""} ↗
-          </button>
-          {video.kind === "file" && <p className="muted fine">{t.fallback}</p>}
-        </div>
-      ))}
-      {link && (
-        <input
-          aria-label={t.video}
-          value={link}
-          readOnly
-          onFocus={(event) => event.target.select()}
+    <section
+      className="game-trailer"
+      aria-label={video ? t.trailer : t.gallery}
+    >
+      {playable ? (
+        <CatalogVideo
+          key={video.url}
+          url={video.url}
+          poster={image}
+          title={`${game.title} — ${t.trailer}`}
+          locale={locale}
         />
+      ) : image ? (
+        <CatalogImage
+          key={image}
+          url={image}
+          className="hero-image"
+          alt={`${game.title} — ${game.media.screenshots?.includes(image) ? t.gameplay : t.cover}`}
+        />
+      ) : (
+        <p className="media-unavailable muted">{t.media}</p>
+      )}
+      {video && (
+        <div className="video-link">
+          {!playable && <p className="muted fine">{t.unavailableVideo}</p>}
+          <a
+            href={video.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={async (event) => {
+              event.preventDefault();
+              try {
+                await openLink(video.url);
+              } catch {
+                setLinkError(true);
+              }
+            }}
+          >
+            {t.video} ↗
+          </a>
+          {linkError && (
+            <a href={video.url} target="_blank" rel="noopener noreferrer">
+              {video.url}
+            </a>
+          )}
+        </div>
       )}
     </section>
+  );
+}
+function ReviewSummary({
+  game,
+  locale,
+}: {
+  game: CatalogGame;
+  locale: CardLocale;
+}) {
+  const t = labels[locale];
+  const summary = game.review_summary;
+  return summary.total ? (
+    <p className="review-summary" title={t.source}>
+      <strong>
+        {Math.round((summary.positive / summary.total) * 100)}%{" "}
+        {t.positive.toLowerCase()}
+      </strong>
+      <span>
+        {" "}
+        · {summary.total} {t.total}
+      </span>
+    </p>
+  ) : (
+    <p className="muted fine">{t.none}</p>
   );
 }
 
 export function CatalogCard({
   game,
   locale,
-  reviews,
   pending,
   error,
   loadReviews,
@@ -243,155 +320,150 @@ export function CatalogCard({
   openLink: (url: string) => Promise<void>;
 }) {
   const t = labels[locale];
-  const summary = game.review_summary;
-  const filter = reviews?.sample.recommendation ?? "all";
-  const sort = reviews?.sample.sort ?? "newest";
+  const [showImages, setShowImages] = useState(false);
+  const screenshots = game.media.screenshots ?? [];
   return (
     <article className="game-detail">
-      <div className="game-hero">
-        <div className="game-copy">
-          <div className="tags">
-            {game.tags.map((tag) => (
-              <span key={tag}>{tag}</span>
-            ))}
-          </div>
-          <h1>{game.title}</h1>
-          <p className="description">{game.description || t.description}</p>
-          {summary.total ? (
-            <div className="review-summary">
-              <div className="summary-count">
-                <strong>
-                  {summary.total} {t.total}
-                </strong>
-                <span className="muted fine">{t.source}</span>
-              </div>
-              <span className="summary-ratio recommendation">
-                <ThumbsUp size={12} aria-hidden="true" />
-                {Math.round((summary.positive / summary.total) * 100)}%
-                <span className="sr-only"> {t.positive.toLowerCase()}</span>
-              </span>
-            </div>
-          ) : (
-            <p className="muted fine">{t.none}</p>
-          )}
-        </div>
-        <GameMedia key={game.slug} game={game} locale={locale} />
-      </div>
-      <CatalogVideos
+      <GameTrailer
         key={game.slug}
         game={game}
         locale={locale}
         openLink={openLink}
       />
-      <section className="reviews" aria-label={t.reviews}>
-        <h2>
-          <MessageSquare size={22} aria-hidden="true" />
-          {t.reviews}
-        </h2>
-        <div className="review-controls">
-          <label>
-            {t.filter}
-            <select
-              aria-label={t.reviews}
-              disabled={pending}
-              value={filter}
-              onChange={(event) =>
-                loadReviews(1, event.target.value as ReviewFilter, sort)
-              }
+      <div className="detail-copy">
+        <h1>{game.title}</h1>
+        <p className="tags">{game.tags.slice(0, 4).join(" · ")}</p>
+        <p className="description">{game.description || t.description}</p>
+        <ReviewSummary game={game} locale={locale} />
+        <div className="detail-actions">
+          {screenshots.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={showImages}
+              onClick={() => setShowImages(!showImages)}
             >
-              <option value="all">{t.all}</option>
-              <option value="positive">{t.positive}</option>
-              <option value="negative">{t.negative}</option>
-            </select>
-          </label>
-          <label>
-            {t.order}
-            <select
-              aria-label={
-                locale === "en" ? "Review order" : "Ordem das avaliações"
-              }
-              disabled={pending}
-              value={sort}
-              onChange={(event) =>
-                loadReviews(1, filter, event.target.value as ReviewSort)
-              }
-            >
-              <option value="newest">{t.newest}</option>
-              <option value="oldest">{t.oldest}</option>
-            </select>
-          </label>
+              <Images size={16} aria-hidden="true" />
+              {t.images}
+            </button>
+          )}
           <button
             type="button"
             disabled={pending}
-            onClick={() => loadReviews(1, filter, sort)}
+            onClick={() => loadReviews(1, "all", "newest")}
           >
+            <MessageSquare size={16} aria-hidden="true" />
             {pending ? t.loading : t.read}
           </button>
         </div>
         {error && <p role="alert">{error}</p>}
-        {reviews && (
-          <>
-            <p className="muted fine">
-              {reviews.sample.returned} {t.sample} · {reviews.pagination.total}{" "}
-              {t.filtered}
-            </p>
-            {reviews.reviews.length === 0 && <p>{t.noComments}</p>}
-            {reviews.reviews.map((review) => (
-              <blockquote key={review.reference}>
-                <strong
-                  className={`review-verdict ${review.recommended ? "recommendation" : "negative"}`}
-                >
-                  {review.recommended ? (
-                    <ThumbsUp size={14} aria-hidden="true" />
-                  ) : (
-                    <ThumbsDown size={14} aria-hidden="true" />
-                  )}
-                  {review.recommended ? t.positive : t.negative}
-                </strong>
-                <p>{review.message}</p>
-                <footer>
-                  <time dateTime={review.created_at}>
-                    {new Date(review.created_at).toLocaleDateString(locale)}
-                  </time>{" "}
-                  · <span className="review-reference">{review.reference}</span>
-                </footer>
-              </blockquote>
+        {showImages && (
+          <div className="game-screenshots">
+            {screenshots.map((url, i) => (
+              <CatalogImage
+                key={url}
+                url={url}
+                className="hero-image"
+                alt={`${game.title} — ${t.gameplay} ${i + 1}`}
+              />
             ))}
-            {reviews.pagination.pages > 1 && (
-              <nav aria-label={t.reviews} className="pagination">
-                <button
-                  type="button"
-                  disabled={pending || reviews.pagination.page <= 1}
-                  onClick={() =>
-                    loadReviews(reviews.pagination.page - 1, filter, sort)
-                  }
-                >
-                  {t.previous}
-                </button>
-                <span>
-                  {reviews.pagination.page}/{reviews.pagination.pages}
-                </span>
-                <button
-                  type="button"
-                  disabled={
-                    pending ||
-                    reviews.pagination.page >= reviews.pagination.pages
-                  }
-                  onClick={() =>
-                    loadReviews(reviews.pagination.page + 1, filter, sort)
-                  }
-                >
-                  {t.next}
-                </button>
-              </nav>
-            )}
-          </>
+          </div>
         )}
-      </section>
+      </div>
     </article>
   );
 }
 
+export function CatalogReviewEvidence({
+  reviews,
+  locale,
+  pending,
+  error,
+  loadReviews,
+  discuss,
+}: {
+  reviews: CatalogReviewsResult;
+  locale: CardLocale;
+  pending: boolean;
+  error: string | null;
+  loadReviews: (page: number, filter: ReviewFilter, sort: ReviewSort) => void;
+  discuss: () => void;
+}) {
+  const t = labels[locale];
+  const { game, sample, pagination } = reviews;
+  return (
+    <section className="review-evidence" aria-label={t.reviews}>
+      <div className="review-scope">
+        <CatalogImage
+          key={game.slug}
+          url={game.media.cover ?? game.media.images[0]}
+          alt={`${game.title} — ${t.cover}`}
+          className="mini-cover"
+        />
+        <div>
+          <h1>{game.title}</h1>
+          <ReviewSummary game={game} locale={locale} />
+        </div>
+      </div>
+      <p className="muted fine">
+        {sample.returned} {t.sample} · {pagination.total} {t.filtered} ·{" "}
+        {sample.recommendation === "all" ? t.all : t[sample.recommendation]} ·{" "}
+        {t[sample.sort]}
+      </p>
+      <p className="muted fine">{t.source}</p>
+      <button type="button" disabled={pending} onClick={discuss}>
+        {pending ? t.loading : t.discuss}
+      </button>
+      {error && <p role="alert">{error}</p>}
+      <details className="review-comments">
+        <summary>{t.evidence}</summary>
+        {!reviews.reviews.length && <p>{t.noComments}</p>}
+        {reviews.reviews.map((review) => (
+          <blockquote key={review.reference}>
+            <strong>{review.recommended ? t.positive : t.negative}</strong>
+            <p>{review.message}</p>
+            <footer>
+              <time dateTime={review.created_at}>
+                {new Date(review.created_at).toLocaleDateString(locale)}
+              </time>{" "}
+              · <span>{review.reference}</span>
+            </footer>
+          </blockquote>
+        ))}
+        {pagination.pages > 1 && (
+          <nav className="pagination" aria-label={t.reviews}>
+            <button
+              disabled={pending || pagination.page <= 1}
+              onClick={() =>
+                loadReviews(
+                  pagination.page - 1,
+                  sample.recommendation,
+                  sample.sort,
+                )
+              }
+            >
+              {t.previous}
+            </button>
+            <span>
+              {pagination.page}/{pagination.pages}
+            </span>
+            <button
+              disabled={pending || pagination.page >= pagination.pages}
+              onClick={() =>
+                loadReviews(
+                  pagination.page + 1,
+                  sample.recommendation,
+                  sample.sort,
+                )
+              }
+            >
+              {t.next}
+            </button>
+          </nav>
+        )}
+      </details>
+    </section>
+  );
+}
 export function CatalogSearchCards({
   games,
   locale,
@@ -406,35 +478,46 @@ export function CatalogSearchCards({
   const t = labels[locale];
   if (!games.length) return <p>{t.empty}</p>;
   return (
-    <div className="search-cards">
-      {games.map((game) => (
-        <article key={game.slug}>
-          <div className="search-card-art">
-            {game.media.images[0] && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={game.media.images[0]} alt={game.title} loading="lazy" />
+    <section className="search-cards" aria-label={t.selection}>
+      <h1>{t.selection}</h1>
+      {games.slice(0, 5).map((game) => (
+        <button
+          type="button"
+          className="search-row"
+          key={game.slug}
+          disabled={pending}
+          onClick={() => selectGame(game.slug)}
+          aria-label={`${t.details}: ${game.title}`}
+        >
+          <CatalogImage
+            key={game.slug}
+            url={game.media.cover ?? game.media.images[0]}
+            className="search-cover"
+            alt={`${game.title} — ${t.cover}`}
+          />
+          <span className="search-copy">
+            <strong>{game.title}</strong>
+            <span className="short-description">
+              {game.description || t.description}
+            </span>
+            {game.matching_tags?.length ? (
+              <span className="match-reason">
+                {t.match} {game.matching_tags.join(" · ")}
+              </span>
+            ) : (
+              <span className="tags">{game.tags.slice(0, 3).join(" · ")}</span>
             )}
-          </div>
-          <div className="search-card-copy">
-            <h2>{game.title}</h2>
-            <p>{game.description || t.description}</p>
-            <div className="tags">
-              {game.tags.slice(0, 3).map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-            <button
-              className="primary-button"
-              type="button"
-              disabled={pending}
-              onClick={() => selectGame(game.slug)}
-            >
-              {t.details}
-              <ArrowRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </article>
+          </span>
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
       ))}
-    </div>
+      {games.length > 5 && (
+        <p className="muted fine">
+          {locale === "en"
+            ? `Showing 5 of ${games.length} returned games.`
+            : `Mostrando 5 de ${games.length} jogos retornados.`}
+        </p>
+      )}
+    </section>
   );
 }

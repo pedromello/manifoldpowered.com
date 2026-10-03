@@ -21,4 +21,6 @@ const js = bundled.outputFiles[0].text
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Manifold</title><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`;
 await mkdir("public/mcp", { recursive: true });
 await writeFile("public/mcp/game-card.html", html);
-console.log("Built Manifold MCP card with current platform home/item design");
+console.log(
+  "Built Manifold MCP card with conversation-native discovery and trailer-first detail",
+);
