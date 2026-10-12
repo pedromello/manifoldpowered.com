@@ -9,6 +9,7 @@ import {
   Loader2,
   Shield,
   Download,
+  Receipt,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -116,6 +117,17 @@ export function UserMenu({
               <Library size={16} className="text-indigo-400" />
               {t("My Library")}
             </Link>
+
+            {process.env.NODE_ENV !== "production" && (
+              <Link
+                href="/library/orders"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <Receipt size={16} className="text-indigo-400" />
+                {t("My orders")}
+              </Link>
+            )}
 
             <Link
               href="/games/steam-import"

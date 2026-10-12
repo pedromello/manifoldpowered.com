@@ -3,7 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { Compass, Gamepad2, Library, Radio, Search, Store } from "lucide-react";
+import {
+  Compass,
+  Gamepad2,
+  Gift,
+  Library,
+  Radio,
+  Search,
+  Store,
+} from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
 import { FollowedOutlets } from "components/store/FollowedOutlets";
@@ -13,6 +21,9 @@ import { useI18n } from "lib/i18n";
 const primaryNavigation = [
   { href: "/store", label: "Discover", icon: Compass },
   { href: "/store#outlets", label: "Outlets", icon: Radio },
+  ...(process.env.NODE_ENV !== "production"
+    ? [{ href: "/store/gift-cards", label: "Gift cards", icon: Gift }]
+    : []),
   { href: "/library", label: "Library", icon: Library },
 ] as const;
 
@@ -153,6 +164,7 @@ export function StoreHomeLayout({
   const { t } = useI18n();
 
   const isActive = (href: string) => {
+    if (href === "/store/gift-cards") return router.pathname === href;
     if (href === "/library") return router.pathname.startsWith("/library");
     if (href === "/store") return router.pathname === "/store";
     if (href === "/store#outlets") {
@@ -278,7 +290,7 @@ export function StoreHomeLayout({
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-3 border-t border-white/[0.1] bg-[#0d0a13]/98 px-4 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className={`fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] ${primaryNavigation.length === 4 ? "grid-cols-4" : "grid-cols-3"} border-t border-white/[0.1] bg-[#0d0a13]/98 px-4 pb-[env(safe-area-inset-bottom)] lg:hidden`}
         aria-label={t("Mobile navigation")}
       >
         {primaryNavigation.map(({ href, label, icon: Icon }) => (

@@ -69,11 +69,19 @@ export default function LibraryPage() {
                 </Link>
               )}
               <Link
-                href="/library/purchases"
+                href={
+                  process.env.NODE_ENV !== "production"
+                    ? "/library/orders"
+                    : "/library/purchases"
+                }
                 className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
               >
                 <Receipt size={16} />
-                {t("Purchase history")}
+                {t(
+                  process.env.NODE_ENV !== "production"
+                    ? "My orders"
+                    : "Purchase history",
+                )}
               </Link>
             </div>
           )}

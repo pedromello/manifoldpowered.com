@@ -33,7 +33,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRouter.mockReturnValue({ query: {} });
 });
-function render(status?: string, available = true) {
+function render(
+  status?: string,
+  available = true,
+  firstRevealedAt: string | null = null,
+) {
   mockSWR.mockImplementation((key: string) => ({
     data:
       key === "/api/v1/gift-card-orders"
@@ -43,6 +47,7 @@ function render(status?: string, available = true) {
               ? [
                   {
                     ...baseOrder,
+                    first_revealed_at: firstRevealedAt,
                     status,
                     gift_card_code:
                       status === "FULFILLED"
@@ -61,27 +66,46 @@ function render(status?: string, available = true) {
   return renderToStaticMarkup(<GiftCardsPage />);
 }
 
-test("missing credentials keep test purchase buttons disabled and explain availability", () => {
+test("library links to the store instead of selling products", () => {
   const html = render(undefined, false);
-  expect(html).toContain("Test checkout is unavailable.");
-  expect(html).toContain('disabled=""');
+  expect(html).toContain("New purchases are currently unavailable.");
+  expect(html).toContain("Explore gift cards");
+  expect(html).not.toContain("Buy in test mode");
+  expect(html).not.toContain("Available gift cards");
   expect(html).not.toContain("SIMULATED-NOT-REDEEMABLE");
 });
 
 test("success redirect shows pending verification without delivering a gift card", () => {
-  mockRouter.mockReturnValue({ query: { checkout: "returned" } });
+  mockRouter.mockReturnValue({
+    query: { checkout: "returned", order: baseOrder.id },
+  });
   const html = render("AWAITING_PAYMENT");
-  expect(html).toContain("Your return from checkout does not confirm payment.");
+  expect(html).toContain("We are confirming your payment.");
   expect(html).toContain("Awaiting payment confirmation");
-  expect(html).toContain("Resume checkout");
+  expect(html).toContain("Continue purchase");
   expect(html).not.toContain("SIMULATED-NOT-REDEEMABLE");
+});
+
+test("previously revealed purchases offer direct viewing without exposing audit details", () => {
+  const html = render("FULFILLED", true, "2026-10-10T14:23:45Z");
+  expect(html).not.toContain("First revealed on");
+  expect(html).not.toContain("2026-10-10T14:23:45Z");
+  expect(html).toContain("View code");
+  expect(html).not.toContain("SIMULATED-NOT-REDEEMABLE-fixture");
+});
+
+test("confirmed delivery does not show a pending checkout notice", () => {
+  mockRouter.mockReturnValue({ query: { checkout: "returned" } });
+  for (const status of ["FULFILLED", "PAID", "ISSUANCE_FAILED"]) {
+    expect(render(status)).not.toContain("We are confirming your payment.");
+  }
 });
 
 test("paid issuance failure offers delivery retry without a checkout action", () => {
   const html = render("ISSUANCE_FAILED");
   expect(html).toContain("You do not need to pay again.");
   expect(html).toContain("Retry delivery");
-  expect(html).not.toContain("Resume checkout");
+  expect(html).not.toContain("Continue purchase");
 });
 
 test("delivered code is hidden even if a stale payload contains it", () => {

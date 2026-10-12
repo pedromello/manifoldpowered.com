@@ -64,14 +64,22 @@ const props = {
   orderId: "synthetic-order",
   onRevealed: jest.fn(async () => {}),
 };
-function render() {
+function render(firstRevealedAt: string | null = null) {
   cursor = 0;
   effects = [];
-  return GiftCardReveal(props);
+  return GiftCardReveal({ ...props, firstRevealedAt });
 }
-function button(node: ReactNode, label: string) {
-  const found = tree(node).find(
-    (e) => e.type === "button" && e.props.children === label,
+function button(node: ReactNode, label: string, inDialog = false) {
+  const elements = tree(node);
+  const scope = inDialog
+    ? tree(elements.find((e) => e.type === "dialog"))
+    : elements;
+  const found = scope.find(
+    (e) =>
+      e.type === "button" &&
+      Children.toArray(e.props.children as ReactNode)
+        .filter((child) => typeof child === "string")
+        .join("") === label,
   );
   if (!found) throw new Error(`Missing ${label}`);
   return found.props.onClick as () => Promise<void> | void;
@@ -107,7 +115,7 @@ test("only confirmation requests disclosure and keeps the code out of revalidati
   await button(node, "Reveal code")();
   node = render();
   expect(global.fetch).not.toHaveBeenCalled();
-  await button(node, "Confirm and reveal")();
+  await button(node, "Reveal code", true)();
   node = render();
   expect(global.fetch).toHaveBeenCalledTimes(1);
   expect(global.fetch).toHaveBeenCalledWith(
@@ -127,13 +135,50 @@ test("failed disclosure keeps the modal actionable and displays no code", async 
   let node = render();
   await button(node, "Reveal code")();
   node = render();
-  await button(node, "Confirm and reveal")();
+  await button(node, "Reveal code", true)();
   node = render();
   expect(values[0]).toBe(true);
   expect(values[2]).toBeNull();
-  expect(JSON.stringify(node)).toContain(
-    "The gift card could not be revealed.",
+  expect(JSON.stringify(node)).toContain("We could not show your code.");
+});
+
+test("previously revealed codes load on the first click without opening a modal", async () => {
+  jest.mocked(global.fetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      gift_card_code: "synthetic-repeat-code",
+      first_revealed_at: "2026-10-01T00:00:00.000Z",
+    }),
+  } as Response);
+  let node = render("2026-10-01T00:00:00.000Z");
+  expect(JSON.stringify(node)).not.toContain("synthetic-repeat-code");
+  await button(node, "View code")();
+  node = render("2026-10-01T00:00:00.000Z");
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(values[0]).toBe(false);
+  expect(JSON.stringify(node)).toContain("synthetic-repeat-code");
+});
+
+test("direct viewing shows loading and an inline error on failure, then allows a retry", async () => {
+  let finish!: (response: Response) => void;
+  jest.mocked(global.fetch).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
   );
+  const request = button(render("2026-10-01T00:00:00.000Z"), "View code")();
+  const loading = tree(render("2026-10-01T00:00:00.000Z")).find(
+    (e) => e.type === "button",
+  )!;
+  expect(loading.props.disabled).toBe(true);
+  expect(JSON.stringify(loading)).toContain("Loading code");
+  finish({ ok: false } as Response);
+  await request;
+  const node = render("2026-10-01T00:00:00.000Z");
+  expect(values[0]).toBe(false);
+  expect(values[2]).toBeNull();
+  expect(tree(node).some((e) => e.props.role === "alert")).toBe(true);
+  expect(button(node, "View code")).toBeDefined();
 });
 
 function Entry(

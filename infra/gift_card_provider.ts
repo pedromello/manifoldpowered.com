@@ -47,19 +47,25 @@ export function assertGiftCardSandbox() {
   }
 }
 
-// Synthetic catalogue. No external brand, identity, URL, token or personal
-// information is needed to exercise a virtual-card order and its tracking.
+// Synthetic catalogue for visual prototypes using public platform branding.
+// These labels do not imply real credit, stock, or a commercial integration.
 const products: GiftCardProduct[] = [
   {
     code: "sandbox-brl-25",
-    name: "Demo gift card · R$25",
+    name: "Nintendo eShop · Demo",
     amount_minor: 2500,
     currency: "BRL",
   },
   {
     code: "sandbox-brl-50",
-    name: "Demo gift card · R$50",
+    name: "PlayStation Store · Demo",
     amount_minor: 5000,
+    currency: "BRL",
+  },
+  {
+    code: "sandbox-brl-100",
+    name: "Steam · Demo",
+    amount_minor: 10000,
     currency: "BRL",
   },
 ];

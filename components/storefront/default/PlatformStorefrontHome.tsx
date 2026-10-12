@@ -3,17 +3,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Pause,
   Play,
   Search,
-  X,
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { GiftCardCatalog } from "components/store/GiftCardCatalog";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import type { GameApi } from "components/store/types";
 import type { DefaultStorefrontProps } from "components/storefront/types";
@@ -358,32 +357,6 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
   );
 }
 
-function PreviewNotice() {
-  const [visible, setVisible] = useState(true);
-  const { t } = useI18n();
-
-  if (!visible) return null;
-
-  return (
-    <div className="mb-5 flex items-start gap-3 rounded-lg border border-violet-400/20 bg-violet-400/[0.06] px-4 py-3 text-sm text-violet-100/75">
-      <Check size={17} className="mt-0.5 shrink-0 text-violet-300" />
-      <p className="flex-1 leading-5">
-        {t(
-          "Manifold is in preview. You can explore games and Outlets while we finish the purchasing experience.",
-        )}
-      </p>
-      <button
-        type="button"
-        onClick={() => setVisible(false)}
-        aria-label={t("Dismiss preview notice")}
-        className="rounded p-0.5 text-white/35 hover:bg-white/10 hover:text-white"
-      >
-        <X size={16} />
-      </button>
-    </div>
-  );
-}
-
 export function PlatformStorefrontHome({
   store,
   followControl,
@@ -401,6 +374,7 @@ export function PlatformStorefrontHome({
   searchAction,
   searchHiddenFields,
   showDiscover,
+  showGiftCards,
 }: DefaultStorefrontProps) {
   const { t } = useI18n();
   const spotlightGames = (featured.length > 0 ? featured : games).slice(0, 3);
@@ -416,8 +390,6 @@ export function PlatformStorefrontHome({
   return (
     <main className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
       <section className="mx-auto max-w-[1500px] px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9">
-        <PreviewNotice />
-
         {store?.presentation?.cover_image_url && (
           <div className="mb-6 aspect-[3/1] min-h-36 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
             {/* Presentation URLs are selected by the server's versioned read
@@ -462,7 +434,11 @@ export function PlatformStorefrontHome({
           ) : (
             <div>
               <h1 className="max-w-2xl text-2xl font-black tracking-[-0.02em] sm:text-3xl">
-                {t("Think Steam, but with creator-run storefronts.")}
+                {t(
+                  showGiftCards
+                    ? "Discover games and gift cards"
+                    : "Discover games",
+                )}
               </h1>
             </div>
           )}
@@ -472,11 +448,19 @@ export function PlatformStorefrontHome({
           ) : (
             <p className="max-w-md text-sm leading-6 text-white/45 sm:text-right">
               {t(
-                "Buy games and keep them in one library while independent Outlets can earn commission on the sales they refer.",
+                showGiftCards
+                  ? "Games, gift cards, and independent stores in one place."
+                  : "Games and independent stores in one place.",
               )}
             </p>
           )}
         </div>
+
+        {showGiftCards && !store && (
+          <div className="mb-8">
+            <GiftCardCatalog featured />
+          </div>
+        )}
 
         {isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
@@ -488,7 +472,7 @@ export function PlatformStorefrontHome({
           />
         ) : (
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
-            {t("The first games are being prepared for the catalog.")}
+            {t("No featured games right now.")}
           </div>
         )}
       </section>
@@ -504,7 +488,7 @@ export function PlatformStorefrontHome({
             <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
               {store
                 ? t("{name}'s catalog", { name: store.name })
-                : t("Shared catalog")}
+                : t("All games")}
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.025em]">
               {t("Explore games")}

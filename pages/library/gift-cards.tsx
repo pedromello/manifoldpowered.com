@@ -3,18 +3,27 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState, type ReactElement } from "react";
 import useSWR, { SWRConfig } from "swr";
-import { ArrowLeft, Gift, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  Gift,
+  Loader2,
+} from "lucide-react";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { useI18n } from "lib/i18n";
 import { formatMoney } from "lib/price";
-import type { GiftCardProduct } from "infra/gift_card_provider";
 import type { giftCardOrderOutput } from "models/gift_card_order";
 import { GiftCardReveal } from "components/GiftCardReveal";
 import { useGiftCardEntry } from "lib/useGiftCardEntry";
+import {
+  GiftCardArtwork,
+  giftCardArtwork,
+} from "components/store/GiftCardArtwork";
 
 type Order = ReturnType<typeof giftCardOrderOutput>;
 type Catalogue = {
-  products: GiftCardProduct[];
   orders: Order[];
   checkout_available: boolean;
 };
@@ -24,10 +33,11 @@ const pending = [
   "PAID",
   "ISSUANCE_FAILED",
 ];
+const awaitingPayment = ["CHECKOUT_PENDING", "AWAITING_PAYMENT"];
 const statusLabels = {
-  CHECKOUT_PENDING: "Checkout needs another attempt",
+  CHECKOUT_PENDING: "Payment incomplete",
   AWAITING_PAYMENT: "Awaiting payment confirmation",
-  PAID: "Payment confirmed · issuing gift card",
+  PAID: "Payment confirmed · preparing your code",
   ISSUANCE_FAILED: "Payment confirmed · delivery pending",
   FULFILLED: "Gift card delivered",
   CANCELLED: "Purchase cancelled",
@@ -48,7 +58,7 @@ async function request<T>(url: string, body?: unknown): Promise<T> {
   );
   if (!response.ok) {
     const error = new Error(
-      "The purchase could not be updated. Try again.",
+      "We could not complete this action. Try again.",
     ) as Error & { status: number };
     error.status = response.status;
     throw error;
@@ -92,7 +102,7 @@ function GiftCardsContent() {
       } catch {
         setMessage(
           t(
-            "Payment verification could not finish. Reopen this order later or retry delivery if payment is already confirmed.",
+            "We could not confirm your payment right now. Check this purchase again in a few moments.",
           ),
         );
       } finally {
@@ -105,39 +115,6 @@ function GiftCardsContent() {
     selectedOrder && !orders.some((order) => order.id === selectedOrder.id)
       ? [selectedOrder, ...orders]
       : orders;
-
-  async function buy(product: GiftCardProduct) {
-    setBusy(true);
-    setMessage("");
-    try {
-      // Keep the request stable through network failures and page refreshes.
-      // A completed request is replaced only on an explicit new purchase.
-      const storageKey = `gift-card-request:${product.code}`;
-      let key = sessionStorage.getItem(storageKey);
-      if (
-        !key ||
-        orders.some(
-          (order) =>
-            order.product_code === product.code &&
-            !pending.includes(order.status),
-        )
-      ) {
-        key = crypto.randomUUID();
-        sessionStorage.setItem(storageKey, key);
-      }
-      const order = await request<Order>("/api/v1/gift-card-orders", {
-        product_code: product.code,
-        idempotency_key: key,
-      });
-      await Promise.allSettled([mutate(), mutateSelected()]);
-      if (order.checkout_url) window.location.assign(order.checkout_url);
-    } catch {
-      setMessage(t("The purchase could not be updated. Try again."));
-      await mutate();
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function act(
     order: Order,
@@ -160,7 +137,7 @@ function GiftCardsContent() {
           ),
         );
     } catch {
-      setMessage(t("The purchase could not be updated. Try again."));
+      setMessage(t("We could not complete this action. Try again."));
       await mutate();
     } finally {
       setBusy(false);
@@ -173,26 +150,37 @@ function GiftCardsContent() {
         <title>{t("Gift cards | Manifold")}</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
-      <main className="min-h-[70vh] bg-[#0b0812] px-4 py-10 text-white sm:px-6 lg:px-10">
-        <div className="mx-auto max-w-5xl">
+      <main className="min-h-[70vh] bg-[#0b0812] px-4 py-8 text-white sm:px-6 sm:py-12 lg:px-10">
+        <div className="mx-auto max-w-6xl">
           <Link
             href="/library"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 hover:text-white"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300"
           >
             <ArrowLeft size={16} />
             {t("Back to library")}
           </Link>
-          <header className="mt-7 border-b border-white/10 pb-8">
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-violet-300">
-              <Gift size={16} />
-              {t("Test purchases")}
-            </p>
-            <h1 className="mt-3 text-3xl font-black">{t("Gift cards")}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
-              {t(
-                "Test payments only. Demo gift cards have no real value and cannot be redeemed.",
-              )}
-            </p>
+          <header className="mt-8 flex flex-wrap items-end justify-between gap-6 border-b border-white/10 pb-8">
+            <div>
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-violet-300">
+                <Gift size={16} />
+                {t("Your purchases")}
+              </p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                {t("Gift cards")}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+                {t(
+                  "Track your purchases and access your gift card codes here.",
+                )}
+              </p>
+            </div>
+            <Link
+              href="/store/gift-cards"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 text-sm font-semibold transition-colors hover:border-white/30 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
+            >
+              {t("Explore gift cards")}
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
           </header>
           {error ? (
             <section className="mt-8 rounded-xl border border-white/10 bg-[#14101c] p-6">
@@ -227,164 +215,214 @@ function GiftCardsContent() {
                   role="status"
                 >
                   {t(
-                    "Test checkout is unavailable. You can review your purchases here.",
+                    "New purchases are currently unavailable. You can still access your gift cards here.",
                   )}
                 </p>
               )}
-              {router.query.checkout === "returned" && (
-                <p className="mt-6 text-sm text-violet-200" role="status">
-                  {t(
-                    "Your return from checkout does not confirm payment. Delivery will appear after payment verification.",
-                  )}
-                </p>
-              )}
+              {router.query.checkout === "returned" &&
+                (selectedOrder
+                  ? awaitingPayment.includes(selectedOrder.status)
+                  : visibleOrders.some((order) =>
+                      awaitingPayment.includes(order.status),
+                    )) && (
+                  <p className="mt-6 text-sm text-violet-200" role="status">
+                    {t(
+                      "We are confirming your payment. Your code will appear here when it is ready.",
+                    )}
+                  </p>
+                )}
               {router.query.checkout === "cancelled" && (
                 <p className="mt-6 text-sm text-violet-200" role="status">
                   {t(
-                    "Checkout was closed. Resume the purchase or cancel it below.",
+                    "Your purchase was not completed. You can continue or cancel it below.",
                   )}
                 </p>
               )}
-              <section className="mt-8" aria-label={t("Available gift cards")}>
-                <h2 className="text-lg font-bold">
-                  {t("Available gift cards")}
-                </h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  {data?.products.map((product) => {
-                    const active = orders.some(
-                      (order) =>
-                        order.product_code === product.code &&
-                        pending.includes(order.status),
-                    );
-                    return (
-                      <article
-                        key={product.code}
-                        className="rounded-xl border border-white/10 bg-[#14101c] p-6"
-                      >
-                        <Gift className="text-violet-300" size={28} />
-                        <h3 className="mt-4 font-bold">{product.name}</h3>
-                        <p className="mt-2 text-xl font-bold">
-                          {formatMoney(
-                            (product.amount_minor / 100).toFixed(2),
-                            product.currency,
-                          )}
-                        </p>
-                        <button
-                          type="button"
-                          disabled={busy || !data.checkout_available || active}
-                          onClick={() => buy(product)}
-                          className="mt-5 rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {t(
-                            active
-                              ? "Purchase already in progress"
-                              : "Buy in test mode",
-                          )}
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
               <section
                 className="mt-10"
                 aria-label={t("Your gift card purchases")}
               >
-                <h2 className="text-lg font-bold">
-                  {t("Your gift card purchases")}
-                </h2>
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-lg font-semibold">
+                    {t("Your gift card purchases")}
+                  </h2>
+                  <span className="rounded-full bg-white/5 px-3 py-1 text-xs tabular-nums text-white/50">
+                    {visibleOrders.length}
+                  </span>
+                </div>
                 {message && (
                   <p role="alert" className="mt-4 text-sm text-amber-200">
                     {message}
                   </p>
                 )}
                 {visibleOrders.length === 0 && (
-                  <p className="mt-4 text-sm text-white/60">
-                    {t("No gift card purchases yet.")}
-                  </p>
+                  <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-white/15 px-6 py-16 text-center">
+                    <div className="mb-5 rounded-2xl bg-violet-400/10 p-4 text-violet-300">
+                      <Gift size={32} aria-hidden="true" />
+                    </div>
+                    <h3 className="text-lg font-semibold">
+                      {t("No gift card purchases yet.")}
+                    </h3>
+                    <p className="mt-2 max-w-sm text-sm leading-6 text-white/50">
+                      {t(
+                        "Choose a gift card in the store. It will be waiting for you here.",
+                      )}
+                    </p>
+                    <Link
+                      href="/store/gift-cards"
+                      className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-violet-600 px-5 text-sm font-semibold transition-colors hover:bg-violet-500"
+                    >
+                      {t("Explore gift cards")}
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </Link>
+                  </div>
                 )}
                 <div className="mt-4 space-y-4">
                   {visibleOrders.map((order) => (
                     <article
                       key={order.id}
-                      className={`rounded-xl border bg-[#14101c] p-5 ${order.id === selectedId ? "border-violet-400/50" : "border-white/10"}`}
+                      className={`overflow-hidden rounded-2xl border bg-[#16121d] ${order.id === selectedId ? "border-violet-400/50" : "border-white/10"}`}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <h3 className="font-bold">{order.product_name}</h3>
-                        <span className="font-semibold">
-                          {formatMoney(
-                            (order.amount_minor / 100).toFixed(2),
-                            order.currency,
-                          )}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm text-violet-200" role="status">
-                        {t(statusLabels[order.status])}
-                      </p>
-                      <p className="mt-2 break-all text-xs text-white/50">
-                        {t("Order")}: {order.id} ·{" "}
-                        {new Date(order.created_at).toLocaleDateString(locale)}
-                      </p>
-                      {order.last_error === "PAYMENT_ATTEMPT_FAILED" && (
-                        <p className="mt-3 text-sm text-amber-200">
-                          {t(
-                            "The payment attempt failed. You can retry in the same checkout.",
-                          )}
-                        </p>
-                      )}
-                      {order.status === "ISSUANCE_FAILED" && (
-                        <p className="mt-3 text-sm text-amber-200">
-                          {t(
-                            "You do not need to pay again. Retry delivery for this purchase.",
-                          )}
-                        </p>
-                      )}
-                      <Link
-                        href={`/library/gift-cards?order=${order.id}`}
-                        prefetch={false}
-                        className="mt-3 inline-block text-sm text-violet-300"
-                      >
-                        {t("View order")}
-                      </Link>
-                      {order.status === "FULFILLED" && (
-                        <GiftCardReveal
-                          key={order.id}
-                          orderId={order.id}
-                          onRevealed={() =>
-                            Promise.all([mutate(), mutateSelected()])
-                          }
-                        />
-                      )}
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        {["CHECKOUT_PENDING", "AWAITING_PAYMENT"].includes(
+                      {order.id === selectedId &&
+                        ["CHECKOUT_PENDING", "AWAITING_PAYMENT"].includes(
                           order.status,
                         ) && (
-                          <>
-                            <button
-                              disabled={busy || !data?.checkout_available}
-                              onClick={() => act(order, "checkout")}
-                              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold disabled:opacity-40"
-                            >
-                              {t("Resume checkout")}
-                            </button>
-                            <button
-                              disabled={busy || !data?.checkout_available}
-                              onClick={() => act(order, "cancel")}
-                              className="rounded-lg border border-white/20 px-4 py-2 text-sm disabled:opacity-40"
-                            >
-                              {t("Cancel purchase")}
-                            </button>
-                          </>
+                          <p className="border-b border-violet-400/20 bg-violet-400/5 px-5 py-3 text-sm font-semibold text-violet-200">
+                            {t("Continue your purchase")}
+                          </p>
                         )}
-                        {["PAID", "ISSUANCE_FAILED"].includes(order.status) && (
-                          <button
-                            disabled={busy}
-                            onClick={() => act(order, "retry_issuance")}
-                            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold disabled:opacity-40"
+                      <div className="grid min-w-0 sm:grid-cols-[220px_minmax(0,1fr)]">
+                        <div
+                          className={`flex items-center overflow-hidden ${order.product_code === "sandbox-brl-25" ? "bg-[#e60012]" : order.product_code === "sandbox-brl-50" ? "bg-[#003791]" : "bg-[#1b2838]"}`}
+                        >
+                          <div className="relative aspect-[16/10] w-full overflow-hidden">
+                            <GiftCardArtwork
+                              productCode={order.product_code}
+                              sizes="(min-width: 640px) 220px, 100vw"
+                            />
+                          </div>
+                        </div>
+                        <div className="min-w-0 p-5 sm:p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-medium uppercase tracking-wider text-white/45">
+                                {giftCardArtwork[order.product_code]
+                                  ?.platform ?? t("Gift cards")}
+                              </p>
+                              <h3 className="mt-1 text-xl font-semibold tracking-tight">
+                                {order.product_name}
+                              </h3>
+                            </div>
+                            <span className="shrink-0 text-lg font-semibold tabular-nums sm:text-xl">
+                              {formatMoney(
+                                (order.amount_minor / 100).toFixed(2),
+                                order.currency,
+                              )}
+                            </span>
+                          </div>
+                          <p
+                            className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${order.status === "FULFILLED" ? "bg-emerald-400/10 text-emerald-300" : ["CANCELLED", "PAYMENT_FAILED"].includes(order.status) ? "bg-white/5 text-white/50" : "bg-amber-400/10 text-amber-200"}`}
+                            role="status"
                           >
-                            {t("Retry delivery")}
-                          </button>
-                        )}
+                            {order.status === "FULFILLED" ? (
+                              <CheckCircle2 size={13} aria-hidden="true" />
+                            ) : (
+                              <Clock3 size={13} aria-hidden="true" />
+                            )}
+                            {t(statusLabels[order.status])}
+                          </p>
+                          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/50">
+                            <p>
+                              {t("Purchased on")}{" "}
+                              <time dateTime={order.created_at}>
+                                {new Date(order.created_at).toLocaleDateString(
+                                  locale,
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  },
+                                )}
+                              </time>
+                            </p>
+                          </div>
+                          {order.last_error === "PAYMENT_ATTEMPT_FAILED" && (
+                            <p className="mt-3 text-sm text-amber-200">
+                              {t(
+                                "Your payment was unsuccessful. You can try again.",
+                              )}
+                            </p>
+                          )}
+                          {order.status === "ISSUANCE_FAILED" && (
+                            <p className="mt-3 text-sm text-amber-200">
+                              {t(
+                                "You do not need to pay again. Retry delivery for this purchase.",
+                              )}
+                            </p>
+                          )}
+                          <div className="mt-5 border-t border-white/10 pt-5">
+                            {order.status === "FULFILLED" && (
+                              <GiftCardReveal
+                                key={order.id}
+                                orderId={order.id}
+                                firstRevealedAt={order.first_revealed_at}
+                                onRevealed={() =>
+                                  Promise.all([mutate(), mutateSelected()])
+                                }
+                              />
+                            )}
+                            <div className="flex flex-wrap gap-3">
+                              {[
+                                "CHECKOUT_PENDING",
+                                "AWAITING_PAYMENT",
+                              ].includes(order.status) && (
+                                <>
+                                  <button
+                                    disabled={busy || !data?.checkout_available}
+                                    onClick={() => act(order, "checkout")}
+                                    className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    {t("Continue purchase")}
+                                  </button>
+                                  <button
+                                    disabled={busy || !data?.checkout_available}
+                                    onClick={() => act(order, "cancel")}
+                                    className="min-h-11 rounded-lg border border-white/20 px-4 text-sm transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    {t("Cancel purchase")}
+                                  </button>
+                                </>
+                              )}
+                              {["PAID", "ISSUANCE_FAILED"].includes(
+                                order.status,
+                              ) && (
+                                <button
+                                  disabled={busy}
+                                  onClick={() => act(order, "retry_issuance")}
+                                  className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  {t("Retry delivery")}
+                                </button>
+                              )}
+                            </div>
+                            <details className="mt-4 text-xs text-white/45">
+                              <summary className="w-fit cursor-pointer rounded transition-colors hover:text-white/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300">
+                                {t("Order details")}
+                              </summary>
+                              <p className="mt-2 break-all">
+                                {t("Order")}: {order.id}
+                              </p>
+                              <Link
+                                href={`/library/gift-cards?order=${order.id}`}
+                                prefetch={false}
+                                className="mt-2 inline-flex items-center gap-1 text-violet-300 hover:text-violet-100"
+                              >
+                                {t("View order")}
+                                <ArrowRight size={12} aria-hidden="true" />
+                              </Link>
+                            </details>
+                          </div>
+                        </div>
                       </div>
                     </article>
                   ))}
