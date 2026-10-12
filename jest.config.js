@@ -19,6 +19,11 @@ const createConfig = async () => {
   // This allows Jest to transform @prisma ESM (.mjs) files instead of crashing.
   return {
     ...nextConfig,
+    testPathIgnorePatterns: [
+      ...(nextConfig.testPathIgnorePatterns || []),
+      "<rootDir>/.claude/",
+      "<rootDir>/.codex/",
+    ],
     transformIgnorePatterns: [
       "/node_modules/(?!(@prisma|uuid|@faker-js/faker|@aws-sdk|@smithy)/)",
     ],

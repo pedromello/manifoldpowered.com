@@ -6,6 +6,8 @@ import region from "models/region";
 import { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 import { ValidationError } from "infra/errors";
+import game from "models/game";
+import pricing from "models/pricing";
 
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -68,6 +70,18 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   // The same currency the visitor was shown a price in, so the sale and its
   // ledger entries record what they were actually charged.
   const currencyCode = await region.currencyForRequest(req);
+  const target = await game.findOneBySlug(parsedBody.data.slug);
+  if (
+    target &&
+    (!(await pricing.priceForOrFail(target, currencyCode)).amount.isZero() ||
+      Boolean((await pricing.priceFor(target, "BRL"))?.amount.greaterThan(0)))
+  ) {
+    return res.status(409).json({
+      message:
+        "Complete payment through checkout to add this game to your library.",
+      checkout_required: true,
+    });
+  }
 
   const result = await library.acquireGame(
     req.context.user.id!,

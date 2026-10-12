@@ -11,6 +11,11 @@ jest.mock("models/gift_card_order", () => ({
 const secret = "whsec_synthetic_webhook_fixture";
 const stripe = new Stripe("sk_test_synthetic_signature_fixture");
 const original = { ...process.env };
+jest.mock("infra/database", () => ({
+  prisma: {
+    purchasePaymentAttempt: { findFirst: jest.fn().mockResolvedValue(null) },
+  },
+}));
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.STRIPE_SECRET_KEY = "sk_test_synthetic_signature_fixture";

@@ -43,6 +43,40 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+test("reversal during issuance never releases the code or overwrites cancellation", async () => {
+  const { order } = await paidOrder();
+  const started = deferred<void>(),
+    finish = deferred<void>();
+  const issue = fixture.provider.issue.getMockImplementation()!;
+  fixture.provider.issue.mockImplementationOnce(async (request) => {
+    started.resolve();
+    await finish.promise;
+    return issue(request);
+  });
+  const delivery = createGiftCardDeliveryService(fixture).fulfill(order.id);
+  const rejected = expect(delivery).rejects.toThrow();
+  await started.promise;
+  await prisma.giftCardOrder.update({
+    where: { id: order.id },
+    data: {
+      status: "CANCELLED",
+      delivery_claim_token: null,
+      delivery_claim_expires_at: null,
+    },
+  });
+  finish.resolve();
+  await rejected;
+  const cancelled = await payments.findOwn(buyer, order.id);
+  expect(cancelled.status).toBe("CANCELLED");
+  expect(cancelled.gift_card_code).toBeNull();
+  expect(cancelled.paid_at).not.toBeNull();
+  expect(
+    await prisma.libraryItem.count({
+      where: { user_id: buyer, item_id: order.id },
+    }),
+  ).toBe(0);
+});
+
 test("a supplier taking 31 seconds holds no financial transaction or order lock", async () => {
   const { order, event } = await paidOrder();
   const issue = fixture.provider.issue.getMockImplementation()!;

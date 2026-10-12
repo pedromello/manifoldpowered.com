@@ -6,6 +6,8 @@ import { ValidationError } from "infra/errors";
 import giftCardOrder, { giftCardOrderOutput } from "models/gift_card_order";
 import giftCardDelivery from "models/gift_card_delivery";
 import paymentReconciliation from "models/gift_card_payment_reconciliation";
+import { prisma } from "infra/database";
+import purchases, { enqueuePurchase } from "models/purchase_order";
 
 const actionSchema = z
   .object({
@@ -45,6 +47,25 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       throw new ValidationError({ message: "Invalid gift card order action." });
     const userId = req.context.user.id!;
     const id = req.query.id as string;
+    const linked = await prisma.purchaseOrder.findFirst({
+      where: { gift_card_order_id: id, user_id: userId },
+    });
+    if (linked) {
+      if (body.data.action === "cancel")
+        await purchases.cancel(userId, linked.id);
+      else if (
+        body.data.action === "retry_issuance" ||
+        body.data.action === "reconcile_payment"
+      )
+        await enqueuePurchase(linked.id);
+      const gift = await giftCardOrder.findOwn(userId, id);
+      return res.status(200).json({
+        ...giftCardOrderOutput(gift),
+        ...(body.data.action === "checkout"
+          ? { checkout_url: `/checkout/${linked.id}` }
+          : {}),
+      });
+    }
     if (body.data.action === "reconcile_payment") {
       const result = await paymentReconciliation.reconcileOwn(userId, id);
       const order = result.needsDelivery

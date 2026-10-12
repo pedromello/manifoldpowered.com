@@ -1,6 +1,7 @@
 import { defaultLocale, locales } from "./lib/locale";
 
 module.exports = {
+  logging: { incomingRequests: { ignore: [/\/api\/v1\/webhooks\/appmax\//] } },
   async redirects() {
     return [
       {

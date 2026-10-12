@@ -8,6 +8,9 @@ import {
 export interface CheckoutRequest {
   order_id: string;
   product: GiftCardProduct;
+  return_path?: string;
+  request_key?: string;
+  purchase_type?: "gift_card" | "purchase";
 }
 
 export interface CheckoutGateway {
@@ -78,10 +81,10 @@ async function stripeOperation<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export const stripeCheckoutGateway: CheckoutGateway = {
-  async create({ order_id, product }) {
+  async create({ order_id, product, return_path, request_key, purchase_type }) {
     const stripe = client();
     const origin = checkoutOrigin();
-    const metadata = { purchase_type: "gift_card", order_id };
+    const metadata = { purchase_type: purchase_type ?? "gift_card", order_id };
     return stripeOperation(() =>
       stripe.checkout.sessions.create(
         {
@@ -101,16 +104,24 @@ export const stripeCheckoutGateway: CheckoutGateway = {
               quantity: 1,
             },
           ],
-          success_url: `${origin}/library/gift-cards?order=${order_id}&checkout=returned`,
-          cancel_url: `${origin}/library/gift-cards?order=${order_id}&checkout=cancelled`,
+          success_url: return_path
+            ? `${origin}${return_path}?checkout=returned`
+            : `${origin}/library/gift-cards?order=${order_id}&checkout=returned`,
+          cancel_url: return_path
+            ? `${origin}${return_path}?checkout=cancelled`
+            : `${origin}/library/gift-cards?order=${order_id}&checkout=cancelled`,
         },
-        { idempotencyKey: `gift-card-checkout:${order_id}` },
+        { idempotencyKey: request_key ?? `gift-card-checkout:${order_id}` },
       ),
     );
   },
   async retrieve(sessionId) {
     const stripe = client();
-    return stripeOperation(() => stripe.checkout.sessions.retrieve(sessionId));
+    return stripeOperation(() =>
+      stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["payment_intent.latest_charge"],
+      }),
+    );
   },
   async expire(sessionId) {
     const stripe = client();

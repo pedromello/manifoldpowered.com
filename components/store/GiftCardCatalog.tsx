@@ -4,19 +4,11 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { GiftCardProduct } from "infra/gift_card_provider";
-import type { giftCardOrderOutput } from "models/gift_card_order";
 import { useI18n } from "lib/i18n";
 import { formatMoney } from "lib/price";
 import { GiftCardArtwork, giftCardArtwork } from "./GiftCardArtwork";
 
-type Order = ReturnType<typeof giftCardOrderOutput>;
 type Catalog = { products: GiftCardProduct[]; checkout_available: boolean };
-const pending = [
-  "CHECKOUT_PENDING",
-  "AWAITING_PAYMENT",
-  "PAID",
-  "ISSUANCE_FAILED",
-];
 
 async function catalogFetcher(url: string): Promise<Catalog> {
   const response = await fetch(url);
@@ -62,24 +54,7 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
         return;
       }
       const user = await userResponse.json();
-      const ownResponse = await fetch("/api/v1/gift-card-orders", {
-        cache: "no-store",
-      });
-      if (ownResponse.status === 403) {
-        setMessage(t("Activate your account to buy gift cards."));
-        return;
-      }
-      if (!ownResponse.ok) throw new Error("Purchase unavailable");
-      const own: Catalog & { orders: Order[] } = await ownResponse.json();
-      const active = own.orders.find(
-        (order) =>
-          order.product_code === product.code && pending.includes(order.status),
-      );
-      if (active) {
-        await router.push(`/library/gift-cards?order=${active.id}`);
-        return;
-      }
-      if (!own.checkout_available) {
+      if (!data?.checkout_available) {
         setMessage(
           t(
             "New purchases are temporarily unavailable. Please try again later.",
@@ -90,30 +65,24 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
       }
       const storageKey = `gift-card-request:${user.id}:${product.code}`;
       let key = sessionStorage.getItem(storageKey);
-      if (
-        !key ||
-        own.orders.some(
-          (order) =>
-            order.product_code === product.code &&
-            !pending.includes(order.status),
-        )
-      ) {
+      if (!key) {
         key = crypto.randomUUID();
         sessionStorage.setItem(storageKey, key);
       }
-      const response = await fetch("/api/v1/gift-card-orders", {
+      const response = await fetch("/api/v1/orders", {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          product_code: product.code,
+          item_type: "GIFT_CARD",
+          item_id: product.code,
           idempotency_key: key,
         }),
       });
       if (!response.ok) throw new Error("Purchase unavailable");
-      const order: Order = await response.json();
-      if (order.checkout_url) window.location.assign(order.checkout_url);
-      else await router.push(`/library/gift-cards?order=${order.id}`);
+      const order: { id: string } = await response.json();
+      sessionStorage.removeItem(storageKey);
+      await router.push(`/checkout/${order.id}`);
     } catch {
       setMessage(t("We could not start your purchase. Try again."));
     } finally {

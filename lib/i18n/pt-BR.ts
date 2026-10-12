@@ -1,4 +1,73 @@
 export const ptBR: Record<string, string> = {
+  "View payment": "Ver pagamento",
+  "Cancel order": "Cancelar pedido",
+  "We could not cancel this order. Check your payment status.":
+    "Não foi possível cancelar o pedido. Confira a situação do pagamento.",
+  Month: "Mês",
+  Year: "Ano",
+  Total: "Total",
+  "Purchases are unavailable.": "As compras estão indisponíveis.",
+  "Payment under review": "Pagamento em análise",
+  "Payment being reviewed": "Pagamento em revisão",
+  "Purchase under review": "Compra em revisão",
+  "Preparing your game": "Preparando seu jogo",
+  Acquired: "Adquirido",
+  Refunded: "Reembolsado",
+  "Product price": "Preço do produto",
+  "Installment interest": "Juros do parcelamento",
+  "Log in to see your orders": "Entre para ver seus pedidos",
+  "We could not load your orders. Try again.":
+    "Não foi possível carregar seus pedidos. Tente novamente.",
+  "Loading your orders": "Carregando seus pedidos",
+  "Your game and gift card purchases will appear here.":
+    "Suas compras de jogos e gift cards aparecerão aqui.",
+  "Complete your purchase": "Conclua sua compra",
+  "Review your order and choose how to pay.":
+    "Confira seu pedido e escolha como pagar.",
+  "Card number": "Número do cartão",
+  "Name on card": "Nome no cartão",
+  "Confirm payment": "Confirmar pagamento",
+  "Pay with Pix": "Pague com Pix",
+  "Scan the QR code in your bank app or copy the Pix code.":
+    "Leia o QR Code no aplicativo do seu banco ou copie o código Pix.",
+  "This Pix code has expired. Check your order before trying again.":
+    "Este código Pix venceu. Confira seu pedido antes de tentar novamente.",
+  "Pix QR code": "QR Code Pix",
+  "Expires in": "Vence em",
+  "Pix code": "Código Pix",
+  "Copy Pix code": "Copiar código Pix",
+  "We could not prepare the payment. Reload the page and try again.":
+    "Não foi possível preparar o pagamento. Atualize a página e tente novamente.",
+  "Please check your purchase details.": "Confira os dados da sua compra.",
+  "Please check your card details.": "Confira os dados do seu cartão.",
+  "We are checking your payment. Check this order before trying again.":
+    "Estamos verificando seu pagamento. Confira este pedido antes de tentar novamente.",
+  "We could not confirm your payment right now. Check your order before trying again.":
+    "Não foi possível confirmar seu pagamento agora. Confira seu pedido antes de tentar novamente.",
+  "We could not prepare the payment. Try again.":
+    "Não foi possível preparar o pagamento. Tente novamente.",
+  "Log in to complete your purchase": "Entre para concluir sua compra",
+  "We could not load this order. Check My orders and try again.":
+    "Não foi possível carregar este pedido. Confira Meus pedidos e tente novamente.",
+  "Loading your order": "Carregando seu pedido",
+  "Payment confirmed": "Pagamento confirmado",
+  "Your product will be available after payment confirmation.":
+    "Seu produto ficará disponível após a confirmação do pagamento.",
+  "Check payment status": "Verificar pagamento",
+  "Your details": "Seus dados",
+  "First name": "Nome",
+  "Last name": "Sobrenome",
+  "Phone number": "Telefone",
+  "Payment method": "Forma de pagamento",
+  "Credit card": "Cartão de crédito",
+  Installments: "Parcelas",
+  "Pay in full": "À vista",
+  "Installment options are temporarily unavailable.":
+    "As opções de parcelamento estão temporariamente indisponíveis.",
+  "Please wait": "Aguarde",
+  "Review payment": "Revisar pagamento",
+  "Generate Pix code": "Gerar código Pix",
+  "Processing your payment": "Processando seu pagamento",
   "My orders": "Meus pedidos",
   Payment: "Pagamento",
   "Track your game and gift card purchases.":

@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactElement } from "react";
 import { ArrowLeft } from "lucide-react";
 
-import { OrdersPrototype } from "components/orders/OrdersPrototype";
+import { OrdersList } from "components/orders/OrdersList";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { useI18n } from "lib/i18n";
 
@@ -23,25 +23,15 @@ export default function OrdersPage() {
           <ArrowLeft size={16} aria-hidden="true" />
           {t("Back to library")}
         </Link>
-        <aside
-          aria-label={t("Prototype")}
-          className="mt-6 flex flex-col justify-between gap-3 rounded-xl border border-violet-400/15 bg-violet-500/[0.06] px-4 py-3 text-xs leading-5 text-violet-200/75 sm:flex-row sm:items-center"
-        >
-          <p>
-            <strong className="font-semibold">{t("Prototype")}</strong>
-            {" · "}
-            {t(
-              "Example orders. Buttons open details without making purchases.",
-            )}
+        <header className="py-8">
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
+            {t("My orders")}
+          </h1>
+          <p className="mt-3 text-sm text-white/55">
+            {t("Track your game and gift card purchases.")}
           </p>
-          <Link
-            href="/library/purchases"
-            className="shrink-0 font-semibold underline underline-offset-4 hover:text-white"
-          >
-            {t("See actual purchase history")}
-          </Link>
-        </aside>
-        <OrdersPrototype />
+        </header>
+        <OrdersList />
       </main>
     </>
   );

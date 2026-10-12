@@ -259,19 +259,19 @@ model GameLocalization {
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
 model NintendoRefresh {
-  id                String   @id @default(uuid())
-  identity          String   @unique
+  id                String    @id @default(uuid())
+  identity          String    @unique
   game_id           String?
-  state             String   @default("IDLE")
+  state             String    @default("IDLE")
   last_completed_at DateTime?
   next_allowed_at   DateTime?
   lease_token       String?
   lease_expires_at  DateTime?
   error_name        String?
   error_message     String?
-  regional_outcomes Json     @default("{}")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@index([game_id])
   @@index([lease_expires_at])
@@ -292,19 +292,19 @@ model NintendoImportAttempt {
 }
 
 model SteamRefresh {
-  id                String   @id @default(uuid())
-  steam_app_id      String   @unique @db.VarChar(20)
+  id                String    @id @default(uuid())
+  steam_app_id      String    @unique @db.VarChar(20)
   game_id           String?
-  state             String   @default("IDLE")
+  state             String    @default("IDLE")
   last_completed_at DateTime?
   next_allowed_at   DateTime?
   lease_token       String?
   lease_expires_at  DateTime?
   error_name        String?
   error_message     String?
-  regional_outcomes Json     @default("{}")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
   @@index([lease_expires_at])
   @@map("steam_refreshes")
@@ -587,6 +587,7 @@ model Sale {
   id                String  @id @default(uuid())
   user_id           String // Logical reference to User.id (who acquired)
   game_id           String // Logical reference to Game.id (what was acquired)
+  purchase_order_id String? @unique // Paid checkout; null for historical/free acquisitions.
   store_id          String? // Logical reference to Store.id; null = platform/global acquisition
   store_revision_id String? // Logical StoreRevision snapshot used for attribution
   price_at_sale     Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
@@ -943,10 +944,129 @@ model ExchangeRate {
 // whose values must be extensible without a migration at all, is not.
 enum LedgerAccountType {
   CONSUMER_PAYMENT // gross collected from a buyer; funds a sale
+  FINANCING_CLEARING // financing surcharge held separately from product revenue
   SUPPLIER_COST // what the delivered code cost us
   AFFILIATE_COMMISSION // owed to a storefront owner, held until matures_at
   PLATFORM_REVENUE // what is left for the platform
   PAYOUT // a commission balance actually sent to an affiliate
+}
+
+enum PurchasePaymentStatus {
+  UNPAID
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum PurchaseDeliveryStatus {
+  PENDING
+  READY
+  FAILED
+  REVIEW
+}
+
+model PurchaseOrder {
+  id                  String                 @id @default(uuid())
+  user_id             String
+  idempotency_key     String                 @db.VarChar(64)
+  item_type           ItemType
+  item_id             String
+  product_name        String                 @db.VarChar(200)
+  product_slug        String?
+  image_url           String?
+  amount_minor        Int
+  currency            String                 @db.VarChar(3)
+  exchange_rate       Decimal?               @db.Decimal(19, 8)
+  supplier_cost_rate  Decimal?               @db.Decimal(19, 8)
+  commission_rate     Decimal?               @db.Decimal(19, 8)
+  store_id            String?
+  store_revision_id   String?
+  gift_card_order_id  String?                @unique
+  payment_provider    String                 @db.VarChar(20)
+  payment_environment String                 @db.VarChar(20)
+  payment_status      PurchasePaymentStatus  @default(UNPAID)
+  delivery_status     PurchaseDeliveryStatus @default(PENDING)
+  paid_at             DateTime?
+  fulfilled_at        DateTime?
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+
+  @@unique([user_id, idempotency_key])
+  @@index([user_id, created_at])
+  @@map("purchase_orders")
+}
+
+model PurchasePaymentAttempt {
+  id                    String                @id @default(uuid())
+  order_id              String
+  payment_provider      String                @db.VarChar(20)
+  payment_environment   String                @db.VarChar(20)
+  idempotency_key       String                @db.VarChar(64)
+  method                String                @db.VarChar(20)
+  installments          Int                   @default(1)
+  total_minor           Int
+  interest_minor        Int                   @default(0)
+  quote_expires_at      DateTime
+  status                PurchasePaymentStatus @default(UNPAID)
+  submission_started_at DateTime?
+  remote_customer_id    String?
+  remote_order_id       String?
+  remote_payment_id     String?
+  checkout_url          String?
+  pix_emv               String?
+  pix_qrcode            String?
+  expires_at            DateTime?
+  uncertain             Boolean               @default(false)
+  last_error            String?               @db.VarChar(50)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+
+  @@unique([order_id, idempotency_key])
+  @@unique([payment_provider, payment_environment, remote_order_id], map: "purchase_payment_provider_remote_key")
+  @@index([remote_order_id])
+  @@index([order_id, created_at])
+  @@map("purchase_payment_attempts")
+}
+
+// Durable work only; no tokens, card data or raw webhook payloads.
+model PurchasePaymentJob {
+  order_id    String    @id
+  run_after   DateTime  @default(now())
+  claim_token String?
+  claim_until DateTime?
+  attempts    Int       @default(0)
+  last_error  String?   @db.VarChar(50)
+  updated_at  DateTime  @updatedAt
+
+  @@index([run_after])
+  @@map("purchase_payment_jobs")
+}
+
+model PurchasePaymentEvent {
+  id             String                @id @default(uuid())
+  order_id       String
+  attempt_id     String
+  payment_status PurchasePaymentStatus
+  observed_at    DateTime              @default(now())
+
+  @@unique([attempt_id, payment_status])
+  @@index([order_id, observed_at])
+  @@map("purchase_payment_events")
+}
+
+model PaymentInstallation {
+  id          String   @id @default(uuid())
+  provider    String   @db.VarChar(20)
+  environment String   @db.VarChar(20)
+  external_id String
+  updated_at  DateTime @updatedAt
+
+  @@unique([provider, environment])
+  @@map("payment_installations")
 }
 
 // Append-only double-entry ledger. Every money movement is written as a set of

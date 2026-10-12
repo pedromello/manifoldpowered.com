@@ -9,6 +9,9 @@ import detailHandler from "pages/api/v1/gift-card-orders/[id]";
 import revealHandler from "pages/api/v1/gift-card-orders/[id]/reveal";
 import webhookHandler from "pages/api/v1/webhooks/stripe";
 import { stripeCheckoutGateway } from "infra/stripe_checkout";
+import quoteHandler from "pages/api/v1/orders/[id]/quote";
+import paymentHandler from "pages/api/v1/orders/[id]/payment";
+import paymentWorker from "models/purchase_payment_jobs";
 import { simulatedGiftCardProvider } from "infra/gift_card_provider";
 import {
   checkoutFixture,
@@ -56,6 +59,8 @@ beforeEach(async () => {
     .mockImplementation(fixture.provider.reconcile);
   process.env.STRIPE_SECRET_KEY = "sk_test_synthetic_usecase";
   process.env.STRIPE_WEBHOOK_SECRET = secret;
+  process.env.PAYMENT_PROVIDER = "stripe";
+  process.env.PAYMENT_ENVIRONMENT = "sandbox";
   log = jest.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -67,6 +72,17 @@ afterAll(async () => {
     where: { user_id: { in: buyers } },
     select: { id: true },
   });
+  const ids = orders.map((order) => order.id);
+  await prisma.purchasePaymentJob.deleteMany({
+    where: { order_id: { in: ids } },
+  });
+  await prisma.purchasePaymentEvent.deleteMany({
+    where: { order_id: { in: ids } },
+  });
+  await prisma.purchasePaymentAttempt.deleteMany({
+    where: { order_id: { in: ids } },
+  });
+  await prisma.purchaseOrder.deleteMany({ where: { user_id: { in: buyers } } });
   await prisma.giftCardPaymentEvent.deleteMany({
     where: { order_id: { in: orders.map((o) => o.id) } },
   });
@@ -129,9 +145,25 @@ async function call(
   return result;
 }
 async function buy() {
-  return call(purchaseHandler, {
+  const result = await call(purchaseHandler, {
     body: { product_code: "sandbox-brl-25", idempotency_key: randomUUID() },
   });
+  if (result.status !== 200) return result;
+  const id = responseId(result);
+  const quote = await call(quoteHandler, {
+    id,
+    body: { method: "card", installments: 1, idempotency_key: randomUUID() },
+  });
+  expect(quote.status).toBe(200);
+  const attempt = (
+    quote.body as { attempt: { id: string; total_minor: number } }
+  ).attempt;
+  const payment = await call(paymentHandler, {
+    id,
+    body: { attempt_id: attempt.id, expected_total_minor: attempt.total_minor },
+  });
+  expect(payment.status).toBe(200);
+  return result;
 }
 async function notify(id: string, eventId?: string) {
   const raw = JSON.stringify(
@@ -154,6 +186,7 @@ test("purchase, signed webhook, delivery, library and explicit disclosure compos
   const id = responseId(purchase);
   expect(purchase.body).not.toHaveProperty("gift_card_code");
   expect((await notify(id)).status).toBe(200);
+  await paymentWorker.runOne(id);
   const listing = await call(purchaseHandler, { method: "GET" });
   const detail = await call(detailHandler, { id, method: "GET" });
   const mutation = await call(detailHandler, {
@@ -191,21 +224,23 @@ test("purchase, signed webhook, delivery, library and explicit disclosure compos
   expect(log).not.toHaveBeenCalled();
 });
 
-test("delivery failure returns 503 after committing payment; replay recovers without charge", async () => {
+test("delivery failure is recorded after webhook acknowledgement; replay recovers without charge", async () => {
   const id = responseId(await buy());
   fixture.provider.issue.mockRejectedValueOnce(
     new Error("synthetic-secret-supplier-error"),
   );
-  expect((await notify(id, "evt_fixture_replay")).status).toBe(503);
+  expect((await notify(id, "evt_fixture_replay")).status).toBe(200);
+  await paymentWorker.runOne(id);
   expect(
     await prisma.giftCardOrder.findUniqueOrThrow({ where: { id } }),
   ).toMatchObject({ paid_at: expect.any(Date), status: "ISSUANCE_FAILED" });
   expect(
-    await prisma.giftCardPaymentEvent.count({
-      where: { id: "evt_fixture_replay" },
+    await prisma.purchasePaymentEvent.count({
+      where: { order_id: id, payment_status: "PAID" },
     }),
   ).toBe(1);
   expect((await notify(id, "evt_fixture_replay")).status).toBe(200);
+  await paymentWorker.runOne(id);
   expect(fixture.create).toHaveBeenCalledTimes(1);
   expect(JSON.stringify(log.mock.calls)).not.toContain(
     "synthetic-secret-supplier-error",
@@ -217,7 +252,8 @@ test("malformed supplier data and persistence failure cannot leak codes to logs 
   const code = "synthetic-secret-malformed";
   fixture.provider.issue.mockResolvedValueOnce({ reference: 1, code } as never);
   const failed = await notify(id);
-  expect(failed.status).toBe(503);
+  expect(failed.status).toBe(200);
+  await paymentWorker.runOne(id);
   expect(
     JSON.stringify(failed.body) + JSON.stringify(log.mock.calls),
   ).not.toContain(code);
@@ -242,7 +278,11 @@ test("malformed supplier data and persistence failure cannot leak codes to logs 
     id,
     body: { action: "retry_issuance" },
   });
-  expect(failedPersistence.status).toBe(503);
+  expect(failedPersistence.status).toBe(200);
+  await paymentWorker.runOne(id);
+  expect(
+    (await prisma.giftCardOrder.findUniqueOrThrow({ where: { id } })).status,
+  ).toBe("ISSUANCE_FAILED");
   const secretCode = fixture.deliveries.get(id)!.code;
   expect(
     JSON.stringify(failedPersistence.body) + JSON.stringify(log.mock.calls),
@@ -257,7 +297,10 @@ test("missing webhook is recovered by one authenticated detail-entry action", as
     body: { action: "reconcile_payment" },
   });
   expect(reconciled.status).toBe(200);
-  expect(reconciled.body).toMatchObject({ status: "FULFILLED" });
+  await paymentWorker.runOne(id);
+  expect((await call(detailHandler, { id, method: "GET" })).body).toMatchObject(
+    { status: "FULFILLED" },
+  );
   expect(reconciled.body).not.toHaveProperty("gift_card_code");
   expect(
     await prisma.giftCardPaymentEvent.count({ where: { order_id: id } }),
@@ -269,6 +312,7 @@ test("missing webhook is recovered by one authenticated detail-entry action", as
 test("unauthenticated or different buyer cannot reconcile or reveal", async () => {
   const id = responseId(await buy());
   await notify(id);
+  await paymentWorker.runOne(id);
   expect(
     (await call(revealHandler, { id, token: "", body: { confirm: true } }))
       .status,
@@ -303,6 +347,7 @@ test("payment confirmation concurrent with cancellation never loses the paid sta
     notify(id),
   ]);
   expect(results.every((r) => r.status === 200)).toBe(true);
+  await paymentWorker.runOne(id);
   expect(
     await prisma.giftCardOrder.findUniqueOrThrow({ where: { id } }),
   ).toMatchObject({ status: "FULFILLED", paid_at: expect.any(Date) });

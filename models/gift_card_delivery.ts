@@ -66,6 +66,8 @@ export function createGiftCardDeliveryService({
     const order = await lockGiftCardOrder(tx, reservation.order.id);
     const now = await giftCardDatabaseClock(tx);
     if (
+      !order.paid_at ||
+      !["PAID", "ISSUANCE_FAILED"].includes(order.status) ||
       order.delivery_claim_token !== reservation.token ||
       !order.delivery_claim_expires_at ||
       order.delivery_claim_expires_at <= now
@@ -157,6 +159,7 @@ export function createGiftCardDeliveryService({
           id: reservation.order.id,
           delivery_claim_token: reservation.token,
           delivery_claim_expires_at: { gt: now },
+          status: { in: ["PAID", "ISSUANCE_FAILED"] },
         },
         data: {
           status: "ISSUANCE_FAILED",

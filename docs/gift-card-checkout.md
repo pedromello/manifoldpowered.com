@@ -1,4 +1,9 @@
-# Gift card checkout — development session
+# Gift card checkout — original development session
+
+The current buyer checkout supports Appmax and Stripe, common orders for games
+and gift cards, and durable reconciliation. Follow [Payment providers](payment-providers.md)
+for configuration and the current flow. The notes below describe the original
+Stripe-only implementation and its demo seed; checkout details are historical.
 
 This delivery adds buyer checkout, independently of game acquisitions and
 affiliate payouts. It is disabled outside `development` and `test`, accepts

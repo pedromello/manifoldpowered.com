@@ -5,7 +5,8 @@ import controller from "infra/controller";
 import { ValidationError } from "infra/errors";
 import giftCardOrder, { giftCardOrderOutput } from "models/gift_card_order";
 import { simulatedGiftCardProvider } from "infra/gift_card_provider";
-import { stripeCheckoutConfigured } from "infra/stripe_checkout";
+import { paymentsConfigured } from "infra/payments";
+import purchases from "models/purchase_order";
 
 const bodySchema = z
   .object({
@@ -29,7 +30,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
     res.status(200).json({
       products,
       orders: orders.map(giftCardOrderOutput),
-      checkout_available: stripeCheckoutConfigured(),
+      checkout_available: paymentsConfigured(),
     });
   })
   .post(controller.canRequest("create:library"), async (req, res) => {
@@ -38,11 +39,18 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       throw new ValidationError({
         message: "Invalid gift card purchase request.",
       });
-    const order = await giftCardOrder.begin(
+    const order = await purchases.begin(req.context.user.id!, {
+      item_type: "GIFT_CARD",
+      item_id: body.data.product_code,
+      idempotency_key: body.data.idempotency_key,
+    });
+    const gift = await giftCardOrder.findOwn(
       req.context.user.id!,
-      body.data.product_code,
-      body.data.idempotency_key,
+      order.gift_card_order_id!,
     );
-    res.status(200).json(giftCardOrderOutput(order));
+    res.status(200).json({
+      ...giftCardOrderOutput(gift),
+      checkout_url: `/checkout/${order.id}`,
+    });
   })
   .handler(controller.errorHandlers);
