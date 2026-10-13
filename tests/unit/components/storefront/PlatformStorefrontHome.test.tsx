@@ -47,6 +47,7 @@ function props(
   return {
     store,
     isPreview: false,
+    isPreviewReady: true,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
