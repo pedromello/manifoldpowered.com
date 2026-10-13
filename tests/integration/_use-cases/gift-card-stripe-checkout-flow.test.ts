@@ -18,7 +18,7 @@ import {
   paymentEvent,
 } from "tests/fixtures/gift_card_checkout";
 
-// Real controllers/authentication/models/PostgreSQL; synthetic external
+// Stripe regression use cases: real controllers/authentication/models/PostgreSQL; synthetic external
 // boundaries only. The SDK verifies signatures, not an authenticated payment.
 const stripe = new Stripe("sk_test_synthetic_usecase");
 const secret = "whsec_synthetic_usecase";

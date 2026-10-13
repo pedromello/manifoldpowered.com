@@ -119,6 +119,12 @@ an implementation detail to buyers.
 
 ## Verification boundaries
 
+The full registration-to-disclosure journey lives in
+[`tests/integration/_use-cases`](../tests/integration/_use-cases/README.md).
+Run `npm run test:use-cases:gift-cards` for Appmax Pix/card journeys and the
+existing Stripe regression cases. Keep the standalone payment worker stopped
+during these fixtures; each test processes only its own persisted jobs.
+
 Contract tests use synthetic responses matching the official OpenAPI. Integration
 tests use real local PostgreSQL transactions and a payment fixture that cannot be
 selected at runtime; they remove only rows they created. They cover concurrency,
