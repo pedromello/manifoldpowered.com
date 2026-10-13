@@ -1,6 +1,8 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
+import sessionModel from "models/session";
+import { purchaseGameWithVerifiedPayment } from "tests/fixtures/paid_game_purchase";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -61,10 +63,16 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
           }),
         },
       );
-      expect(storePurchase.status).toBe(201);
+      expect(storePurchase.status).toBe(409);
+      await purchaseGameWithVerifiedPayment(
+        buyer.id,
+        createdGame.slug,
+        createdStore.slug,
+      );
 
       // Acquire another game with no store context (should NOT show up here).
       const otherGame = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(otherGame.id);
       const globalPurchase = await fetch(
         `${webserver.getOrigin()}/api/v1/library`,
         {
@@ -76,7 +84,8 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
           body: JSON.stringify({ slug: otherGame.slug }),
         },
       );
-      expect(globalPurchase.status).toBe(201);
+      expect(globalPurchase.status).toBe(409);
+      await purchaseGameWithVerifiedPayment(buyer.id, otherGame.slug);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}/sales`,
@@ -112,7 +121,15 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
         },
         body: JSON.stringify({ slug: gameSlug, store_slug: store.slug }),
       });
-      expect(purchase.status).toBe(201);
+      expect(purchase.status).toBe(409);
+      const session = await sessionModel.findOneValidByToken(
+        buyerSession.token,
+      );
+      await purchaseGameWithVerifiedPayment(
+        session.user_id,
+        gameSlug,
+        store.slug,
+      );
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/stores/${store.slug}/sales`,

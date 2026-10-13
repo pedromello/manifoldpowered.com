@@ -1,6 +1,8 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
+import sessionModel from "models/session";
+import { purchaseGameWithVerifiedPayment } from "tests/fixtures/paid_game_purchase";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -28,14 +30,16 @@ async function acquire(sessionToken, gameSlug, storeSlug = undefined) {
       ...(storeSlug ? { store_slug: storeSlug } : {}),
     }),
   });
-  expect(response.status).toBe(201);
-  return response;
+  expect(response.status).toBe(409);
+  const session = await sessionModel.findOneValidByToken(sessionToken);
+  return purchaseGameWithVerifiedPayment(session.user_id, gameSlug, storeSlug);
 }
 
 async function createDeveloperWithGame() {
   const developer = await orchestrator.createUser();
   await orchestrator.activateUser(developer.id);
-  return await orchestrator.createGame(developer.id);
+  const game = await orchestrator.createGame(developer.id, { price: "10.00" });
+  return gameModel.makePublic(game.id);
 }
 
 describe("GET /api/v1/user/purchases", () => {
@@ -94,7 +98,8 @@ describe("GET /api/v1/user/purchases", () => {
       expect(purchase.game_id).toBe(game.id);
       expect(purchase.game_title).toBe(game.title);
       expect(purchase.game_slug).toBe(game.slug);
-      expect(purchase.currency).toBe("USD");
+      expect(purchase.currency).toBe("BRL");
+      expect(purchase.price_at_sale).toBe("50.00");
       // Two decimals, the display scale — a buyer reconciles this against a
       // card statement, not against the ledger.
       expect(purchase.price_at_sale).toMatch(/^\d+\.\d{2}$/);

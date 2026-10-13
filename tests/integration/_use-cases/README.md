@@ -31,6 +31,12 @@ flowchart TB
   propriedade e concorrência com cancelamento.
 - `tests/unit/components/checkout.test.tsx`: renderização e estados da interface.
 
+Os casos existentes de compra/download e compra/review de jogos também exigem
+pagamento confirmado. A fixture `tests/fixtures/paid_game_purchase.ts` usa o domínio,
+o worker e o adaptador Appmax reais com HTTP externo simulado entre as etapas HTTP
+de login e biblioteca. Os relatórios de vendas usam a mesma fixture e preservam
+as verificações de atribuição à Outlet e privacidade do comprador.
+
 ## Jornada completa de gift card
 
 ```mermaid

@@ -3,6 +3,7 @@ import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import gameModel from "models/game";
 import retry from "async-retry";
+import { purchaseGameWithVerifiedPayment } from "tests/fixtures/paid_game_purchase";
 
 const testClientAddress = orchestrator.createTestClientAddress(
   "purchase-and-review-flow",
@@ -192,7 +193,7 @@ describe("Use case: Purchase and Review Flow", () => {
       expect(foundGame.slug).toEqual(game.slug);
     });
 
-    test("Buyer adds game to library", async () => {
+    test("Buyer pays before the game is added to the library", async () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
         method: "POST",
         headers: {
@@ -204,7 +205,11 @@ describe("Use case: Purchase and Review Flow", () => {
         }),
       });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(409);
+      await purchaseGameWithVerifiedPayment(
+        buyerSession.user_id,
+        foundGame.slug,
+      );
     });
 
     test("Buyer posts a review for the game", async () => {
