@@ -4,10 +4,61 @@ import webserver from "infra/webserver";
 import { version as uuidVersion } from "uuid";
 import { prisma } from "infra/database";
 
+const buyers: string[] = [],
+  games: string[] = [],
+  studios: string[] = [];
+const originalCreateUser = orchestrator.createUser;
+const originalCreateGame = orchestrator.createGame;
+async function createTestUser() {
+  const account = await originalCreateUser();
+  buyers.push(account.id);
+  return account;
+}
+async function createTestGame(
+  userId: string,
+  data: Record<string, unknown> = {},
+) {
+  const game = await originalCreateGame(userId, data);
+  games.push(game.id);
+  studios.push(game.studio_id);
+  return game;
+}
+
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
-  await orchestrator.clearDatabaseRows();
-  await orchestrator.clearStorage();
+  jest.spyOn(orchestrator, "createUser").mockImplementation(createTestUser);
+  jest.spyOn(orchestrator, "createGame").mockImplementation(createTestGame);
+});
+
+afterAll(async () => {
+  const sales = await prisma.sale.findMany({
+    where: { user_id: { in: buyers } },
+    select: { id: true },
+  });
+  await prisma.ledgerEntry.deleteMany({
+    where: {
+      source_type: "SALE",
+      source_id: { in: sales.map((sale) => sale.id) },
+    },
+  });
+  await prisma.sale.deleteMany({ where: { user_id: { in: buyers } } });
+  await prisma.libraryItem.deleteMany({ where: { user_id: { in: buyers } } });
+  await prisma.store.deleteMany({ where: { owner_id: { in: buyers } } });
+  await prisma.gamePriceOverride.deleteMany({
+    where: { game_id: { in: games } },
+  });
+  await prisma.game.deleteMany({ where: { id: { in: games } } });
+  await prisma.studioMember.deleteMany({
+    where: { studio_id: { in: studios } },
+  });
+  await prisma.studio.deleteMany({ where: { id: { in: studios } } });
+  await prisma.session.deleteMany({ where: { user_id: { in: buyers } } });
+  await prisma.userActivationToken.deleteMany({
+    where: { user_id: { in: buyers } },
+  });
+  await prisma.user.deleteMany({ where: { id: { in: buyers } } });
+  jest.restoreAllMocks();
+  await prisma.$disconnect();
 });
 
 describe("POST /api/v1/library", () => {
@@ -62,6 +113,34 @@ describe("POST /api/v1/library", () => {
   });
 
   describe("Authenticated user (activated)", () => {
+    test("Paid games require checkout and cannot create an acquisition or sale directly", async () => {
+      const creator = await orchestrator.createUser();
+      await orchestrator.activateUser(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 25 });
+      const buyer = await orchestrator.createUser();
+      await orchestrator.activateUser(buyer.id);
+      const session = await orchestrator.createSession(buyer.id);
+      const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
+        method: "POST",
+        headers: {
+          Cookie: `session_id=${session.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ checkout_required: true });
+      expect(
+        await prisma.libraryItem.count({
+          where: { user_id: buyer.id, item_id: game.id },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.sale.count({
+          where: { user_id: buyer.id, game_id: game.id },
+        }),
+      ).toBe(0);
+    });
     test("With game not found should return 404 Not Found", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
@@ -88,10 +167,10 @@ describe("POST /api/v1/library", () => {
       });
     });
 
-    test("With valid slug should return 201 Created", async () => {
+    test("With a valid free game slug should return 201 Created", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
-      const game = await orchestrator.createGame(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -169,7 +248,7 @@ describe("POST /api/v1/library", () => {
     test("Without store_slug should record a Sale with a null store_id", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
-      const game = await orchestrator.createGame(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -200,7 +279,7 @@ describe("POST /api/v1/library", () => {
     test("With a valid store_slug should record a Sale attributed to that store", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
-      const game = await orchestrator.createGame(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
       await gameModel.makePublic(game.id);
 
       const storeOwner = await orchestrator.createUser();
@@ -235,7 +314,7 @@ describe("POST /api/v1/library", () => {
     test("With an unknown store_slug should still return 201 and record a Sale with a null store_id", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
-      const game = await orchestrator.createGame(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -262,10 +341,10 @@ describe("POST /api/v1/library", () => {
       expect(sales[0].store_id).toBeNull();
     });
 
-    test("Re-acquiring an owned game should record a new Sale each time while LibraryItem stays a single row", async () => {
+    test("Re-acquiring an owned free game should record acquisitions while LibraryItem stays a single row", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
-      const game = await orchestrator.createGame(creator.id);
+      const game = await orchestrator.createGame(creator.id, { price: 0 });
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);

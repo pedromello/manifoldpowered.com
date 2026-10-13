@@ -55,6 +55,7 @@ function props(): StorefrontViewProps {
       },
     },
     isPreview: true,
+    isPreviewReady: true,
     followControl: <button>Draft</button>,
     featured: [],
     featuredMode: "AUTOMATIC",

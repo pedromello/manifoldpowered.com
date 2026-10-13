@@ -152,6 +152,7 @@ export function Storefront({
           store={store}
           followControl={followControl}
           showDiscover={showDiscover}
+          showGiftCards={!store && process.env.NODE_ENV !== "production"}
         />
       )}
     </StorefrontShell>

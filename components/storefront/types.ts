@@ -136,6 +136,7 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
   store: StoreContext | null;
   followControl: ReactNode;
   showDiscover?: boolean;
+  showGiftCards?: boolean;
 };
 
 /**

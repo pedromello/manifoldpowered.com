@@ -47,6 +47,7 @@ function props(
   return {
     store,
     isPreview: false,
+    isPreviewReady: true,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
@@ -119,9 +120,7 @@ describe("PlatformStorefrontHome", () => {
     expect(markup).toContain('href="/item/test-game?store=outlet-teste-1"');
     expect(markup).toContain('action="/store/outlet-teste-1"');
     expect(markup).toContain('placeholder="Search games in this Outlet..."');
-    expect(markup).not.toContain(
-      "Think Steam, but with creator-run storefronts.",
-    );
+    expect(markup).not.toContain("Discover games");
   });
 
   test("keeps the platform homepage copy when no Outlet context exists", () => {
@@ -129,7 +128,7 @@ describe("PlatformStorefrontHome", () => {
       <PlatformStorefrontHome {...props(null)} />,
     );
 
-    expect(markup).toContain("Think Steam, but with creator-run storefronts.");
+    expect(markup).toContain("Discover games");
     expect(markup).toContain('action="/search"');
     expect(markup).not.toContain('data-storefront="follow-outlet"');
   });

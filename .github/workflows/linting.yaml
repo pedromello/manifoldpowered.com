@@ -1,11 +1,16 @@
 name: Linting
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main, feat/gift-card-test-checkout]
+  workflow_dispatch:
 
 jobs:
   prettier:
     name: Prettier
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,6 +24,7 @@ jobs:
   eslint:
     name: ESLint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,7 +37,9 @@ jobs:
 
   commitlint:
     name: Commitlint
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:

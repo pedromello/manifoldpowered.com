@@ -716,6 +716,10 @@ async function platformTotals({
       case LedgerAccountType.CONSUMER_PAYMENT:
         total.gross = total.gross.plus(amount);
         break;
+      case LedgerAccountType.FINANCING_CLEARING:
+        // Product reporting excludes financing retained for later settlement.
+        total.gross = total.gross.plus(amount);
+        break;
       case LedgerAccountType.SUPPLIER_COST:
         total.supplier_cost = total.supplier_cost.plus(amount.negated());
         break;

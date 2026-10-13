@@ -1,4 +1,212 @@
 export const ptBR: Record<string, string> = {
+  "View payment": "Ver pagamento",
+  "Cancel order": "Cancelar pedido",
+  "We could not cancel this order. Check your payment status.":
+    "Não foi possível cancelar o pedido. Confira a situação do pagamento.",
+  Month: "Mês",
+  Year: "Ano",
+  Total: "Total",
+  "Purchases are unavailable.": "As compras estão indisponíveis.",
+  "Payment under review": "Pagamento em análise",
+  "Payment being reviewed": "Pagamento em revisão",
+  "Purchase under review": "Compra em revisão",
+  "Preparing your game": "Preparando seu jogo",
+  Acquired: "Adquirido",
+  Refunded: "Reembolsado",
+  "Product price": "Preço do produto",
+  "Installment interest": "Juros do parcelamento",
+  "Log in to see your orders": "Entre para ver seus pedidos",
+  "We could not load your orders. Try again.":
+    "Não foi possível carregar seus pedidos. Tente novamente.",
+  "Loading your orders": "Carregando seus pedidos",
+  "Your game and gift card purchases will appear here.":
+    "Suas compras de jogos e gift cards aparecerão aqui.",
+  "Complete your purchase": "Conclua sua compra",
+  "Review your order and choose how to pay.":
+    "Confira seu pedido e escolha como pagar.",
+  "Card number": "Número do cartão",
+  "Name on card": "Nome no cartão",
+  "Confirm payment": "Confirmar pagamento",
+  "Pay with Pix": "Pague com Pix",
+  "Scan the QR code in your bank app or copy the Pix code.":
+    "Leia o QR Code no aplicativo do seu banco ou copie o código Pix.",
+  "This Pix code has expired. Check your order before trying again.":
+    "Este código Pix venceu. Confira seu pedido antes de tentar novamente.",
+  "Pix QR code": "QR Code Pix",
+  "Expires in": "Vence em",
+  "Pix code": "Código Pix",
+  "Copy Pix code": "Copiar código Pix",
+  "We could not prepare the payment. Reload the page and try again.":
+    "Não foi possível preparar o pagamento. Atualize a página e tente novamente.",
+  "Please check your purchase details.": "Confira os dados da sua compra.",
+  "Please check your card details.": "Confira os dados do seu cartão.",
+  "We are checking your payment. Check this order before trying again.":
+    "Estamos verificando seu pagamento. Confira este pedido antes de tentar novamente.",
+  "We could not confirm your payment right now. Check your order before trying again.":
+    "Não foi possível confirmar seu pagamento agora. Confira seu pedido antes de tentar novamente.",
+  "We could not prepare the payment. Try again.":
+    "Não foi possível preparar o pagamento. Tente novamente.",
+  "Log in to complete your purchase": "Entre para concluir sua compra",
+  "We could not load this order. Check My orders and try again.":
+    "Não foi possível carregar este pedido. Confira Meus pedidos e tente novamente.",
+  "Loading your order": "Carregando seu pedido",
+  "Payment confirmed": "Pagamento confirmado",
+  "Your product will be available after payment confirmation.":
+    "Seu produto ficará disponível após a confirmação do pagamento.",
+  "Check payment status": "Verificar pagamento",
+  "Your details": "Seus dados",
+  "First name": "Nome",
+  "Last name": "Sobrenome",
+  "Phone number": "Telefone",
+  "Payment method": "Forma de pagamento",
+  "Credit card": "Cartão de crédito",
+  Installments: "Parcelas",
+  "Pay in full": "À vista",
+  "Installment options are temporarily unavailable.":
+    "As opções de parcelamento estão temporariamente indisponíveis.",
+  "Please wait": "Aguarde",
+  "Review payment": "Revisar pagamento",
+  "Generate Pix code": "Gerar código Pix",
+  "Processing your payment": "Processando seu pagamento",
+  "My orders": "Meus pedidos",
+  Payment: "Pagamento",
+  "Track your game and gift card purchases.":
+    "Acompanhe suas compras de jogos e gift cards.",
+  "All orders": "Todos",
+  "Pending orders": "Pendentes",
+  "Paid orders": "Pagos",
+  "Cancelled orders": "Cancelados",
+  "All products": "Todos os produtos",
+  "Product type": "Tipo de produto",
+  "Filter orders": "Filtrar pedidos",
+  "Payment status": "Status do pagamento",
+  "Awaiting payment": "Aguardando pagamento",
+  Cancelled: "Cancelado",
+  "Payment not approved": "Pagamento não aprovado",
+  "Waiting for payment": "Aguardando pagamento",
+  "Preparing your code": "Preparando seu código",
+  "Code available": "Código disponível",
+  "In your library": "Na sua biblioteca",
+  "Go to library": "Ir para a biblioteca",
+  "Your product": "Seu produto",
+  "Order total": "Total do pedido",
+  "{count} order": "{count} pedido",
+  "{count} orders": "{count} pedidos",
+  "Complete your payment to receive your gift card.":
+    "Conclua o pagamento para receber seu gift card.",
+  "Your payment is confirmed. Your code will appear in My gift cards when it is ready.":
+    "Pagamento confirmado. Seu código aparecerá em Meus gift cards assim que estiver pronto.",
+  "Your gift card is ready. You can view your code in My gift cards.":
+    "Seu gift card está pronto. Você pode ver o código em Meus gift cards.",
+  "Your game is in your library, ready to download and play.":
+    "Seu jogo está na biblioteca, pronto para baixar e jogar.",
+  "This purchase was cancelled. No payment was completed.":
+    "Esta compra foi cancelada. Nenhum pagamento foi concluído.",
+  "Your payment was not approved. Try another payment method.":
+    "Seu pagamento não foi aprovado. Tente outra forma de pagamento.",
+  "No orders match these filters": "Nenhum pedido com esses filtros",
+  "Choose another status or product type to see your orders.":
+    "Escolha outro status ou tipo de produto para ver seus pedidos.",
+  "Example orders. Buttons open details without making purchases.":
+    "Pedidos fictícios. Os botões abrem os detalhes, sem efetuar compras.",
+  "See actual purchase history": "Ver histórico real de compras",
+  "Now in the store": "Agora na loja",
+  "Choose your gift card.": "Escolha seu gift card.",
+  "Illustrative gift card artwork": "Imagem ilustrativa de gift card",
+  Prototype: "Protótipo",
+  "Gift card store": "Loja de gift cards",
+  "Back to store": "Voltar à loja",
+  "Choose your gift card. Your purchases stay in your library.":
+    "Escolha seu gift card. Suas compras ficam na sua biblioteca.",
+  "Explore gift cards": "Explorar gift cards",
+  "Loading gift cards": "Carregando gift cards",
+  "Gift cards are temporarily unavailable.":
+    "Os gift cards estão temporariamente indisponíveis.",
+  "Demo gift card": "Gift card demonstrativo",
+  "Find your code in your library after payment confirmation.":
+    "Seu código fica na biblioteca após a confirmação do pagamento.",
+  "Purchases unavailable": "Compras indisponíveis",
+  "Opening your purchase": "Abrindo sua compra",
+  "My gift cards": "Meus gift cards",
+  "We could not load the gift cards. Try again.":
+    "Não foi possível carregar os gift cards. Tente novamente.",
+  "We could not start your purchase. Try again.":
+    "Não foi possível iniciar sua compra. Tente novamente.",
+  "Log in to buy": "Entrar para comprar",
+  "New purchases are temporarily unavailable. Please try again later.":
+    "Novas compras estão temporariamente indisponíveis. Tente novamente mais tarde.",
+  "No gift cards are available right now.":
+    "Não há gift cards disponíveis no momento.",
+  "Reveal code": "Revelar código",
+  "View code": "Ver código",
+  "Loading code": "Carregando código",
+  "Reveal your code?": "Revelar seu código?",
+  "Revealing the code may limit refund options, subject to applicable conditions.":
+    "Revelar o código pode limitar as opções de reembolso, conforme as condições aplicáveis.",
+  "Copy code": "Copiar código",
+  "Code copied": "Código copiado",
+  "Could not copy. Select the code to copy it manually.":
+    "Não foi possível copiar. Selecione o código para copiá-lo manualmente.",
+  "Purchased on": "Comprado em",
+  "Order details": "Detalhes do pedido",
+  "Choose a gift card in the store. It will be waiting for you here.":
+    "Escolha um gift card na loja. Ele ficará disponível para você aqui.",
+  "View order": "Ver pedido",
+  "We could not show your code. Try again.":
+    "Não foi possível mostrar seu código. Tente novamente.",
+  "Discover games and gift cards": "Descubra jogos e gift cards",
+  "Discover games": "Descubra jogos",
+  "Games, gift cards, and independent stores in one place.":
+    "Jogos, gift cards e lojas independentes em um só lugar.",
+  "Games and independent stores in one place.":
+    "Jogos e lojas independentes em um só lugar.",
+  "All games": "Todos os jogos",
+  "No featured games right now.": "Nenhum jogo em destaque no momento.",
+  "We could not confirm your payment right now. Check this purchase again in a few moments.":
+    "Não foi possível confirmar o pagamento agora. Consulte esta compra novamente em alguns instantes.",
+  "Gift cards | Manifold": "Gift cards | Manifold",
+  "Gift cards": "Gift cards",
+  "Your purchases": "Suas compras",
+  "Track your purchases and access your gift card codes here.":
+    "Acompanhe suas compras e acesse os códigos dos seus gift cards aqui.",
+  "Activate your account to buy gift cards.":
+    "Ative sua conta para comprar gift cards.",
+  "Gift card purchases are temporarily unavailable.":
+    "As compras de gift cards estão temporariamente indisponíveis.",
+  "New purchases are currently unavailable. You can still access your gift cards here.":
+    "Novas compras estão indisponíveis no momento. Você ainda pode acessar seus gift cards aqui.",
+  "We are confirming your payment. Your code will appear here when it is ready.":
+    "Estamos confirmando seu pagamento. Seu código aparecerá aqui quando estiver disponível.",
+  "Your purchase was not completed. You can continue or cancel it below.":
+    "A compra não foi concluída. Você pode continuar ou cancelar abaixo.",
+  "Available gift cards": "Gift cards disponíveis",
+  Buy: "Comprar",
+  "Purchase already in progress": "Compra já em andamento",
+  "Your gift card purchases": "Suas compras de gift cards",
+  "No gift card purchases yet.": "Você ainda não comprou gift cards.",
+  "Payment incomplete": "Pagamento não concluído",
+  "Awaiting payment confirmation": "Aguardando confirmação do pagamento",
+  "Payment confirmed · preparing your code":
+    "Pagamento confirmado · preparando seu código",
+  "Payment confirmed · delivery pending":
+    "Pagamento confirmado · entrega pendente",
+  "Gift card delivered": "Gift card entregue",
+  "Purchase cancelled": "Compra cancelada",
+  "Payment failed": "Pagamento falhou",
+  Order: "Pedido",
+  "Your payment was unsuccessful. You can try again.":
+    "O pagamento não foi concluído. Você pode tentar novamente.",
+  "You do not need to pay again. Retry delivery for this purchase.":
+    "Você não precisa pagar novamente. Tente a entrega desta compra outra vez.",
+  "Gift card code": "Código do gift card",
+  "Continue purchase": "Continuar compra",
+  "Continue your purchase": "Continue sua compra",
+  "Cancel purchase": "Cancelar compra",
+  "Retry delivery": "Tentar entrega novamente",
+  "We could not complete this action. Try again.":
+    "Não foi possível concluir esta ação. Tente novamente.",
+  "Payment confirmation is still pending. This purchase cannot be cancelled yet.":
+    "A confirmação do pagamento ainda está pendente. Esta compra ainda não pode ser cancelada.",
   "This region has a different Nintendo edition. Submit the link again.":
     "Esta região possui uma edição Nintendo diferente. Envie o link novamente.",
   "Partial controller support": "Compatibilidade parcial com controle",
@@ -1553,7 +1761,6 @@ export const ptBR: Record<string, string> = {
     "Grande estratégia · 4X · Construção de cidades",
 
   // Creator catalog curation workspace
-  "All games": "Todos os jogos",
   "In the Outlet": "Na Outlet",
   Outside: "Fora da Outlet",
   "New releases": "Lançamentos recentes",
