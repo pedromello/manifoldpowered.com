@@ -120,6 +120,9 @@ It never chooses the globally latest email.
 signup password likewise arrives through stdin. Never put actual passwords,
 OTP codes or activation links in flags or files. `auth accounts`, `auth use`
 and `auth logout` manage sessions; logout affects only the selected session.
+The path and UUID of an activation link are also secrets: removing its query
+string does not make it safe to log. Mailbox diagnostics should contain only
+message IDs, headers and timing, never authentication bodies.
 
 ## Games and studios
 
@@ -249,6 +252,20 @@ characters), `body` (1–2,000 characters), and `expected_draft_revision`.
 `editorial get` reads the private draft; `set` and `remove` edit it. Editorials
 are captured in immutable publication revisions and are separate from community
 review scores. `outlets public` reads the public snapshot anonymously.
+
+After publishing, inspect what a visitor sees with:
+
+```sh
+manifold outlets catalog public --env prod --slug cozy-discoveries --limit 100 --json
+manifold outlets featured public --env prod --slug cozy-discoveries --json
+manifold outlets editorial public --env prod --slug cozy-discoveries --game-slug portal --json
+```
+
+These commands always omit session cookies and preview parameters, including
+when a profile is selected. Catalog filters support `q`, comma-separated `tags`,
+`order`, `page`, and `limit`; returned catalog games include their published
+editorials. Private draft changes are invisible until republished. Unpublished
+outlets follow the server's normal public-access denial.
 
 Use clearly identified AI curator accounts. Write useful, source-supported
 recommendations and explain their basis; do not invent personal play experience.

@@ -10,6 +10,70 @@ import { State } from "../src/state";
 const identity = { id: "user-a", email: "a@example.test", username: "a" };
 const context = ["--env", "local", "--account", "a"];
 const origin = "http://localhost:3000";
+test("published outlet queries omit credentials and preview, including with an account selected", async () => {
+  const f = await fixture();
+  try {
+    await f.state.storeToken("local", origin, "a", TOKEN);
+    const requests: string[] = [];
+    for (const args of [
+      [
+        "outlets",
+        "catalog",
+        "public",
+        "--tags",
+        "Puzzle,Adventure",
+        "--order",
+        "title_asc",
+      ],
+      ["outlets", "featured", "public"],
+      ["outlets", "editorial", "public", "--game-slug", "portal"],
+    ]) {
+      const result = await invoke(
+        [...args, ...context, "--slug", "cozy"],
+        f.state,
+        async (url, options) => {
+          const parsed = new URL(String(url));
+          requests.push(parsed.pathname);
+          assert.equal(options?.method, "GET");
+          assert.ok(!(options?.headers as Record<string, string>).Cookie);
+          assert.ok(!parsed.searchParams.has("preview"));
+          if (parsed.pathname.endsWith("/search")) {
+            assert.equal(parsed.searchParams.get("tags"), "Puzzle,Adventure");
+            assert.equal(parsed.searchParams.get("order"), "title_asc");
+            return response({
+              games: [
+                { slug: "portal", outlet_review: { body: "Published text" } },
+              ],
+              pagination: { total: 1 },
+            });
+          }
+          return response(
+            parsed.pathname.includes("game-editorials")
+              ? { review: { body: "Published text" } }
+              : { games: [{ slug: "portal" }] },
+          );
+        },
+      );
+      assert.equal(result.exit, 0);
+    }
+    assert.deepEqual(requests, [
+      "/api/v1/stores/cozy/search",
+      "/api/v1/stores/cozy/featured",
+      "/api/v1/stores/cozy/game-editorials/portal",
+    ]);
+    const invalid = await invoke(
+      ["outlets", "catalog", "public", "--env", "local", "--input", "-"],
+      f.state,
+      async () => {
+        throw new Error("No request allowed");
+      },
+      JSON.stringify({ slug: "cozy", preview: 1 }),
+    );
+    assert.equal(invalid.exit, 2);
+  } finally {
+    await f.cleanup();
+  }
+});
 test("injected sessions cannot cross profile boundaries even when account aliases match", async () => {
   const f = await fixture();
   const names = [

@@ -269,7 +269,11 @@ export async function run(
         (key === "app_id" || key === "url")
       )
         key = "reference";
-      if (key === "tags" && name === "games list") payload[key] = value;
+      if (
+        key === "tags" &&
+        ["games list", "outlets catalog public"].includes(name)
+      )
+        payload[key] = value;
       else if (["palette", "typography", "shape"].includes(key))
         payload.brand_tokens = {
           ...(payload.brand_tokens as Record<string, unknown> | undefined),

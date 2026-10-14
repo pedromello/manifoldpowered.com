@@ -219,13 +219,38 @@ try {
         ),
         "first publication",
       );
-      const liveEditorial = await (
-        await fetch(
-          `${origin}/api/v1/stores/${slug}/game-editorials/${slugs[0]}`,
-        )
-      ).json();
-      assert.ok(liveEditorial.review.body.includes(account));
-      const firstPublicText = liveEditorial.review.body;
+      const liveEditorial = await cli(
+        "outlets editorial public",
+        { slug, game_slug: slugs[0] },
+        account,
+      );
+      passed(liveEditorial, "public editorial");
+      assert.ok(liveEditorial.data.review.body.includes(account));
+      const firstPublicText = liveEditorial.data.review.body;
+      const liveCatalog = await cli(
+        "outlets catalog public",
+        { slug, limit: 100 },
+        account,
+      );
+      passed(liveCatalog, "public catalog");
+      assert.equal(liveCatalog.data.games.length, 5);
+      assert.equal(
+        liveCatalog.data.games.find(
+          (game: { slug: string }) => game.slug === slugs[0],
+        ).outlet_review.body,
+        firstPublicText,
+      );
+      const liveFeatured = await cli(
+        "outlets featured public",
+        { slug },
+        account,
+      );
+      passed(liveFeatured, "public featured");
+      assert.ok(
+        liveFeatured.data.games.some(
+          (game: { slug: string }) => game.slug === slugs[0],
+        ),
+      );
       const update = await cli(
         "outlets editorial set",
         {
@@ -239,12 +264,13 @@ try {
       );
       passed(update, "editorial draft update");
       revision = update.data.draft_revision;
-      const unchanged = await (
-        await fetch(
-          `${origin}/api/v1/stores/${slug}/game-editorials/${slugs[0]}`,
-        )
-      ).json();
-      assert.equal(unchanged.review.body, firstPublicText);
+      const unchanged = await cli(
+        "outlets editorial public",
+        { slug, game_slug: slugs[0] },
+        account,
+      );
+      passed(unchanged, "unchanged public editorial");
+      assert.equal(unchanged.data.review.body, firstPublicText);
       const conflicting = await cli(
         "outlets editorial set",
         {
@@ -411,12 +437,13 @@ try {
         ),
         "republish changed draft",
       );
-      const finalPublic = await (
-        await fetch(
-          `${origin}/api/v1/stores/${slug}/game-editorials/${slugs[0]}`,
-        )
-      ).json();
-      assert.equal(finalPublic.review.body, finalText);
+      const finalPublic = await cli(
+        "outlets editorial public",
+        { slug, game_slug: slugs[0] },
+        account,
+      );
+      passed(finalPublic, "republished public editorial");
+      assert.equal(finalPublic.data.review.body, finalText);
       const verified = await cli("outlets verify", { slug }, account);
       passed(verified, "outlet verification");
       assert.equal(verified.data.status, "pass");

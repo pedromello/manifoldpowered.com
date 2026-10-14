@@ -43,6 +43,33 @@ export const curatorCommands: Record<string, Command> = {
     false,
     false,
   ),
+  "outlets catalog public": command(
+    pages
+      .extend({
+        slug,
+        q: z.string().optional(),
+        tags: z.string().optional(),
+        order: z
+          .enum(["newest", "oldest", "price_asc", "price_desc", "title_asc"])
+          .optional(),
+      })
+      .strict(),
+    "Consultar catálogo e editoriais da revisão publicada",
+    false,
+    false,
+  ),
+  "outlets featured public": command(
+    reference,
+    "Consultar destaques da revisão publicada",
+    false,
+    false,
+  ),
+  "outlets editorial public": command(
+    gameReference,
+    "Consultar editorial de jogo na revisão publicada",
+    false,
+    false,
+  ),
   "outlets unpublish": command(
     reference.extend({ expected_draft_revision: revision }),
     "Retirar a publicação da outlet",

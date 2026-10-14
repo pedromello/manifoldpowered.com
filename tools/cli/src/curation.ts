@@ -48,6 +48,27 @@ export async function curatorAction(
     };
   if (name === "outlets public")
     return { data: (await api.request(storePath)).body };
+  if (name === "outlets catalog public")
+    return {
+      data: (
+        await api.request(`${storePath}/search?${query(body)}`, {
+          anonymous: true,
+        })
+      ).body,
+    };
+  if (name === "outlets featured public")
+    return {
+      data: (await api.request(`${storePath}/featured`, { anonymous: true }))
+        .body,
+    };
+  if (name === "outlets editorial public")
+    return {
+      data: (
+        await api.request(`${storePath}/game-editorials/${gameSlug}`, {
+          anonymous: true,
+        })
+      ).body,
+    };
   if (name === "outlets unpublish")
     return {
       data: (
