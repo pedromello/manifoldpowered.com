@@ -528,3 +528,46 @@ test("outlet verification reports unpublished changes, repeated editorials and u
     await f.cleanup();
   }
 });
+
+test("verification accepts the older preview revision field without exposing unpublished outlets as public", async () => {
+  const f = await fixture();
+  try {
+    await f.state.storeToken("local", origin, "a", TOKEN);
+    for (const status of ["PUBLISHED", "DRAFT"]) {
+      const verified = await invoke(
+        ["outlets", "verify", ...context, "--slug", "cozy"],
+        f.state,
+        async (url) => {
+          const path = new URL(String(url)).pathname;
+          if (path.endsWith("/publication"))
+            return response({
+              status,
+              draft_revision: 2,
+              last_published_revision: {
+                revision: 1,
+                source_draft_revision: 1,
+              },
+              readiness: { ready: true, blockers: [], catalog_game_count: 0 },
+            });
+          if (path.endsWith("/curation-catalog"))
+            return response({ games: [], pagination: { pages: 1 } });
+          return response({ slug: "cozy" });
+        },
+      );
+      assert.equal(verified.exit, 0);
+      assert.equal(
+        verified.output.data.public_url,
+        status === "PUBLISHED" ? `${origin}/store/cozy` : null,
+      );
+      assert.equal(
+        verified.output.data.issues.some(
+          (issue: { code: string }) =>
+            issue.code === "UNPUBLISHED_DRAFT_CHANGES",
+        ),
+        status === "PUBLISHED",
+      );
+    }
+  } finally {
+    await f.cleanup();
+  }
+});

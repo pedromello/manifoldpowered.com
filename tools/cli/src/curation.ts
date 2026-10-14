@@ -245,7 +245,11 @@ async function verifyOutlet(
   };
   for (const blocker of readiness.blockers)
     issues.push({ severity: "error", code: blocker.code });
-  const published = publication.published_revision as {
+  const published = (publication.published_revision ??
+    (publication.status === "PUBLISHED"
+      ? publication.last_published_revision
+      : null) ??
+    null) as {
     source_draft_revision?: number;
   } | null;
   if (
@@ -351,7 +355,7 @@ async function verifyOutlet(
       status: errors ? "issues" : issues.length ? "warnings" : "pass",
       publication_status: publication.status,
       draft_revision: publication.draft_revision,
-      published_revision: publication.published_revision,
+      published_revision: published,
       readiness,
       stats: { catalog_games: games.length, editorials: editorialCount },
       images,
