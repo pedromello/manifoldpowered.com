@@ -1,5 +1,6 @@
 import { prisma } from "infra/database";
 import { z } from "zod";
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
 import {
   ConflictError,
   ForbiddenError,
@@ -19,7 +20,6 @@ import {
   getCurationWhereClause,
   getDraftCatalogSnapshot,
   getSnapshotCurationWhereClause,
-  storeDraftCatalogModeSchema,
   type StoreCatalogSnapshot,
 } from "models/store_catalog";
 import {
@@ -33,61 +33,26 @@ import {
 } from "models/store_revision";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
-  STORE_LAYOUT_PRESETS,
-  STORE_PALETTES,
-  STORE_SHAPES,
-  STORE_TYPOGRAPHIES,
   resolveDraftPresentation,
   storeSocialLinksSchema,
   type StorePresentation,
 } from "models/store_presentation";
 
-const httpsUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2048)
-  .refine(
-    (value) => {
-      try {
-        return new URL(value).protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "URL must use https",
-    },
-  );
-
-export { storeSocialLinksSchema };
-
-export const storeBrandTokensSchema = z
-  .object({
-    palette: z.enum(STORE_PALETTES),
-    typography: z.enum(STORE_TYPOGRAPHIES),
-    shape: z.enum(STORE_SHAPES),
-  })
-  .strict();
-
-export const storeSchema = z
-  .object({
-    name: z.string().trim().min(1).max(255),
-    description: z.string().trim().max(2000).nullable().optional(),
-    logo_url: httpsUrlSchema.nullable().optional(),
-    catalog_mode: z.enum(["UNDECIDED", "ALL", "SELECTED"]).optional(),
-    layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable().optional(),
-    tagline: z.string().trim().max(160).nullable().optional(),
-    cover_url: httpsUrlSchema.nullable().optional(),
-    social_links: storeSocialLinksSchema.nullable().optional(),
-    brand_tokens: storeBrandTokensSchema.nullable().optional(),
-  })
-  .strict();
-
-export const storeUpdateSchema = storeSchema
-  .partial()
-  .extend({ catalog_mode: storeDraftCatalogModeSchema.optional() })
-  .strict();
+import {
+  storeSchema,
+  storeUpdateSchema,
+  storeBrandTokensSchema,
+  STORE_PUBLICATION_ACTIONS,
+  storePublicationActionSchema,
+} from "contracts/creator-requests";
+export {
+  storeSchema,
+  storeUpdateSchema,
+  storeBrandTokensSchema,
+  storeSocialLinksSchema,
+  STORE_PUBLICATION_ACTIONS,
+  storePublicationActionSchema,
+};
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
   owner_id: string;
@@ -113,15 +78,6 @@ export function parseStoreDraftIfMatch(
   }
   return parsed;
 }
-
-export const STORE_PUBLICATION_ACTIONS = ["publish", "unpublish"] as const;
-
-export const storePublicationActionSchema = z
-  .object({
-    action: z.enum(STORE_PUBLICATION_ACTIONS),
-    expected_draft_revision: z.number().int().min(1),
-  })
-  .strict();
 
 export type StorePublicationAction = (typeof STORE_PUBLICATION_ACTIONS)[number];
 
@@ -718,7 +674,7 @@ async function update(
       typeof error.code === "string"
         ? error.code
         : null;
-    if (prismaCode === "P2002" || prismaCode === "P2034") {
+    if (prismaCode === "P2002" || isTransactionWriteConflict(error)) {
       const latest = await prisma.store.findUnique({
         where: { id },
         select: { draft_revision: true },
@@ -1006,7 +962,7 @@ async function changePublication(
     const prismaMessage =
       typeof prismaError?.message === "string" ? prismaError.message : "";
     if (
-      prismaCode === "P2034" ||
+      isTransactionWriteConflict(error) ||
       databaseCode === "40001" ||
       prismaMessage.includes("could not serialize access") ||
       (prismaCode === "P2002" &&

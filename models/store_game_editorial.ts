@@ -2,26 +2,14 @@ import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import { ConflictError, NotFoundError } from "infra/errors";
 import { z } from "zod";
-
-export const MAX_EDITORIAL_HEADLINE_LENGTH = 120;
-export const MAX_EDITORIAL_BODY_LENGTH = 2000;
-
-export const storeGameEditorialInputSchema = z
-  .object({
-    headline: z
-      .string()
-      .trim()
-      .max(MAX_EDITORIAL_HEADLINE_LENGTH)
-      .nullish()
-      .transform((value) => value || null),
-    body: z.string().trim().min(1).max(MAX_EDITORIAL_BODY_LENGTH),
-    expected_draft_revision: z.number().int().min(1),
-  })
-  .strict();
-
-export const storeGameEditorialDeleteSchema = z
-  .object({ expected_draft_revision: z.number().int().min(1) })
-  .strict();
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
+import { storeGameEditorialInputSchema } from "contracts/curator-requests";
+export {
+  MAX_EDITORIAL_HEADLINE_LENGTH,
+  MAX_EDITORIAL_BODY_LENGTH,
+  storeGameEditorialInputSchema,
+  storeGameEditorialDeleteSchema,
+} from "contracts/curator-requests";
 
 export type StoreGameEditorialSnapshotEntry = {
   game_id: string;
@@ -132,8 +120,9 @@ async function mapEditorialConflict(
   expectedDraftRevision: number,
 ): Promise<never> {
   if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2002" || error.code === "P2034")
+    isTransactionWriteConflict(error) ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034"))
   ) {
     const latest = await prisma.store.findUnique({
       where: { id: storeId },

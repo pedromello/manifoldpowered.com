@@ -4,106 +4,43 @@ import { z } from "zod";
 import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 import gameModel from "models/game";
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
+import {
+  tagFilterSchema,
+  tagFilterModeSchema,
+  expectedRevisionSchema,
+  optionalExpectedRevisionSchema,
+  tagFilterPreviewSchema,
+  gameOverrideSchema,
+  gameOverrideVisibilitySchema,
+  bulkCurationPreviewSchema,
+  bulkCurationSchema,
+} from "contracts/curator-requests";
+export {
+  tagFilterSchema,
+  tagFilterModeSchema,
+  expectedRevisionSchema,
+  optionalExpectedRevisionSchema,
+  tagFilterPreviewSchema,
+  gameOverrideSchema,
+  gameOverrideVisibilitySchema,
+  bulkCurationPreviewSchema,
+  bulkCurationSchema,
+};
 
 export const TAG_FILTER_MODES = ["WHITELIST", "BLACKLIST"] as const;
 
-export const tagFilterSchema = z.object({
-  tag: z.string().min(1).max(100),
-  mode: z.enum(TAG_FILTER_MODES),
-  expected_draft_revision: z.number().int().positive().optional(),
-});
-
 export type TagFilterCreateDto = z.infer<typeof tagFilterSchema>;
-
-export const tagFilterModeSchema = tagFilterSchema.pick({
-  mode: true,
-  expected_draft_revision: true,
-});
-
-export const expectedRevisionSchema = z.object({
-  expected_draft_revision: z.number().int().positive(),
-});
-
-export const optionalExpectedRevisionSchema = z.object({
-  expected_draft_revision: z.number().int().positive().optional(),
-});
-
-export const tagFilterPreviewSchema = z
-  .object({
-    tag: z.string().min(1).max(100),
-    action: z.enum(["UPSERT", "REMOVE"]),
-    mode: z.enum(TAG_FILTER_MODES).optional(),
-    expected_draft_revision: z.number().int().positive(),
-  })
-  .refine((data) => data.action === "REMOVE" || data.mode !== undefined, {
-    message: "mode is required when previewing an upsert",
-    path: ["mode"],
-  });
 
 export const GAME_OVERRIDE_VISIBILITIES = ["SHOW", "HIDE"] as const;
 
-export const gameOverrideSchema = z.object({
-  game_slug: z.string().min(1),
-  visibility: z.enum(GAME_OVERRIDE_VISIBILITIES),
-  expected_draft_revision: z.number().int().positive().optional(),
-});
-
 export type GameOverrideCreateDto = z.infer<typeof gameOverrideSchema>;
 
-export const gameOverrideVisibilitySchema = gameOverrideSchema.pick({
-  visibility: true,
-  expected_draft_revision: true,
-});
-
-export const bulkCurationPreviewSchema = z.object({
-  action: z.enum(["SHOW", "HIDE", "PIN_SHOW"]),
-  game_slugs: z.array(z.string().trim().min(1).max(255)).min(1).max(100),
-  expected_draft_revision: z.number().int().positive(),
-});
-
-export const bulkCurationSchema = z.object({
-  operation_id: z.uuid(),
-  action: z.enum(["SHOW", "HIDE", "PIN_SHOW"]),
-  game_slugs: z
-    .array(z.string().trim().min(1).max(255))
-    .min(1)
-    .max(100)
-    .refine((slugs) => new Set(slugs).size === slugs.length, {
-      message: "game_slugs must be unique",
-    }),
-  expected_draft_revision: z.number().int().positive(),
-  request_fingerprint: z.string().length(64),
-});
-
-export const catalogModeSchema = z.object({
-  catalog_mode: z.enum(["ALL", "SELECTED"]),
-  expected_draft_revision: z.number().int().positive(),
-});
-
-export const creatorSelectionSchema = z.discriminatedUnion("strategy", [
-  z
-    .object({
-      strategy: z.literal("FOCUSED"),
-      tags: z.array(z.string().trim().min(1).max(100)).min(1).max(20),
-      game_slugs: z.array(z.string().trim().min(1).max(255)).max(100),
-      expected_draft_revision: z.number().int().positive(),
-    })
-    .strict(),
-  z
-    .object({
-      strategy: z.literal("HANDPICKED"),
-      tags: z.array(z.string().trim().min(1).max(100)).max(20),
-      game_slugs: z
-        .array(z.string().trim().min(1).max(255))
-        .min(5)
-        .max(100)
-        .refine((slugs) => new Set(slugs).size === slugs.length, {
-          message: "game_slugs must be unique",
-        }),
-      expected_draft_revision: z.number().int().positive(),
-    })
-    .strict(),
-]);
+import {
+  catalogModeSchema,
+  creatorSelectionSchema,
+} from "contracts/creator-requests";
+export { catalogModeSchema, creatorSelectionSchema };
 
 export type CreatorSelectionDto = z.infer<typeof creatorSelectionSchema>;
 
@@ -1128,8 +1065,9 @@ function bulkReplayResponse(
 
 function isRetryableTransactionError(error: unknown) {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2002" || error.code === "P2034")
+    isTransactionWriteConflict(error) ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034"))
   );
 }
 

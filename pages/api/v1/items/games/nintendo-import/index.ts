@@ -7,7 +7,7 @@ import storefrontPricing from "models/storefront_pricing";
 import * as nintendoRefresh from "models/nintendo_refresh";
 import { parseNintendoUrl, type NintendoCountry } from "lib/nintendo";
 
-const inputSchema = z.object({ eshop_url: z.string().max(2048) }).strict();
+import { nintendoImportRequestSchema as inputSchema } from "contracts/creator-requests";
 
 type NintendoStatusReference =
   | { operationId: string; country?: NintendoCountry }
