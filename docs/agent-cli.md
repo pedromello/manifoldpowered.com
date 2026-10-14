@@ -316,6 +316,11 @@ branding in both streams. Rendering uses no external images, network or extra wi
 
 ## Verification
 
+Local signup and OTP requests capture Mailcatcher's latest message ID when it is
+available. Automatic verification filters newer IDs, recipient, message type and
+request time; Mailcatcher's UTC timestamps without a suffix are interpreted as
+UTC with second precision. This excludes older codes even within the same second.
+
 ```sh
 npm run cli:typecheck
 npm run cli:build

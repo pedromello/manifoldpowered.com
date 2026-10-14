@@ -14,6 +14,7 @@ export type Account = {
   user_id?: string;
   username?: string;
   requested_at?: string;
+  mailcatcher_after_id?: number;
   pending?: "activation" | "otp";
 };
 export interface CredentialStore {

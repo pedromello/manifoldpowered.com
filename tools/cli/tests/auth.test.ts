@@ -21,6 +21,7 @@ test("register, activate, OTP and logout use real API contracts without exposing
     }[] = [];
     const requestFetch: typeof fetch = async (url, options) => {
       const path = new URL(String(url)).pathname;
+      if (path === "/messages") return response([{ id: 10 }]);
       const body = options?.body ? JSON.parse(String(options.body)) : undefined;
       seen.push({
         path,
@@ -51,6 +52,11 @@ test("register, activate, OTP and logout use real API contracts without exposing
       requestFetch,
     );
     assert.equal(registered.output.state, "pending");
+    assert.equal(
+      (await f.state.account("local", "http://localhost:3000", "player-a"))
+        ?.mailcatcher_after_id,
+      10,
+    );
     const activation = "11111111-1111-4111-8111-111111111111";
     const activated = await invoke(
       ["users", "activate", ...context, "--input", "-"],
@@ -71,6 +77,11 @@ test("register, activate, OTP and logout use real API contracts without exposing
       requestFetch,
     );
     assert.equal(requested.output.state, "pending");
+    assert.equal(
+      (await f.state.account("local", "http://localhost:3000", "player-a"))
+        ?.mailcatcher_after_id,
+      10,
+    );
     const verified = await invoke(
       [
         "auth",

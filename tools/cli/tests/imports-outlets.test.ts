@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execute } from "../src/engine";
 import { fixture, TOKEN, response, invoke } from "./helpers";
-import { readVerificationEmail } from "../src/mailcatcher";
+import {
+  readVerificationEmail,
+  mailcatcherWatermark,
+} from "../src/mailcatcher";
 const identity = { id: "user-a", email: "a@example.test", username: "a" };
 const operationId = "22222222-2222-4222-8222-222222222222";
 const context = { env: "local", account: "a" };
@@ -336,4 +339,47 @@ test("Mailcatcher ignores other recipients, old messages and wrong environments"
     }),
     null,
   );
+});
+
+test("Mailcatcher UTC seconds and request watermarks exclude old codes in the same second", async () => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = "America/Sao_Paulo";
+  try {
+    const fetched: string[] = [];
+    const fetcher: typeof fetch = async (url) => {
+      fetched.push(String(url));
+      return String(url).endsWith("/messages")
+        ? response(
+            [7, 8, 9].map((id) => ({
+              id,
+              recipients: [
+                id === 8 ? "<other@example.test>" : "<a@example.test>",
+              ],
+              subject: "Your Manifold login code",
+              created_at: "2026-10-13 12:00:00",
+            })),
+          )
+        : new Response("Your code is 123456");
+    };
+    assert.equal(await mailcatcherWatermark(fetcher), 9);
+    fetched.length = 0;
+    assert.equal(
+      await readVerificationEmail({
+        email: "a@example.test",
+        requestedAt: "2026-10-13T12:00:00.850Z",
+        afterId: 7,
+        origin: "http://localhost:3000",
+        kind: "otp",
+        fetch: fetcher,
+      }),
+      "123456",
+    );
+    assert.deepEqual(fetched, [
+      "http://localhost:1080/messages",
+      "http://localhost:1080/messages/9.plain",
+    ]);
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
 });

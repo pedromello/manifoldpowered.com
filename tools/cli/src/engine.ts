@@ -13,7 +13,7 @@ import {
 } from "./state";
 import { ApiClient, sessionToken, type ApiResponse } from "./client";
 import { asCliError, CliError, invalid } from "./errors";
-import { readVerificationEmail } from "./mailcatcher";
+import { readVerificationEmail, mailcatcherWatermark } from "./mailcatcher";
 import { extractSteamAppId } from "../../../contracts/game-reference";
 import { parseNintendoUrl } from "../../../lib/nintendo";
 import {
@@ -410,6 +410,7 @@ export async function execute(
       const secret = await readVerificationEmail({
         email: savedAccount.email,
         requestedAt: savedAccount.requested_at,
+        afterId: savedAccount.mailcatcher_after_id,
         origin,
         kind,
         fetch: deps.fetch,
@@ -500,6 +501,8 @@ export async function execute(
           "ACCOUNT_MISMATCH",
           "Esse alias já pertence a outro e-mail.",
         );
+      const afterId =
+        env === "local" ? await mailcatcherWatermark(deps.fetch) : undefined;
       const requestedAt = new Date(now()).toISOString();
       const response = await api.request("/users", {
         method: "POST",
@@ -512,6 +515,7 @@ export async function execute(
         email: String(payload.email).trim().toLowerCase(),
         username: String(payload.username),
         requested_at: requestedAt,
+        mailcatcher_after_id: afterId,
         pending: "activation",
       });
       return result(response.body, {
@@ -564,6 +568,8 @@ export async function execute(
       );
     }
     case "auth login request": {
+      const afterId =
+        env === "local" ? await mailcatcherWatermark(deps.fetch) : undefined;
       const requestedAt = new Date(now()).toISOString();
       await api.request("/otp", {
         method: "POST",
@@ -582,6 +588,7 @@ export async function execute(
         origin,
         email,
         requested_at: requestedAt,
+        mailcatcher_after_id: afterId,
         pending: "otp",
       });
       return result(
