@@ -156,11 +156,19 @@ Before the production build:
    Do not reset the database or mark migrations applied to bypass failures.
 
 The ratings migration adds nullable columns and a separate projection; it does
-not update existing editorial text or published snapshot JSON. Application
-recovery can return to the preceding compatible deployment while retaining this
-schema. Older code ignores ratings and does not display rating-only review
-content, so that fallback must be checked before promotion. Do not drop the
-rating columns, enum, or projection to roll back the application.
+not update existing editorial text or published snapshot JSON. The preceding
+application can continue reading those unchanged records after migration.
+However, the pre-ratings application strictly validates published editorial
+JSON: it rejects the new `rating` property and empty bodies in rating-only
+reviews. Once the new application publishes a revision, returning directly to
+that older application can make an Outlet unavailable.
+
+Before promotion, prepare and verify a recovery deployment that understands
+both snapshot formats while retaining the additive database schema. Recovery
+must preserve any new ratings and publications; use a compatible application
+fix rather than rewriting immutable revisions or discarding post-deployment
+writes. A database backup alone is not a lossless application rollback plan.
+Do not drop the rating columns, enum, or projection to roll back the application.
 
 Preview builds intentionally do not migrate their database. Verify the preview
 database identity and migration ledger separately; perform write tests in an
