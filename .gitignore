@@ -6,6 +6,7 @@ build
 
 # Next.js
 .next
+/output/next-nintendo-demo/
 
 # VSCode
 .vscode
