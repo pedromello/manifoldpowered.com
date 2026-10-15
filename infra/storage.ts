@@ -16,11 +16,15 @@ import { GameArchiveFormat } from "generated/prisma/client";
 const s3Client = new S3Client({
   region: process.env.NODE_ENV === "production" ? "auto" : "us-east-1",
   endpoint: process.env.STORAGE_ENDPOINT,
+  // Presigned uploads do not know the request body when the URL is generated.
+  // Avoid signing the SDK's empty CRC32 placeholder, which S3-compatible
+  // providers correctly reject once the client uploads a non-empty body.
+  requestChecksumCalculation: "WHEN_REQUIRED",
   credentials: {
     accessKeyId: process.env.STORAGE_ACCESS_KEY,
     secretAccessKey: process.env.STORAGE_SECRET_KEY,
   },
-  // Ensure path-style routing is false for R2, but true for MinIO.
+  // Ensure path-style routing is false for R2, but true for local S3 storage.
   // R2 uses virtual-hosted style (bucket.domain) or path depending on setup.
   forcePathStyle: process.env.NODE_ENV === "production" ? false : true,
 });

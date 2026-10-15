@@ -101,7 +101,7 @@ npm run dev  # start everything
 
 That's it. **No manual `.env` setup needed** — `npm run dev` handles the entire environment for you. Under the hood it:
 
-1. Spins up Postgres, MinIO (S3), and Mailcatcher via `infra/compose.yaml`
+1. Spins up Postgres, SeaweedFS (S3), and Mailcatcher via `infra/compose.yaml`
 2. Waits for Postgres to be ready
 3. Runs `prisma generate` and applies migrations (`migrate dev`)
 4. Starts the Next.js dev server
@@ -119,7 +119,7 @@ When it's ready, open **[http://localhost:3000](http://localhost:3000)**.
 | Database     | [PostgreSQL](https://www.postgresql.org) via [Prisma](https://www.prisma.io) |
 | API          | [next-connect](https://github.com/hoangvvo/next-connect) (MVC-style routes)  |
 | Styling      | [Tailwind CSS](https://tailwindcss.com)                                      |
-| Object store | S3-compatible (MinIO locally)                                                |
+| Object store | S3-compatible (SeaweedFS locally)                                            |
 | Deployment   | [Vercel](https://vercel.com)                                                 |
 
 ---
@@ -144,18 +144,28 @@ Deeper architectural conventions (MVC patterns, error handling, authorization, a
 
 ## 🧪 Testing
 
-Manifold favors robust **integration tests** that exercise real API routes against real services.
+Manifold favors robust **integration tests** that exercise real API routes against real services. No additional test-environment configuration is required.
+
+To run everything once, use the standalone command below. It starts the app and
+supporting services, runs the complete suite (including integration tests), and
+shuts the services down when it finishes:
 
 ```bash
 npm run test        # run the full suite from scratch (spins up services)
 ```
 
-For continuous testing while developing, run the dev server in one terminal and the watcher in another:
+For continuous testing while developing, keep the development environment
+running in one terminal and start Jest's watcher in another:
 
 ```bash
 npm run dev         # terminal 1
 npm run test:watch  # terminal 2
 ```
+
+These are alternative workflows: use `npm run test` by itself for a complete
+run, or use `npm run dev` together with `npm run test:watch` while changing
+code. A separate `test:integration` command or integration flag is unnecessary
+because integration tests are already part of the suite.
 
 Integration tests live in `tests/integration/`, with **one file per HTTP method** (`get.test.ts`, `post.test.ts`, …). The `tests/orchestrator.js` helper manages database state and test fixtures. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for testing conventions.
 

@@ -38,7 +38,7 @@ npm i
 npm run dev
 ```
 
-`npm run dev` handles everything — no manual `.env` needed. It spins up Postgres, MinIO, and Mailcatcher via `infra/compose.yaml`, waits for the database, runs `prisma generate` and migrations, then starts Next.js at [http://localhost:3000](http://localhost:3000).
+`npm run dev` handles everything — no manual `.env` needed. It spins up Postgres, SeaweedFS, and Mailcatcher via `infra/compose.yaml`, waits for the database, runs `prisma generate` and migrations, then starts Next.js at [http://localhost:3000](http://localhost:3000).
 
 > Installing a new dependency? Pin the exact version with `npm install -E <package>`.
 
@@ -65,13 +65,16 @@ Common types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`. Running `npm r
 
 ## Testing
 
-Manifold favors **integration tests** that hit real API routes against real services.
+Manifold favors **integration tests** that hit real API routes against real
+services. No separate test-environment setup or integration-specific command is
+needed; the full suite already includes them.
 
 ```bash
 npm run test        # full suite from scratch (spins services up and down)
 ```
 
-For a tight feedback loop, run the dev server and the watcher in parallel:
+Alternatively, for a tight feedback loop, keep the dev server running and run
+the watcher in parallel:
 
 ```bash
 npm run dev         # terminal 1
