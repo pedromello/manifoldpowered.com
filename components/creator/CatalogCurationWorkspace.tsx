@@ -81,6 +81,7 @@ type Feedback = {
   tone: "success" | "error" | "neutral";
   message: string;
   batchId?: string;
+  focus?: boolean;
 };
 
 const PAGE_SIZE = 12;
@@ -156,7 +157,9 @@ export function CatalogCurationWorkspace({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const reviewDialogRef = useRef<HTMLDivElement>(null);
   const reviewTriggerRef = useRef<HTMLElement | null>(null);
+  const reviewRequestPendingRef = useRef(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
+  const isReviewOpen = reviewGame !== null;
   const feedbackRef = useRef<HTMLDivElement>(null);
 
   function replaceQuery(
@@ -189,7 +192,7 @@ export function CatalogCurationWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryInput, urlQuery]);
   useEffect(() => {
-    if (feedback) feedbackRef.current?.focus();
+    if (feedback && feedback.focus !== false) feedbackRef.current?.focus();
   }, [feedback]);
 
   const catalogKey = useMemo(() => {
@@ -270,6 +273,7 @@ export function CatalogCurationWorkspace({
   }
 
   function openReview(game: CurationGame) {
+    if (reviewRequestPendingRef.current || isReviewOpen) return;
     reviewTriggerRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -282,40 +286,69 @@ export function CatalogCurationWorkspace({
   }
 
   useEffect(() => {
-    if (!reviewGame) return;
+    if (!isReviewOpen) return;
     const trigger = reviewTriggerRef.current;
     const dialog = reviewDialogRef.current;
-    dialog
-      ?.querySelector<HTMLElement>("button, input, select, textarea")
-      ?.focus();
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isSavingReview) setReviewGame(null);
-      if (event.key !== "Tab" || !dialog) return;
-      const controls = Array.from(
+    if (!dialog) return;
+    const controls = () =>
+      Array.from(
         dialog.querySelectorAll<HTMLElement>(
           "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
         ),
-      );
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      ).filter((control) => control.tabIndex >= 0);
+    const focusFirst = () => (controls()[0] ?? dialog).focus();
+    focusFirst();
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
         event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+        if (!reviewRequestPendingRef.current) setReviewGame(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const enabled = controls();
+      const first = enabled[0];
+      const last = enabled[enabled.length - 1];
+      if (!first) {
         event.preventDefault();
-        first?.focus();
+        dialog?.focus();
+      } else if (
+        !dialog?.contains(document.activeElement) ||
+        document.activeElement === dialog ||
+        (event.shiftKey && document.activeElement === first) ||
+        (!event.shiftKey && document.activeElement === last)
+      ) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
+    }
+    function handleFocus(event: FocusEvent) {
+      if (event.target instanceof Node && !dialog?.contains(event.target)) {
+        focusFirst();
       }
     }
     document.addEventListener("keydown", handleKey);
+    document.addEventListener("focusin", handleFocus);
     return () => {
       document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("focusin", handleFocus);
       trigger?.focus();
     };
-  }, [reviewGame, isSavingReview]);
+  }, [isReviewOpen]);
+
+  function closeReview() {
+    if (!reviewRequestPendingRef.current) setReviewGame(null);
+  }
 
   async function saveReview() {
-    if (!data || !reviewGame || (!reviewBody.trim() && reviewRating === null))
+    if (
+      reviewRequestPendingRef.current ||
+      !data ||
+      !reviewGame ||
+      (!reviewBody.trim() && reviewRating === null)
+    )
       return;
+    reviewRequestPendingRef.current = true;
+    reviewDialogRef.current?.focus();
     setIsSavingReview(true);
     setReviewError(null);
     try {
@@ -337,6 +370,7 @@ export function CatalogCurationWorkspace({
         setReviewGame(null);
         setFeedback({
           tone: "error",
+          focus: false,
           message: t(
             "This draft changed elsewhere. We reloaded the latest version.",
           ),
@@ -347,6 +381,7 @@ export function CatalogCurationWorkspace({
       setReviewGame(null);
       setFeedback({
         tone: "success",
+        focus: false,
         message: t(
           "Review saved to the draft. Publish the Outlet when it is ready for visitors.",
         ),
@@ -360,12 +395,16 @@ export function CatalogCurationWorkspace({
         ),
       );
     } finally {
+      reviewRequestPendingRef.current = false;
       setIsSavingReview(false);
     }
   }
 
   async function deleteReview() {
-    if (!data || !reviewGame?.outlet_review) return;
+    if (reviewRequestPendingRef.current || !data || !reviewGame?.outlet_review)
+      return;
+    reviewRequestPendingRef.current = true;
+    reviewDialogRef.current?.focus();
     setIsSavingReview(true);
     setReviewError(null);
     try {
@@ -386,6 +425,7 @@ export function CatalogCurationWorkspace({
       setReviewGame(null);
       setFeedback({
         tone: "success",
+        focus: false,
         message: t("Review removed from the draft."),
       });
     } catch (deleteError) {
@@ -397,6 +437,7 @@ export function CatalogCurationWorkspace({
         ),
       );
     } finally {
+      reviewRequestPendingRef.current = false;
       setIsSavingReview(false);
     }
   }
@@ -1245,11 +1286,11 @@ export function CatalogCurationWorkspace({
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-5"
           role="dialog"
           aria-modal="true"
+          aria-busy={isSavingReview}
           aria-labelledby="outlet-review-title"
+          tabIndex={-1}
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target && !isSavingReview) {
-              setReviewGame(null);
-            }
+            if (event.currentTarget === event.target) closeReview();
           }}
         >
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-white/10 bg-[#17121f] p-5 shadow-2xl sm:rounded-3xl sm:p-7">
@@ -1272,7 +1313,7 @@ export function CatalogCurationWorkspace({
               </div>
               <button
                 type="button"
-                onClick={() => setReviewGame(null)}
+                onClick={closeReview}
                 disabled={isSavingReview}
                 aria-label={t("Close")}
                 className="rounded-xl border border-white/10 p-2 text-white/50 hover:bg-white/10 hover:text-white"
@@ -1359,7 +1400,7 @@ export function CatalogCurationWorkspace({
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => setReviewGame(null)}
+                  onClick={closeReview}
                   disabled={isSavingReview}
                   className="min-h-11 rounded-xl border border-white/10 px-4 text-sm font-black text-white/60 hover:bg-white/5"
                 >

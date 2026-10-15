@@ -125,3 +125,43 @@ compile only; their database must already have the migration. For a separately
 managed deployment, use the same `npm run prisma:generate` and
 `npm run migrate:deploy` scripts. No new feature grant or permission backfill is
 needed: rating changes reuse `update:store`.
+
+Before the production build:
+
+1. Confirm the Vercel project/team, deployment environment, and database host,
+   database name, and role against the production configuration. Do not log
+   credentials. Record the currently published deployment for recovery.
+2. Review the database migration ledger against this branch, including failed
+   entries and checksums. Missing `games.nintendo_nsuid` or `stores.status`
+   indicates that earlier migrations need investigation; the error alone does
+   not establish a migration conflict. Use the lifecycle runbook only when its
+   documented preconditions actually match the database.
+3. Check legacy editorial content before adding the validated CHECK constraint:
+
+   ```sql
+   SELECT count(*) AS empty_legacy_reviews
+   FROM store_game_editorials
+   WHERE length(btrim(body)) = 0;
+   ```
+
+   The result must be zero on the pre-ratings schema. If it is not, stop and
+   review those records without deleting or inventing editorial content.
+
+4. Confirm a current backup or recoverable point and its restore procedure.
+   Validate the pending chain on an isolated database with representative
+   existing reviews and published revisions, comparing their contents before
+   and after. Confirm Prisma generation, API reads/writes, and the browser flow.
+5. Allow the existing production build to apply only the reviewed pending
+   migrations. Verify the ledger and application smoke tests after deployment.
+   Do not reset the database or mark migrations applied to bypass failures.
+
+The ratings migration adds nullable columns and a separate projection; it does
+not update existing editorial text or published snapshot JSON. Application
+recovery can return to the preceding compatible deployment while retaining this
+schema. Older code ignores ratings and does not display rating-only review
+content, so that fallback must be checked before promotion. Do not drop the
+rating columns, enum, or projection to roll back the application.
+
+Preview builds intentionally do not migrate their database. Verify the preview
+database identity and migration ledger separately; perform write tests in an
+isolated database instead of assuming that a preview uses isolated storage.
