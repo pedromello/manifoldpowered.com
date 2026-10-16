@@ -300,6 +300,156 @@ describe("CreatorPresetStorefront", () => {
     );
     expect(hasCreatorPreset(store("channel"))).toBe(true);
   });
+
+  test("uses the curated summary instead of the full review in editorial highlights and catalog rows", () => {
+    const editorialProps = props("editorial");
+    const pick: GameApi = {
+      ...game,
+      recommendation_reason: "A short reason to discover this game.",
+      outlet_review: {
+        headline: "The review headline",
+        body: "The complete review belongs on the game page, not in a highlight.",
+      },
+    };
+    editorialProps.featured = [pick, { ...pick, id: "game-2", slug: "second" }];
+    editorialProps.games = [pick];
+
+    const markup = renderToStaticMarkup(
+      <CreatorPresetStorefront {...editorialProps} />,
+    );
+
+    expect(
+      markup.match(/A short reason to discover this game\./g),
+    ).toHaveLength(3);
+    expect(markup).not.toContain("The complete review belongs");
+    expect(markup).not.toContain("The review headline");
+  });
+
+  test.each([
+    {
+      name: "review headline",
+      headline: "A concise editorial headline",
+      body: "The full review is not the card summary.",
+      expected: "A concise editorial headline",
+      omitted: "The full review is not the card summary.",
+    },
+    {
+      name: "first review paragraph",
+      headline: "  ",
+      body: "First paragraph for discovery.\r\n\r\nThe rest stays on the game page.",
+      expected: "First paragraph for discovery.",
+      omitted: "The rest stays on the game page.",
+    },
+    {
+      name: "game description for a rating-only review",
+      headline: null,
+      body: "   ",
+      expected: game.description,
+      omitted: "A generous game to share with friends.",
+    },
+  ])("falls back to $name when the curated summary is blank", (example) => {
+    const editorialProps = props("editorial");
+    editorialProps.games = [];
+    editorialProps.featured = [
+      {
+        ...game,
+        recommendation_reason: "  ",
+        outlet_review: {
+          headline: example.headline,
+          body: example.body,
+          rating: { scale: "STARS", value: 0 },
+        },
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <CreatorPresetStorefront {...editorialProps} />,
+    );
+
+    expect(markup).toContain(example.expected);
+    expect(markup).not.toContain(example.omitted);
+    expect(markup).toContain("0/5");
+  });
+
+  test.each([0, 1, 2, 3])(
+    "preserves the order and attribution of %i editorial highlights",
+    (count) => {
+      const editorialProps = props("editorial");
+      editorialProps.games = [];
+      editorialProps.featured = Array.from({ length: count }, (_, index) => ({
+        ...game,
+        id: `pick-${index}`,
+        slug: `pick-${index}`,
+        title: `Editorial choice ${index}`,
+      }));
+
+      const markup = renderToStaticMarkup(
+        <CreatorPresetStorefront {...editorialProps} />,
+      );
+      const links = [...markup.matchAll(/href="([^\"]*\/item\/[^\"]+)"/g)].map(
+        (match) => match[1],
+      );
+
+      expect(links).toEqual(
+        editorialProps.featured.map((pick) =>
+          editorialProps.itemHref(pick.slug),
+        ),
+      );
+      expect(
+        markup.includes("This Outlet is preparing its first featured picks."),
+      ).toBe(count === 0);
+    },
+  );
+
+  test("keeps the complete Outlet description and credits in a native disclosure", () => {
+    const editorialProps = props("editorial");
+    editorialProps.store.description =
+      "A compact introduction.\n\n" +
+      "Additional context for readers. ".repeat(30) +
+      "\n\nImage credit: Source Studio, licensed artwork.";
+
+    const markup = renderToStaticMarkup(
+      <CreatorPresetStorefront {...editorialProps} />,
+    );
+    const disclosure = markup.match(/<details\b[^>]*>[\s\S]*?<\/details>/)?.[0];
+
+    expect(disclosure).toContain("<summary");
+    expect(disclosure).toContain("About this Outlet and credits");
+    expect(disclosure).toContain(editorialProps.store.description);
+    expect(disclosure).not.toContain("open=");
+  });
+
+  test("keeps zero and half-point ratings on the lead and secondary highlights", () => {
+    const editorialProps = props("editorial");
+    editorialProps.games = [];
+    editorialProps.featured = [
+      {
+        ...game,
+        outlet_review: {
+          headline: null,
+          body: "",
+          rating: { scale: "STARS", value: 0 },
+        },
+      },
+      {
+        ...game,
+        id: "rated-secondary",
+        slug: "rated-secondary",
+        outlet_review: {
+          headline: null,
+          body: "",
+          rating: { scale: "STARS", value: 4.5 },
+        },
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <CreatorPresetStorefront {...editorialProps} />,
+    );
+
+    expect(markup).toContain('aria-label="Creator rating: 0 out of 5 stars"');
+    expect(markup).toContain('aria-label="Creator rating: 4.5 out of 5 stars"');
+  });
 });
 
 function relativeLuminance(hex: string) {

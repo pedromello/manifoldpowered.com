@@ -241,6 +241,15 @@ function featuredLabel(
   return t("Trending in this Outlet");
 }
 
+function editorialExcerpt(game: GameApi): string {
+  return (
+    game.recommendation_reason?.trim() ||
+    game.outlet_review?.headline?.trim() ||
+    game.outlet_review?.body?.trim().split(/\r?\n\s*\r?\n/, 1)[0] ||
+    game.description
+  );
+}
+
 function SearchAndFilters({
   props,
   tokens,
@@ -520,14 +529,14 @@ function EditorialGameRow({
           {t("By {studio}", { studio: game.developer_name })}
           {game.tags?.[0] ? ` · ${game.tags[0]}` : ""}
         </p>
-        <p className="mt-2 hidden line-clamp-1 text-sm leading-6 text-sf-muted sm:block">
-          {game.outlet_review?.body ||
-            game.recommendation_reason ||
-            game.description}
+        <p className="mt-2 hidden text-sm leading-6 text-sf-muted sm:line-clamp-1">
+          {editorialExcerpt(game)}
         </p>
-        <div className="mt-2">
-          <OutletRatingBadge rating={game.outlet_review?.rating} />
-        </div>
+        {game.outlet_review?.rating && (
+          <div className="mt-2">
+            <OutletRatingBadge rating={game.outlet_review.rating} />
+          </div>
+        )}
       </div>
       <span className="hidden sm:block">
         <GamePrice game={game} />
@@ -993,7 +1002,7 @@ function EditorialLayout(props: PresetLayoutProps) {
       )}
 
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-8 lg:py-16">
-        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-2 md:items-center">
           <div>
             <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
               {featuredLabel(props.featuredMode, t)}
@@ -1002,10 +1011,27 @@ function EditorialLayout(props: PresetLayoutProps) {
               {t("The front page")}
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-6 text-sf-muted md:text-right">
-            {store.description ||
-              t("A considered selection from {name}.", { name: store.name })}
-          </p>
+          <div className="min-w-0 text-sm leading-6 text-sf-muted">
+            <p className="line-clamp-3 [overflow-wrap:anywhere]">
+              {store.description ||
+                t("A considered selection from {name}.", { name: store.name })}
+            </p>
+            {store.description && (
+              <details className="group mt-3">
+                <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 font-semibold underline underline-offset-4 hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent">
+                  <ChevronRight
+                    size={14}
+                    aria-hidden="true"
+                    className="shrink-0 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                  />
+                  {t("About this Outlet and credits")}
+                </summary>
+                <p className="mt-3 whitespace-pre-line [overflow-wrap:anywhere]">
+                  {store.description}
+                </p>
+              </details>
+            )}
+          </div>
         </div>
 
         {!lead ? (
@@ -1016,78 +1042,90 @@ function EditorialLayout(props: PresetLayoutProps) {
             tokens={tokens}
           />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.65fr)]">
+          <div className="space-y-6">
             <Link
               href={itemHref(lead.slug)}
               data-storefront="game-link"
-              className="group grid gap-5 border-b border-sf-border pb-7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(0,1.2fr)_minmax(250px,0.8fr)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+              className={`${tokens.card} group grid min-w-0 items-center overflow-hidden border border-sf-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]`}
             >
               <GameArtwork
                 game={lead}
-                className={`${tokens.media} aspect-[4/3]`}
+                className="aspect-video w-full self-start"
               />
-              <div className="flex flex-col justify-between py-1">
-                <div>
-                  <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
-                    {t("Cover story")}
-                  </p>
-                  <h3
-                    className={`${tokens.heading} mt-3 text-3xl leading-tight text-sf-fg sm:text-4xl`}
-                  >
-                    {lead.title}
-                  </h3>
+              <div className="min-w-0 p-6">
+                <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
+                  {t("Cover story")}
+                </p>
+                <h3
+                  className={`${tokens.heading} mt-3 text-[1.75rem] leading-tight text-sf-fg [overflow-wrap:anywhere] sm:text-3xl`}
+                >
+                  {lead.title}
+                </h3>
+                {lead.outlet_review?.rating && (
                   <div className="mt-3">
-                    <OutletRatingBadge rating={lead.outlet_review?.rating} />
+                    <OutletRatingBadge rating={lead.outlet_review.rating} />
                   </div>
-                  <p className="mt-4 line-clamp-5 text-sm leading-7 text-sf-muted">
-                    {lead.outlet_review?.body ||
-                      lead.recommendation_reason ||
-                      lead.description}
-                  </p>
-                </div>
-                <div className="mt-6 flex items-center justify-between border-t border-sf-border pt-4">
-                  <span className="text-xs font-bold text-sf-muted">
+                )}
+                <p className="mt-4 line-clamp-3 text-[15px] leading-6 text-sf-muted [overflow-wrap:anywhere]">
+                  {editorialExcerpt(lead)}
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-sf-border pt-4">
+                  <span className="min-w-0 flex-1 text-xs font-bold text-sf-muted [overflow-wrap:anywhere]">
                     {t("By {studio}", { studio: lead.developer_name })}
                   </span>
                   <GamePrice game={lead} />
                 </div>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                  {t("View game")}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </span>
               </div>
             </Link>
-            <div className="divide-y divide-sf-border border-y border-sf-border lg:border-y-0">
-              {picks.slice(1).map((game, index) => (
-                <Link
-                  key={game.id}
-                  href={itemHref(game.slug)}
-                  data-storefront="game-link"
-                  className="group grid grid-cols-[100px_minmax(0,1fr)] gap-4 py-5 first:pt-0 last:pb-0 lg:grid-cols-1"
-                >
-                  <GameArtwork
-                    game={game}
-                    className={`${tokens.media} aspect-[16/10]`}
-                  />
-                  <div className="min-w-0">
-                    <p
-                      className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
-                    >
-                      {t("Dispatch {number}", { number: index + 1 })}
-                    </p>
-                    <h3
-                      className={`${tokens.heading} mt-1 line-clamp-2 text-xl text-sf-fg`}
-                    >
-                      {game.title}
-                    </h3>
-                    <div className="mt-2">
-                      <OutletRatingBadge rating={game.outlet_review?.rating} />
+            {picks.length > 1 && (
+              <div
+                className={`grid gap-4 sm:gap-6 ${picks.length > 2 ? "md:grid-cols-2" : ""}`}
+              >
+                {picks.slice(1).map((game, index) => (
+                  <Link
+                    key={game.id}
+                    href={itemHref(game.slug)}
+                    data-storefront="game-link"
+                    className={`${tokens.card} group grid min-w-0 grid-cols-[104px_minmax(0,1fr)] items-start gap-4 border border-sf-border p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(100px,0.8fr)_minmax(0,1.2fr)]`}
+                  >
+                    <GameArtwork
+                      game={game}
+                      className={`${tokens.media} aspect-video w-full`}
+                    />
+                    <div className="min-w-0">
+                      <p
+                        className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
+                      >
+                        {t("Dispatch {number}", { number: index + 1 })}
+                      </p>
+                      <h3
+                        className={`${tokens.heading} mt-1 text-lg leading-6 text-sf-fg [overflow-wrap:anywhere] sm:text-xl sm:leading-7`}
+                      >
+                        {game.title}
+                      </h3>
+                      {game.outlet_review?.rating && (
+                        <div className="mt-2">
+                          <OutletRatingBadge
+                            rating={game.outlet_review.rating}
+                          />
+                        </div>
+                      )}
+                      <p className="mt-2 line-clamp-2 text-sm leading-[22px] text-sf-muted [overflow-wrap:anywhere]">
+                        {editorialExcerpt(game)}
+                      </p>
+                      <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                        {t("View game")}
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </span>
                     </div>
-                    <p className="mt-2 hidden line-clamp-2 text-xs leading-5 text-sf-muted lg:block">
-                      {game.outlet_review?.body ||
-                        game.recommendation_reason ||
-                        game.description}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
