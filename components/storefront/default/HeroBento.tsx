@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 import { DiscountBadge } from "components/store/DiscountBadge";
+import { GameArtwork } from "components/store/GameArtwork";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import { discountBadgeColor } from "components/store/constants";
 import { type GameApi } from "components/store/types";
 import {
@@ -64,8 +66,6 @@ export function HeroBento({
   const activeIsDemo = activeGame.purchase_mode === "PLATFORM" && activeFree;
   const activeBasePrice = formatCatalogBasePrice(activeGame);
   const activeDiscountLabel = catalogDiscountLabel(activeGame);
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
   const editorialLabel = storeName
     ? t("Recommended by {name}", { name: storeName })
     : t("Outlet recommendation");
@@ -90,37 +90,35 @@ export function HeroBento({
       onFocusCapture={() => setIsInteracting(true)}
       onBlurCapture={() => setIsInteracting(false)}
     >
-      <div className="group relative h-[25rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[#1D0F3B] shadow-2xl md:h-[32rem]">
+      <div className="group flex min-h-[25rem] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#1D0F3B] shadow-2xl md:min-h-[32rem]">
         <Link
           key={activeGame.id}
           href={itemHref(activeGame.slug)}
-          className="absolute inset-0"
+          className="grid flex-1 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
           aria-label={t("View {title}", { title: activeGame.title })}
         >
-          <div
-            className="absolute inset-0 animate-[fadeIn_350ms_ease-out] transition-transform duration-1000 ease-out group-hover:scale-[1.025]"
-            style={{
-              background: activeGame.media?.banner
-                ? `url(${activeGame.media.banner}) center/cover no-repeat`
-                : defaultGradient,
-            }}
+          <GameArtwork
+            src={activeGame.media?.banner}
+            loading="eager"
+            className="aspect-[16/9] w-full md:aspect-auto"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#120923]/95 via-[#1D0F3B]/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#120923] via-transparent to-black/20" />
-
-          {!activeFree && activeBasePrice && activeDiscountLabel && (
-            <div className="absolute right-5 top-5 z-10 md:right-8 md:top-8 md:scale-110">
-              <DiscountBadge label={activeDiscountLabel} />
-            </div>
-          )}
-
-          <div className="absolute inset-x-6 bottom-8 flex max-w-3xl flex-col items-start text-white md:inset-x-12 md:bottom-12">
+          <div className="flex min-w-0 flex-col items-start justify-center p-6 text-white md:p-8">
+            {!activeFree && activeBasePrice && activeDiscountLabel && (
+              <div className="mb-4">
+                <DiscountBadge label={activeDiscountLabel} />
+              </div>
+            )}
             <span className="mb-4 max-w-full truncate rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/85 backdrop-blur-md md:text-xs">
               {activeIsEditorial ? editorialLabel : automaticLabel}
             </span>
-            <h2 className="max-w-full text-3xl font-black leading-[0.95] tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
+            <h2 className="max-w-full text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl">
               {activeGame.title}
             </h2>
+            {storeName && (
+              <div className="mt-3">
+                <OutletRatingBadge rating={activeGame.outlet_review?.rating} />
+              </div>
+            )}
             {activeIsEditorial && activeGame.recommendation_reason && (
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-relaxed text-white/85 line-clamp-3 drop-shadow-md md:text-lg">
                 {activeGame.recommendation_reason}
@@ -167,11 +165,11 @@ export function HeroBento({
         </Link>
 
         {slides.length > 1 && (
-          <>
+          <div className="flex justify-end gap-2 border-t border-white/10 p-3">
             <button
               type="button"
               onClick={showPrevious}
-              className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:left-5 md:p-3"
+              className="rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 transition hover:bg-black/60 hover:text-white md:p-3"
               aria-label={t("Previous Featured game")}
             >
               <ChevronLeft size={22} />
@@ -179,7 +177,7 @@ export function HeroBento({
             <button
               type="button"
               onClick={showNext}
-              className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:right-5 md:p-3"
+              className="rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 transition hover:bg-black/60 hover:text-white md:p-3"
               aria-label={t("Next Featured game")}
             >
               <ChevronRight size={22} />
@@ -187,7 +185,7 @@ export function HeroBento({
             <button
               type="button"
               onClick={() => setIsUserPaused((paused) => !paused)}
-              className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 backdrop-blur-md transition hover:bg-black/60 hover:text-white md:right-7 md:top-7"
+              className="rounded-full border border-white/10 bg-black/35 p-2.5 text-white/75 transition hover:bg-black/60 hover:text-white"
               aria-label={
                 isUserPaused
                   ? t("Resume Featured carousel")
@@ -196,7 +194,7 @@ export function HeroBento({
             >
               {isUserPaused ? <Play size={15} /> : <Pause size={15} />}
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -221,13 +219,9 @@ export function HeroBento({
                   : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
               }`}
             >
-              <div
+              <GameArtwork
+                src={game.media?.banner}
                 className="h-14 w-24 shrink-0 rounded-xl bg-[#21152f] sm:h-12 sm:w-20 lg:h-16 lg:w-28"
-                style={{
-                  background: game.media?.banner
-                    ? `url(${game.media.banner}) center/cover no-repeat`
-                    : defaultGradient,
-                }}
               />
               <div className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-black text-white lg:text-base">

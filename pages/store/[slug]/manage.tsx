@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -1490,13 +1491,9 @@ function FeaturedTab({
               className="overflow-hidden rounded-2xl border border-white/10 bg-[#14101c]"
             >
               <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-                <div
+                <GameArtwork
+                  src={entry.game.media?.banner}
                   className="aspect-video w-full shrink-0 rounded-xl border border-white/10 bg-[#21152f] sm:w-48"
-                  style={{
-                    background: entry.game.media?.banner
-                      ? `url(${entry.game.media.banner}) center/cover no-repeat`
-                      : undefined,
-                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
@@ -2187,13 +2184,9 @@ function GameOverridesPanel({
       <form onSubmit={handleAddOverride} className="flex flex-wrap gap-2">
         {selectedGame ? (
           <div className="flex-1 min-w-[160px] flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <div
+            <GameArtwork
+              src={selectedGame.media.banner}
               className="h-8 aspect-[16/9] rounded-md shrink-0 border border-white/5"
-              style={{
-                background: selectedGame.media.banner
-                  ? `url(${selectedGame.media.banner}) center/cover no-repeat`
-                  : "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)",
-              }}
             />
             <span className="flex-1 font-bold text-white text-sm truncate">
               {selectedGame.title}
@@ -2283,11 +2276,9 @@ function OverrideChip({
       }`}
     >
       {game?.media.banner && (
-        <div
+        <GameArtwork
+          src={game.media.banner}
           className="h-6 aspect-[16/9] rounded shrink-0 border border-white/10"
-          style={{
-            background: `url(${game.media.banner}) center/cover no-repeat`,
-          }}
         />
       )}
       <span>

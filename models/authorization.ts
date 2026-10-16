@@ -33,6 +33,11 @@ import {
 } from "contracts/desktop/v1";
 import type { StorefrontStore, StorePublicationView } from "models/store";
 import { resolveDraftPresentation } from "models/store_presentation";
+import {
+  outletEditorialResponseSchema,
+  ratingSystemPreviewSchema,
+  ratingSystemResultSchema,
+} from "contracts/outlet-rating";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -566,6 +571,25 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
 
+  if (typeof resource === "object" && resource !== null) {
+    if (
+      (feature === "read:public_game" || feature === "update:store") &&
+      "review" in resource
+    ) {
+      return outletEditorialResponseSchema.parse(resource);
+    }
+    if (
+      feature === "update:store" &&
+      "target_scale" in resource &&
+      "rated_count" in resource
+    ) {
+      return ratingSystemPreviewSchema.parse(resource);
+    }
+    if (feature === "update:store" && "converted_count" in resource) {
+      return ratingSystemResultSchema.parse(resource);
+    }
+  }
+
   if (
     feature === "create:game_ownership_claim" ||
     feature === "read:game_ownership_claim" ||
@@ -1046,6 +1070,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       status: storeOutput.status,
       published_at: storeOutput.published_at,
       storefront_source: storeOutput.storefront_source,
+      rating_scale: storeOutput.rating_scale ?? null,
       published_revision: storeOutput.published_revision,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
@@ -1118,6 +1143,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       brand_tokens: presentation.brand_tokens,
       presentation,
       storefront_source: storeOutput.storefront_source ?? "DRAFT",
+      rating_scale: storeOutput.rating_scale ?? null,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };

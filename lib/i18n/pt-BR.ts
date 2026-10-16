@@ -1,4 +1,51 @@
 export const ptBR: Record<string, string> = {
+  "Creator rating: {rating}": "Nota do criador: {rating}",
+  "{value} out of 5 stars": "{value} de 5 estrelas",
+  "Creator rating": "Nota do criador",
+  "No rating": "Sem nota",
+  "All ratings": "Todas as notas",
+  "Filter by creator rating": "Filtrar pela nota do criador",
+  "This rating filter does not match the Outlet's current system. Clear it to browse the catalog.":
+    "Este filtro de nota não corresponde ao sistema atual da Outlet. Limpe o filtro para explorar o catálogo.",
+  "Rating match": "Comparação da nota",
+  Exactly: "Exatamente",
+  "At least": "No mínimo",
+  "Clear rating filter": "Limpar filtro de nota",
+  "Stars (0–5)": "Estrelas (0–5)",
+  "Score (0–10)": "Nota (0–10)",
+  "Tiers (F–S+)": "Tiers (F–S+)",
+  "This draft changed. Reload the latest draft and calculate the conversion again.":
+    "Este rascunho foi alterado. Recarregue a versão mais recente e calcule a conversão novamente.",
+  "The rating system could not be updated.":
+    "Não foi possível atualizar o sistema de notas.",
+  "Rating system": "Sistema de notas",
+  "Choose one scale for this Outlet. Reviews can include text, a rating, or both.":
+    "Escolha uma escala para esta Outlet. Reviews podem incluir texto, uma nota ou ambos.",
+  "Current system: {system}": "Sistema atual: {system}",
+  "Not configured": "Não configurado",
+  "New rating system": "Novo sistema de notas",
+  "Save your other changes before changing the rating system.":
+    "Salve as outras alterações antes de mudar o sistema de notas.",
+  "Preview rating system": "Prévia do sistema de notas",
+  "{source} → {target}": "{source} → {target}",
+  "{rated} rated games will be converted. {unrated} reviews without a rating remain unchanged.":
+    "{rated} jogos avaliados serão convertidos. {unrated} reviews sem nota continuarão sem nota.",
+  "Some scores merge or round. Converting back may not restore the original score. Tier filter order stays the same.":
+    "Algumas notas se agrupam ou são arredondadas. Converter de volta pode não restaurar a nota original. A ordem dos filtros de tiers permanece a mesma.",
+  "Editable score conversion": "Conversão de notas editável",
+  Original: "Original",
+  "New rating": "Nova nota",
+  "Convert {rating} to": "Converter {rating} para",
+  "Applying only updates the draft, including hidden games. Review your games, then publish separately.":
+    "Aplicar atualiza apenas o rascunho, incluindo jogos ocultos. Revise os jogos e publique separadamente.",
+  "Apply to draft": "Aplicar ao rascunho",
+  "Reload latest draft": "Recarregar rascunho atual",
+  "Rating system applied to the draft. Publish when you are ready.":
+    "Sistema de notas aplicado ao rascunho. Publique quando estiver pronto.",
+  "Configure a rating system in Outlet settings to add a score.":
+    "Configure um sistema de notas nas configurações da Outlet para adicionar uma nota.",
+  "Write a review, add a rating, or both. Zero is a valid score.":
+    "Escreva uma review, adicione uma nota ou ambos. Zero é uma nota válida.",
   "Price unavailable": "Preço indisponível",
   "This region has a different Nintendo edition. Submit the link again.":
     "Esta região possui uma edição Nintendo diferente. Envie o link novamente.",

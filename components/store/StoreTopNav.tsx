@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
@@ -81,9 +82,6 @@ export function StoreTopNav({
       router.push(withQuery(searchResultsHref, { q: searchQuery.trim() }));
     }
   };
-
-  const defaultGradient =
-    "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)";
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-sf-bg/80 backdrop-blur-xl border-b border-white/5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] px-3 sm:px-4 md:px-10">
@@ -184,13 +182,9 @@ export function StoreTopNav({
                           data-storefront="game-link"
                           className="flex items-center gap-4 px-4 py-2 transition-colors hover:bg-white/5"
                         >
-                          <div
+                          <GameArtwork
+                            src={game.media.banner}
                             className="h-12 md:h-16 aspect-[16/9] rounded-lg shrink-0 border border-white/5"
-                            style={{
-                              background: game.media.banner
-                                ? `url(${game.media.banner}) center/cover no-repeat`
-                                : defaultGradient,
-                            }}
                           />
                           <div className="flex-1 overflow-hidden">
                             <h4 className="font-bold text-white text-sm md:text-base truncate">

@@ -58,6 +58,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "First edition",
         body: "The review that belongs to the first publication.",
+        rating: null,
       },
       draft_revision: fixture.store.draft_revision + 1,
     });
@@ -132,6 +133,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "First edition",
         body: "The review that belongs to the first publication.",
+        rating: null,
       },
     });
 
@@ -159,6 +161,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "Second edition",
         body: "The review visible only in preview before republishing.",
+        rating: null,
       },
     });
 
@@ -194,6 +197,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "Second edition",
         body: "The review visible only in preview before republishing.",
+        rating: null,
       },
     });
 
@@ -215,6 +219,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "Second edition",
         body: "The review visible only in preview before republishing.",
+        rating: null,
       },
     });
     const previewWhileThirdIsDraft = await fetch(
@@ -225,6 +230,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "Third edition",
         body: "Another post-publication draft edit.",
+        rating: null,
       },
     });
 
@@ -246,6 +252,7 @@ describe("Outlet editorial publication flow", () => {
       review: {
         headline: "Third edition",
         body: "Another post-publication draft edit.",
+        rating: null,
       },
     });
 
@@ -262,6 +269,7 @@ describe("Outlet editorial publication flow", () => {
             game_id: game.id,
             headline: "First edition",
             body: "The review that belongs to the first publication.",
+            rating: null,
           },
         ],
       },
@@ -272,6 +280,7 @@ describe("Outlet editorial publication flow", () => {
             game_id: game.id,
             headline: "Second edition",
             body: "The review visible only in preview before republishing.",
+            rating: null,
           },
         ],
       },
@@ -282,6 +291,7 @@ describe("Outlet editorial publication flow", () => {
             game_id: game.id,
             headline: "Third edition",
             body: "Another post-publication draft edit.",
+            rating: null,
           },
         ],
       },

@@ -119,6 +119,7 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
             outlet_review: {
               headline: "Featured headline",
               body: "Review frozen into the public Featured snapshot.",
+              rating: null,
             },
           }),
           expect.objectContaining({ id: games[1].id, outlet_review: null }),

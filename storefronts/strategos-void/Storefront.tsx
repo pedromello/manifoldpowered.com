@@ -1,4 +1,8 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Form from "next/form";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { Pagination } from "components/Pagination";
 import Image from "next/image";
 import Link from "next/link";
 import { PlaySquare, MessageCircle } from "lucide-react";
@@ -44,18 +48,12 @@ function GameCard({
       data-storefront="game-link"
       className="group relative flex flex-col overflow-hidden border border-sf-border bg-sf-surface transition-colors duration-300 hover:border-sf-accent"
     >
-      <div
-        className="aspect-[3/4] w-full bg-center bg-cover"
-        style={{
-          backgroundImage: game.media?.banner
-            ? `url(${game.media.banner})`
-            : "linear-gradient(160deg, #1c2632 0%, #0a0d12 75%)",
-        }}
-      />
+      <GameArtwork src={game.media?.banner} className="aspect-[3/4] w-full" />
       <div className="flex flex-col gap-1 border-t border-sf-border px-4 py-3">
         <h3 className="text-sm font-bold uppercase leading-tight tracking-wide">
           {game.title}
         </h3>
+        <OutletRatingBadge rating={game.outlet_review?.rating} />
         <span className="font-black uppercase tracking-wider text-sf-accent">
           {free ? t("Free") : formatCatalogPrice(game)}
         </span>
@@ -76,9 +74,13 @@ export function StrategosVoidStorefront({
   browseHref,
   searchAction,
   searchHiddenFields,
+  ratingFilter,
+  setRatingFilter,
+  pagination,
+  setPage,
 }: StorefrontViewProps) {
   const { locale, t } = useI18n();
-  const heroGame = featured[0] ?? games[0] ?? null;
+  const heroGame = featured[0] ?? null;
 
   // Filter pills are built from the tags actually present on this outlet's
   // curated games, not a fixed category list — a store of ten grand-strategy
@@ -164,9 +166,11 @@ export function StrategosVoidStorefront({
           </div>
 
           <Form action={searchAction} className="w-full md:w-72">
-            {Object.entries(searchHiddenFields).map(([name, value]) => (
-              <input key={name} type="hidden" name={name} value={value} />
-            ))}
+            {Object.entries(searchHiddenFields)
+              .filter(([name]) => name !== "tags")
+              .map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))}
             <input
               type="text"
               name="q"
@@ -221,19 +225,21 @@ export function StrategosVoidStorefront({
           )}
         </nav>
 
+        <OutletRatingFilter
+          scale={store.rating_scale ?? null}
+          filter={ratingFilter}
+          onChange={setRatingFilter}
+        />
         {heroGame && (
           <Link
             href={itemHref(heroGame.slug)}
             data-storefront="game-link"
             className="group mb-10 flex flex-col overflow-hidden border border-sf-border bg-sf-surface md:flex-row"
           >
-            <div
-              className="aspect-[16/9] w-full bg-center bg-cover md:aspect-auto md:w-1/2"
-              style={{
-                backgroundImage: heroGame.media?.banner
-                  ? `url(${heroGame.media.banner})`
-                  : "linear-gradient(160deg, #1c2632 0%, #0a0d12 75%)",
-              }}
+            <GameArtwork
+              src={heroGame.media?.banner}
+              loading="eager"
+              className="aspect-[16/9] w-full md:aspect-auto md:w-1/2"
             />
             <div className="flex flex-1 flex-col justify-center gap-4 p-8 md:p-12">
               <span className="text-xs uppercase tracking-[0.4em] text-sf-accent">
@@ -242,6 +248,7 @@ export function StrategosVoidStorefront({
               <h3 className="text-2xl font-black uppercase tracking-tight text-sf-fg md:text-4xl">
                 {heroGame.title}
               </h3>
+              <OutletRatingBadge rating={heroGame.outlet_review?.rating} />
               {(heroGame.recommendation_reason || heroGame.description) && (
                 <p className="line-clamp-2 max-w-xl text-sf-muted">
                   {heroGame.recommendation_reason || heroGame.description}
@@ -276,6 +283,9 @@ export function StrategosVoidStorefront({
         </div>
       </section>
 
+      <div className="mb-8">
+        <Pagination pagination={pagination} onPageChange={setPage} />
+      </div>
       {/* ---- About the curator ---- */}
       <section className="border-t border-sf-border">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-16 text-center md:px-10 md:py-24">

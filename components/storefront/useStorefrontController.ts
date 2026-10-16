@@ -13,6 +13,12 @@ import type {
   StorefrontQuery,
 } from "components/storefront/types";
 import { STOREFRONT_ORDERS } from "components/storefront/types";
+import type { OutletRatingScale } from "contracts/outlet-rating";
+import {
+  validOutletRatingFilter,
+  writeOutletRatingFilter,
+  type OutletRatingFilter,
+} from "lib/outlet-rating-filter";
 
 type ListResponse = {
   games: GameApi[];
@@ -56,6 +62,7 @@ export type StorefrontControllerOptions = {
   searchPagePath: string;
   /** Set for an outlet storefront so links carry sale attribution. */
   storeSlug?: string;
+  ratingScale?: OutletRatingScale | null;
   /** Preserve working-draft context through APIs, navigation and item links. */
   isPreview?: boolean;
 };
@@ -80,6 +87,7 @@ export function useStorefrontController({
   browsePath,
   searchPagePath,
   storeSlug,
+  ratingScale,
   isPreview = false,
 }: StorefrontControllerOptions): StorefrontControllerResult {
   const router = useRouter();
@@ -88,10 +96,20 @@ export function useStorefrontController({
 
   const q = searchParams.get("q") || "";
   const activeCategory = searchParams.get("category");
-  const tags = searchParams.getAll("tags");
+  const tags = searchParams
+    .getAll("tags")
+    .flatMap((value) => value.split(","))
+    .filter(Boolean);
   const orderParam = searchParams.get("order");
   const order: StorefrontOrder = isOrder(orderParam) ? orderParam : "newest";
   const page = Number(searchParams.get("page")) || 1;
+  const ratingFilter: OutletRatingFilter = {
+    rating_scale: searchParams.get("rating_scale"),
+    rating_op: searchParams.get("rating_op"),
+    rating_value: searchParams.get("rating_value"),
+  };
+  const ratingFilterValid = validOutletRatingFilter(ratingFilter, ratingScale);
+  const { rating_scale, rating_op, rating_value } = ratingFilter;
 
   // The category pill and the tag facets both narrow by tag; the API takes a
   // single comma-separated `tags` list, so they merge here rather than in the
@@ -119,8 +137,24 @@ export function useStorefrontController({
     else url.searchParams.delete("page");
     if (isPreview) url.searchParams.set("preview", "1");
     url.searchParams.set("locale", locale);
+    writeOutletRatingFilter(url.searchParams, {
+      rating_scale,
+      rating_op,
+      rating_value,
+    });
     return relativeUrl(url);
-  }, [listEndpoint, q, effectiveTags, order, page, isPreview, locale]);
+  }, [
+    listEndpoint,
+    q,
+    effectiveTags,
+    order,
+    page,
+    isPreview,
+    locale,
+    rating_scale,
+    rating_op,
+    rating_value,
+  ]);
 
   const featuredUrl = useMemo(() => {
     const url = localUrl(featuredEndpoint);
@@ -141,7 +175,7 @@ export function useStorefrontController({
     error: catalogRequestError,
     isLoading,
     mutate: mutateCatalog,
-  } = useSWR<ListResponse>(listUrl, fetcher);
+  } = useSWR<ListResponse>(ratingFilterValid ? listUrl : null, fetcher);
 
   const browseHref = useCallback(
     (patch: Partial<StorefrontQuery>) => {
@@ -151,23 +185,49 @@ export function useStorefrontController({
         tags,
         order,
         page,
+        rating_scale,
+        rating_op,
+        rating_value,
         ...patch,
       };
 
       const url = localUrl(browsePath);
-      ["q", "category", "tags", "order", "page"].forEach((key) =>
-        url.searchParams.delete(key),
-      );
+      [
+        "q",
+        "category",
+        "tags",
+        "order",
+        "page",
+        "rating_scale",
+        "rating_op",
+        "rating_value",
+      ].forEach((key) => url.searchParams.delete(key));
       if (next.q) url.searchParams.set("q", next.q);
       if (next.category) url.searchParams.set("category", next.category);
       next.tags.forEach((tag) => url.searchParams.append("tags", tag));
       if (next.order !== "newest") url.searchParams.set("order", next.order);
       if (next.page > 1) url.searchParams.set("page", String(next.page));
       if (isPreview) url.searchParams.set("preview", "1");
+      writeOutletRatingFilter(url.searchParams, {
+        rating_scale: next.rating_scale ?? null,
+        rating_op: next.rating_op ?? null,
+        rating_value: next.rating_value ?? null,
+      });
 
       return relativeUrl(url);
     },
-    [browsePath, q, activeCategory, tags, order, page, isPreview],
+    [
+      browsePath,
+      q,
+      activeCategory,
+      tags,
+      order,
+      page,
+      isPreview,
+      rating_scale,
+      rating_op,
+      rating_value,
+    ],
   );
 
   // Shallow so filtering never refetches the page's server props, matching how
@@ -199,6 +259,17 @@ export function useStorefrontController({
 
   const searchUrl = localUrl(searchPagePath);
   const searchHiddenFields = Object.fromEntries(searchUrl.searchParams);
+  for (const [key, value] of Object.entries({
+    rating_scale,
+    rating_op,
+    rating_value,
+  })) {
+    if (value !== null) searchHiddenFields[key] = value;
+  }
+  if (activeCategory) searchHiddenFields.category = activeCategory;
+  if (order !== "newest") searchHiddenFields.order = order;
+  if (isPreview) searchHiddenFields.preview = "1";
+  if (tags.length) searchHiddenFields.tags = tags.join(",");
 
   return {
     isPreview,
@@ -237,6 +308,8 @@ export function useStorefrontController({
     page,
     setPage: (updater) => navigate({ page: updater(page) }),
     categories: CATEGORIES,
+    ratingFilter,
+    setRatingFilter: (filter) => navigate({ ...filter, page: 1 }),
 
     itemHref,
     browseHref,

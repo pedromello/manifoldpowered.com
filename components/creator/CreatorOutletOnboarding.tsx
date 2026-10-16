@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -1916,16 +1917,7 @@ function GameChoiceCard({
 }
 
 function GameBanner({ game }: { game: CreatorGameSummary }) {
-  return (
-    <div
-      className="aspect-video w-full bg-[#21182f] bg-cover bg-center"
-      style={
-        game.bannerUrl
-          ? { backgroundImage: `url(${game.bannerUrl})` }
-          : undefined
-      }
-    />
-  );
+  return <GameArtwork src={game.bannerUrl} className="aspect-video w-full" />;
 }
 
 function StepActions({

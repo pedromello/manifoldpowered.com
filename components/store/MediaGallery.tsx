@@ -7,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import { useI18n } from "lib/i18n";
 import { nintendoVideoPoster } from "lib/nintendo";
+import { GameArtwork } from "components/store/GameArtwork";
 
 interface MediaGalleryProps {
   videos: string[];
@@ -199,7 +200,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
   return (
     <section className="flex flex-col gap-4">
       {/* Stage: Main Display */}
-      <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+      <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-[#100d15]">
         {/* Stage Content */}
         {activeMedia.type === "video" ? (
           activeMedia.videoType === "youtube" ? (
@@ -214,21 +215,19 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
             <DirectVideoPlayer
               url={activeMedia.url}
               title={t("{title} trailer", { title: gameTitle })}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
             />
           )
         ) : (
-          // Gallery media is supplied by game developers and may be hosted on
-          // domains outside Next's image allowlist. Loading it directly also
-          // avoids making the local preview server proxy third-party assets.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <GameArtwork
             src={activeMedia.url}
             alt={t("{title} screenshot {number}", {
               title: gameTitle,
               number: activeIndex + 1,
             })}
-            className="absolute inset-0 h-full w-full animate-in object-cover fade-in duration-500"
+            background="neutral"
+            loading="eager"
+            fill
           />
         )}
 
@@ -294,16 +293,14 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                       : "border-white/10 opacity-55 hover:border-white/25 hover:opacity-100"
                   }`}
                 >
-                  {/* See the main stage above: these URLs are dynamic game
-                      media and should not depend on the Next image proxy. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <GameArtwork
                     src={thumbUrl}
                     alt={t("{title} thumbnail {number}", {
                       title: gameTitle,
                       number: idx + 1,
                     })}
-                    className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                    className="pointer-events-none"
+                    fill
                   />
 
                   {item.type === "video" && (

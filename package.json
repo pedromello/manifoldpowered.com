@@ -88,6 +88,7 @@
     "eslint-config-next": "16.2.3",
     "husky": "9.1.7",
     "jest": "30.3.0",
+    "jest-environment-jsdom": "30.3.0",
     "npm-check-updates": "20.0.0",
     "prettier": "3.8.1",
     "prisma": "7.7.0",

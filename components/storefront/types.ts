@@ -7,6 +7,7 @@ import {
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
 import type { ReactNode } from "react";
+import type { OutletRatingFilter } from "lib/outlet-rating-filter";
 
 export type { GameApi, GameDetailApi, PaginationApi };
 
@@ -17,9 +18,10 @@ export type { GameApi, GameDetailApi, PaginationApi };
  */
 export type StoreContext = Omit<
   ReturnType<typeof storeContextFromApi>,
-  "presentation"
+  "presentation" | "rating_scale"
 > & {
   presentation?: StoreApi["presentation"];
+  rating_scale?: StoreApi["rating_scale"];
 };
 
 /**
@@ -38,7 +40,7 @@ export const STOREFRONT_ORDERS = [
 export type StorefrontOrder = (typeof STOREFRONT_ORDERS)[number];
 
 /** The URL-backed query state a storefront browse page carries. */
-export type StorefrontQuery = {
+export type StorefrontQuery = Partial<OutletRatingFilter> & {
   q: string;
   category: string | null;
   tags: string[];
@@ -107,6 +109,8 @@ export type StorefrontViewProps = {
   page: number;
   setPage: (updater: (page: number) => number) => void;
   categories: readonly string[];
+  ratingFilter?: OutletRatingFilter;
+  setRatingFilter?: (filter: OutletRatingFilter) => void;
 
   /** Always use these — they carry the `?store=` sale attribution. */
   itemHref: (gameSlug: string) => string;
