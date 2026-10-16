@@ -382,6 +382,7 @@ export const ptBR: Record<string, string> = {
   "Community club": "Clube da comunidade",
   "Community shelf": "Estante da comunidade",
   "Cover story": "Matéria de capa",
+  "About this Outlet and credits": "Sobre esta Outlet e créditos",
   "Creator channel": "Canal do criador",
   "Curated and trending": "Curadoria e tendências",
   "Dispatch {number}": "Edição {number}",
