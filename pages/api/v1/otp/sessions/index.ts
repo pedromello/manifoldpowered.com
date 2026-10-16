@@ -5,13 +5,9 @@ import otp from "models/otp";
 import session from "models/session";
 import authorization from "models/authorization";
 import { ForbiddenError, RateLimitError, ValidationError } from "infra/errors";
-import { z } from "zod";
 import authRateLimit from "infra/auth_rate_limit";
 
-const verifyOtpSchema = z.object({
-  login: z.string().trim().min(1),
-  code: z.string().length(6),
-});
+import { verifyOtpSchema } from "contracts/creator-requests";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)

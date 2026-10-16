@@ -4,12 +4,8 @@ import { NotFoundError, ValidationError } from "infra/errors";
 import { Prisma } from "generated/prisma/client";
 import userModel from "models/user";
 
-export const studioSchema = z.object({
-  name: z.string().min(1).max(255),
-  description: z.string().max(1000).optional(),
-  logo_url: z.string().url().max(2048).optional(),
-  is_publisher: z.boolean().default(false),
-});
+import { studioSchema } from "contracts/creator-requests";
+export { studioSchema };
 
 export type StudioCreateDto = z.infer<typeof studioSchema> & {
   owner_id: string;

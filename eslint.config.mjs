@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "output/next-nintendo-demo/**",
     "out/**",
     "build/**",
+    "tools/cli/dist/**",
     "next-env.d.ts",
   ]),
 ]);

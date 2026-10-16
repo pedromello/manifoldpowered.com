@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": ["node"],
+    "ignoreDeprecations": "6.0"
+  },
+  "exclude": ["tests/e2e.ts"],
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "../../contracts/**/*.ts",
+    "../../lib/nintendo.ts"
+  ]
+}

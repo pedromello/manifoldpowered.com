@@ -5,6 +5,7 @@ import review from "models/review";
 import { ValidationError } from "infra/errors";
 import { z } from "zod";
 import authorization from "models/authorization";
+import { reviewInputSchema as postBodySchema } from "contracts/curator-requests";
 
 const querySchema = z.object({
   slug: z.string().min(1),
@@ -14,12 +15,6 @@ const querySchema = z.object({
 
 const bodySchema = z.object({
   slug: z.string().min(1),
-});
-
-const postBodySchema = z.object({
-  slug: z.string().min(1),
-  message: z.string().trim().min(1).max(3000),
-  recommended: z.boolean(),
 });
 
 export default createRouter<NextApiRequest, NextApiResponse>()

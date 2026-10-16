@@ -2,41 +2,20 @@ import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
 import { z } from "zod";
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
+import { storeGameEditorialInputSchema } from "contracts/curator-requests";
+export {
+  MAX_EDITORIAL_HEADLINE_LENGTH,
+  MAX_EDITORIAL_BODY_LENGTH,
+  storeGameEditorialInputSchema,
+  storeGameEditorialDeleteSchema,
+} from "contracts/curator-requests";
 import {
-  outletRatingSchema,
   ratingFromStorage,
   ratingToStorage,
   type OutletRating,
   type StoredOutletRating,
 } from "contracts/outlet-rating";
-
-export const MAX_EDITORIAL_HEADLINE_LENGTH = 120;
-export const MAX_EDITORIAL_BODY_LENGTH = 2000;
-
-export const storeGameEditorialInputSchema = z
-  .object({
-    headline: z
-      .string()
-      .trim()
-      .max(MAX_EDITORIAL_HEADLINE_LENGTH)
-      .nullish()
-      .transform((value) => value || null),
-    body: z.string().trim().max(MAX_EDITORIAL_BODY_LENGTH).default(""),
-    rating: outletRatingSchema.nullable().optional(),
-    expected_draft_revision: z.number().int().min(1),
-  })
-  .strict()
-  // Omitted rating may preserve an existing note. Validate the merged record
-  // in the transaction, after acquiring the draft revision.
-  .refine((input) => input.body.length > 0 || input.rating !== null, {
-    message: "Add review text or a rating.",
-    path: ["body"],
-  });
-
-export const storeGameEditorialDeleteSchema = z
-  .object({ expected_draft_revision: z.number().int().min(1) })
-  .strict();
-
 export type StoreGameEditorialSnapshotEntry = {
   game_id: string;
   headline: string | null;
@@ -180,8 +159,9 @@ async function mapEditorialConflict(
   expectedDraftRevision: number,
 ): Promise<never> {
   if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2002" || error.code === "P2034")
+    isTransactionWriteConflict(error) ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034"))
   ) {
     const latest = await prisma.store.findUnique({
       where: { id: storeId },

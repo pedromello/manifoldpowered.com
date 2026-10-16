@@ -5,11 +5,8 @@ import { z } from "zod";
 import authorization from "models/authorization";
 import { Prisma } from "generated/prisma/client";
 
-export const userSchema = z.object({
-  username: z.string().min(1).max(30),
-  email: z.email(),
-  password: z.string().min(1).nullable(),
-});
+import { userSchema } from "contracts/creator-requests";
+export { userSchema };
 
 export const userAdminQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),

@@ -8,7 +8,6 @@ import {
   STORE_SHAPES,
   STORE_SOCIAL_PLATFORMS,
   STORE_TYPOGRAPHIES,
-  type StoreSocialPlatform,
 } from "contracts/store-presentation";
 
 export {
@@ -22,32 +21,11 @@ export {
   STORE_TYPOGRAPHIES,
 };
 
-const socialUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2048)
-  .refine(
-    (value) => {
-      try {
-        return new URL(value).protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "URL must use https",
-    },
-  );
-
-const socialLinkShape = Object.fromEntries(
-  STORE_SOCIAL_PLATFORMS.map((platform) => [
-    platform,
-    socialUrlSchema.optional(),
-  ]),
-) as Record<StoreSocialPlatform, z.ZodOptional<typeof socialUrlSchema>>;
-
-export const storeSocialLinksSchema = z.object(socialLinkShape).strict();
+import {
+  httpsUrlSchema as socialUrlSchema,
+  storeSocialLinksSchema,
+} from "contracts/creator-requests";
+export { storeSocialLinksSchema };
 
 // This is the sole presentation allowlist used by drafts, snapshots and public
 // projection. Keep it strict: adding a field is a versioned contract change.

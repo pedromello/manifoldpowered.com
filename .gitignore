@@ -3,6 +3,7 @@ node_modules
 
 # Build
 build
+tools/cli/dist
 
 # Next.js
 .next

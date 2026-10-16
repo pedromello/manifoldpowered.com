@@ -6,12 +6,7 @@ import steamImport from "models/steam_import";
 import { ValidationError } from "infra/errors";
 import * as steamRefresh from "models/steam_refresh";
 
-const steamImportRequestSchema = z.object({
-  steam_app_id: z
-    .string()
-    .max(20)
-    .regex(/^[1-9]\d*$/, "steam_app_id must be a positive integer string"),
-});
+import { steamImportRequestSchema } from "contracts/creator-requests";
 
 type SteamStatusReference = { operationId: string } | { steamAppId: string };
 

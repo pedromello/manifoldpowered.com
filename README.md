@@ -110,6 +110,19 @@ When it's ready, open **[http://localhost:3000](http://localhost:3000)**.
 
 ---
 
+## 🤖 Agent CLI
+
+Operate local, homologation and production through authenticated accounts:
+
+```sh
+npm run cli
+npm run cli:build
+npm run --silent cli -- schema outlets create --json
+```
+
+See the [agent CLI guide](docs/agent-cli.md) for signup, email verification,
+Steam/Nintendo imports, personalized outlets and publication.
+
 ## 🛠️ Tech Stack
 
 | Layer        | Technology                                                                   |
