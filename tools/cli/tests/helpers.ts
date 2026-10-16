@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { State, type CredentialStore } from "../src/state";
 import { run, type IO } from "../src/index";
+import type { Dependencies } from "../src/engine";
 export const TOKEN = "a".repeat(96);
 export class MemoryCredentials implements CredentialStore {
   entries = new Map<string, string>();
@@ -79,11 +80,13 @@ export async function invoke(
   state: State,
   requestFetch: typeof fetch,
   input = "",
+  dependencies: Partial<Dependencies> = {},
 ) {
   const output = capture(input);
   const exit = await run([...argv, "--json"], output.io, {
     state,
     fetch: requestFetch,
+    ...dependencies,
   });
   return {
     exit,

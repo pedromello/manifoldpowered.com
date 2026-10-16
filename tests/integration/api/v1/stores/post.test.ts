@@ -85,6 +85,7 @@ describe("POST /api/v1/stores", () => {
           theme_key: null,
         },
         storefront_source: "DRAFT",
+        rating_scale: null,
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
       });

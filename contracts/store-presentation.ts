@@ -5,7 +5,13 @@ export const STORE_LAYOUT_PRESETS = [
 ] as const;
 export type StoreLayoutPreset = (typeof STORE_LAYOUT_PRESETS)[number];
 
-export const STORE_PALETTES = ["manifold", "ember", "ocean"] as const;
+export const STORE_PALETTES = [
+  "manifold",
+  "ember",
+  "ocean",
+  "crimson",
+  "burgundy",
+] as const;
 export type StorePalette = (typeof STORE_PALETTES)[number];
 
 export const STORE_TYPOGRAPHIES = ["modern", "editorial", "rounded"] as const;

@@ -7,9 +7,134 @@ import { run } from "../src/index";
 import { getProfile, profileState } from "../src/profiles";
 import { getExecution } from "../src/journal";
 import { State } from "../src/state";
+import { probeImage } from "../src/image-probe";
 const identity = { id: "user-a", email: "a@example.test", username: "a" };
 const context = ["--env", "local", "--account", "a"];
 const origin = "http://localhost:3000";
+
+test("preview POST failures are retryable reads while apply failures remain indeterminate writes", async () => {
+  const f = await fixture();
+  try {
+    await f.state.storeToken("local", origin, "a", TOKEN);
+    for (const endpoint of ["tags", "bulk", "ratings"]) {
+      for (const transportFailure of [true, false]) {
+        const args =
+          endpoint === "ratings"
+            ? ["outlets", "ratings", "preview"]
+            : endpoint === "tags"
+              ? ["outlets", "tags", "preview"]
+              : ["outlets", "catalog", "bulk", "preview"];
+        const payload =
+          endpoint === "ratings"
+            ? {
+                slug: "cozy",
+                target_scale: "STARS",
+                expected_draft_revision: 1,
+              }
+            : endpoint === "tags"
+              ? {
+                  slug: "cozy",
+                  tag: "Puzzle",
+                  action: "REMOVE",
+                  expected_draft_revision: 1,
+                }
+              : {
+                  slug: "cozy",
+                  game_slugs: ["portal"],
+                  action: "SHOW",
+                  expected_draft_revision: 1,
+                };
+        let requests = 0;
+        const result = await invoke(
+          [...args, ...context, "--input", "-"],
+          f.state,
+          async (url, options) => {
+            if (new URL(String(url)).pathname === "/api/v1/user")
+              return response(identity);
+            requests++;
+            assert.equal(options?.method, "POST");
+            if (transportFailure) throw new Error("Disconnected");
+            return response({ message: "Unavailable" }, 503);
+          },
+          JSON.stringify(payload),
+        );
+        assert.equal(result.exit, 1);
+        assert.equal(result.output.error.retryable, true);
+        assert.notEqual(
+          result.output.error.details?.mutation_outcome,
+          "unknown",
+        );
+        assert.equal(requests, 1);
+      }
+    }
+    const result = await invoke(
+      ["outlets", "catalog", "bulk", "apply", ...context, "--input", "-"],
+      f.state,
+      async (url) => {
+        if (new URL(String(url)).pathname === "/api/v1/user")
+          return response(identity);
+        return response({ message: "Unavailable" }, 503);
+      },
+      JSON.stringify({
+        slug: "cozy",
+        action: "SHOW",
+        game_slugs: ["portal"],
+        expected_draft_revision: 1,
+        operation_id: "11111111-1111-4111-8111-111111111111",
+        request_fingerprint: "a".repeat(64),
+      }),
+    );
+    assert.equal(result.output.error.retryable, false);
+    assert.equal(result.output.error.details.mutation_outcome, "unknown");
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("CLI editorials preserve the newly merged rating contract and reject invalid scales before HTTP", async () => {
+  const f = await fixture();
+  try {
+    await f.state.storeToken("local", origin, "a", TOKEN);
+    let writes = 0;
+    const fetcher: typeof fetch = async (url, options) => {
+      if (new URL(String(url)).pathname === "/api/v1/user")
+        return response(identity);
+      writes++;
+      const body = JSON.parse(String(options?.body));
+      assert.deepEqual(body.rating, { scale: "STARS", value: 4.5 });
+      assert.equal(body.body, "");
+      return response({ review: body, draft_revision: 2 });
+    };
+    const payload = {
+      slug: "cozy",
+      game_slug: "portal",
+      rating: { scale: "STARS", value: 4.5 },
+      expected_draft_revision: 1,
+    };
+    const valid = await invoke(
+      ["outlets", "editorial", "set", ...context, "--input", "-"],
+      f.state,
+      fetcher,
+      JSON.stringify(payload),
+    );
+    assert.equal(valid.exit, 0);
+    for (const rating of [
+      { scale: "STARS", value: 6 },
+      { scale: "TIER", value: "NOPE" },
+    ]) {
+      const invalid = await invoke(
+        ["outlets", "editorial", "set", ...context, "--input", "-"],
+        f.state,
+        fetcher,
+        JSON.stringify({ ...payload, rating }),
+      );
+      assert.equal(invalid.exit, 2);
+    }
+    assert.equal(writes, 1);
+  } finally {
+    await f.cleanup();
+  }
+});
 test("published outlet queries omit credentials and preview, including with an account selected", async () => {
   const f = await fixture();
   try {
@@ -538,21 +663,11 @@ test("outlet verification reports unpublished changes, repeated editorials and u
   const f = await fixture();
   try {
     await f.state.storeToken("local", origin, "a", TOKEN);
-    let images = 0;
     const verified = await invoke(
       ["outlets", "verify", ...context, "--slug", "cozy", "--check-images"],
       f.state,
-      async (url, options) => {
+      async (url) => {
         const parsed = new URL(String(url));
-        if (parsed.hostname === "example.test") {
-          images++;
-          assert.ok(!(options?.headers as Record<string, string>).Cookie);
-          assert.equal(options?.redirect, "manual");
-          return new Response("", {
-            status: 302,
-            headers: { location: "https://other.test/private" },
-          });
-        }
         if (parsed.pathname.endsWith("/publication"))
           return response({
             status: "PUBLISHED",
@@ -573,9 +688,24 @@ test("outlet verification reports unpublished changes, repeated editorials and u
           cover_url: "https://127.0.0.1/private.png",
         });
       },
+      "",
+      {
+        imageProbe: (value) =>
+          probeImage(value, {
+            lookup: async () => [{ address: "10.0.0.1", family: 4 }],
+            request: (() => {
+              throw new Error("Private destinations must not be contacted");
+            }) as never,
+          }),
+      },
     );
     assert.equal(verified.exit, 1);
-    assert.equal(images, 1);
+    assert.deepEqual(
+      verified.output.data.images.map(
+        (entry: { state: string }) => entry.state,
+      ),
+      ["unavailable", "unavailable"],
+    );
     assert.equal(verified.output.data.stats.editorials, 2);
     assert.ok(
       verified.output.data.issues.some(

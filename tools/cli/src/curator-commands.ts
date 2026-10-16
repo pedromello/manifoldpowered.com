@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { Command } from "./registry";
 import {
+  outletRatingSchema,
+  ratingSystemInputSchema,
+} from "../../../contracts/outlet-rating";
+import {
   reviewInputSchema,
   storeGameEditorialInputSchema,
   tagFilterSchema,
@@ -31,6 +35,34 @@ function command(
   return { schema, description, mutation, authenticated };
 }
 export const curatorCommands: Record<string, Command> = {
+  "outlets ratings options": command(
+    empty,
+    "Listar escalas e valores de notas disponíveis",
+    false,
+    false,
+  ),
+  "outlets ratings get": command(
+    reference,
+    "Consultar escala de notas e revisão do rascunho",
+  ),
+  "outlets ratings preview": command(
+    ratingSystemInputSchema.extend({ slug }),
+    "Pré-visualizar configuração ou conversão de notas",
+  ),
+  "outlets ratings set": command(
+    ratingSystemInputSchema.extend({ slug }),
+    "Configurar ou converter a escala de notas da outlet",
+    true,
+  ),
+  "outlets ratings game get": command(
+    gameReference,
+    "Consultar texto e nota de um jogo no rascunho",
+  ),
+  "outlets ratings game set": command(
+    gameChange.extend({ rating: outletRatingSchema.nullable() }).strict(),
+    "Atribuir ou remover nota de jogo preservando seu texto editorial",
+    true,
+  ),
   "outlets discover": command(
     pages.extend({ q: z.string().optional() }).strict(),
     "Explorar outlets públicas",
@@ -80,7 +112,7 @@ export const curatorCommands: Record<string, Command> = {
     "Consultar texto editorial do rascunho",
   ),
   "outlets editorial set": command(
-    storeGameEditorialInputSchema.extend({ slug, game_slug: slug }),
+    storeGameEditorialInputSchema.safeExtend({ slug, game_slug: slug }),
     "Criar ou editar análise editorial da outlet",
     true,
   ),

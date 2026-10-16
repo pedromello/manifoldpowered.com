@@ -1,4 +1,8 @@
 import Form from "next/form";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
+import { GameArtwork as SharedGameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -138,7 +142,7 @@ function OutletLogo({
         alt={t("{name} logo", { name: store.name })}
         referrerPolicy="no-referrer"
         decoding="async"
-        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-cover shadow-2xl`}
+        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-contain p-2 shadow-2xl`}
       />
     );
   }
@@ -174,9 +178,28 @@ function OutletCover({
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg" />
+        <div
+          className={`absolute inset-0 ${store.brand_tokens?.palette === "crimson" ? "bg-gradient-to-br from-[#E60013] via-[#AE0011] to-[#410916]" : store.brand_tokens?.palette === "burgundy" ? "bg-gradient-to-br from-[#850012] via-[#62051E] to-[#0F0A14]" : "bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg"}`}
+        />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      {!coverUrl &&
+        (store.brand_tokens?.palette === "crimson" ||
+          store.brand_tokens?.palette === "burgundy") && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-hidden px-6 pb-8 text-center text-white"
+          >
+            <div className="absolute -right-12 -top-28 h-96 w-96 rounded-full border-[32px] border-white/5" />
+            <Gamepad2 size={36} strokeWidth={1.5} />
+            <span className="relative text-3xl font-black tracking-tight sm:text-6xl">
+              {store.name}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] sm:text-xs">
+              {store.tagline}
+            </span>
+          </div>
+        )}
     </div>
   );
 }
@@ -189,29 +212,7 @@ function GameArtwork({
   className?: string;
 }) {
   const artworkUrl = safeExternalUrl(game.media?.banner);
-  return (
-    <div
-      className={`relative overflow-hidden bg-sf-surface ${className ?? ""}`}
-    >
-      {artworkUrl ? (
-        // Game media can be served by developer-controlled CDNs.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={artworkUrl}
-          alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:transform-none"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sf-accent/25 to-sf-bg text-sf-muted">
-          <Gamepad2 size={32} aria-hidden="true" />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-    </div>
-  );
+  return <SharedGameArtwork src={artworkUrl} className={className} />;
 }
 
 function GamePrice({ game }: { game: GameApi }) {
@@ -225,7 +226,7 @@ function GamePrice({ game }: { game: GameApi }) {
         </span>
       )}
       <span className="text-sm font-black text-sf-fg">
-        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
+        {isCatalogFree(game) ? t("Free") : t(formatCatalogPrice(game))}
       </span>
     </span>
   );
@@ -238,6 +239,15 @@ function featuredLabel(
   if (mode === "EDITORIAL") return t("Selected by this Outlet");
   if (mode === "HYBRID") return t("Curated and trending");
   return t("Trending in this Outlet");
+}
+
+function editorialExcerpt(game: GameApi): string {
+  return (
+    game.recommendation_reason?.trim() ||
+    game.outlet_review?.headline?.trim() ||
+    game.outlet_review?.body?.trim().split(/\r?\n\s*\r?\n/, 1)[0] ||
+    game.description
+  );
 }
 
 function SearchAndFilters({
@@ -305,9 +315,11 @@ function SearchAndFilters({
         {order !== "newest" && (
           <input type="hidden" name="order" value={order} />
         )}
-        {Object.entries(searchHiddenFields).map(([name, value]) => (
-          <input key={name} type="hidden" name={name} value={value} />
-        ))}
+        {Object.entries(searchHiddenFields)
+          .filter(([name]) => !["category", "tags", "order"].includes(name))
+          .map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
       </Form>
 
       <div className={`flex flex-wrap gap-2 ${row ? "lg:pb-0" : ""}`}>
@@ -366,6 +378,13 @@ function SearchAndFilters({
         />
       </div>
 
+      <div className={row ? "lg:col-span-3" : ""}>
+        <OutletRatingFilter
+          scale={props.store.rating_scale ?? null}
+          filter={props.ratingFilter}
+          onChange={props.setRatingFilter}
+        />
+      </div>
       {tags.length > 0 && (
         <div className={`flex flex-wrap gap-2 ${row ? "lg:col-span-3" : ""}`}>
           {tags.map((tag) => (
@@ -403,6 +422,7 @@ function CatalogPagination({
     >
       <button
         type="button"
+        aria-label={t("Previous")}
         disabled={page <= 1}
         onClick={() => setPage((current) => Math.max(1, current - 1))}
         className={`${tokens.control} inline-flex h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 text-sm font-bold text-sf-fg disabled:opacity-35`}
@@ -418,6 +438,7 @@ function CatalogPagination({
       </span>
       <button
         type="button"
+        aria-label={t("Next")}
         disabled={page >= pagination.pages}
         onClick={() => setPage((current) => current + 1)}
         className={`${tokens.control} inline-flex h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 text-sm font-bold text-sf-fg disabled:opacity-35`}
@@ -458,9 +479,12 @@ function ChannelGameCard({
           </div>
           <GamePrice game={game} />
         </div>
+        <div className="mt-3">
+          <OutletRatingBadge rating={game.outlet_review?.rating} />
+        </div>
         {game.outlet_review?.body && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-sf-muted">
-            {game.outlet_review.body}
+            {game.outlet_review.body.split("\n\n")[0]}
           </p>
         )}
         {game.tags?.length > 0 && (
@@ -505,11 +529,14 @@ function EditorialGameRow({
           {t("By {studio}", { studio: game.developer_name })}
           {game.tags?.[0] ? ` · ${game.tags[0]}` : ""}
         </p>
-        <p className="mt-2 hidden line-clamp-1 text-sm leading-6 text-sf-muted sm:block">
-          {game.outlet_review?.body ||
-            game.recommendation_reason ||
-            game.description}
+        <p className="mt-2 hidden text-sm leading-6 text-sf-muted sm:line-clamp-1">
+          {editorialExcerpt(game)}
         </p>
+        {game.outlet_review?.rating && (
+          <div className="mt-2">
+            <OutletRatingBadge rating={game.outlet_review.rating} />
+          </div>
+        )}
       </div>
       <span className="hidden sm:block">
         <GamePrice game={game} />
@@ -538,20 +565,21 @@ function CommunityGameCard({
     >
       <div className="relative">
         <GameArtwork game={game} className={`${tokens.media} aspect-[4/3]`} />
-        <span
-          className={`${tokens.control} absolute left-2 top-2 bg-sf-accent px-2.5 py-1 text-[10px] font-black text-sf-accent-fg`}
-        >
-          #{index + 1}
-        </span>
       </div>
       <div className="flex items-start justify-between gap-3 px-1 pb-1 pt-4">
         <div className="min-w-0">
+          <span className="mb-1 block text-xs font-bold text-sf-muted">
+            #{index + 1}
+          </span>
           <h3 className="truncate text-base font-black text-sf-fg">
             {game.title}
           </h3>
           <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
             {t("By {studio}", { studio: game.developer_name })}
           </p>
+          <div className="mt-2">
+            <OutletRatingBadge rating={game.outlet_review?.rating} />
+          </div>
         </div>
         <GamePrice game={game} />
       </div>
@@ -660,7 +688,13 @@ function CatalogResults({
             {t("Try another search or clear the active filters.")}
           </p>
           <Link
-            href={browseHref({ q: "", category: null, tags: [], page: 1 })}
+            href={browseHref({
+              q: "",
+              category: null,
+              tags: [],
+              page: 1,
+              ...EMPTY_OUTLET_RATING_FILTER,
+            })}
             className="mt-5 inline-flex text-sm font-black text-sf-accent hover:underline"
           >
             {t("Clear filters")}
@@ -784,10 +818,10 @@ function ChannelLayout(props: PresetLayoutProps) {
               <Link
                 href={itemHref(lead.slug)}
                 data-storefront="game-link"
-                className={`${tokens.card} group relative min-h-[360px] overflow-hidden border border-sf-border bg-sf-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
+                className={`${tokens.card} group flex min-h-[360px] flex-col overflow-hidden border border-sf-border bg-sf-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
               >
-                <GameArtwork game={lead} className="absolute inset-0 h-full" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sf-bg via-sf-bg/85 to-transparent p-6 pt-24 sm:p-8 sm:pt-28">
+                <GameArtwork game={lead} className="aspect-[16/9] w-full" />
+                <div className="flex-1 bg-sf-bg p-6 sm:p-8">
                   <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
                     {t("Channel spotlight")}
                   </p>
@@ -798,9 +832,14 @@ function ChannelLayout(props: PresetLayoutProps) {
                       >
                         {lead.title}
                       </h3>
+                      <div className="mt-3">
+                        <OutletRatingBadge
+                          rating={lead.outlet_review?.rating}
+                        />
+                      </div>
                       <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-sf-muted">
-                        {lead.outlet_review?.body ||
-                          lead.recommendation_reason ||
+                        {lead.recommendation_reason ||
+                          lead.outlet_review?.body ||
                           lead.description}
                       </p>
                     </div>
@@ -828,6 +867,11 @@ function ChannelLayout(props: PresetLayoutProps) {
                       <p className="truncate text-sm font-black text-sf-fg">
                         {game.title}
                       </p>
+                      <div className="mt-2">
+                        <OutletRatingBadge
+                          rating={game.outlet_review?.rating}
+                        />
+                      </div>
                       <p className="mt-1 truncate text-xs text-sf-muted">
                         {t("By {studio}", {
                           studio: game.developer_name,
@@ -958,7 +1002,7 @@ function EditorialLayout(props: PresetLayoutProps) {
       )}
 
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-8 lg:py-16">
-        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-2 md:items-center">
           <div>
             <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
               {featuredLabel(props.featuredMode, t)}
@@ -967,10 +1011,30 @@ function EditorialLayout(props: PresetLayoutProps) {
               {t("The front page")}
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-6 text-sf-muted md:text-right">
-            {store.description ||
-              t("A considered selection from {name}.", { name: store.name })}
-          </p>
+          <div className="min-w-0 text-sm leading-6 text-sf-muted">
+            <p
+              aria-hidden={store.description ? true : undefined}
+              className="line-clamp-3 [overflow-wrap:anywhere]"
+            >
+              {store.description ||
+                t("A considered selection from {name}.", { name: store.name })}
+            </p>
+            {store.description && (
+              <details className="group mt-3">
+                <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 font-semibold underline underline-offset-4 hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent">
+                  <ChevronRight
+                    size={14}
+                    aria-hidden="true"
+                    className="shrink-0 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                  />
+                  {t("About this Outlet and credits")}
+                </summary>
+                <p className="mt-3 whitespace-pre-line [overflow-wrap:anywhere]">
+                  {store.description}
+                </p>
+              </details>
+            )}
+          </div>
         </div>
 
         {!lead ? (
@@ -981,72 +1045,90 @@ function EditorialLayout(props: PresetLayoutProps) {
             tokens={tokens}
           />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.65fr)]">
+          <div className="space-y-6">
             <Link
               href={itemHref(lead.slug)}
               data-storefront="game-link"
-              className="group grid gap-5 border-b border-sf-border pb-7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(0,1.2fr)_minmax(250px,0.8fr)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+              className={`${tokens.card} group grid min-w-0 items-center overflow-hidden border border-sf-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]`}
             >
               <GameArtwork
                 game={lead}
-                className={`${tokens.media} aspect-[4/3]`}
+                className="aspect-video w-full self-start"
               />
-              <div className="flex flex-col justify-between py-1">
-                <div>
-                  <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
-                    {t("Cover story")}
-                  </p>
-                  <h3
-                    className={`${tokens.heading} mt-3 text-3xl leading-tight text-sf-fg sm:text-4xl`}
-                  >
-                    {lead.title}
-                  </h3>
-                  <p className="mt-4 line-clamp-5 text-sm leading-7 text-sf-muted">
-                    {lead.outlet_review?.body ||
-                      lead.recommendation_reason ||
-                      lead.description}
-                  </p>
-                </div>
-                <div className="mt-6 flex items-center justify-between border-t border-sf-border pt-4">
-                  <span className="text-xs font-bold text-sf-muted">
+              <div className="min-w-0 p-6">
+                <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
+                  {t("Cover story")}
+                </p>
+                <h3
+                  className={`${tokens.heading} mt-3 text-[1.75rem] leading-tight text-sf-fg [overflow-wrap:anywhere] sm:text-3xl`}
+                >
+                  {lead.title}
+                </h3>
+                {lead.outlet_review?.rating && (
+                  <div className="mt-3">
+                    <OutletRatingBadge rating={lead.outlet_review.rating} />
+                  </div>
+                )}
+                <p className="mt-4 line-clamp-3 text-[15px] leading-6 text-sf-muted [overflow-wrap:anywhere]">
+                  {editorialExcerpt(lead)}
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-sf-border pt-4">
+                  <span className="min-w-0 flex-1 text-xs font-bold text-sf-muted [overflow-wrap:anywhere]">
                     {t("By {studio}", { studio: lead.developer_name })}
                   </span>
                   <GamePrice game={lead} />
                 </div>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                  {t("View game")}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </span>
               </div>
             </Link>
-            <div className="divide-y divide-sf-border border-y border-sf-border lg:border-y-0">
-              {picks.slice(1).map((game, index) => (
-                <Link
-                  key={game.id}
-                  href={itemHref(game.slug)}
-                  data-storefront="game-link"
-                  className="group grid grid-cols-[100px_minmax(0,1fr)] gap-4 py-5 first:pt-0 last:pb-0 lg:grid-cols-1"
-                >
-                  <GameArtwork
-                    game={game}
-                    className={`${tokens.media} aspect-[16/10]`}
-                  />
-                  <div className="min-w-0">
-                    <p
-                      className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
-                    >
-                      {t("Dispatch {number}", { number: index + 1 })}
-                    </p>
-                    <h3
-                      className={`${tokens.heading} mt-1 line-clamp-2 text-xl text-sf-fg`}
-                    >
-                      {game.title}
-                    </h3>
-                    <p className="mt-2 hidden line-clamp-2 text-xs leading-5 text-sf-muted lg:block">
-                      {game.outlet_review?.body ||
-                        game.recommendation_reason ||
-                        game.description}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            {picks.length > 1 && (
+              <div
+                className={`grid gap-4 sm:gap-6 ${picks.length > 2 ? "md:grid-cols-2" : ""}`}
+              >
+                {picks.slice(1).map((game, index) => (
+                  <Link
+                    key={game.id}
+                    href={itemHref(game.slug)}
+                    data-storefront="game-link"
+                    className={`${tokens.card} group grid min-w-0 grid-cols-[104px_minmax(0,1fr)] items-start gap-4 border border-sf-border p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(100px,0.8fr)_minmax(0,1.2fr)]`}
+                  >
+                    <GameArtwork
+                      game={game}
+                      className={`${tokens.media} aspect-video w-full`}
+                    />
+                    <div className="min-w-0">
+                      <p
+                        className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
+                      >
+                        {t("Dispatch {number}", { number: index + 1 })}
+                      </p>
+                      <h3
+                        className={`${tokens.heading} mt-1 text-lg leading-6 text-sf-fg [overflow-wrap:anywhere] sm:text-xl sm:leading-7`}
+                      >
+                        {game.title}
+                      </h3>
+                      {game.outlet_review?.rating && (
+                        <div className="mt-2">
+                          <OutletRatingBadge
+                            rating={game.outlet_review.rating}
+                          />
+                        </div>
+                      )}
+                      <p className="mt-2 line-clamp-2 text-sm leading-[22px] text-sf-muted [overflow-wrap:anywhere]">
+                        {editorialExcerpt(game)}
+                      </p>
+                      <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                        {t("View game")}
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -1152,7 +1234,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                 key={game.id}
                 href={itemHref(game.slug)}
                 data-storefront="game-link"
-                className={`${tokens.card} group relative min-h-72 overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${
+                className={`${tokens.card} group flex min-h-72 flex-col overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${
                   index === 0
                     ? "md:-rotate-1"
                     : index === 2
@@ -1160,8 +1242,8 @@ function CommunityLayout(props: PresetLayoutProps) {
                       : ""
                 }`}
               >
-                <GameArtwork game={game} className="absolute inset-0 h-full" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sf-bg via-sf-bg/90 to-transparent p-5 pt-20">
+                <GameArtwork game={game} className="aspect-[16/9] w-full" />
+                <div className="flex-1 bg-sf-bg p-5">
                   <span
                     className={`${tokens.control} inline-flex bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
                   >
@@ -1170,6 +1252,9 @@ function CommunityLayout(props: PresetLayoutProps) {
                   <h3 className={`${tokens.heading} mt-3 text-2xl text-sf-fg`}>
                     {game.title}
                   </h3>
+                  <div className="mt-3">
+                    <OutletRatingBadge rating={game.outlet_review?.rating} />
+                  </div>
                   <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
                     {t("By {studio}", { studio: game.developer_name })}
                   </p>

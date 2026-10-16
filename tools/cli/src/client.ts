@@ -20,9 +20,13 @@ export class ApiClient {
       revision?: number;
       signal?: AbortSignal;
       arrayResponse?: boolean;
+      readOnly?: boolean;
     } = {},
   ): Promise<ApiResponse> {
-    const mutation = options.method !== undefined && options.method !== "GET";
+    const mutation =
+      !options.readOnly &&
+      options.method !== undefined &&
+      options.method !== "GET";
     const url = new URL(`/api/v1${path}`, this.origin);
     if (url.origin !== this.origin || !url.pathname.startsWith("/api/v1/"))
       throw new CliError("INVALID_ROUTE", "Rota da API inválida.", 2);

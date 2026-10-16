@@ -69,7 +69,14 @@ function flagValue(key: string, value: string | boolean): unknown {
   if (["page", "limit", "expected_draft_revision"].includes(key))
     return Number(value);
   if (
-    ["recommendations", "games", "social_links", "brand_tokens"].includes(key)
+    [
+      "recommendations",
+      "games",
+      "social_links",
+      "brand_tokens",
+      "rating",
+      "mapping",
+    ].includes(key)
   ) {
     try {
       return JSON.parse(value);

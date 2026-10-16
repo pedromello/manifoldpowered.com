@@ -1,5 +1,10 @@
 import { ApiClient } from "./client";
 import { CliError } from "./errors";
+import { probeImage } from "./image-probe";
+import {
+  OUTLET_RATING_SCALES,
+  ratingValues,
+} from "../../../contracts/outlet-rating";
 
 type ActionResult = { data: unknown; exitCode?: number; next_action?: unknown };
 export async function completeOutletChange(
@@ -36,12 +41,103 @@ export async function curatorAction(
   name: string,
   payload: Record<string, unknown>,
   api: ApiClient,
-  requestFetch: typeof fetch = fetch,
+  imageProbe: typeof probeImage = probeImage,
 ): Promise<ActionResult | undefined> {
   const { slug, game_slug: gameSlug, ...body } = payload;
   const storePath = `/stores/${slug}`;
   const changed = (data: Record<string, unknown>) =>
     completeOutletChange(String(slug), data, api);
+  if (name === "outlets ratings options")
+    return {
+      data: {
+        scales: OUTLET_RATING_SCALES.map((scale) => ({
+          scale,
+          values: ratingValues(scale),
+        })),
+        conversion_requires_preview: true,
+      },
+    };
+  if (name === "outlets ratings get") {
+    const draft = (await api.request(`${storePath}?preview=1`)).body;
+    return {
+      data: {
+        slug,
+        draft_revision: draft.draft_revision,
+        rating_scale: draft.rating_scale ?? null,
+      },
+    };
+  }
+  if (name === "outlets ratings preview" || name === "outlets ratings set") {
+    const preview = name.endsWith("preview");
+    const data = (
+      await api.request(
+        `${storePath}/rating-system${preview ? "/preview" : ""}`,
+        { method: preview ? "POST" : "PUT", body, readOnly: preview },
+      )
+    ).body;
+    return { data: { slug, ...data } };
+  }
+  if (
+    name === "outlets ratings game get" ||
+    name === "outlets ratings game set"
+  ) {
+    const path = `${storePath}/game-editorials/${gameSlug}`;
+    const draft = (await api.request(`${storePath}?preview=1`)).body;
+    const revision = draft.draft_revision;
+    const conflict = (actual: unknown) =>
+      new CliError(
+        "REVISION_CONFLICT",
+        "O rascunho mudou. Consulte a revisão e a nota atuais antes de editar.",
+        1,
+        {
+          expected_draft_revision: body.expected_draft_revision ?? revision,
+          actual_draft_revision: actual,
+        },
+      );
+    if (typeof revision !== "number")
+      throw new CliError(
+        "INVALID_API_RESPONSE",
+        "A API não informou a revisão do rascunho.",
+      );
+    if (name.endsWith("set") && revision !== body.expected_draft_revision)
+      throw conflict(revision);
+    const current = (await api.request(`${path}?preview=1`)).body;
+    // The editorial GET has no revision field. Bracket it with authoritative
+    // draft reads; the eventual PUT also enforces the observed revision.
+    const after = (await api.request(`${storePath}?preview=1`)).body;
+    if (after.draft_revision !== revision) throw conflict(after.draft_revision);
+    if (name.endsWith("get"))
+      return {
+        data: {
+          ...current,
+          slug,
+          game_slug: gameSlug,
+          rating_scale: draft.rating_scale ?? null,
+          draft_revision: revision,
+        },
+      };
+    const review = current.review as {
+      headline?: string | null;
+      body?: string;
+    } | null;
+    return {
+      data: {
+        slug,
+        game_slug: gameSlug,
+        ...(
+          await api.request(path, {
+            method: "PUT",
+            body: {
+              headline: review?.headline ?? null,
+              body: review?.body ?? "",
+              rating: body.rating,
+              expected_draft_revision: body.expected_draft_revision,
+            },
+          })
+        ).body,
+      },
+    };
+  }
   if (name === "outlets discover")
     return {
       data: (await api.request(`/public/stores?${query(payload)}`)).body,
@@ -136,7 +232,7 @@ export async function curatorAction(
       data: (
         await api.request(
           `${storePath}/game-overrides/bulk${name.endsWith("preview") ? "/preview" : ""}`,
-          { method: "POST", body },
+          { method: "POST", body, readOnly: name.endsWith("preview") },
         )
       ).body,
     };
@@ -152,8 +248,13 @@ export async function curatorAction(
       };
     if (name.endsWith("preview"))
       return {
-        data: (await api.request(`${path}/preview`, { method: "POST", body }))
-          .body,
+        data: (
+          await api.request(`${path}/preview`, {
+            method: "POST",
+            body,
+            readOnly: true,
+          })
+        ).body,
       };
     const { tag, ...rest } = body;
     const method = name.endsWith("add")
@@ -237,18 +338,13 @@ export async function curatorAction(
     };
   }
   if (name === "outlets verify")
-    return verifyOutlet(
-      String(slug),
-      api,
-      !!payload.check_images,
-      requestFetch,
-    );
+    return verifyOutlet(String(slug), api, !!payload.check_images, imageProbe);
 }
 async function verifyOutlet(
   slug: string,
   api: ApiClient,
   checkImages: boolean,
-  requestFetch: typeof fetch,
+  imageProbe: typeof probeImage,
 ): Promise<ActionResult> {
   const path = `/stores/${slug}`;
   const draft = (await api.request(`${path}?preview=1`)).body;
@@ -331,41 +427,9 @@ async function verifyOutlet(
       images.push({ field, state: "not_checked" });
       continue;
     }
-    let valid = false,
-      status: number | undefined;
-    try {
-      const url = new URL(value);
-      const host = url.hostname.toLowerCase();
-      if (
-        url.protocol !== "https:" ||
-        url.username ||
-        url.password ||
-        host === "localhost" ||
-        host.endsWith(".local") ||
-        /^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.|\[)/.test(
-          host,
-        )
-      )
-        throw new Error("Private image origin");
-      const response = await requestFetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(10000),
-        headers: { Range: "bytes=0-0", Accept: "image/*" },
-      });
-      status = response.status;
-      valid =
-        response.ok &&
-        (response.headers.get("content-type") ?? "").startsWith("image/");
-      await response.body?.cancel();
-    } catch {
-      /* The report does not expose URL credentials or network errors. */
-    }
-    images.push({
-      field,
-      state: valid ? "available" : "unavailable",
-      http_status: status,
-    });
-    if (!valid)
+    const result = await imageProbe(value);
+    images.push({ field, ...result });
+    if (result.state !== "available")
       issues.push({ severity: "error", code: "IMAGE_UNAVAILABLE", field });
   }
   const errors = issues.filter((issue) => issue.severity === "error").length;

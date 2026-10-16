@@ -18,6 +18,10 @@ The package in `tools/cli` declares the `manifold` executable. After building,
 built executable or `npm run --silent cli -- ...`; the `--silent` avoids npm's
 own script announcements outside the CLI's JSON contract.
 
+The reusable agent skill lives in `tools/cli/skills/manifold-cli`. Install that
+folder under your Codex skills directory to invoke `$manifold-cli`; it covers
+account isolation, email verification, curation, publication and recovery.
+
 `schema <command> --json` describes its input, required context and stdin-only
 fields. Ordinary fields accept flags (`--logo-url`, `--game-slugs`, `--revision`)
 or a JSON object with API names (`logo_url`, `game_slugs`, `expected_draft_revision`).
@@ -239,6 +243,38 @@ revision. Subsequent draft edits remain private until republished.
 
 ## Editorials, account reviews and discovery
 
+### Outlet rating configuration and game scores
+
+```sh
+manifold outlets ratings options --json
+manifold outlets ratings get --profile curator-coop --slug cozy-discoveries --json
+manifold outlets ratings preview --profile curator-coop --slug cozy-discoveries --target-scale STARS --revision 3 --json
+manifold outlets ratings set --profile curator-coop --slug cozy-discoveries --target-scale STARS --revision 3 --json
+manifold outlets ratings game get --profile curator-coop --slug cozy-discoveries --game-slug portal --json
+manifold outlets ratings game set --profile curator-coop --input rating.json --json
+```
+
+Replace the illustrative revision with the observed draft revision. Options lists
+every valid STARS, NUMERIC_10 and TIER value. Get reads the current draft scale.
+Preview is a read-only POST and reports the full conversion mapping and affected
+counts. Set configures a new scale or converts existing ratings through the
+existing backend API. With existing scores, review and supply every source value
+exactly once. Copy only `from` and `to` from preview entries; their `count` field
+is diagnostic and is not accepted in the apply input. Use JSON `mapping`, or
+`--mapping` with a JSON array. Applying requires the observed revision.
+
+Game set accepts `slug`, `game_slug`, `rating` and `expected_draft_revision`.
+For example, `rating: {"scale":"STARS","value":4.5}` assigns a score and
+`rating: null` clears it. It first reads the current draft editorial, checks its
+revision, and preserves its headline and body when writing the rating. This
+prevents a score-only edit from erasing the text. Rating-only entries are allowed;
+clearing the final content of an entry follows the server's empty-record rules.
+Ratings remain private until publication; public editorial/catalog reads expose
+the published scores. `--rating` also accepts JSON. These outlet scores are
+separate from account reviews and their eligibility requirements.
+
+### Editorial text and account activity
+
 ```sh
 manifold outlets editorial set --profile curator-coop --input editorial.json --json
 manifold outlets editorial get --profile curator-coop --slug cozy-discoveries \
@@ -248,7 +284,11 @@ manifold outlets discover --env hml --q cozy --json
 ```
 
 An editorial input contains `slug`, `game_slug`, optional `headline` (120
-characters), `body` (1–2,000 characters), and `expected_draft_revision`.
+characters), `body` (up to 2,000 characters), optional `rating`, and
+`expected_draft_revision`. Ratings use the shared STARS, NUMERIC_10 or TIER
+contract. Rating-only entries are supported; omitted ratings preserve existing
+notes, while explicit null clears them subject to the server's merged-record
+validation. Respect the outlet's configured scale and consult the command schema.
 `editorial get` reads the private draft; `set` and `remove` edit it. Editorials
 are captured in immutable publication revisions and are separate from community
 review scores. `outlets public` reads the public snapshot anonymously.
@@ -287,7 +327,9 @@ the normal account permissions for published outlets.
 `outlets verify` returns server readiness, publication/draft revisions, catalog
 and editorial counts, and duplicate editorial warnings. `--check-images`
 additionally checks logo/cover availability without sending session cookies or
-following redirects; private/loopback image hosts are rejected. This is an
+following redirects. All resolved addresses must be public; connections pin a
+checked address while TLS verifies the original hostname, preventing DNS changes
+from routing a probe into a private network. This is an
 availability check, not a visual-quality judgment. Without the flag, images
 are explicitly reported as not checked. Blocking issues return exit `1` with
 the completed report; warnings remain exit `0`.
@@ -311,6 +353,8 @@ Resume polls recorded imports using GET; it never resubmits creation or editing
 requests. Inspect existing resources before repeating an interrupted or
 indeterminate mutation. Network errors, malformed mutation responses, server
 failures and mutation precondition responses are not advertised as safe retries.
+Tag and bulk preview POSTs explicitly use read-only semantics, so transient
+failures are retryable without being mislabeled as uncertain writes.
 If an outlet edit succeeds but its follow-up readiness read fails, the result
 remains completed with `mutation_outcome: "applied"` and a `next_action` to read
 `outlets readiness`. Repeat the read, not the accepted edit.

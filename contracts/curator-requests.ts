@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { outletRatingSchema } from "./outlet-rating";
 
 export const reviewInputSchema = z.object({
   slug: z.string().min(1),
@@ -15,10 +16,17 @@ export const storeGameEditorialInputSchema = z
       .max(MAX_EDITORIAL_HEADLINE_LENGTH)
       .nullish()
       .transform((value) => value || null),
-    body: z.string().trim().min(1).max(MAX_EDITORIAL_BODY_LENGTH),
+    body: z.string().trim().max(MAX_EDITORIAL_BODY_LENGTH).default(""),
+    rating: outletRatingSchema.nullable().optional(),
     expected_draft_revision: z.number().int().positive(),
   })
-  .strict();
+  .strict()
+  // Omitted rating may preserve an existing note. Validate the merged record
+  // in the transaction, after acquiring the draft revision.
+  .refine((input) => input.body.length > 0 || input.rating !== null, {
+    message: "Add review text or a rating.",
+    path: ["body"],
+  });
 export const storeGameEditorialDeleteSchema = z
   .object({ expected_draft_revision: z.number().int().positive() })
   .strict();

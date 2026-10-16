@@ -1,4 +1,5 @@
 import type { DisplayPrice } from "lib/price";
+import type { OutletRating, OutletRatingScale } from "contracts/outlet-rating";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
   STORE_LAYOUT_PRESETS,
@@ -72,6 +73,7 @@ export type GameApi = {
   outlet_review?: {
     headline: string | null;
     body: string;
+    rating?: OutletRating | null;
   } | null;
   /** Distinguishes Outlet picks from automatic carousel fillers. */
   featured_source?: "EDITORIAL" | "AUTOMATIC";
@@ -120,6 +122,7 @@ export type StoreApi = {
   id: string;
   slug: string;
   name: string;
+  rating_scale?: OutletRatingScale | null;
   description: string | null;
   logo_url: string | null;
   /** Registry-controlled and never accepted by the owner-facing write schema. */
@@ -187,6 +190,7 @@ export function storeContextFromApi(store: StoreApi) {
     id: store.id,
     slug: store.slug,
     name: store.name,
+    rating_scale: store.rating_scale ?? null,
     description: store.description,
     logo_url: store.logo_url,
     theme_key:

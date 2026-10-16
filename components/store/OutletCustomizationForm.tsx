@@ -21,6 +21,7 @@ import {
 import { useI18n } from "lib/i18n";
 import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import { isBespokeThemeKey } from "storefronts/bespoke";
+import { OutletRatingSystemSettings } from "components/store/OutletRatingSystemSettings";
 
 const PRESET_OPTIONS: Array<{
   value: OutletLayoutPreset;
@@ -66,6 +67,16 @@ const PALETTE_OPTIONS: Array<{
     value: "ocean",
     label: "Deep Ocean",
     swatches: ["#071014", "#22d3ee", "#f7fcfd"],
+  },
+  {
+    value: "crimson",
+    label: "Crimson Red",
+    swatches: ["#110b0d", "#ff6678", "#ffffff"],
+  },
+  {
+    value: "burgundy",
+    label: "Dark Burgundy",
+    swatches: ["#0f0a14", "#ff8a75", "#ffffff"],
   },
 ];
 
@@ -751,6 +762,33 @@ export function OutletCustomizationForm({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(540px,1.2fr)]">
         <div className="flex min-w-0 flex-col gap-8">
+          <OutletRatingSystemSettings
+            slug={store.slug}
+            scale={savedStore.rating_scale ?? null}
+            draftRevision={draftRevision}
+            disabled={isDirty || isSubmitting || isPublishing}
+            onApplied={async (result) => {
+              setSavedStore((current) => ({
+                ...current,
+                rating_scale: result.rating_scale,
+                draft_revision: result.draft_revision,
+              }));
+              setDraftRevision(result.draft_revision);
+              setPreviewRevision((current) => current + 1);
+              await Promise.all([
+                mutate(managementKey),
+                mutatePublication(),
+                revalidateOutletDraftCaches(mutate, store.slug),
+              ]);
+            }}
+            onReload={async () => {
+              await Promise.all([
+                mutate(managementKey),
+                mutatePublication(),
+                revalidateOutletDraftCaches(mutate, store.slug),
+              ]);
+            }}
+          />
           <section aria-labelledby="identity-heading">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-300">
               {t("Identity")}

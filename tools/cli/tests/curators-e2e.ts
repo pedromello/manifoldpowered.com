@@ -227,6 +227,137 @@ try {
       passed(liveEditorial, "public editorial");
       assert.ok(liveEditorial.data.review.body.includes(account));
       const firstPublicText = liveEditorial.data.review.body;
+      assert.equal(liveEditorial.data.review.rating, null);
+      const ratingConfig = await cli("outlets ratings get", { slug }, account);
+      passed(ratingConfig, "initial rating configuration");
+      assert.equal(ratingConfig.data.rating_scale, null);
+      const starsPreview = await cli(
+        "outlets ratings preview",
+        { slug, target_scale: "STARS", expected_draft_revision: revision },
+        account,
+      );
+      passed(starsPreview, "stars preview");
+      assert.equal(starsPreview.data.draft_revision, revision);
+      const stars = await cli(
+        "outlets ratings set",
+        { slug, target_scale: "STARS", expected_draft_revision: revision },
+        account,
+      );
+      passed(stars, "enable stars");
+      revision = stars.data.draft_revision;
+      const starRating = await cli(
+        "outlets ratings game set",
+        {
+          slug,
+          game_slug: slugs[0],
+          rating: { scale: "STARS", value: 4.5 },
+          expected_draft_revision: revision,
+        },
+        account,
+      );
+      passed(starRating, "rate game without replacing editorial");
+      revision = starRating.data.draft_revision;
+      assert.equal(starRating.data.review.body, firstPublicText);
+      assert.equal(starRating.data.review.headline, "Curator perspective");
+      const beforeInvalid = revision;
+      const invalidRating = await cli(
+        "outlets ratings game set",
+        {
+          slug,
+          game_slug: slugs[0],
+          rating: { scale: "STARS", value: 6 },
+          expected_draft_revision: revision,
+        },
+        account,
+      );
+      assert.equal(invalidRating.exit, 2);
+      const staleRating = await cli(
+        "outlets ratings game set",
+        {
+          slug,
+          game_slug: slugs[0],
+          rating: null,
+          expected_draft_revision: revision - 1,
+        },
+        account,
+      );
+      assert.equal(staleRating.error.code, "REVISION_CONFLICT");
+      const stillCurrent = await cli("outlets ratings get", { slug }, account);
+      assert.equal(stillCurrent.data.draft_revision, beforeInvalid);
+      const clearRating = await cli(
+        "outlets ratings game set",
+        {
+          slug,
+          game_slug: slugs[0],
+          rating: null,
+          expected_draft_revision: revision,
+        },
+        account,
+      );
+      passed(clearRating, "clear rating while preserving text");
+      revision = clearRating.data.draft_revision;
+      assert.equal(clearRating.data.review.body, firstPublicText);
+      assert.equal(clearRating.data.review.rating, null);
+      const restoredRating = await cli(
+        "outlets ratings game set",
+        {
+          slug,
+          game_slug: slugs[0],
+          rating: { scale: "STARS", value: 4.5 },
+          expected_draft_revision: revision,
+        },
+        account,
+      );
+      passed(restoredRating, "restore rating");
+      revision = restoredRating.data.draft_revision;
+      for (const target_scale of ["NUMERIC_10", "TIER"]) {
+        const previous = await cli(
+          "outlets ratings game get",
+          { slug, game_slug: slugs[0] },
+          account,
+        );
+        const preview = await cli(
+          "outlets ratings preview",
+          { slug, target_scale, expected_draft_revision: revision },
+          account,
+        );
+        passed(preview, "rating scale conversion preview");
+        assert.equal(preview.data.rated_count, 1);
+        const expectedValue = preview.data.mapping.find(
+          (entry: { from: unknown }) =>
+            entry.from === previous.data.review.rating.value,
+        ).to;
+        const converted = await cli(
+          "outlets ratings set",
+          {
+            slug,
+            target_scale,
+            expected_draft_revision: revision,
+            mapping: preview.data.mapping.map(
+              ({ from, to }: { from: unknown; to: unknown }) => ({ from, to }),
+            ),
+          },
+          account,
+        );
+        passed(converted, "rating scale conversion");
+        revision = converted.data.draft_revision;
+        const actual = await cli(
+          "outlets ratings game get",
+          { slug, game_slug: slugs[0] },
+          account,
+        );
+        assert.deepEqual(actual.data.review.rating, {
+          scale: target_scale,
+          value: expectedValue,
+        });
+        assert.equal(actual.data.review.body, firstPublicText);
+      }
+      const stillUnrated = await cli(
+        "outlets editorial public",
+        { slug, game_slug: slugs[0] },
+        account,
+      );
+      assert.equal(stillUnrated.data.review.rating, null);
       const liveCatalog = await cli(
         "outlets catalog public",
         { slug, limit: 100 },
@@ -423,6 +554,7 @@ try {
           game_slug: slugs[0],
           headline: "Final perspective",
           body: finalText,
+          rating: { scale: "TIER", value: "A" },
           expected_draft_revision: revision,
         },
         account,
@@ -444,6 +576,10 @@ try {
       );
       passed(finalPublic, "republished public editorial");
       assert.equal(finalPublic.data.review.body, finalText);
+      assert.deepEqual(finalPublic.data.review.rating, {
+        scale: "TIER",
+        value: "A",
+      });
       const verified = await cli("outlets verify", { slug }, account);
       passed(verified, "outlet verification");
       assert.equal(verified.data.status, "pass");

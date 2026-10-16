@@ -313,6 +313,9 @@ export const payloadOptions = Object.fromEntries(
     "tag",
     "status",
     "request-fingerprint",
+    "target-scale",
+    "rating",
+    "mapping",
     "execution-id",
   ].map((key) => [key, { type: "string" as const }]),
 );

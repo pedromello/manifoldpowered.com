@@ -191,6 +191,7 @@ describe("GET /api/v1/stores/[slug]/curation-catalog", () => {
           outlet_review: {
             headline: "Catalog headline",
             body: "Draft editorial copy shown to the catalog manager.",
+            rating: null,
           },
         }),
         expect.objectContaining({

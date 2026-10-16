@@ -39,6 +39,7 @@ import {
   mergeExecutionSummary,
 } from "./journal";
 import { curatorAction, completeOutletChange } from "./curation";
+import type { probeImage } from "./image-probe";
 
 export type Options = {
   env?: string;
@@ -59,6 +60,7 @@ export type Outcome = {
 export type Dependencies = {
   state?: State;
   fetch?: typeof fetch;
+  imageProbe?: typeof probeImage;
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<unknown>;
   progress?: (message: string) => void;
@@ -485,7 +487,7 @@ export async function execute(
       },
     );
   }
-  const curated = await curatorAction(name, payload, api, deps.fetch);
+  const curated = await curatorAction(name, payload, api, deps.imageProbe);
   if (curated)
     return result(curated.data, {
       exitCode: curated.exitCode,

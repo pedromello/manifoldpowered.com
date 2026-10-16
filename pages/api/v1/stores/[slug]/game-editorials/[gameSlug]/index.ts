@@ -42,9 +42,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
           ])
         )[0] ?? null);
 
-  return res.status(200).json({
-    review: review ? { headline: review.headline, body: review.body } : null,
-  });
+  return res.status(200).json(
+    authorization.filterOutput(req.context.user, "read:public_game", {
+      review: review ? storeGameEditorial.toPublicReview(review) : null,
+    }),
+  );
 }
 
 async function writableStore(req: NextApiRequest) {
@@ -75,13 +77,13 @@ async function putHandler(req: NextApiRequest, res: NextApiResponse) {
     req.query.gameSlug as string,
     input.data,
   );
-  return res.status(200).json({
-    review: {
-      headline: result.review.headline,
-      body: result.review.body,
-    },
-    draft_revision: result.draft_revision,
-  });
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.status(200).json(
+    authorization.filterOutput(req.context.user, "update:store", {
+      review: storeGameEditorial.toPublicReview(result.review),
+      draft_revision: result.draft_revision,
+    }),
+  );
 }
 
 async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {

@@ -1,6 +1,6 @@
 import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
-import { ConflictError, NotFoundError } from "infra/errors";
+import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
 import { z } from "zod";
 import { isTransactionWriteConflict } from "lib/transaction-conflict";
 import { storeGameEditorialInputSchema } from "contracts/curator-requests";
@@ -10,11 +10,17 @@ export {
   storeGameEditorialInputSchema,
   storeGameEditorialDeleteSchema,
 } from "contracts/curator-requests";
-
+import {
+  ratingFromStorage,
+  ratingToStorage,
+  type OutletRating,
+  type StoredOutletRating,
+} from "contracts/outlet-rating";
 export type StoreGameEditorialSnapshotEntry = {
   game_id: string;
   headline: string | null;
   body: string;
+  rating?: OutletRating | null;
 };
 
 function editorialConflict(expected: number, actual: number) {
@@ -73,6 +79,34 @@ async function upsert(
       async (transaction) => {
         const gameId = await resolveGameId(gameSlug, transaction);
         await advanceDraft(storeId, input.expected_draft_revision, transaction);
+        const [outlet, existing] = await Promise.all([
+          transaction.store.findUniqueOrThrow({
+            where: { id: storeId },
+            select: { rating_scale: true },
+          }),
+          transaction.storeGameEditorial.findUnique({
+            where: { store_id_game_id: { store_id: storeId, game_id: gameId } },
+          }),
+        ]);
+        const rating =
+          input.rating === undefined
+            ? ratingFromStorage(existing ?? {})
+            : input.rating;
+        if (rating && rating.scale !== outlet.rating_scale) {
+          throw new ValidationError({
+            message: "The rating must use the Outlet's configured scale.",
+            action:
+              "Configure the Outlet rating system or select a rating in its current scale.",
+          });
+        }
+        if (!input.body && rating === null) {
+          throw new ValidationError({
+            message: "A review needs text or a rating.",
+            action:
+              "Add review text or a rating, or remove the existing review.",
+          });
+        }
+        const storedRating = ratingToStorage(rating);
         const review = await transaction.storeGameEditorial.upsert({
           where: { store_id_game_id: { store_id: storeId, game_id: gameId } },
           create: {
@@ -80,8 +114,13 @@ async function upsert(
             game_id: gameId,
             headline: input.headline,
             body: input.body,
+            ...storedRating,
           },
-          update: { headline: input.headline, body: input.body },
+          update: {
+            headline: input.headline,
+            body: input.body,
+            ...storedRating,
+          },
         });
         return { review, draft_revision: input.expected_draft_revision + 1 };
       },
@@ -138,23 +177,44 @@ async function mapEditorialConflict(
 
 async function findDraftByStoreAndGameIds(storeId: string, gameIds: string[]) {
   if (gameIds.length === 0) return [];
-  return prisma.storeGameEditorial.findMany({
+  const reviews = await prisma.storeGameEditorial.findMany({
     where: { store_id: storeId, game_id: { in: gameIds } },
-    select: { game_id: true, headline: true, body: true },
+    select: {
+      game_id: true,
+      headline: true,
+      body: true,
+      rating_scale: true,
+      rating_value: true,
+    },
   });
+  return reviews.map((review) => ({
+    game_id: review.game_id,
+    ...toPublicReview(review),
+  }));
+}
+
+type EditorialSource = {
+  headline?: string | null;
+  body: string;
+  rating?: OutletRating | null;
+} & Partial<StoredOutletRating>;
+
+export function toPublicReview(review: EditorialSource) {
+  return {
+    headline: review.headline ?? null,
+    body: review.body,
+    rating:
+      review.rating === undefined ? ratingFromStorage(review) : review.rating,
+  };
 }
 
 function mapForStorefront(
-  source: Array<{
-    game_id: string;
-    headline?: string | null;
-    body: string;
-  }>,
+  source: Array<EditorialSource & { game_id: string }>,
 ) {
   return new Map(
     source.map((review) => [
       review.game_id,
-      { ...review, headline: review.headline ?? null },
+      { game_id: review.game_id, ...toPublicReview(review) },
     ]),
   );
 }
@@ -164,6 +224,7 @@ const storeGameEditorial = {
   remove,
   findDraftByStoreAndGameIds,
   mapForStorefront,
+  toPublicReview,
 };
 
 export default storeGameEditorial;
