@@ -1012,7 +1012,10 @@ function EditorialLayout(props: PresetLayoutProps) {
             </h2>
           </div>
           <div className="min-w-0 text-sm leading-6 text-sf-muted">
-            <p className="line-clamp-3 [overflow-wrap:anywhere]">
+            <p
+              aria-hidden={store.description ? true : undefined}
+              className="line-clamp-3 [overflow-wrap:anywhere]"
+            >
               {store.description ||
                 t("A considered selection from {name}.", { name: store.name })}
             </p>

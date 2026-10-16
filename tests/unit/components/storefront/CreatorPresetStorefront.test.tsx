@@ -412,11 +412,33 @@ describe("CreatorPresetStorefront", () => {
       <CreatorPresetStorefront {...editorialProps} />,
     );
     const disclosure = markup.match(/<details\b[^>]*>[\s\S]*?<\/details>/)?.[0];
+    const hiddenTeaser = markup.match(
+      /<p\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/p>/,
+    )?.[0];
 
     expect(disclosure).toContain("<summary");
     expect(disclosure).toContain("About this Outlet and credits");
     expect(disclosure).toContain(editorialProps.store.description);
     expect(disclosure).not.toContain("open=");
+    expect(hiddenTeaser).toContain(editorialProps.store.description);
+    expect(disclosure?.match(/^<details\b[^>]*>/)?.[0]).not.toContain(
+      "aria-hidden",
+    );
+  });
+
+  test("keeps the fallback introduction accessible when there is no description to expand", () => {
+    const editorialProps = props("editorial");
+    editorialProps.store.description = null;
+    const markup = renderToStaticMarkup(
+      <CreatorPresetStorefront {...editorialProps} />,
+    );
+    const introduction = markup.match(
+      /<p\b[^>]*>A considered selection from Lantern Club\.<\/p>/,
+    )?.[0];
+
+    expect(introduction).toBeDefined();
+    expect(introduction).not.toContain('aria-hidden="true"');
+    expect(markup).not.toContain("<details");
   });
 
   test("keeps zero and half-point ratings on the lead and secondary highlights", () => {
