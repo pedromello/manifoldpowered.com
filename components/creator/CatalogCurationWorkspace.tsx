@@ -1116,7 +1116,7 @@ export function CatalogCurationWorkspace({
                             </p>
                           </div>
                           <span className="shrink-0 text-sm font-black text-white/75">
-                            {formatCatalogPrice(game, t("Free"))}
+                            {t(formatCatalogPrice(game, t("Free")))}
                           </span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-1.5">

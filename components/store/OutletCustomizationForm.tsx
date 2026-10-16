@@ -67,6 +67,16 @@ const PALETTE_OPTIONS: Array<{
     label: "Deep Ocean",
     swatches: ["#071014", "#22d3ee", "#f7fcfd"],
   },
+  {
+    value: "crimson",
+    label: "Crimson Red",
+    swatches: ["#110b0d", "#ff6678", "#ffffff"],
+  },
+  {
+    value: "burgundy",
+    label: "Dark Burgundy",
+    swatches: ["#0f0a14", "#ff8a75", "#ffffff"],
+  },
 ];
 
 const TYPOGRAPHY_OPTIONS: Array<{

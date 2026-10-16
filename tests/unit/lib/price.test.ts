@@ -86,6 +86,6 @@ describe("catalog price formatting", () => {
         price: null,
         external_offer: null,
       }),
-    ).toBe("Catalog only");
+    ).toBe("Price unavailable");
   });
 });

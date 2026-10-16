@@ -138,7 +138,7 @@ function OutletLogo({
         alt={t("{name} logo", { name: store.name })}
         referrerPolicy="no-referrer"
         decoding="async"
-        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-cover shadow-2xl`}
+        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-contain p-2 shadow-2xl`}
       />
     );
   }
@@ -174,9 +174,28 @@ function OutletCover({
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg" />
+        <div
+          className={`absolute inset-0 ${store.brand_tokens?.palette === "crimson" ? "bg-gradient-to-br from-[#E60013] via-[#AE0011] to-[#410916]" : store.brand_tokens?.palette === "burgundy" ? "bg-gradient-to-br from-[#850012] via-[#62051E] to-[#0F0A14]" : "bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg"}`}
+        />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      {!coverUrl &&
+        (store.brand_tokens?.palette === "crimson" ||
+          store.brand_tokens?.palette === "burgundy") && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-hidden px-6 pb-8 text-center text-white"
+          >
+            <div className="absolute -right-12 -top-28 h-96 w-96 rounded-full border-[32px] border-white/5" />
+            <Gamepad2 size={36} strokeWidth={1.5} />
+            <span className="relative text-3xl font-black tracking-tight sm:text-6xl">
+              {store.name}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] sm:text-xs">
+              {store.tagline}
+            </span>
+          </div>
+        )}
     </div>
   );
 }
@@ -225,7 +244,7 @@ function GamePrice({ game }: { game: GameApi }) {
         </span>
       )}
       <span className="text-sm font-black text-sf-fg">
-        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
+        {isCatalogFree(game) ? t("Free") : t(formatCatalogPrice(game))}
       </span>
     </span>
   );
@@ -460,7 +479,7 @@ function ChannelGameCard({
         </div>
         {game.outlet_review?.body && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-sf-muted">
-            {game.outlet_review.body}
+            {game.outlet_review.body.split("\n\n")[0]}
           </p>
         )}
         {game.tags?.length > 0 && (
@@ -799,8 +818,8 @@ function ChannelLayout(props: PresetLayoutProps) {
                         {lead.title}
                       </h3>
                       <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-sf-muted">
-                        {lead.outlet_review?.body ||
-                          lead.recommendation_reason ||
+                        {lead.recommendation_reason ||
+                          lead.outlet_review?.body ||
                           lead.description}
                       </p>
                     </div>

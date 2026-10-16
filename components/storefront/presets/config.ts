@@ -58,6 +58,26 @@ export const OUTLET_PALETTES: Record<
   StoreBrandTokens["palette"],
   OutletPaletteDefinition
 > = {
+  crimson: {
+    id: "crimson",
+    bg: "#110B0D",
+    surface: "#221619",
+    border: "#57363E",
+    fg: "#FFFFFF",
+    muted: "#D8BEC4",
+    accent: "#FF6678",
+    accentFg: "#110B0D",
+  },
+  burgundy: {
+    id: "burgundy",
+    bg: "#0F0A14",
+    surface: "#25101C",
+    border: "#5C3044",
+    fg: "#FFFFFF",
+    muted: "#D5BFCB",
+    accent: "#FF8A75",
+    accentFg: "#0F0A14",
+  },
   manifold: {
     id: "manifold",
     bg: "#0B0812",

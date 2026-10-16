@@ -91,7 +91,7 @@ export function PurchaseCard({
                   className="text-3xl font-black uppercase tracking-tight"
                   style={{ color: discountBadgeColor }}
                 >
-                  {free ? t("Free") : formatCatalogPrice(game)}
+                  {free ? t("Free") : t(formatCatalogPrice(game))}
                 </span>
               </div>
               {!free && discountLabel && (
@@ -273,6 +273,7 @@ export function PurchaseCard({
                     month: "short",
                     day: "numeric",
                     year: "numeric",
+                    timeZone: "UTC",
                   })
                 : t("To be announced")}
             </span>
