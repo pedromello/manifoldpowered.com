@@ -53,15 +53,23 @@ function fromSelection(row: SelectionSummary): SelectionInput {
   };
 }
 
-export function SelectionWorkspace({
-  storeSlug,
-  canEdit,
-  canPublish,
-}: {
+type SelectionWorkspaceProps = {
   storeSlug: string;
   canEdit: boolean;
   canPublish: boolean;
-}) {
+};
+
+export function SelectionWorkspace(props: SelectionWorkspaceProps) {
+  // A different outlet must never inherit another outlet's editable draft or
+  // a late response from its requests during client-side navigation.
+  return <SelectionWorkspaceDraft key={props.storeSlug} {...props} />;
+}
+
+function SelectionWorkspaceDraft({
+  storeSlug,
+  canEdit,
+  canPublish,
+}: SelectionWorkspaceProps) {
   const { t, locale } = useI18n();
   const [page, setPage] = useState(1);
   const path = `/api/v1/stores/${encodeURIComponent(storeSlug)}/selections`;

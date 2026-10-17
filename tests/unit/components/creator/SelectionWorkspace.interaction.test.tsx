@@ -169,3 +169,52 @@ test("shows game names, supports ordering, and publishes only the saved revision
     "Selection published.",
   );
 });
+
+test("changing outlets clears the previous draft and cannot save it into the next outlet", async () => {
+  await load();
+  editTitle("Belongs only to the first outlet");
+  act(() =>
+    root.render(
+      <SelectionWorkspace storeSlug="another-outlet" canEdit canPublish />,
+    ),
+  );
+  expect(container.querySelector("input")?.value).toBe("");
+  expect(button("New selection").disabled).toBe(false);
+  expect(container.textContent).not.toContain(
+    "Belongs only to the first outlet",
+  );
+  expect(container.textContent).not.toContain("Preview saved selection");
+  await act(async () =>
+    container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+  // An empty new-outlet form fails validation instead of PATCHing an old row
+  // with a coincidentally matching slug and draft revision in another outlet.
+  expect(mockRequest).toHaveBeenCalledTimes(1);
+});
+
+test("a late draft response from another outlet cannot populate the current editor", async () => {
+  let resolveOldDraft!: (value: unknown) => void;
+  mockRequest.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveOldDraft = resolve;
+      }),
+  );
+  act(() => button(first.title).click());
+  act(() =>
+    root.render(
+      <SelectionWorkspace storeSlug="another-outlet" canEdit canPublish />,
+    ),
+  );
+  await act(async () =>
+    resolveOldDraft({
+      selection: first,
+      readiness: { ready: true, blockers: [] },
+    }),
+  );
+  expect(container.querySelector("input")?.value).toBe("");
+  expect(container.textContent).not.toContain("Preview saved selection");
+  expect(button("New selection").disabled).toBe(false);
+});

@@ -23,6 +23,7 @@ export const selectionImageUrlSchema = z
       !url.password &&
       (!url.port || url.port === "443") &&
       host.includes(".") &&
+      !host.endsWith(".") &&
       !/^[\d.]+$/.test(host) &&
       !host.includes(":") &&
       !/\.(localhost|local|internal|test|invalid)$/.test(host)

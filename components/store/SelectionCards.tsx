@@ -41,13 +41,18 @@ export function SelectionCards({
   );
 }
 
-export function OutletSelections({
-  slug,
-  preview = false,
-}: {
-  slug: string;
-  preview?: boolean;
-}) {
+type OutletSelectionsProps = { slug: string; preview?: boolean };
+
+export function OutletSelections(props: OutletSelectionsProps) {
+  return (
+    <OutletSelectionPage
+      key={`${props.slug}:${props.preview ?? false}`}
+      {...props}
+    />
+  );
+}
+
+function OutletSelectionPage({ slug, preview = false }: OutletSelectionsProps) {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
   const { data, error } = useSWR<{

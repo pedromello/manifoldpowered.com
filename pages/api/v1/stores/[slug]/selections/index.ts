@@ -11,6 +11,8 @@ import {
 import { selectionCreateSchema } from "contracts/outlet-selections";
 import store from "models/store";
 import storeSelection from "models/store_selection";
+import storefrontPricing from "models/storefront_pricing";
+import type { Prisma } from "generated/prisma/client";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -43,11 +45,31 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     query.page,
     query.limit,
   );
+  let publicEligibility: Prisma.GameWhereInput = {};
+  if (!preview) {
+    const curation = await store.getStorefrontCurationWhereClause(outlet);
+    const { gameIds } = await storefrontPricing.idConstraintForRequest(req);
+    publicEligibility = {
+      AND: [
+        curation,
+        ...(gameIds
+          ? [
+              {
+                OR: [
+                  { status: "ONLY_DISPLAY" as const },
+                  { status: "ACTIVE" as const, id: { in: gameIds } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+  }
   const selections = await storeSelection.summaries(
     rows,
     slug,
     preview,
-    preview ? {} : await store.getStorefrontCurationWhereClause(outlet),
+    publicEligibility,
   );
   return res.status(200).json({ selections, pagination });
 }

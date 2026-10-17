@@ -198,6 +198,8 @@ describe("named outlet selections", () => {
       { game_slugs: [f.games[0].slug, f.games[0].slug] },
       { game_slugs: ["missing-game"] },
       { cover_url: "https://127.0.0.1/private.png" },
+      { cover_url: "https://localhost./private.png" },
+      { image_urls: ["https://service.internal./private.png"] },
     ]) {
       expect(
         (
@@ -320,6 +322,103 @@ describe("named outlet selections", () => {
       f.games[0].slug,
     ]);
     expect((await publication(f, "publish", 2)).status).toBe(400);
+  });
+
+  test("discovery recovers an older usable selection and fills from other usable outlets", async () => {
+    const f = await createReadyDraft("Discovery fallback");
+    await publishOutlet(f);
+    const older = await createSelection(f, "older-usable");
+    expect((await publication(f, "publish", 1, older.slug)).status).toBe(200);
+    const newest = await createSelection(f, "newest-unavailable");
+    const newestEdit = await fetch(collection(f, newest.slug), {
+      method: "PATCH",
+      headers: authenticatedJsonHeaders(f.sessionToken),
+      body: JSON.stringify({
+        game_slugs: [f.games[5].slug],
+        expected_draft_revision: 1,
+      }),
+    });
+    expect(newestEdit.status).toBe(200);
+    expect((await publication(f, "publish", 2, newest.slug)).status).toBe(200);
+    await prisma.game.update({
+      where: { id: f.games[5].id },
+      data: { status: "INACTIVE" },
+    });
+    const withOlder = await (
+      await fetch(`${origin()}/api/v1/public/selections?limit=1`)
+    ).json();
+    expect(
+      withOlder.selections.map(
+        (view: { selection: { slug: string } }) => view.selection.slug,
+      ),
+    ).toEqual([older.slug]);
+
+    // Publish five more recent empty-at-read-time outlets: the usable pick
+    // must be found beyond the first six-candidate batch.
+    for (let index = 0; index < 5; index++) {
+      const hidden = await createReadyDraft(`Unavailable discovery ${index}`);
+      await publishOutlet(hidden);
+      await createSelection(hidden);
+      expect((await publication(hidden, "publish", 1)).status).toBe(200);
+      await prisma.game.updateMany({
+        where: { id: { in: [hidden.games[0].id, hidden.games[1].id] } },
+        data: { status: "INACTIVE" },
+      });
+    }
+    const afterUnavailable = await (
+      await fetch(`${origin()}/api/v1/public/selections?limit=1`)
+    ).json();
+    expect(afterUnavailable.selections).toHaveLength(1);
+    expect(afterUnavailable.selections[0].outlet.slug).toBe(f.store.slug);
+    expect(afterUnavailable.selections[0].selection.slug).toBe(older.slug);
+  });
+
+  test("public lists, detail and discovery preserve regional eligibility and display-only games", async () => {
+    const f = await createReadyDraft("Selection region");
+    await publishOutlet(f);
+    await createSelection(f);
+    expect((await publication(f, "publish", 1)).status).toBe(200);
+    // With no USD→BRL exchange rate, only explicit BRL overrides support
+    // ACTIVE games; informational ONLY_DISPLAY games remain discoverable.
+    await orchestrator.createCurrency({
+      code: "BRL",
+      symbol: "R$",
+      enabled: true,
+    });
+    await prisma.game.update({
+      where: { id: f.games[0].id },
+      data: { status: "ONLY_DISPLAY" },
+    });
+    const headers = { "x-vercel-ip-country": "BR" };
+    const detail = await (await fetch(collection(f), { headers })).json();
+    expect(detail.currency).toBe("BRL");
+    expect(detail.games.map((game: { slug: string }) => game.slug)).toEqual([
+      f.games[0].slug,
+    ]);
+    const list = await (
+      await fetch(`${origin()}/api/v1/stores/${f.store.slug}/selections`, {
+        headers,
+      })
+    ).json();
+    expect(list.selections[0].game_slugs).toEqual(detail.selection.game_slugs);
+    const discovery = await (
+      await fetch(`${origin()}/api/v1/public/selections`, { headers })
+    ).json();
+    expect(
+      discovery.selections[0].games.map((game: { slug: string }) => game.slug),
+    ).toEqual([f.games[0].slug]);
+    const privateList = await (
+      await fetch(
+        `${origin()}/api/v1/stores/${f.store.slug}/selections?preview=1`,
+        {
+          headers: { ...headers, ...authenticatedJsonHeaders(f.sessionToken) },
+        },
+      )
+    ).json();
+    expect(privateList.selections[0].game_slugs).toEqual([
+      f.games[1].slug,
+      f.games[0].slug,
+    ]);
   });
 
   test("runs the built CLI against the real HTTP API through creation, ordering, conflict, preview, publication and withdrawal", async () => {

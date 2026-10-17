@@ -44,6 +44,33 @@ describe("named outlet selection contracts", () => {
       ),
     ).toBe("https://images.example.com/cover.jpg?w=1200");
   });
+  test.each([
+    "https://localhost./image.png",
+    "https://localhost../image.png",
+    "https://foo.localhost./image.png",
+    "https://service.internal./image.png",
+    "https://service.local./image.png",
+    "https://service.test./image.png",
+    "https://service.invalid./image.png",
+    "https://cdn.example.com./image.png",
+  ])(
+    "rejects terminal DNS dots in both cover and gallery writes: %s",
+    (url) => {
+      const create = { slug: "weekend", title: "Weekend" };
+      expect(selectionImageUrlSchema.safeParse(url).success).toBe(false);
+      for (const fields of [{ cover_url: url }, { image_urls: [url] }]) {
+        expect(
+          selectionCreateSchema.safeParse({ ...create, ...fields }).success,
+        ).toBe(false);
+        expect(
+          selectionUpdateSchema.safeParse({
+            expected_draft_revision: 1,
+            ...fields,
+          }).success,
+        ).toBe(false);
+      }
+    },
+  );
   test("rejects duplicate games, oversized galleries, and injected ownership fields", () => {
     const input = { slug: "weekend", title: "Weekend" };
     expect(

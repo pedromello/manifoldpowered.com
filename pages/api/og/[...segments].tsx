@@ -129,6 +129,17 @@ function resolveImageUrl(
   if (url.protocol !== "https:") return null;
 
   const sameOrigin = url.origin === origin;
+  // Creator-controlled same-origin URLs must resolve to public static assets,
+  // never another renderer, API, page, or image proxy. This also stops a cover
+  // pointing at its own OG route from recursively invoking the renderer.
+  if (
+    sameOrigin &&
+    (!/^\/(images|storefronts)\//.test(url.pathname) ||
+      url.pathname.includes("%") ||
+      url.pathname.includes("\\") ||
+      Boolean(url.search))
+  )
+    return null;
   if (
     !sameOrigin &&
     !ALLOWED_IMAGE_HOSTS.has(url.hostname) &&

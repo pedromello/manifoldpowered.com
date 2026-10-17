@@ -394,18 +394,27 @@ async function summaries(
   );
 }
 
-async function discoveryCandidates(limit: number) {
-  return prisma.$queryRaw<
-    Array<{ store_slug: string; selection_slug: string }>
-  >`
-    SELECT store_slug, selection_slug FROM (
-      SELECT DISTINCT ON (c.store_id) s.slug AS store_slug, c.slug AS selection_slug,
-        c.published_at, c.id
+export type SelectionDiscoveryCursor = { published_at: Date; id: string };
+export type SelectionDiscoveryCandidate = SelectionDiscoveryCursor & {
+  store_slug: string;
+  selection_slug: string;
+};
+
+async function discoveryCandidates(
+  limit: number,
+  after?: SelectionDiscoveryCursor,
+) {
+  const cursor = after
+    ? Prisma.sql`AND (c.published_at < ${after.published_at}
+    OR (c.published_at = ${after.published_at} AND c.id > ${after.id}))`
+    : Prisma.empty;
+  return prisma.$queryRaw<SelectionDiscoveryCandidate[]>`
+      SELECT s.slug AS store_slug, c.slug AS selection_slug, c.published_at, c.id
       FROM store_selections c JOIN stores s ON s.id = c.store_id
       WHERE c.status = 'PUBLISHED' AND c.published_revision_id IS NOT NULL
         AND s.status = 'PUBLISHED' AND s.published_revision_id IS NOT NULL
-      ORDER BY c.store_id, c.published_at DESC, c.id ASC
-    ) picks ORDER BY published_at DESC, id ASC LIMIT ${limit}
+        ${cursor}
+      ORDER BY c.published_at DESC, c.id ASC LIMIT ${limit}
   `;
 }
 
