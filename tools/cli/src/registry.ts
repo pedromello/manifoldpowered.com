@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { curatorCommands } from "./curator-commands";
+import { selectionCommands } from "./selection-commands";
 import {
   userSchema,
   requestOtpSchema,
@@ -35,6 +36,7 @@ export type Command = {
   secrets?: readonly string[];
 };
 export const commands: Record<string, Command> = {
+  ...selectionCommands,
   ...curatorCommands,
   "profiles create": {
     schema: z
@@ -279,6 +281,9 @@ export const payloadOptions = Object.fromEntries(
     "description",
     "logo-url",
     "slug",
+    "selection-slug",
+    "title",
+    "image-urls",
     "reference",
     "provider",
     "operation-id",

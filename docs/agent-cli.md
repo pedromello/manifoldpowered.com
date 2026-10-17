@@ -241,6 +241,60 @@ identity, intentional catalog with five eligible games, and one to three valid
 Featured recommendations. Success returns the public URL and publication
 revision. Subsequent draft edits remain private until republished.
 
+## Named game selections
+
+Named selections are shareable, ordered groups of games with their own title,
+description, cover, optional gallery and public page. They are separate from
+`outlets catalog set`, which controls the outlet's whole catalog. Games may
+appear in multiple selections. The matching backend migration and API must be
+deployed before these commands can be used in an environment.
+
+```sh
+manifold schema outlets selections create --json
+manifold outlets selections create --profile curator-coop --input selection.json --json
+manifold outlets selections list --profile curator-coop --slug my-outlet --json
+manifold outlets selections get --profile curator-coop --slug my-outlet --selection-slug weekend --json
+manifold outlets selections readiness --profile curator-coop --slug my-outlet --selection-slug weekend --json
+manifold outlets selections preview --profile curator-coop --slug my-outlet --selection-slug weekend --json
+```
+
+Example `selection.json` (ordinary content only, no credentials):
+
+```json
+{
+  "slug": "my-outlet",
+  "selection_slug": "weekend",
+  "title": "A weekend together",
+  "description": "Cooperative games for a few good friends.",
+  "cover_url": "https://cdn.example.com/weekend.jpg",
+  "image_urls": [],
+  "game_slugs": ["first-game", "second-game"]
+}
+```
+
+`slug` identifies the outlet; `selection_slug` identifies its stable selection
+address. `update` supports partial text, image and membership changes. `games
+set` replaces membership in the supplied order. Both require the selection's
+own `expected_draft_revision` (or `--revision`), not the outlet revision.
+
+```sh
+manifold outlets selections games set --profile curator-coop --slug my-outlet \
+  --selection-slug weekend --game-slugs second-game,first-game --revision 1 --json
+manifold outlets selections publish --profile curator-coop --slug my-outlet \
+  --selection-slug weekend --revision 2 --json
+manifold outlets selections public --profile curator-coop --slug my-outlet --selection-slug weekend --json
+manifold outlets selections discover --profile curator-coop --limit 3 --json
+manifold outlets selections unpublish --profile curator-coop --slug my-outlet \
+  --selection-slug weekend --revision 3 --json
+```
+
+Publish only when included in the user's request. Inspect readiness and the
+saved preview first. Publication needs a published parent outlet, a description,
+a cover and at least one game in that outlet's published catalog. Draft edits
+preserve the public edition until explicit republication. Withdrawal hides the
+public page and discovery while retaining history. Public reads omit account
+cookies. A conflict requires a fresh read and review; writes are never replayed.
+
 ## Editorials, account reviews and discovery
 
 ### Outlet rating configuration and game scores

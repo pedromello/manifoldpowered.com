@@ -1723,7 +1723,6 @@ export const ptBR: Record<string, string> = {
     "Veja a prévia do rascunho em edição a qualquer momento. A publicação cria a versão estável que os jogadores verão.",
   "Published {date}": "Publicada em {date}",
   "Preview draft": "Ver prévia do rascunho",
-  "Copy public link": "Copiar link público",
   Unpublish: "Despublicar",
   "Publication readiness": "Requisitos de publicação",
   "Every publication requirement is complete.":
@@ -1897,4 +1896,81 @@ export const ptBR: Record<string, string> = {
   "Something went wrong | Manifold": "Algo deu errado | Manifold",
   "We could not load this page. Please try again in a moment.":
     "Não foi possível carregar esta página. Tente novamente em instantes.",
+  "Your next game starts with a good recommendation.":
+    "Seu próximo jogo começa com uma boa indicação.",
+  "Discover the game. Understand the recommendation. Keep exploring.":
+    "Conheça o jogo. Entenda a indicação. Continue explorando.",
+  "Discover the game": "Conhecer o jogo",
+  "Why discover it": "Por que vale conhecer",
+  "Explore selection": "Explorar a seleção",
+  "View selection": "Ver seleção",
+  "From the selection: {title}": "Da seleção: {title}",
+  "Other ways to play": "Outras vontades de jogar",
+  "Explore by your mood": "Explore pelo seu momento",
+  "Play with friends": "Jogar com amigos",
+  "Unravel a mystery": "Desvendar um mistério",
+  "Build and manage": "Construir e administrar",
+  "On the track": "Na pista",
+  "Save game": "Salvar jogo",
+  "Sign in to save games.": "Entre para salvar jogos.",
+  "Could not save this game. Please try again.":
+    "Não foi possível salvar este jogo. Tente novamente.",
+  "Retry wishlist status": "Atualizar lista de desejos",
+  Selections: "Seleções",
+  "Game selection": "Seleção de jogos",
+  "Game selections": "Seleções de jogos",
+  "Your selections": "Suas seleções",
+  "Publish named groups of games with their own cover and shareable page.":
+    "Publique grupos de jogos com nome, capa e uma página para compartilhar.",
+  "New selection": "Nova seleção",
+  "Create your first selection.": "Crie sua primeira seleção.",
+  "Could not load selections.": "Não foi possível carregar as seleções.",
+  "Could not load the selection.": "Não foi possível carregar a seleção.",
+  "Selection title": "Título da seleção",
+  "Selection address": "Endereço da seleção",
+  "The page address stays stable after creation.":
+    "O endereço da página permanece o mesmo após a criação.",
+  "Cover image URL": "URL da imagem de capa",
+  "Gallery image URLs": "URLs das imagens da galeria",
+  "Up to six HTTPS image URLs, one per line.":
+    "Até seis URLs HTTPS de imagens, uma por linha.",
+  "Games in this selection": "Jogos desta seleção",
+  "Move {game} up": "Mover {game} para cima",
+  "Move {game} down": "Mover {game} para baixo",
+  "Remove {game}": "Remover {game}",
+  "Save selection draft": "Salvar rascunho da seleção",
+  "Selection draft saved.": "Rascunho da seleção salvo.",
+  "Selection published.": "Seleção publicada.",
+  "Draft changes become public only when you publish this selection.":
+    "As alterações do rascunho só aparecem na página pública quando você publica esta seleção.",
+  "Selection withdrawn.": "Publicação da seleção retirada.",
+  "Save your changes before publishing.":
+    "Salve as alterações antes de publicar.",
+  "Discard unsaved changes": "Descartar alterações não salvas",
+  "Reload latest selection": "Carregar a seleção atualizada",
+  "Preview saved selection": "Ver prévia da seleção salva",
+  "Publish selection": "Publicar seleção",
+  "View public selection": "Ver seleção publicada",
+  "Copy public link": "Copiar link público",
+  "Withdraw selection": "Retirar publicação da seleção",
+  "Private selection preview. Draft changes are not public.":
+    "Prévia privada da seleção. As alterações do rascunho não são públicas.",
+  "Share selection": "Compartilhar seleção",
+  "Selection gallery": "Galeria da seleção",
+  "Copy the page address from your browser to share this selection.":
+    "Copie o endereço da página no navegador para compartilhar esta seleção.",
+  "Copy the public page address to share this selection.":
+    "Copie o endereço da página pública para compartilhar esta seleção.",
+  "No games from this selection are currently available in your region.":
+    "Nenhum jogo desta seleção está disponível na sua região no momento.",
+  "A selection can contain up to 100 games.":
+    "Uma seleção pode conter até 100 jogos.",
+  "Add a selection title.": "Adicione um título à seleção.",
+  "Explain this selection.": "Descreva esta seleção.",
+  "Choose a cover image.": "Escolha uma imagem de capa.",
+  "Select at least one game.": "Selecione pelo menos um jogo.",
+  "Publish the outlet before publishing its selections.":
+    "Publique a outlet antes de publicar suas seleções.",
+  "Publish the outlet catalog changes or remove ineligible games.":
+    "Publique as alterações do catálogo da outlet ou remova os jogos indisponíveis.",
 };

@@ -88,6 +88,7 @@ export function summarizeExecution(
       [
         "slug",
         "game_slug",
+        "selection_slug",
         "id",
         "operation_id",
         "public_url",
@@ -126,7 +127,14 @@ export function summarizeExecution(
         ),
       );
     }
-    for (const key of ["results", "data", "next_action", "failure"])
+    for (const key of [
+      "results",
+      "data",
+      "next_action",
+      "failure",
+      "selection",
+      "selections",
+    ])
       visit(record[key]);
   };
   visit(data);

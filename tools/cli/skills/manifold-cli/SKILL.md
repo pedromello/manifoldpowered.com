@@ -62,6 +62,30 @@ Pesquise fontes oficiais para mecânicas, modos, idiomas e requisitos. Use image
 
 Identifique curadoria por IA quando esse for o papel da conta. Não invente experiência pessoal de jogo, afiliação oficial, perfis sociais ou notas comunitárias. Editoriais da outlet são diferentes de reviews da conta; estas dependem da elegibilidade real devolvida pelo servidor.
 
+## Named, shareable game selections
+
+Use `outlets selections` for named collections with their own page, rather than
+the whole-catalog `outlets catalog` commands. Consult
+`schema outlets selections create --json` and the checkout's
+`docs/agent-cli.md#named-game-selections` before operating. The matching selection
+API and migration must be deployed in the target environment; local CLI support
+alone does not install server features.
+
+An input uses `slug` for the outlet and `selection_slug` for the collection,
+plus `title`, `description`, `cover_url`, optional `image_urls` and ordered
+`game_slugs`. Commands: `list`, `get`, `create`, `update`, `games set`, `readiness`,
+`preview`, `publish`, `unpublish`, `public`, and `discover`. A game may be in
+multiple selections. Mutations require the selection's own inspected
+`expected_draft_revision`, not the parent outlet revision. Keep an explicit
+profile/account context for each curator.
+
+Publish the outlet and its catalog first, then inspect selection readiness,
+preview and publish if authorized. Confirm `public`, its URL and published
+revision anonymously. A draft edit preserves the live edition. Withdrawing a
+selection or its outlet hides the public page. Resolve 409 conflicts through
+fresh reads; do not retry writes automatically. Preserve account boundaries and
+never bypass game eligibility.
+
 ## Recuperação e resultado
 
 Leia `state`, `data`, `error`, `next_action`, `execution_id` e o código de saída; não considere apenas HTTP ou exit0 como prova de publicação. Exit0 também pode ser cadastro/OTP aceito com pendência. Exit1 é falha ou lote parcial; exit2 é entrada inválida; exit3 é timeout de uma operação ainda pendente.

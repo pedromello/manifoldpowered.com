@@ -84,7 +84,7 @@ function flagValue(key: string, value: string | boolean): unknown {
       return invalid(`--${key.replaceAll("_", "-")} exige JSON válido.`);
     }
   }
-  if (["game_slugs", "tags"].includes(key)) {
+  if (["game_slugs", "tags", "image_urls"].includes(key)) {
     try {
       return value.startsWith("[")
         ? JSON.parse(value)

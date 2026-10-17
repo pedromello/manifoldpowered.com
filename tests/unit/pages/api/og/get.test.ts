@@ -5,7 +5,9 @@ import handler, {
   loadImageData,
   outletArtworkCandidates,
   publishedStoreFromResponse,
+  publishedSelectionFromResponse,
 } from "pages/api/og/[...segments]";
+import { selectionFixture } from "tests/unit/_fixtures/selection";
 
 const ORIGIN = "https://www.manifoldpowered.com";
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
@@ -53,6 +55,52 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe("selection social preview privacy", () => {
+  test("accepts a published snapshot but refuses draft content or unpublished state", () => {
+    const data = selectionFixture();
+    expect(publishedSelectionFromResponse(data)).toEqual(data);
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, draft_revision: 7 },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, status: "DRAFT" },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, published_at: null },
+      }),
+    ).toBeNull();
+  });
+  test("does not forward preview flags or the request's session to the content API", async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 404 }));
+    const result = await handler(
+      new NextRequest(
+        `${ORIGIN}/api/og/selection/example-outlet/weekend-coop?preview=1&locale=pt-BR`,
+        { headers: { cookie: "session_id=private-session" } },
+      ),
+    );
+    expect(result.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toEqual(
+      new URL(
+        `${ORIGIN}/api/v1/stores/example-outlet/selections/weekend-coop?locale=pt-BR`,
+      ),
+    );
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      headers: { accept: "application/json" },
+    });
+  });
+});
+
 describe("OG image loading", () => {
   test.each([
     ["image/jpeg", new Uint8Array([0xff, 0xd8, 0xff, 0xe0])],
@@ -91,6 +139,52 @@ describe("OG image loading", () => {
 
     await expect(loadImageData(url, ORIGIN)).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    "/api/og/selection/reviewer/self-reference",
+    "/api/og/outlet/reviewer",
+    "/api/v1/stores/reviewer/selections/private?preview=1",
+    "/_next/image?url=%2Fapi%2Fog%2Fselection%2Freviewer%2Fself-reference&w=1200&q=75",
+    "/store/reviewer/selections/weekend",
+    "/%61pi/og/selection/reviewer/self-reference",
+    "/api%2Fog%2Fselection%2Freviewer%2Fself-reference",
+    "/images/../api/og/selection/reviewer/self-reference",
+    "/images/%2e%2e/api/og/selection/reviewer/self-reference",
+    "/images/%2e%2e%2fapi%2fog%2fselection%2freviewer%2fself-reference",
+    "/images/%252e%252e%252fapi%252fog%252fselection%252freviewer%252fself-reference",
+    "/images/%2e%2e%5capi/og/selection/reviewer/self-reference",
+    "/storefronts/%2e%2e%2fapi%2fog%2fselection%2freviewer%2fself-reference",
+    "/images/brand/manifold-logo.png?url=/api/og/selection/reviewer/self-reference",
+  ])(
+    "rejects same-origin dynamic and encoded image routes before fetching: %s",
+    async (path) => {
+      const fetchMock = jest
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+      await expect(
+        loadImageData(`${ORIGIN}${path}`, ORIGIN),
+      ).resolves.toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each([
+    "/images/brand/manifold-logo.png",
+    "/images/social/home-catalog/twisted-tower.jpg",
+    "/storefronts/strategos-void/logo.jpg",
+  ])("retains absolute HTTPS public static artwork: %s", async (path) => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+    await expect(loadImageData(`${ORIGIN}${path}`, ORIGIN)).resolves.toMatch(
+      /^data:image\/png;base64,/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(`${ORIGIN}${path}`),
+      expect.objectContaining({ redirect: "manual" }),
+    );
   });
 
   test("allows only explicitly trusted root-relative assets on the HTTP dev origin", async () => {
