@@ -27,6 +27,7 @@ import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayou
 import { OutletCustomizationForm } from "components/store/OutletCustomizationForm";
 import { CreatorOutletOverview } from "components/creator/CreatorOutletOverview";
 import { CatalogCurationWorkspace } from "components/creator/CatalogCurationWorkspace";
+import { SelectionWorkspace } from "components/creator/SelectionWorkspace";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import {
   type GameApi,
@@ -225,6 +226,7 @@ type Tab =
   | "overview"
   | "featured"
   | "curation"
+  | "selections"
   | "settings"
   | "sales"
   | "earnings";
@@ -233,6 +235,7 @@ const manageTabs: [Tab, string][] = [
   ["overview", "Overview"],
   ["featured", "Featured"],
   ["curation", "Your games"],
+  ["selections", "Selections"],
   ["settings", "Identity"],
   ["sales", "Sales"],
   ["earnings", "Earnings"],
@@ -308,6 +311,7 @@ export default function StoreManagePage() {
     if (value === "overview") return canAccessDraft;
     if (value === "featured") return capabilities.featured;
     if (value === "curation") return capabilities.curation;
+    if (value === "selections") return canAccessDraft;
     if (value === "settings") return capabilities.identity;
     if (value === "sales") return capabilities.sales;
     if (value === "earnings") return capabilities.earnings;
@@ -538,6 +542,13 @@ export default function StoreManagePage() {
               storeName={shellStore.name}
             />
           )}
+          {tab === "selections" && (
+            <SelectionWorkspace
+              storeSlug={shellStore.slug}
+              canEdit={capabilities.edit}
+              canPublish={capabilities.publish}
+            />
+          )}
           {tab === "curation" &&
             (tagFiltersError ? (
               <p className="text-sm font-bold text-rose-300">
@@ -587,6 +598,7 @@ function CreatorOverviewPanel({ store }: { store: StoreApi }) {
   useEffect(() => {
     const localDraft = loadCreatorOutletDraft(localStorage, store.owner_id);
     if (localDraft?.storeSlug === store.slug) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate the browser-only preview receipt after mount.
       setPreviewedAt(localDraft.previewedAt);
     }
   }, [store.owner_id, store.slug]);
@@ -760,6 +772,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
   const [justPublished, setJustPublished] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the existing publication feedback when another server draft is loaded.
     setJustPublished(false);
   }, [data?.draft_revision]);
 
@@ -1194,12 +1207,14 @@ function FeaturedTab({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset the existing editor when its outlet endpoint changes.
     setIsInitialized(false);
     setRecommendations([]);
   }, [featuredKey]);
 
   useEffect(() => {
     if (!data || isInitialized) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initialize the editable snapshot once; later SWR refreshes must preserve local edits.
     setRecommendations(
       data.mode === "EDITORIAL"
         ? data.games.map((featuredGame) => ({

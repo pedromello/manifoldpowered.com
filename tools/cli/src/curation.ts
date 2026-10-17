@@ -1,6 +1,7 @@
 import { ApiClient } from "./client";
 import { CliError } from "./errors";
 import { probeImage } from "./image-probe";
+import { selectionAction } from "./selection-commands";
 import {
   OUTLET_RATING_SCALES,
   ratingValues,
@@ -43,6 +44,8 @@ export async function curatorAction(
   api: ApiClient,
   imageProbe: typeof probeImage = probeImage,
 ): Promise<ActionResult | undefined> {
+  const selection = await selectionAction(name, payload, api);
+  if (selection) return selection;
   const { slug, game_slug: gameSlug, ...body } = payload;
   const storePath = `/stores/${slug}`;
   const changed = (data: Record<string, unknown>) =>

@@ -17,6 +17,8 @@ import {
   SOCIAL_IMAGE_WIDTH,
 } from "lib/seo";
 import { BESPOKE_OG_ARTWORK, isBespokeThemeKey } from "storefronts/bespoke";
+import type { SelectionPageApi } from "lib/selection-client";
+import { selectionSlugSchema } from "contracts/outlet-selections";
 
 export const config = { runtime: "edge" };
 
@@ -337,6 +339,123 @@ function publishedImageHeaders(
     ETag: `W/"og-outlet-${locale}-${publishedAt.getTime()}"`,
     "Last-Modified": publishedAt.toUTCString(),
   };
+}
+
+export function publishedSelectionFromResponse(
+  value: unknown,
+): SelectionPageApi | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as SelectionPageApi;
+  const selection = data.selection;
+  if (
+    !selection ||
+    selection.status !== "PUBLISHED" ||
+    !Number.isInteger(selection.published_revision) ||
+    selection.published_revision < 1 ||
+    typeof selection.published_at !== "string" ||
+    !Number.isFinite(Date.parse(selection.published_at)) ||
+    "draft_revision" in selection ||
+    typeof selection.title !== "string" ||
+    typeof selection.description !== "string" ||
+    !selectionSlugSchema.safeParse(selection.slug).success ||
+    !data.outlet ||
+    typeof data.outlet.name !== "string" ||
+    typeof data.outlet.slug !== "string" ||
+    !Array.isArray(data.games)
+  )
+    return null;
+  return data;
+}
+
+function SelectionCard({
+  data,
+  locale,
+  logo,
+  artwork,
+}: {
+  data: SelectionPageApi;
+  locale: AppLocale;
+  logo: string | null;
+  artwork: string | null;
+}) {
+  return (
+    <Frame>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "60px 70px",
+        }}
+      >
+        <BrandLockup logo={logo} />
+        <div style={{ display: "flex", alignItems: "center", gap: 44 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              width: artwork ? 650 : 1000,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                fontSize: 19,
+                color: "#c8a7ff",
+                letterSpacing: "0.12em",
+                marginBottom: 18,
+              }}
+            >
+              {locale === "pt-BR" ? "SELEÇÃO DE JOGOS" : "GAME SELECTION"}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 54,
+                fontWeight: 900,
+                lineHeight: 1.05,
+              }}
+            >
+              {cleanMetadataText(data.selection.title, 75)}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 23,
+                lineHeight: 1.35,
+                color: "#d8cce8",
+                marginTop: 20,
+              }}
+            >
+              {cleanMetadataText(data.selection.description, 145)}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 22,
+                color: "#bd92ff",
+                fontWeight: 700,
+                marginTop: 28,
+              }}
+            >
+              {cleanMetadataText(data.outlet.name, 60)}
+            </div>
+          </div>
+          {artwork && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={artwork}
+              alt=""
+              width={320}
+              height={310}
+              style={{ objectFit: "cover", borderRadius: 24 }}
+            />
+          )}
+        </div>
+      </div>
+    </Frame>
+  );
 }
 
 function BrandLockup({ logo }: { logo: string | null }) {
@@ -843,6 +962,51 @@ export default async function handler(request: NextRequest) {
     card = (
       <OutletCard
         store={store}
+        locale={locale}
+        logo={brandLogo}
+        artwork={artwork}
+      />
+    );
+  } else if (kind === "selection" && slug && segments.length === 3) {
+    let selectionSlug: string;
+    try {
+      selectionSlug = decodeURIComponent(segments[2]);
+    } catch {
+      return new Response("Selection not found", { status: 404 });
+    }
+    if (!selectionSlugSchema.safeParse(selectionSlug).success)
+      return new Response("Selection not found", { status: 404 });
+    const apiUrl = new URL(
+      `/api/v1/stores/${encodeURIComponent(slug)}/selections/${encodeURIComponent(selectionSlug)}`,
+      url.origin,
+    );
+    apiUrl.searchParams.set("locale", locale);
+    // Never forward cookies, preview flags, or arbitrary query parameters.
+    const data = publishedSelectionFromResponse(
+      await fetchPublicJson<unknown>(apiUrl),
+    );
+    if (!data)
+      return new Response("Selection not found", {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      });
+    imageHeaders = {
+      "Cache-Control": "public, max-age=0, s-maxage=60, must-revalidate",
+      "Content-Disposition": "inline",
+    };
+    const [brandLogo, artwork] = await Promise.all([
+      loadImageData("/images/brand/manifold-logo.png", url.origin, true),
+      loadFirstImageData(
+        [
+          { url: data.selection.cover_url },
+          { url: data.games[0]?.media?.banner },
+        ],
+        url.origin,
+      ),
+    ]);
+    card = (
+      <SelectionCard
+        data={data}
         locale={locale}
         logo={brandLogo}
         artwork={artwork}

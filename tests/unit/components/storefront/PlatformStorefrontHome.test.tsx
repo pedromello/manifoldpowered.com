@@ -47,6 +47,7 @@ function props(
   return {
     store,
     isPreview: false,
+    isPreviewReady: true,
     followControl: store ? (
       <button
         data-storefront="follow-outlet"
@@ -129,7 +130,9 @@ describe("PlatformStorefrontHome", () => {
       <PlatformStorefrontHome {...props(null)} />,
     );
 
-    expect(markup).toContain("Think Steam, but with creator-run storefronts.");
+    expect(markup).toContain(
+      "Your next game starts with a good recommendation.",
+    );
     expect(markup).toContain('action="/search"');
     expect(markup).not.toContain('data-storefront="follow-outlet"');
   });

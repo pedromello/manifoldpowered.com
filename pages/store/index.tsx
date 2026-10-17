@@ -2,8 +2,37 @@ import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { Storefront } from "components/store/Storefront";
 import { useI18n } from "lib/i18n";
 import { homeJsonLd, homeMetadata, socialImageUrl } from "lib/seo";
+import type { GetServerSideProps } from "next";
+import webserver from "infra/webserver";
+import { headersForInternalFetch } from "lib/internal-fetch";
+import { fetchPageData } from "lib/page-data";
+import type { SelectionPageApi } from "lib/selection-client";
 
-export default function StoreOption2() {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const url = new URL(
+    "/api/v1/public/selections?limit=3",
+    webserver.getOrigin(),
+  );
+  url.searchParams.set("locale", context.locale === "pt-BR" ? "pt-BR" : "en");
+  try {
+    const data = await fetchPageData<{ selections: SelectionPageApi[] }>(
+      url.href,
+      {
+        headers: headersForInternalFetch(context.req.headers),
+      },
+    );
+    return { props: { editorialSelections: data?.selections ?? [] } };
+  } catch {
+    // Discovery is optional; the working shared catalog remains available.
+    return { props: { editorialSelections: [] } };
+  }
+};
+
+export default function StoreOption2({
+  editorialSelections = [],
+}: {
+  editorialSelections?: SelectionPageApi[];
+}) {
   const { locale } = useI18n();
   const metadata = homeMetadata(locale);
   return (
@@ -23,6 +52,7 @@ export default function StoreOption2() {
       }
       jsonLd={homeJsonLd(locale)}
       showDiscover
+      editorialSelections={editorialSelections}
     />
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { EditorialShowcase } from "components/storefront/default/EditorialShowcase";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { GameArtwork } from "components/store/GameArtwork";
 import { OutletRatingBadge } from "components/store/OutletRatingBadge";
@@ -409,6 +410,7 @@ export function PlatformStorefrontHome({
   pagination,
   setPage,
   showDiscover,
+  editorialSelections = [],
 }: DefaultStorefrontProps) {
   const { t } = useI18n();
   const spotlightGames = featured.slice(0, 3);
@@ -469,24 +471,23 @@ export function PlatformStorefrontHome({
             </div>
           ) : (
             <div>
-              <h1 className="max-w-2xl text-2xl font-black tracking-[-0.02em] sm:text-3xl">
-                {t("Think Steam, but with creator-run storefronts.")}
+              <h1 className="max-w-5xl text-3xl font-black tracking-[-0.02em] sm:text-4xl">
+                {t("Your next game starts with a good recommendation.")}
               </h1>
+              <p className="mt-3 text-sm leading-6 text-white/55 sm:text-base">
+                {t(
+                  "Discover the game. Understand the recommendation. Keep exploring.",
+                )}
+              </p>
             </div>
           )}
 
-          {store ? (
-            <div className="shrink-0">{followControl}</div>
-          ) : (
-            <p className="max-w-md text-sm leading-6 text-white/45 sm:text-right">
-              {t(
-                "Buy games and keep them in one library while independent Outlets can earn commission on the sales they refer.",
-              )}
-            </p>
-          )}
+          {store ? <div className="shrink-0">{followControl}</div> : null}
         </div>
 
-        {isFeaturedLoading && spotlightGames.length === 0 ? (
+        {!store && editorialSelections.length > 0 ? (
+          <EditorialShowcase selections={editorialSelections} />
+        ) : isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
         ) : spotlightGames.length > 0 ? (
           <SpotlightCarousel
@@ -498,6 +499,29 @@ export function PlatformStorefrontHome({
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
             {t("The first games are being prepared for the catalog.")}
           </div>
+        )}
+        {!store && (
+          <nav aria-label={t("Explore by your mood")} className="mt-7">
+            <h2 className="mb-3 text-lg font-black">
+              {t("Explore by your mood")}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ["Play with friends", "Co-op"],
+                ["Unravel a mystery", "Mystery"],
+                ["Build and manage", "Simulation"],
+                ["On the track", "Racing"],
+              ].map(([label, tag]) => (
+                <Link
+                  key={tag}
+                  href={browseHref({ category: null, tags: [tag], page: 1 })}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-white/15 px-4 text-sm font-semibold text-white/70 hover:border-violet-400/60 hover:text-white"
+                >
+                  {t(label)}
+                </Link>
+              ))}
+            </div>
+          </nav>
         )}
       </section>
 

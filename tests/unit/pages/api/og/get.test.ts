@@ -5,7 +5,9 @@ import handler, {
   loadImageData,
   outletArtworkCandidates,
   publishedStoreFromResponse,
+  publishedSelectionFromResponse,
 } from "pages/api/og/[...segments]";
+import { selectionFixture } from "tests/unit/_fixtures/selection";
 
 const ORIGIN = "https://www.manifoldpowered.com";
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
@@ -51,6 +53,52 @@ function publishedStore(overrides: Record<string, unknown> = {}) {
 
 afterEach(() => {
   jest.restoreAllMocks();
+});
+
+describe("selection social preview privacy", () => {
+  test("accepts a published snapshot but refuses draft content or unpublished state", () => {
+    const data = selectionFixture();
+    expect(publishedSelectionFromResponse(data)).toEqual(data);
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, draft_revision: 7 },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, status: "DRAFT" },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, published_at: null },
+      }),
+    ).toBeNull();
+  });
+  test("does not forward preview flags or the request's session to the content API", async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 404 }));
+    const result = await handler(
+      new NextRequest(
+        `${ORIGIN}/api/og/selection/example-outlet/weekend-coop?preview=1&locale=pt-BR`,
+        { headers: { cookie: "session_id=private-session" } },
+      ),
+    );
+    expect(result.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toEqual(
+      new URL(
+        `${ORIGIN}/api/v1/stores/example-outlet/selections/weekend-coop?locale=pt-BR`,
+      ),
+    );
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      headers: { accept: "application/json" },
+    });
+  });
 });
 
 describe("OG image loading", () => {

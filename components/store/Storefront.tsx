@@ -16,6 +16,8 @@ import {
 } from "components/storefront/presets/config";
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
+import { OutletSelections } from "components/store/SelectionCards";
+import type { SelectionPageApi } from "lib/selection-client";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -39,6 +41,7 @@ export type StorefrontProps = {
   /** A private, authenticated rendering of the working draft. */
   isPreview?: boolean;
   onPreviewStatusChange?: (status: { ready: boolean; error?: string }) => void;
+  editorialSelections?: SelectionPageApi[];
 };
 
 /**
@@ -65,6 +68,7 @@ export function Storefront({
   showDiscover = false,
   isPreview = false,
   onPreviewStatusChange,
+  editorialSelections = [],
 }: StorefrontProps) {
   const { t } = useI18n();
   const controller = useStorefrontController({
@@ -153,8 +157,10 @@ export function Storefront({
           store={store}
           followControl={followControl}
           showDiscover={showDiscover}
+          editorialSelections={editorialSelections}
         />
       )}
+      {store && <OutletSelections slug={store.slug} preview={isPreview} />}
     </StorefrontShell>
   );
 }

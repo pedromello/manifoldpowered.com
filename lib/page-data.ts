@@ -1,3 +1,10 @@
+export class PageDataRequestError extends Error {
+  constructor(public status: number) {
+    super(`Page data request failed with status ${status}`);
+    this.name = "PageDataRequestError";
+  }
+}
+
 export async function fetchPageData<T>(
   url: string,
   init?: RequestInit,
@@ -6,7 +13,7 @@ export async function fetchPageData<T>(
 
   if (response.status === 404) return null;
   if (!response.ok) {
-    throw new Error(`Page data request failed with status ${response.status}`);
+    throw new PageDataRequestError(response.status);
   }
 
   return response.json() as Promise<T>;

@@ -40,6 +40,7 @@ export function SeoHead({
     <Head>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {privatePage && <meta name="robots" content="noindex, nofollow" />}
       {!privatePage && <link rel="canonical" href={canonical} />}
       {!privatePage &&
         Object.entries(alternates).map(([language, href]) => (
