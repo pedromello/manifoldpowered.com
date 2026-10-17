@@ -13,7 +13,18 @@ import {
   type ReadyDraftFixture,
 } from "tests/integration/api/v1/_support/outlet-lifecycle";
 
-beforeAll(() => orchestrator.waitForAllServices());
+beforeAll(async () => {
+  const build = spawnSync(process.execPath, ["tools/cli/build.mjs"], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 30000,
+  });
+  if (build.status !== 0)
+    throw new Error(
+      `Could not build the CLI integration artifact: ${build.stderr}`,
+    );
+  await orchestrator.waitForAllServices();
+});
 beforeEach(() => orchestrator.clearDatabaseRows());
 afterAll(() => prisma.$disconnect());
 
