@@ -1,5 +1,6 @@
 import type { AppLocale } from "lib/locale";
 import type { GameDetailApi, StoreApi } from "components/store/types";
+import { SOCIAL_PREVIEW_DESIGN } from "lib/social-preview-version";
 
 export const SITE_ORIGIN = "https://www.manifoldpowered.com";
 export const SITE_NAME = "Manifold";
@@ -79,6 +80,7 @@ export function socialImageUrl(
   const url = new URL(`/api/og/${kind}${suffix}`, SITE_ORIGIN);
   url.searchParams.set("locale", locale);
   if (version) url.searchParams.set("v", version);
+  if (kind === "outlet") url.searchParams.set("design", SOCIAL_PREVIEW_DESIGN);
   return url.toString();
 }
 

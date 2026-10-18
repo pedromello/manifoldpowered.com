@@ -144,7 +144,7 @@ describe("SEO helpers", () => {
 
   test("uses a safe content-specific social image URL", () => {
     expect(socialImageUrl("outlet", "pt-BR", "careful curator")).toBe(
-      "https://www.manifoldpowered.com/api/og/outlet/careful%20curator?locale=pt-BR",
+      "https://www.manifoldpowered.com/api/og/outlet/careful%20curator?locale=pt-BR&design=2",
     );
   });
 
@@ -157,7 +157,7 @@ describe("SEO helpers", () => {
         "2026-09-01T12:00:00.000Z",
       ),
     ).toBe(
-      "https://www.manifoldpowered.com/api/og/outlet/careful-curator?locale=en&v=2026-09-01T12%3A00%3A00.000Z",
+      "https://www.manifoldpowered.com/api/og/outlet/careful-curator?locale=en&v=2026-09-01T12%3A00%3A00.000Z&design=2",
     );
   });
 

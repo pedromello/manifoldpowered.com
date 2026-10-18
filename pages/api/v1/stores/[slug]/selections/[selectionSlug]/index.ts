@@ -10,6 +10,7 @@ import {
 import { selectionUpdateSchema } from "contracts/outlet-selections";
 import storeSelection from "models/store_selection";
 import { selectionView } from "models/store_selection_view";
+import { socialPreviewRequest } from "lib/social-preview-request";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -26,7 +27,14 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
   return res
     .status(200)
-    .json(await selectionView(req, slug, selectionSlug!, preview));
+    .json(
+      await selectionView(
+        socialPreviewRequest(req),
+        slug,
+        selectionSlug!,
+        preview,
+      ),
+    );
 }
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {

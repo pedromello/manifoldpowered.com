@@ -57,6 +57,16 @@ describe("GET /api/v1/stores/[slug]/featured", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
+      const publicStore = await (
+        await fetch(
+          `${webserver.getOrigin()}/api/v1/stores/${createdStore.slug}`,
+        )
+      ).json();
+      expect(body.publication).toEqual({
+        slug: createdStore.slug,
+        revision: publicStore.published_revision.revision,
+        published_at: publicStore.published_at,
+      });
       expect(body.mode).toBe("AUTOMATIC");
       expect(body.games).toHaveLength(3);
       expect(

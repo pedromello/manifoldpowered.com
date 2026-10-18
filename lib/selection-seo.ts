@@ -1,5 +1,6 @@
 import type { SelectionPageApi } from "lib/selection-client";
 import type { AppLocale } from "lib/locale";
+import { SOCIAL_PREVIEW_DESIGN } from "lib/social-preview-version";
 import {
   canonicalUrl,
   cleanMetadataText,
@@ -27,6 +28,7 @@ export function selectionSocialImageUrl(
   );
   url.searchParams.set("locale", locale);
   url.searchParams.set("v", String(data.selection.published_revision));
+  url.searchParams.set("design", SOCIAL_PREVIEW_DESIGN);
   return url.href;
 }
 

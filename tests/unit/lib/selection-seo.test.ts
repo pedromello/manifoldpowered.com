@@ -13,7 +13,7 @@ test("selection metadata describes the named collection and its outlet", () => {
     description: data.selection.description,
   });
   expect(selectionSocialImageUrl(data, "pt-BR")).toBe(
-    "https://www.manifoldpowered.com/api/og/selection/example-outlet/weekend-coop?locale=pt-BR&v=1",
+    "https://www.manifoldpowered.com/api/og/selection/example-outlet/weekend-coop?locale=pt-BR&v=1&design=2",
   );
 });
 test("selection structured data preserves the game order and localizes canonical links", () => {
