@@ -3,6 +3,11 @@ import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import { OutletRatingInput } from "components/store/OutletRatingInput";
 import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
 import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
+import { I18nProvider } from "lib/i18n";
+
+jest.mock("next/router", () => ({
+  useRouter: () => ({ locale: "pt-BR" }),
+}));
 
 describe("Outlet score accessibility", () => {
   test("zero has an accessible score and is different from an absent rating", () => {
@@ -20,6 +25,36 @@ describe("Outlet score accessibility", () => {
         <OutletRatingBadge rating={{ scale: "STARS", value: 4.5 }} />,
       ),
     ).toContain('aria-label="Creator rating: 4.5 out of 5 stars"');
+  });
+
+  test.each([
+    [{ scale: "TIER", value: "S+" }, "S+", "S+"],
+    [{ scale: "TIER", value: "S-" }, "S−", "S-"],
+    [{ scale: "TIER", value: "A" }, "A", "A"],
+    [{ scale: "NUMERIC_10", value: 9.5 }, "9,5/10", "9,5/10"],
+    [{ scale: "STARS", value: 4.5 }, "4,5/5", "4,5 de 5 estrelas"],
+    [{ scale: "STARS", value: 0 }, "0/5", "0 de 5 estrelas"],
+  ] as const)(
+    "the compact %j score keeps its original scale and Portuguese accessible description",
+    (rating, visibleScore, accessibleScore) => {
+      const markup = renderToStaticMarkup(
+        <I18nProvider>
+          <OutletRatingBadge rating={rating} variant="inline" />
+        </I18nProvider>,
+      );
+      expect(markup).toContain(
+        `aria-label="Nota do criador: ${accessibleScore}"`,
+      );
+      expect(markup).toContain(">Nota</span>");
+      expect(markup).toContain(`>${visibleScore}</span>`);
+      expect(markup).not.toContain("<svg");
+    },
+  );
+
+  test("compact cards omit the label as well as the score when unrated", () => {
+    expect(renderToStaticMarkup(<OutletRatingBadge variant="inline" />)).toBe(
+      "",
+    );
   });
 
   test("numeric input keeps No rating distinct from selected zero", () => {

@@ -94,6 +94,7 @@ function props(
   return {
     store: outlet,
     isPreview: false,
+    isPreviewReady: true,
     followControl: (
       <button data-storefront="follow-outlet">Follow Lantern Club</button>
     ),

@@ -1,4 +1,5 @@
 export const ptBR: Record<string, string> = {
+  Rating: "Nota",
   "Creator rating: {rating}": "Nota do criador: {rating}",
   "{value} out of 5 stars": "{value} de 5 estrelas",
   "Creator rating": "Nota do criador",

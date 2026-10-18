@@ -6,12 +6,19 @@ import { useI18n } from "lib/i18n";
 export function OutletRatingBadge({
   rating,
   className = "",
+  variant = "badge",
 }: {
   rating?: OutletRating | null;
   className?: string;
+  variant?: "badge" | "inline";
 }) {
   const { locale, t } = useI18n();
   if (!rating) return null;
+  const inline = variant === "inline";
+  const highRating =
+    rating.scale === "TIER"
+      ? rating.value.startsWith("S")
+      : rating.value >= (rating.scale === "STARS" ? 4.5 : 9);
 
   return (
     <span
@@ -24,9 +31,14 @@ export function OutletRatingBadge({
               })
             : formatOutletRating(rating, locale),
       })}
-      className={`inline-flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-2.5 py-1.5 text-sm font-bold text-violet-200 ${className}`}
+      className={`${inline ? "inline-flex shrink-0 items-baseline gap-2 whitespace-nowrap leading-tight" : "inline-flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-2.5 py-1.5 text-sm font-bold text-violet-200"} ${className}`}
     >
-      {rating.scale === "STARS" && (
+      {inline && (
+        <span aria-hidden="true" className="text-xs font-normal text-sf-muted">
+          {t("Rating")}
+        </span>
+      )}
+      {!inline && rating.scale === "STARS" && (
         <span aria-hidden="true" className="inline-flex gap-0.5">
           {Array.from({ length: 5 }, (_, index) => (
             <span key={index} className="relative h-3.5 w-3.5">
@@ -43,7 +55,14 @@ export function OutletRatingBadge({
           ))}
         </span>
       )}
-      <span aria-hidden="true">
+      <span
+        aria-hidden="true"
+        className={
+          inline
+            ? `text-base font-bold tabular-nums ${highRating ? "text-[#E7C894]" : "text-sf-fg"}`
+            : undefined
+        }
+      >
         {rating.scale === "TIER"
           ? rating.value.replace("-", "−")
           : `${rating.value.toLocaleString(locale)}/${rating.scale === "STARS" ? 5 : 10}`}
