@@ -232,6 +232,35 @@ function GamePrice({ game }: { game: GameApi }) {
   );
 }
 
+function GameTitleAndRating({
+  game,
+  titleClassName = "text-base font-black text-sf-fg",
+  className = "",
+  as: Title = "h3",
+}: {
+  game: GameApi;
+  titleClassName?: string;
+  className?: string;
+  as?: "h3" | "p";
+}) {
+  return (
+    <div
+      className={`flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${className}`}
+    >
+      <Title
+        className={`min-w-0 flex-1 basis-32 [overflow-wrap:anywhere] ${titleClassName}`}
+      >
+        {game.title}
+      </Title>
+      <OutletRatingBadge
+        rating={game.outlet_review?.rating}
+        variant="inline"
+        className="ml-auto"
+      />
+    </div>
+  );
+}
+
 function featuredLabel(
   mode: StorefrontViewProps["featuredMode"],
   t: (message: string) => string,
@@ -468,20 +497,13 @@ function ChannelGameCard({
     >
       <GameArtwork game={game} className="aspect-[16/9]" />
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-black text-sf-fg">
-              {game.title}
-            </h3>
-            <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-              {t("By {studio}", { studio: game.developer_name })}
-            </p>
-          </div>
+        <div className="mb-2 flex justify-end">
           <GamePrice game={game} />
         </div>
-        <div className="mt-3">
-          <OutletRatingBadge rating={game.outlet_review?.rating} />
-        </div>
+        <GameTitleAndRating game={game} />
+        <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+          {t("By {studio}", { studio: game.developer_name })}
+        </p>
         {game.outlet_review?.body && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-sf-muted">
             {game.outlet_review.body.split("\n\n")[0]}
@@ -520,11 +542,11 @@ function EditorialGameRow({
       </span>
       <GameArtwork game={game} className={`${tokens.media} aspect-[16/10]`} />
       <div className="min-w-0">
-        <p
-          className={`${tokens.heading} truncate text-lg text-sf-fg sm:text-2xl`}
-        >
-          {game.title}
-        </p>
+        <GameTitleAndRating
+          game={game}
+          as="p"
+          titleClassName={`${tokens.heading} text-lg text-sf-fg sm:text-2xl`}
+        />
         <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
           {t("By {studio}", { studio: game.developer_name })}
           {game.tags?.[0] ? ` · ${game.tags[0]}` : ""}
@@ -532,11 +554,6 @@ function EditorialGameRow({
         <p className="mt-2 hidden text-sm leading-6 text-sf-muted sm:line-clamp-1">
           {editorialExcerpt(game)}
         </p>
-        {game.outlet_review?.rating && (
-          <div className="mt-2">
-            <OutletRatingBadge rating={game.outlet_review.rating} />
-          </div>
-        )}
       </div>
       <span className="hidden sm:block">
         <GamePrice game={game} />
@@ -566,22 +583,15 @@ function CommunityGameCard({
       <div className="relative">
         <GameArtwork game={game} className={`${tokens.media} aspect-[4/3]`} />
       </div>
-      <div className="flex items-start justify-between gap-3 px-1 pb-1 pt-4">
-        <div className="min-w-0">
-          <span className="mb-1 block text-xs font-bold text-sf-muted">
-            #{index + 1}
-          </span>
-          <h3 className="truncate text-base font-black text-sf-fg">
-            {game.title}
-          </h3>
-          <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-            {t("By {studio}", { studio: game.developer_name })}
-          </p>
-          <div className="mt-2">
-            <OutletRatingBadge rating={game.outlet_review?.rating} />
-          </div>
+      <div className="px-1 pb-1 pt-4">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <span className="text-xs font-bold text-sf-muted">#{index + 1}</span>
+          <GamePrice game={game} />
         </div>
-        <GamePrice game={game} />
+        <GameTitleAndRating game={game} />
+        <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+          {t("By {studio}", { studio: game.developer_name })}
+        </p>
       </div>
     </Link>
   );
@@ -827,16 +837,10 @@ function ChannelLayout(props: PresetLayoutProps) {
                   </p>
                   <div className="mt-2 flex items-end justify-between gap-5">
                     <div className="min-w-0">
-                      <h3
-                        className={`${tokens.heading} text-3xl text-sf-fg sm:text-4xl`}
-                      >
-                        {lead.title}
-                      </h3>
-                      <div className="mt-3">
-                        <OutletRatingBadge
-                          rating={lead.outlet_review?.rating}
-                        />
-                      </div>
+                      <GameTitleAndRating
+                        game={lead}
+                        titleClassName={`${tokens.heading} text-3xl text-sf-fg sm:text-4xl`}
+                      />
                       <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-sf-muted">
                         {lead.recommendation_reason ||
                           lead.outlet_review?.body ||
@@ -864,14 +868,11 @@ function ChannelLayout(props: PresetLayoutProps) {
                       className={`${tokens.media} aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]`}
                     />
                     <div className="min-w-0 p-1 sm:p-3 lg:p-1">
-                      <p className="truncate text-sm font-black text-sf-fg">
-                        {game.title}
-                      </p>
-                      <div className="mt-2">
-                        <OutletRatingBadge
-                          rating={game.outlet_review?.rating}
-                        />
-                      </div>
+                      <GameTitleAndRating
+                        game={game}
+                        as="p"
+                        titleClassName="text-sm font-black text-sf-fg"
+                      />
                       <p className="mt-1 truncate text-xs text-sf-muted">
                         {t("By {studio}", {
                           studio: game.developer_name,
@@ -1059,16 +1060,11 @@ function EditorialLayout(props: PresetLayoutProps) {
                 <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
                   {t("Cover story")}
                 </p>
-                <h3
-                  className={`${tokens.heading} mt-3 text-[1.75rem] leading-tight text-sf-fg [overflow-wrap:anywhere] sm:text-3xl`}
-                >
-                  {lead.title}
-                </h3>
-                {lead.outlet_review?.rating && (
-                  <div className="mt-3">
-                    <OutletRatingBadge rating={lead.outlet_review.rating} />
-                  </div>
-                )}
+                <GameTitleAndRating
+                  game={lead}
+                  className="mt-3"
+                  titleClassName={`${tokens.heading} text-[1.75rem] leading-tight text-sf-fg sm:text-3xl`}
+                />
                 <p className="mt-4 line-clamp-3 text-[15px] leading-6 text-sf-muted [overflow-wrap:anywhere]">
                   {editorialExcerpt(lead)}
                 </p>
@@ -1105,18 +1101,11 @@ function EditorialLayout(props: PresetLayoutProps) {
                       >
                         {t("Dispatch {number}", { number: index + 1 })}
                       </p>
-                      <h3
-                        className={`${tokens.heading} mt-1 text-lg leading-6 text-sf-fg [overflow-wrap:anywhere] sm:text-xl sm:leading-7`}
-                      >
-                        {game.title}
-                      </h3>
-                      {game.outlet_review?.rating && (
-                        <div className="mt-2">
-                          <OutletRatingBadge
-                            rating={game.outlet_review.rating}
-                          />
-                        </div>
-                      )}
+                      <GameTitleAndRating
+                        game={game}
+                        className="mt-1"
+                        titleClassName={`${tokens.heading} text-lg leading-6 text-sf-fg sm:text-xl sm:leading-7`}
+                      />
                       <p className="mt-2 line-clamp-2 text-sm leading-[22px] text-sf-muted [overflow-wrap:anywhere]">
                         {editorialExcerpt(game)}
                       </p>
@@ -1249,12 +1238,11 @@ function CommunityLayout(props: PresetLayoutProps) {
                   >
                     {t("Pick #{number}", { number: index + 1 })}
                   </span>
-                  <h3 className={`${tokens.heading} mt-3 text-2xl text-sf-fg`}>
-                    {game.title}
-                  </h3>
-                  <div className="mt-3">
-                    <OutletRatingBadge rating={game.outlet_review?.rating} />
-                  </div>
+                  <GameTitleAndRating
+                    game={game}
+                    className="mt-3"
+                    titleClassName={`${tokens.heading} text-2xl text-sf-fg`}
+                  />
                   <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
                     {t("By {studio}", { studio: game.developer_name })}
                   </p>
