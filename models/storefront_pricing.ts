@@ -11,6 +11,7 @@ import type { AppLocale } from "lib/locale";
 import {
   resolveCatalogOffer,
   EXTERNAL_OFFER_MAX_AGE_MS,
+  type CatalogPriceInput,
 } from "lib/catalog-offer";
 
 // Everything a storefront read needs to price its results for the visitor,
@@ -123,7 +124,7 @@ function filterAndPrice<T extends Game>(
       };
       return {
         ...priced,
-        catalog_offer: resolveCatalogOffer(priced as never, {
+        catalog_offer: resolveCatalogOffer(priced as CatalogPriceInput, {
           maxAgeMs: externalOfferMaxAgeMs(),
         }),
       };

@@ -22,7 +22,7 @@ test("preserves the regional provider percentage instead of browser rounding", (
     discount_percent: 34,
   });
 });
-test.each([-1, 0, 101, 1.5, null])(
+test.each([-1, 0, 100, 101, 1.5, null])(
   "rejects invalid percentage %s",
   (discount_percent) => {
     expect(

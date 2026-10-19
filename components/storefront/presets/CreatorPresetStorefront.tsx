@@ -540,7 +540,7 @@ function EditorialGameRow({
           {editorialExcerpt(game)}
         </p>
       </div>
-      <span className="hidden sm:block">
+      <span className="col-span-3 justify-self-end sm:col-span-1">
         <GamePrice game={game} />
       </span>
     </Link>

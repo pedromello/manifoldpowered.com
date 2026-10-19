@@ -2,7 +2,7 @@ import type { NextApiRequest } from "next";
 import type { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import storefrontPricing from "models/storefront_pricing";
-import { catalogOffer } from "lib/catalog-offer";
+import { catalogOffer, type CatalogPriceInput } from "lib/catalog-offer";
 
 /** Resolve regional eligibility before pagination, never by filtering one page. */
 export async function promotionGameIds(
@@ -41,6 +41,9 @@ export async function promotionGameIds(
   const context = await storefrontPricing.contextFor(currency, candidates, req);
   return storefrontPricing
     .filterAndPrice(req.context.user, candidates, context)
-    .filter((game) => catalogOffer(game as never).discount_percent !== null)
+    .filter(
+      (game) =>
+        catalogOffer(game as CatalogPriceInput).discount_percent !== null,
+    )
     .map((game) => String(game.id));
 }

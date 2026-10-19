@@ -73,7 +73,8 @@ export function resolveCatalogOffer(
     coherent &&
     Number.isInteger(percent) &&
     percent > 0 &&
-    percent <= 100;
+    percent <= 100 &&
+    (percent !== 100 || amount === BigInt(0));
   return {
     state,
     discount_percent: valid ? percent : null,
