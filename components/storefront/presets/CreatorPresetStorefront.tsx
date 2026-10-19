@@ -1156,10 +1156,12 @@ function CommunityLayout(props: PresetLayoutProps) {
         <div
           className={`${tokens.card} relative grid gap-5 overflow-hidden border border-sf-border bg-sf-surface p-5 sm:p-7`}
         >
-          <OutletCover
-            store={store}
+          <div
+            aria-hidden="true"
             className="pointer-events-none absolute inset-0 opacity-15"
-          />
+          >
+            <OutletCover store={store} className="h-full" />
+          </div>
           <div className="relative flex items-start gap-4">
             <OutletLogo store={store} tokens={tokens} size="small" />
             <div className="min-w-0 flex-1">
