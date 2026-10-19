@@ -1,5 +1,8 @@
 import { Prisma, type StoreSelection } from "generated/prisma/client";
-import { youtubeVideoId, featuredVideoFromId } from "contracts/featured-video";
+import {
+  featuredVideoFields,
+  featuredVideoFromId,
+} from "contracts/featured-video";
 import { prisma } from "infra/database";
 import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
 import {
@@ -45,7 +48,10 @@ function snapshot(row: StoreSelection): SelectionSnapshot {
     title: row.title,
     description: row.description,
     cover_url: row.cover_url,
-    featured_video: featuredVideoFromId(row.featured_video_id),
+    featured_video: featuredVideoFromId(
+      row.featured_video_id,
+      row.featured_video_start_seconds,
+    ),
     image_urls: row.image_urls,
     game_ids: row.game_ids,
   });
@@ -87,9 +93,7 @@ async function create(storeId: string, value: SelectionInput) {
             ...fields,
             store_id: storeId,
             game_ids,
-            featured_video_id: featured_video_url
-              ? youtubeVideoId(featured_video_url)
-              : null,
+            ...featuredVideoFields(featured_video_url),
           },
         });
       },
@@ -164,12 +168,7 @@ async function update(storeId: string, slug: string, value: SelectionUpdate) {
         description: input.description,
         cover_url: input.cover_url,
         ...(input.featured_video_url !== undefined
-          ? {
-              featured_video_id:
-                input.featured_video_url === null
-                  ? null
-                  : youtubeVideoId(input.featured_video_url),
-            }
+          ? featuredVideoFields(input.featured_video_url)
           : {}),
         image_urls: input.image_urls,
       };

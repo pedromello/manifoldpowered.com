@@ -389,6 +389,7 @@ async function assessDraft(
               tagline: store.tagline,
               cover_url: store.cover_url,
               featured_video_id: store.featured_video_id,
+              featured_video_start_seconds: store.featured_video_start_seconds,
               social_links: store.social_links,
               brand_tokens: store.brand_tokens,
             }),

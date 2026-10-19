@@ -1,5 +1,5 @@
 import { FeaturedVideo } from "components/store/FeaturedVideo";
-import { featuredVideoFromId, youtubeVideoId } from "contracts/featured-video";
+import { youtubeVideo } from "contracts/featured-video";
 import { useI18n } from "lib/i18n";
 
 export function FeaturedVideoField({
@@ -12,7 +12,7 @@ export function FeaturedVideoField({
   disabled?: boolean;
 }) {
   const { t } = useI18n();
-  const id = youtubeVideoId(value.trim());
+  const video = youtubeVideo(value.trim());
   return (
     <fieldset
       disabled={disabled}
@@ -32,14 +32,14 @@ export function FeaturedVideoField({
       <p className="text-xs text-white/60">
         {t("Optional. This video becomes public only after publication.")}
       </p>
-      {value && !id && (
+      {value && !video && (
         <p role="status" className="text-sm text-amber-200">
           {t("Use an HTTPS YouTube watch or youtu.be video URL.")}
         </p>
       )}
-      {id && (
+      {video && (
         <div className="max-w-md">
-          <FeaturedVideo video={featuredVideoFromId(id)} />
+          <FeaturedVideo video={video} />
         </div>
       )}
       {value && (

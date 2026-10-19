@@ -56,8 +56,15 @@ const currentPresentationSchema = z
 const legacyPresentationSchema = currentPresentationSchema
   .omit({ featured_video: true })
   .extend({ version: z.literal(1) });
+const videoPresentationSchema = currentPresentationSchema.extend({
+  version: z.literal(2),
+});
 export const storePresentationSchema = z
-  .union([currentPresentationSchema, legacyPresentationSchema])
+  .union([
+    currentPresentationSchema,
+    videoPresentationSchema,
+    legacyPresentationSchema,
+  ])
   .transform((value) => ({
     ...value,
     version: STORE_PRESENTATION_VERSION,
@@ -90,6 +97,7 @@ export function resolveDraftPresentation({
   tagline = DEFAULT_STORE_PRESENTATION.tagline,
   cover_url = DEFAULT_STORE_PRESENTATION.cover_image_url,
   featured_video_id = null,
+  featured_video_start_seconds = 0,
   social_links = DEFAULT_STORE_PRESENTATION.social_links,
   brand_tokens = DEFAULT_STORE_PRESENTATION.brand_tokens,
 }: {
@@ -98,6 +106,7 @@ export function resolveDraftPresentation({
   tagline?: unknown;
   cover_url?: unknown;
   featured_video_id?: unknown;
+  featured_video_start_seconds?: unknown;
   social_links?: unknown;
   brand_tokens?: unknown;
   // Compatibility-only input. It is deliberately ignored and is not an
@@ -112,6 +121,9 @@ export function resolveDraftPresentation({
     cover_image_url: cover_url,
     featured_video: featuredVideoFromId(
       typeof featured_video_id === "string" ? featured_video_id : null,
+      typeof featured_video_start_seconds === "number"
+        ? featured_video_start_seconds
+        : 0,
     ),
     social_links,
     brand_tokens,

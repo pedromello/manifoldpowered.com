@@ -73,7 +73,7 @@ describe("POST /api/v1/stores", () => {
         last_published_at: null,
         published_revision: null,
         presentation: {
-          version: 2,
+          version: 3,
           featured_video: null,
           layout_preset: null,
           tagline: null,

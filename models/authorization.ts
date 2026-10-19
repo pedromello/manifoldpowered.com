@@ -1039,6 +1039,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
         featured_video_id: storeOutput.featured_video_id,
+        featured_video_start_seconds: storeOutput.featured_video_start_seconds,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });
@@ -1110,6 +1111,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
         featured_video_id: storeOutput.featured_video_id,
+        featured_video_start_seconds: storeOutput.featured_video_start_seconds,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });

@@ -30,9 +30,14 @@ freeze curation, not changing provider prices. A missing price is never free.
 
 Outlets and selections each own an independent optional `featured_video_url`.
 Use an HTTPS `youtube.com/watch?v=...` or `youtu.be/...` URL. The shared validator
-accepts exact YouTube hosts and stores only an 11-character video ID. Arbitrary
+accepts exact YouTube hosts and stores an 11-character video ID and validated start
+time. Optional `t=68`, `t=1m8s` or `start=68` preserves a segment in both the player
+and canonical fallback link. Duplicate, ambiguous, negative, fractional and
+over-seven-day offsets are rejected. Tracking parameters are discarded. Arbitrary
 embed HTML and third-party URLs are rejected. A social channel link or a URL in
 the description does not automatically become a featured video.
+
+Playback uses YouTube's documented [start parameter](https://developers.google.com/youtube/player_parameters#start).
 
 The outlet uses a compact teaser with a keyboard-accessible dialog; the selection
 uses an in-place hero. Both load the `youtube-nocookie.com` iframe only after a
@@ -56,7 +61,9 @@ the field on update preserves the existing video. Consult `schema <command>
 including publication. A conflict requires a fresh read and review before retry.
 
 Video edits affect only the working draft until explicit publication. Outlet
-presentation v2 reads historical v1 presentations as video-free; historical
+presentation v3 reads historical v1 presentations as video-free and v2 videos
+without a start time as beginning at zero; historical
 selection snapshots missing the field similarly normalize to null. The additive
-migration adds nullable checked columns and never rewrites published editions.
+migrations add checked columns without rewriting published editions. Start times
+default to zero, and a missing video ID cannot retain a nonzero start time.
 SEO metadata and social images continue to use the selection cover and identity.

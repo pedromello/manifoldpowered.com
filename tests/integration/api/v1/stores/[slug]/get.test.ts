@@ -37,7 +37,7 @@ describe("GET /api/v1/stores/[slug]", () => {
         brand_tokens: createdStore.brand_tokens,
         owner_id: owner.id,
         presentation: {
-          version: 2,
+          version: 3,
           featured_video: null,
           layout_preset: createdStore.layout_preset,
           tagline: null,
