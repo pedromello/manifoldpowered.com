@@ -1926,6 +1926,10 @@ export const ptBR: Record<string, string> = {
   "Could not save this game. Please try again.":
     "Não foi possível salvar este jogo. Tente novamente.",
   "Retry wishlist status": "Atualizar lista de desejos",
+  "We could not load your library right now.":
+    "Não foi possível carregar sua biblioteca agora.",
+  "We could not load your purchase history right now.":
+    "Não foi possível carregar seu histórico de compras agora.",
   Selections: "Seleções",
   "Game selection": "Seleção de jogos",
   "Game selections": "Seleções de jogos",

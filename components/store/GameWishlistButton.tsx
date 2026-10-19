@@ -1,11 +1,12 @@
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/router";
 import useSWR from "swr";
 import { Heart } from "lucide-react";
 import { useI18n } from "lib/i18n";
 import { selectionRequest } from "lib/selection-client";
 
 export function GameWishlistButton({ slug }: { slug: string }) {
+  const router = useRouter();
   const { t } = useI18n();
   const key = `/api/v1/wishlists?slug=${encodeURIComponent(slug)}`;
   const {
@@ -15,20 +16,23 @@ export function GameWishlistButton({ slug }: { slug: string }) {
   } = useSWR<{ is_wishlisted: boolean; count?: number }>(key, selectionRequest);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [signIn, setSignIn] = useState(false);
   async function toggle() {
     if (pending || !data) return;
     setPending(true);
     setError(null);
-    setSignIn(false);
     try {
       const response = await fetch("/api/v1/wishlists", {
         method: data.is_wishlisted ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
       });
+      if (response.status === 401 || response.status === 403) {
+        void router.push(
+          `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+        );
+        return;
+      }
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) setSignIn(true);
         throw new Error("Could not save this game. Please try again.");
       }
       await mutate(
@@ -70,13 +74,7 @@ export function GameWishlistButton({ slug }: { slug: string }) {
       </button>
       {error && (
         <p role="alert" className="mt-2 max-w-xs text-xs text-rose-200">
-          {signIn ? (
-            <Link href="/login" className="underline">
-              {t("Sign in to save games.")}
-            </Link>
-          ) : (
-            t(error)
-          )}
+          {t(error)}
         </p>
       )}
       {loadError && (

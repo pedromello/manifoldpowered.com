@@ -1,6 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useState, type ReactElement } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState, type ReactElement } from "react";
 import useSWR from "swr";
 import { ArrowLeft, Loader2, PackageX, Receipt, Store } from "lucide-react";
 
@@ -8,6 +9,7 @@ import { Pagination, type PaginationApi } from "components/Pagination";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { formatMoney } from "lib/price";
 import { useI18n } from "lib/i18n";
+import { fetchJson, isAuthenticationError } from "lib/api-client";
 
 interface PurchaseApi {
   id: string;
@@ -21,20 +23,24 @@ interface PurchaseApi {
 }
 
 export default function PurchasesPage() {
+  const router = useRouter();
   const { locale, t } = useI18n();
   const [page, setPage] = useState(1);
-  const { data, error, isLoading } = useSWR<{
+  const { data, error, isLoading, mutate } = useSWR<{
     purchases: PurchaseApi[];
     pagination: PaginationApi;
-  }>(
-    `/api/v1/user/purchases?page=${page}`,
-    (url: string) =>
-      fetch(url).then(async (response) => {
-        if (!response.ok) throw new Error("Not logged in");
-        return response.json();
-      }),
-    { shouldRetryOnError: false },
-  );
+  }>(`/api/v1/user/purchases?page=${page}`, fetchJson, {
+    shouldRetryOnError: false,
+  });
+
+  const isLoggedOut = isAuthenticationError(error);
+  useEffect(() => {
+    if (isLoggedOut && router.isReady) {
+      void router.replace(
+        `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+      );
+    }
+  }, [isLoggedOut, router]);
 
   const purchases = data?.purchases ?? [];
   const total = data?.pagination.total ?? 0;
@@ -71,7 +77,7 @@ export default function PurchasesPage() {
             </p>
           </header>
 
-          {error ? (
+          {isLoggedOut ? (
             <section className="mt-8 rounded-xl border border-white/[0.08] bg-[#14101c] px-6 py-14 text-center">
               <h2 className="text-xl font-bold">
                 {t("Log in to see your purchases")}
@@ -82,11 +88,25 @@ export default function PurchasesPage() {
                 )}
               </p>
               <Link
-                href="/login?callbackUrl=/library/purchases"
+                href={`/login?callbackUrl=${encodeURIComponent(router.asPath)}`}
                 className="mt-6 inline-flex rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-bold text-white"
               >
                 {t("Log in")}
               </Link>
+            </section>
+          ) : error ? (
+            <section
+              role="alert"
+              className="mt-8 rounded-xl border border-rose-500/25 bg-[#14101c] px-6 py-14 text-center"
+            >
+              <p>{t("We could not load your purchase history right now.")}</p>
+              <button
+                type="button"
+                onClick={() => void mutate()}
+                className="mt-4 rounded-lg border border-white/15 px-4 py-2 font-semibold"
+              >
+                {t("Try again")}
+              </button>
             </section>
           ) : isLoading ? (
             <div className="flex items-center justify-center gap-3 py-24 text-sm font-semibold text-white/45">
