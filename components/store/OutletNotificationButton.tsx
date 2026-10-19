@@ -126,7 +126,7 @@ export function OutletNotificationButton({
         <span
           id={tooltipId}
           role="tooltip"
-          className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-52 rounded-lg border border-sf-border bg-sf-surface p-2 text-xs text-sf-fg opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-40 max-w-[calc(100vw-2rem)] rounded-lg border border-sf-border bg-sf-surface p-2 text-xs text-sf-fg opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
         >
           {title}
         </span>

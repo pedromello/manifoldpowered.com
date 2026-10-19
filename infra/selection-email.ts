@@ -168,6 +168,38 @@ function retryAfter(value: string | null) {
     : 60;
 }
 
+async function resendConflictName(response: Response) {
+  // Read only a small error response and return a whitelisted discriminator.
+  // Provider messages may contain recipient/body excerpts; never retain them.
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 4096) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return body?.name === "concurrent_idempotent_requests" ||
+      body?.name === "invalid_idempotent_request"
+      ? (body.name as
+          | "concurrent_idempotent_requests"
+          | "invalid_idempotent_request")
+      : null;
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** No provider request, recipient, or raw provider error is ever logged here. */
 export async function sendSelectionEmailBatch(
   messages: SelectionEmailMessage[],
@@ -207,8 +239,8 @@ export async function sendSelectionEmailBatch(
     (!production && process.env.OUTLET_SELECTION_EMAIL_TRANSPORT !== "resend");
 
   if (production && smtp) {
-    // SMTP Message-ID is not a provider idempotency guarantee. Bulk production
-    // retries must use Resend's persisted request key and immutable API body.
+    // This local SMTP sink does not implement Resend API batch idempotency.
+    // Production retries require a persisted request key and immutable API body.
     throw new SelectionEmailTransportError(
       "permanent",
       60,
@@ -299,6 +331,17 @@ export async function sendSelectionEmailBatch(
     throw new SelectionEmailTransportError("uncertain", 60, "resend_network");
   }
   if (!response.ok) {
+    if (response.status === 409) {
+      const name = await resendConflictName(response);
+      // An in-flight request might already be accepted. Unknown conflicts are
+      // equally ambiguous: retry the identical key/body, never fork recipients.
+      // https://resend.com/docs/api-reference/errors
+      throw new SelectionEmailTransportError(
+        name === "invalid_idempotent_request" ? "permanent" : "uncertain",
+        retryAfter(response.headers.get("Retry-After")),
+        name ? `resend_${name}` : "resend_http_409",
+      );
+    }
     const kind =
       response.status === 429
         ? "retryable"

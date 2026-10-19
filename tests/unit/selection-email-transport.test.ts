@@ -243,3 +243,92 @@ test("production rejects an SMTP override because Message-ID does not make retri
   expect(nodemailer.createTransport).not.toHaveBeenCalled();
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test("concurrent idempotency conflicts remain uncertain and retry the identical body/key", async () => {
+  const messages = [{ ...message(), from: "Frozen <frozen@example.com>" }];
+  fetchMock
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          name: "concurrent_idempotent_requests",
+          message: "private recipient@example.com and secret body",
+        }),
+        { status: 409, headers: { "Retry-After": "17" } },
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [{ id: "accepted" }] }), {
+        status: 200,
+      }),
+    );
+  try {
+    await sendSelectionEmailBatch(messages, "persisted-key");
+    throw new Error("Expected conflict");
+  } catch (error) {
+    expect(error).toMatchObject({
+      kind: "uncertain",
+      code: "resend_concurrent_idempotent_requests",
+      retryAfterSeconds: 17,
+    });
+    expect(JSON.stringify(error)).not.toContain("recipient@example.com");
+    expect(error.cause).toBeUndefined();
+  }
+  await expect(
+    sendSelectionEmailBatch(messages, "persisted-key"),
+  ).resolves.toEqual([{ id: "accepted" }]);
+  expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body);
+  expect(fetchMock.mock.calls[1][1].headers["Idempotency-Key"]).toBe(
+    "persisted-key",
+  );
+});
+
+test("an explicit idempotency body mismatch is permanent without retaining provider details", async () => {
+  fetchMock.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        name: "invalid_idempotent_request",
+        message: "private recipient@example.com and secret body",
+      }),
+      { status: 409 },
+    ),
+  );
+  try {
+    await sendSelectionEmailBatch([message()], "persisted-key");
+    throw new Error("Expected conflict");
+  } catch (error) {
+    expect(error).toMatchObject({
+      kind: "permanent",
+      code: "resend_invalid_idempotent_request",
+    });
+    expect(JSON.stringify(error)).not.toContain("recipient@example.com");
+    expect(error.cause).toBeUndefined();
+  }
+});
+
+test.each([
+  "not-json",
+  JSON.stringify({ name: "private-provider-name@example.com" }),
+])(
+  "an unrecognized conflict response fails conservatively without exposing its body",
+  async (body) => {
+    fetchMock.mockResolvedValueOnce(new Response(body, { status: 409 }));
+    await expect(
+      sendSelectionEmailBatch([message()], "key"),
+    ).rejects.toMatchObject({ kind: "uncertain", code: "resend_http_409" });
+  },
+);
+
+test("conflict error parsing stops at four KiB and cancels an oversized provider body", async () => {
+  const cancel = jest.fn();
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(8192));
+    },
+    cancel,
+  });
+  fetchMock.mockResolvedValueOnce(new Response(body, { status: 409 }));
+  await expect(
+    sendSelectionEmailBatch([message()], "key"),
+  ).rejects.toMatchObject({ kind: "uncertain", code: "resend_http_409" });
+  expect(cancel).toHaveBeenCalledTimes(1);
+});
