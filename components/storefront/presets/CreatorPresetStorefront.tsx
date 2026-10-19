@@ -9,6 +9,16 @@ import { GameArtwork as SharedGameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
 import { useState } from "react";
 import {
+  IconBrandBluesky,
+  IconBrandDiscord,
+  IconBrandInstagram,
+  IconBrandTiktok,
+  IconBrandTwitch,
+  IconBrandX,
+  IconBrandYoutubeFilled,
+  IconWorld,
+} from "@tabler/icons-react";
+import {
   ArrowRight,
   ChevronDown,
   ChevronLeft,
@@ -78,20 +88,33 @@ const SOCIAL_LABELS: Record<StoreSocialPlatform, string> = {
   bluesky: "Bluesky",
 };
 
+const SOCIAL_ICONS = {
+  website: IconWorld,
+  youtube: IconBrandYoutubeFilled,
+  twitch: IconBrandTwitch,
+  instagram: IconBrandInstagram,
+  tiktok: IconBrandTiktok,
+  x: IconBrandX,
+  discord: IconBrandDiscord,
+  bluesky: IconBrandBluesky,
+};
+
 function SocialLinks({
   store,
   tokens,
   align = "start",
+  masthead = false,
 }: {
   store: StoreContext;
   tokens: VisualTokens;
   align?: "start" | "center";
+  masthead?: boolean;
 }) {
   const { t } = useI18n();
   const links = STORE_SOCIAL_PLATFORMS.flatMap((platform) => {
     const label = SOCIAL_LABELS[platform];
     const href = safeExternalUrl(store.social_links?.[platform]);
-    return href ? [{ href, label }] : [];
+    return href ? [{ href, label, Icon: SOCIAL_ICONS[platform] }] : [];
   });
 
   if (links.length === 0) return null;
@@ -99,9 +122,9 @@ function SocialLinks({
   return (
     <nav
       aria-label={t("Outlet links")}
-      className={`flex flex-wrap gap-2 ${align === "center" ? "justify-center" : "justify-start"}`}
+      className={`${masthead ? "grid grid-cols-2 gap-x-2 gap-y-1 border-t border-sf-border pt-3 sm:flex sm:flex-wrap" : "flex flex-wrap gap-2"} ${align === "center" ? "justify-center" : "justify-start"}`}
     >
-      {links.map(({ href, label }) => (
+      {links.map(({ href, label, Icon }) => (
         <a
           key={label}
           href={href}
@@ -110,8 +133,9 @@ function SocialLinks({
           aria-label={t("{label} (opens in a new tab)", {
             label: t(label),
           })}
-          className={`${tokens.control} border border-sf-border bg-sf-surface px-3 py-1.5 text-xs font-bold text-sf-muted transition hover:border-sf-accent hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none`}
+          className={`${tokens.control} inline-flex items-center gap-2 px-3 text-xs font-bold text-sf-muted transition hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none ${masthead ? "min-h-11 hover:bg-sf-fg/5" : "border border-sf-border bg-sf-surface py-1.5 hover:border-sf-accent"}`}
         >
+          {masthead && <Icon size={20} stroke={1.7} aria-hidden="true" />}
           {t(label)}
         </a>
       ))}
@@ -126,11 +150,15 @@ function OutletLogo({
 }: {
   store: StoreContext;
   tokens: VisualTokens;
-  size?: "small" | "large";
+  size?: "small" | "large" | "masthead";
 }) {
   const { t } = useI18n();
   const dimension =
-    size === "large" ? "h-24 w-24 sm:h-28 sm:w-28" : "h-16 w-16";
+    size === "masthead"
+      ? "h-24 w-24 sm:h-32 sm:w-32 lg:h-36 lg:w-36"
+      : size === "large"
+        ? "h-24 w-24 sm:h-28 sm:w-28"
+        : "h-16 w-16";
   const logoUrl = safeExternalUrl(store.logo_url ?? undefined);
   if (logoUrl) {
     return (
@@ -159,9 +187,11 @@ function OutletLogo({
 function OutletCover({
   store,
   className,
+  panorama = false,
 }: {
   store: StoreContext;
   className: string;
+  panorama?: boolean;
 }) {
   const coverUrl = safeExternalUrl(store.cover_url ?? undefined);
   return (
@@ -174,15 +204,19 @@ function OutletCover({
           alt=""
           referrerPolicy="no-referrer"
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
+          fetchPriority={panorama ? "high" : "auto"}
+          className={`absolute inset-0 h-full w-full object-cover ${panorama ? "object-[center_35%]" : "object-center"}`}
         />
       ) : (
         <div
           className={`absolute inset-0 ${store.brand_tokens?.palette === "crimson" ? "bg-gradient-to-br from-[#E60013] via-[#AE0011] to-[#410916]" : store.brand_tokens?.palette === "burgundy" ? "bg-gradient-to-br from-[#850012] via-[#62051E] to-[#0F0A14]" : "bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg"}`}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      {!panorama && (
+        <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      )}
       {!coverUrl &&
+        !panorama &&
         (store.brand_tokens?.palette === "crimson" ||
           store.brand_tokens?.palette === "burgundy") && (
           <div
@@ -1188,58 +1222,56 @@ function CommunityLayout(props: PresetLayoutProps) {
     >
       <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-8">
         <div
-          className={`${tokens.card} relative grid gap-5 overflow-hidden border border-sf-border bg-sf-surface p-5 sm:p-7 ${store.featured_video ? "lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.45fr)]" : ""}`}
+          className={`${tokens.card} overflow-hidden border border-sf-border bg-sf-surface`}
         >
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-15"
-          >
-            <OutletCover store={store} className="h-full" />
-          </div>
-          <div className="relative flex items-start gap-4">
-            <OutletLogo store={store} tokens={tokens} size="small" />
-            <div className="min-w-0 flex-1">
+          <OutletCover
+            store={store}
+            panorama
+            className="h-44 sm:h-56 lg:h-64 xl:h-72"
+          />
+          <div className="relative grid gap-x-6 gap-y-4 px-5 pb-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:px-7 sm:pb-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+            <div className="-mt-8 self-start sm:-mt-10 sm:row-span-2">
+              <OutletLogo store={store} tokens={tokens} size="masthead" />
+            </div>
+            <div className="min-w-0 sm:pt-6">
               <h1
-                className={`${tokens.heading} break-words text-2xl text-sf-fg sm:text-3xl`}
+                className={`${tokens.heading} break-words text-3xl leading-tight text-sf-fg sm:text-4xl`}
               >
                 {store.name}
               </h1>
               {store.tagline && (
-                <p className="mt-2 font-semibold text-sf-fg/80">
+                <p className="mt-2 text-sm font-semibold text-sf-fg/80">
                   {store.tagline}
                 </p>
               )}
-              <p className="mt-3 line-clamp-3 text-sm leading-6 text-sf-muted">
-                {store.description}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {followControl}
-                <a
-                  href="#outlet-selections"
-                  className="inline-flex min-h-11 items-center rounded-xl border border-sf-border px-4 text-sm font-bold"
-                >
-                  {t("View selections")}
-                </a>
-              </div>
+              {store.description && (
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-sf-muted sm:text-base sm:leading-7">
+                  {store.description}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 sm:col-start-2 lg:col-start-3 lg:row-start-1 lg:self-center lg:pt-6 [&>[data-storefront=follow-outlet]]:min-h-11">
+              {followControl}
+              <a
+                href="#outlet-selections"
+                className={`${tokens.control} inline-flex min-h-11 items-center justify-center border border-sf-border px-4 text-sm font-bold transition hover:border-sf-accent hover:bg-sf-fg/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none`}
+              >
+                {t("View selections")}
+              </a>
+            </div>
+            <div className="min-w-0 empty:hidden sm:col-start-2 lg:col-span-2">
+              <SocialLinks store={store} tokens={tokens} masthead />
             </div>
           </div>
           {store.featured_video && (
-            <div className="relative lg:row-span-2">
-              <FeaturedVideo video={store.featured_video} teaser />
+            <div className="border-t border-sf-border p-5 sm:px-7">
+              <div className="max-w-sm">
+                <FeaturedVideo video={store.featured_video} teaser />
+              </div>
             </div>
           )}
-          <div className="relative">
-            <SocialLinks store={store} tokens={tokens} />
-          </div>
         </div>
       </header>
-      {store.layout_preset !== "community" && store.featured_video && (
-        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
-          <div className="max-w-sm">
-            <FeaturedVideo video={store.featured_video} teaser />
-          </div>
-        </section>
-      )}
 
       <section className="mx-auto max-w-[1380px] px-4 py-12 sm:px-8 lg:py-16">
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
