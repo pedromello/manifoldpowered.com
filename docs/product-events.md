@@ -19,7 +19,7 @@ The Manifold stores product events in its own PostgreSQL database. There is no n
 | game_viewed                         | Browser on public /item/[slug]  | Game rendered, with optional validated Outlet context.                               |
 | external_store_clicked              | PurchaseCard link               | Click to Steam/Nintendo, without claiming purchase or external wishlist.             |
 | outlet_followed / outlet_unfollowed | StoreFollow model               | Actual creation/removal.                                                             |
-| game_wishlisted / game_unwishlisted | Wishlist model                  | Actual eligible internal creation/removal.                                           |
+| game_wishlisted / game_unwishlisted | Wishlist model                  | Actual Manifold wishlist creation/removal, including Steam and Nintendo games.       |
 | visit_identity_bound                | Internal login context          | One-time boundary for linking the active anonymous visit; exclude from product KPIs. |
 
 Existing creator-funnel events still use their existing transport. This change does not add identifiers or extra data to that transport.

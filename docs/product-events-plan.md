@@ -16,7 +16,7 @@ Incluído:
 - Testes HTTP → regras de negócio → PostgreSQL, incluindo concorrência e falhas.
 - Documentação dos eventos e consultas de exemplo para a futura visualização.
 
-Etapas posteriores: painel, ferramenta low code, notificações, sincronização Steam/VPS, armazenamento analítico separado e ampliação para checkout/financeiro. Este trabalho não cria uma lista de desejos nova para jogos que hoje usam a wishlist externa da Steam.
+Etapas posteriores: painel, ferramenta low code, notificações, sincronização Steam/VPS, armazenamento analítico separado e ampliação para checkout/financeiro. A wishlist do Manifold aceita também jogos da Steam e Nintendo; salvar na plataforma não comprova uma adição à wishlist dessas lojas externas.
 
 Os novos eventos de produto vão somente ao banco próprio. Não será instalado SDK de analytics de terceiros. A instrumentação Vercel existente será inventariada; a migração do funil de criadores para o transporte próprio ficará em uma etapa separada, sem ampliar os dados enviados ao transporte atual.
 
@@ -26,7 +26,7 @@ Os novos eventos de produto vão somente ao banco próprio. Não será instalado
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | `models/store_follow.ts` trata duplicação como sucesso       | Um HTTP 201 não prova que houve um novo follow. O evento nasce apenas na criação efetiva da relação.                        |
 | `models/wishlist.ts` usa upsert com atualização vazia        | Uma tentativa repetida não pode produzir uma segunda adição no funil.                                                       |
-| Wishlist rejeita jogos `ONLY_DISPLAY`                        | Link para a Steam mede saída para loja; não confirma adição à wishlist externa.                                             |
+| Wishlist aceita jogos `ONLY_DISPLAY`                         | Salvar confirma a wishlist interna do Manifold; links para Steam/Nintendo medem somente a saída para a loja externa.        |
 | GET de seleção atende SSR e gerador Open Graph               | O GET não grava visualização. A observação nasce no navegador após renderização pública.                                    |
 | Há preview privado de Outlet/seleção                         | Preview e superfícies privadas ficam fora da coleta pública inicial.                                                        |
 | `StoreLifecycleEvent` já registra auditoria de publicação    | Preservar a auditoria existente; a tabela de produto não substitui eventos operacionais/de domínio já existentes.           |
@@ -291,7 +291,7 @@ Usar a infraestrutura já existente de Next + PostgreSQL, `tests/orchestrator.js
 | Quotas                 | Requests em paralelo de dois consumidores/instâncias compartilham o mesmo limite no PostgreSQL; 429 tem Retry-After e não grava o lote. Validar proxy confiável e impossibilidade de liberar quota falsificando um header de IP comum. |
 | Quota após rejeição    | Nome/destino inválido ou falha de INSERT posterior à reserva mantém o consumo confirmado; repetir a tentativa esgota a quota. Rejeições estruturais anteriores ao parser não abrem transação de quota.                                 |
 | Follow                 | Novo follow gera um SERVER; repetição e três requests simultâneos não supercontam. DELETE repetido não gera remoção fictícia; remover e seguir novamente gera novo ciclo legítimo.                                                     |
-| Wishlist               | Mesma matriz de criação, remoção e corrida; jogo ONLY_DISPLAY continua rejeitado pela wishlist interna e não gera `game_wishlisted`.                                                                                                   |
+| Wishlist               | Mesma matriz de criação, remoção e corrida; jogos ONLY_DISPLAY da Steam/Nintendo podem ser salvos e removidos na wishlist interna, gerando os eventos SERVER correspondentes.                                                          |
 | Permissões             | Usuário anônimo, desativado ou sem feature mantém os erros atuais e não produz evento confirmado.                                                                                                                                      |
 | Atomicidade            | Forçar falha do INSERT do evento em banco descartável: relação e evento sofrem rollback. Não considerar teste com mock fora da transação uma prova dessa garantia.                                                                     |
 | Identidade             | Anônimo → login → follow é correlacionável apenas na visita ativa. Logout/segunda conta abre outro contexto; uma conta não recebe histórico de outra. Renovação da mesma sessão não rotaciona visita.                                  |
@@ -303,7 +303,7 @@ Usar a infraestrutura já existente de Next + PostgreSQL, `tests/orchestrator.js
 | Retenção               | Limpeza de eventos e buckets obedece ao cutoff e tamanho de lote; não altera follows/wishlists/usuários nem eventos recentes.                                                                                                          |
 | Sem efeitos em GET     | Requests de SSR/API/OG e prefetch não criam eventos de visualização. Não existe endpoint público de leitura dos eventos.                                                                                                               |
 
-Adicionar uma suíte de caso de uso que percorra: bootstrap → seleção publicada → evento CLIENT recebido → login real → nova geração, com a visita ativa preservada → adição elegível à wishlist → follow → visita posterior. Conferir atores, entidades, chaves, correlação e tempos no banco. O caso separado para ONLY_DISPLAY termina em clique externo, sem inventar conversão na Steam.
+Adicionar uma suíte de caso de uso que percorra: bootstrap → seleção publicada → evento CLIENT recebido → login real → nova geração, com a visita ativa preservada → adição elegível à wishlist → follow → visita posterior. Conferir atores, entidades, chaves, correlação e tempos no banco. Para ONLY_DISPLAY, distinguir o clique externo da adição real à wishlist do Manifold, sem inventar conversão na Steam ou Nintendo.
 
 ### 11.2 Testes de cliente e contrato
 

@@ -155,6 +155,51 @@ test.each(["steam", "nintendo"] as const)(
 );
 
 test.each(["steam", "nintendo"] as const)(
+  "%s games can be saved on Manifold while keeping the external store link",
+  async (provider) => {
+    const pageProps = props(provider);
+    await act(async () => root.render(<DefaultItemPage {...pageProps} />));
+    const button = document.querySelector<HTMLButtonElement>(
+      'button[aria-pressed="false"]',
+    );
+    expect(button?.textContent).toContain("Add to Wishlist");
+    expect(document.querySelector('a[target="_blank"]')).not.toBeNull();
+
+    await act(async () => button!.click());
+    expect(pageProps.wishlist.toggle).toHaveBeenCalledTimes(1);
+    expect(trackExternalStore).not.toHaveBeenCalled();
+
+    await act(async () =>
+      root.render(
+        <DefaultItemPage
+          {...pageProps}
+          wishlist={{ ...pageProps.wishlist, isWishlisted: true }}
+        />,
+      ),
+    );
+    const saved = document.querySelector<HTMLButtonElement>(
+      'button[aria-pressed="true"]',
+    );
+    expect(saved?.textContent).toContain("On Wishlist");
+    await act(async () => saved!.click());
+    expect(pageProps.wishlist.toggle).toHaveBeenCalledTimes(2);
+
+    await act(async () =>
+      root.render(
+        <DefaultItemPage
+          {...pageProps}
+          wishlist={{ ...pageProps.wishlist, isToggling: true }}
+        />,
+      ),
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>("button[aria-pressed]")
+        ?.disabled,
+    ).toBe(true);
+  },
+);
+
+test.each(["steam", "nintendo"] as const)(
   "private previews do not expose or track %s outbound links",
   async (provider) => {
     await act(async () =>
@@ -163,6 +208,7 @@ test.each(["steam", "nintendo"] as const)(
       ),
     );
     expect(document.querySelector('a[target="_blank"]')).toBeNull();
+    expect(document.querySelector("button[aria-pressed]")).toBeNull();
     expect(trackExternalStore).not.toHaveBeenCalled();
   },
 );
