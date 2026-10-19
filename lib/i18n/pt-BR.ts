@@ -1,4 +1,13 @@
 export const ptBR: Record<string, string> = {
+  "Filter games": "Filtrar jogos",
+  "Recorded price": "Último preço registrado",
+  "Checked {date}": "Consultado em {date}",
+  "On sale in this curation": "Em promoção na curadoria",
+  "On sale": "Em promoção",
+  "View selections": "Ver seleções",
+  "{count} games in this selection": "{count} jogos nesta seleção",
+  "No games on sale in this selection.":
+    "Nenhum jogo em promoção nesta seleção.",
   Rating: "Nota",
   "Creator rating: {rating}": "Nota do criador: {rating}",
   "{value} out of 5 stars": "{value} de 5 estrelas",
@@ -400,6 +409,7 @@ export const ptBR: Record<string, string> = {
   "Pick #{number}": "Escolha nº {number}",
   "Preparing featured games…": "Preparando jogos em destaque…",
   "Prices shown in {currency}": "Preços exibidos em {currency}",
+  "Prices shown in each store's currency": "Preços na moeda de cada loja",
   "Search this Outlet": "Buscar nesta Outlet",
   "Selected by this Outlet": "Selecionado por esta Outlet",
   "The front page": "A primeira página",

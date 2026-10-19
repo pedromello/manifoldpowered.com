@@ -1,4 +1,6 @@
 import Form from "next/form";
+import { GamePriceBlock } from "components/store/GamePriceBlock";
+import { OutletPromotions } from "components/storefront/OutletPromotions";
 import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
 import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
@@ -31,11 +33,7 @@ import type {
   StoreContext,
   StorefrontViewProps,
 } from "components/storefront/types";
-import {
-  formatCatalogBasePrice,
-  formatCatalogPrice,
-  isCatalogFree,
-} from "lib/price";
+
 import { useI18n } from "lib/i18n";
 
 type PresetLayoutProps = StorefrontViewProps & {
@@ -215,21 +213,26 @@ function GameArtwork({
   return <SharedGameArtwork src={artworkUrl} className={className} />;
 }
 
-function GamePrice({ game }: { game: GameApi }) {
+function CatalogCurrencyLabel({ props }: { props: StorefrontViewProps }) {
   const { t } = useI18n();
-  const basePrice = formatCatalogBasePrice(game);
-  return (
-    <span className="flex shrink-0 flex-col items-end text-right">
-      {basePrice && (
-        <span className="text-[10px] font-bold text-sf-muted line-through">
-          {basePrice}
-        </span>
-      )}
-      <span className="text-sm font-black text-sf-fg">
-        {isCatalogFree(game) ? t("Free") : t(formatCatalogPrice(game))}
-      </span>
-    </span>
+  const currencies = new Set(
+    [...props.featured, ...props.games]
+      .map((game) =>
+        ["STEAM_ONLY", "NINTENDO_ONLY"].includes(game.purchase_mode)
+          ? game.external_offer?.currency
+          : (game.display_price?.currency ?? props.currency),
+      )
+      .filter(Boolean),
   );
+  return currencies.size > 1
+    ? t("Prices shown in each store's currency")
+    : t("Prices shown in {currency}", {
+        currency: currencies.values().next().value ?? props.currency,
+      });
+}
+
+function GamePrice({ game }: { game: GameApi }) {
+  return <GamePriceBlock game={game} compact />;
 }
 
 function GameTitleAndRating({
@@ -555,7 +558,7 @@ function EditorialGameRow({
           {editorialExcerpt(game)}
         </p>
       </div>
-      <span className="hidden sm:block">
+      <span className="col-span-3 justify-self-end sm:col-span-1">
         <GamePrice game={game} />
       </span>
     </Link>
@@ -835,6 +838,9 @@ function ChannelLayout(props: PresetLayoutProps) {
                   <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
                     {t("Channel spotlight")}
                   </p>
+                  <div className="mt-4">
+                    <GamePriceBlock game={lead} />
+                  </div>
                   <div className="mt-2 flex items-end justify-between gap-5">
                     <div className="min-w-0">
                       <GameTitleAndRating
@@ -868,6 +874,7 @@ function ChannelLayout(props: PresetLayoutProps) {
                       className={`${tokens.media} aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]`}
                     />
                     <div className="min-w-0 p-1 sm:p-3 lg:p-1">
+                      <GamePriceBlock game={game} compact />
                       <GameTitleAndRating
                         game={game}
                         as="p"
@@ -910,7 +917,7 @@ function ChannelLayout(props: PresetLayoutProps) {
                 {t("Browse all games")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <span className="text-xs font-bold text-sf-muted">
@@ -1109,6 +1116,9 @@ function EditorialLayout(props: PresetLayoutProps) {
                       <p className="mt-2 line-clamp-2 text-sm leading-[22px] text-sf-muted [overflow-wrap:anywhere]">
                         {editorialExcerpt(game)}
                       </p>
+                      <div className="mt-3">
+                        <GamePriceBlock game={game} />
+                      </div>
                       <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
                         {t("View game")}
                         <ArrowRight size={14} aria-hidden="true" />
@@ -1139,7 +1149,8 @@ function EditorialLayout(props: PresetLayoutProps) {
             </h2>
           </div>
           <p className="hidden text-xs font-bold uppercase tracking-wider text-sf-muted sm:block">
-            {props.currency} · {t("Page {page}", { page: props.page })}
+            <CatalogCurrencyLabel props={props} /> ·{" "}
+            {t("Page {page}", { page: props.page })}
           </p>
         </div>
         <CatalogResults props={props} tokens={tokens} preset="editorial" />
@@ -1160,36 +1171,44 @@ function CommunityLayout(props: PresetLayoutProps) {
       data-preset-layout="community"
       className={`${tokens.body} min-h-screen bg-sf-bg pb-20 text-sf-fg`}
     >
-      <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-10">
-        <OutletCover
-          store={store}
-          className={`${tokens.card} h-52 border border-sf-border sm:h-72`}
-        />
+      <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-8">
         <div
-          className={`${tokens.card} relative mx-3 -mt-10 grid gap-6 border border-sf-border bg-sf-surface p-5 shadow-2xl sm:mx-8 sm:-mt-14 sm:p-7 lg:grid-cols-[auto_minmax(0,1fr)_minmax(260px,0.55fr)_auto] lg:items-center`}
+          className={`${tokens.card} relative grid gap-5 overflow-hidden border border-sf-border bg-sf-surface p-5 sm:p-7`}
         >
-          <OutletLogo store={store} tokens={tokens} />
-          <div className="min-w-0">
-            <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
-              {t("Community club")}
-            </p>
-            <h1
-              className={`${tokens.heading} mt-1 break-words text-4xl text-sf-fg`}
-            >
-              {store.name}
-            </h1>
-            {store.tagline && (
-              <p className="mt-2 text-base font-bold text-sf-fg/80">
-                {store.tagline}
-              </p>
-            )}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-15"
+          >
+            <OutletCover store={store} className="h-full" />
           </div>
-          <p className="text-sm leading-6 text-sf-muted">
-            {store.description ||
-              t("A place to discover and celebrate games together.")}
-          </p>
-          <div>{followControl}</div>
-          <div className="lg:col-start-2 lg:col-span-3">
+          <div className="relative flex items-start gap-4">
+            <OutletLogo store={store} tokens={tokens} size="small" />
+            <div className="min-w-0 flex-1">
+              <h1
+                className={`${tokens.heading} break-words text-2xl text-sf-fg sm:text-3xl`}
+              >
+                {store.name}
+              </h1>
+              {store.tagline && (
+                <p className="mt-2 font-semibold text-sf-fg/80">
+                  {store.tagline}
+                </p>
+              )}
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-sf-muted">
+                {store.description}
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {followControl}
+                <a
+                  href="#outlet-selections"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-sf-border px-4 text-sm font-bold"
+                >
+                  {t("View selections")}
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="relative">
             <SocialLinks store={store} tokens={tokens} />
           </div>
         </div>
@@ -1223,18 +1242,12 @@ function CommunityLayout(props: PresetLayoutProps) {
                 key={game.id}
                 href={itemHref(game.slug)}
                 data-storefront="game-link"
-                className={`${tokens.card} group flex min-h-72 flex-col overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${
-                  index === 0
-                    ? "md:-rotate-1"
-                    : index === 2
-                      ? "md:rotate-1"
-                      : ""
-                }`}
+                className={`${tokens.card} group flex min-h-72 flex-col overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
               >
                 <GameArtwork game={game} className="aspect-[16/9] w-full" />
-                <div className="flex-1 bg-sf-bg p-5">
+                <div className="flex flex-1 flex-col bg-sf-bg p-5">
                   <span
-                    className={`${tokens.control} inline-flex bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
+                    className={`${tokens.control} inline-flex self-start bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
                   >
                     {t("Pick #{number}", { number: index + 1 })}
                   </span>
@@ -1243,15 +1256,23 @@ function CommunityLayout(props: PresetLayoutProps) {
                     className="mt-3"
                     titleClassName={`${tokens.heading} text-2xl text-sf-fg`}
                   />
-                  <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+                  <p className="mt-1 text-xs font-semibold text-sf-muted">
                     {t("By {studio}", { studio: game.developer_name })}
                   </p>
+                  <div className="mt-auto pt-4">
+                    <GamePriceBlock game={game} />
+                  </div>
+                  <span className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-sf-accent px-4 text-sm font-bold text-sf-accent-fg">
+                    {t("Discover the game")}
+                  </span>
                 </div>
               </Link>
             ))}
           </div>
         )}
       </section>
+
+      <OutletPromotions props={props} />
 
       <section className="mx-auto max-w-[1380px] px-4 sm:px-8">
         <div
@@ -1266,7 +1287,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                 {t("Community shelf")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <SearchAndFilters

@@ -8,6 +8,7 @@ import { ValidationError } from "infra/errors";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
 import storeGameEditorial from "models/store_game_editorial";
 import { filterStorefrontEditorial } from "models/storefront_editorial";
+import { promotionGameIds } from "models/store_promotions";
 import {
   getOutletRatingWhere,
   parseOutletRatingFilter,
@@ -33,6 +34,16 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { order, sort_by, ...rest } = result.data;
+  if (
+    req.query.on_sale !== undefined &&
+    (typeof req.query.on_sale !== "string" ||
+      !["0", "1"].includes(req.query.on_sale))
+  ) {
+    throw new ValidationError({
+      message: "Invalid promotion filter.",
+      action: "Use on_sale=1 or on_sale=0.",
+    });
+  }
   const ratingFilter = parseOutletRatingFilter(req.query);
 
   const foundStore = await store.findOneForStorefront(slug as string, {
@@ -45,13 +56,27 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { currency, gameIds, locale } =
     await storefrontPricing.idConstraintForRequest(req);
+  const saleIds =
+    req.query.on_sale === "1"
+      ? await promotionGameIds(
+          req,
+          { AND: [curationWhere, ratingWhere] },
+          currency,
+        )
+      : null;
 
   const { games, pagination } = await game.findAllPaginated({
     priceableGameIds: gameIds,
     locale,
     ...rest,
     order: sort_by ?? order ?? "newest",
-    curationWhere: { AND: [curationWhere, ratingWhere] },
+    curationWhere: {
+      AND: [
+        curationWhere,
+        ratingWhere,
+        ...(saleIds ? [{ id: { in: saleIds } }] : []),
+      ],
+    },
   });
 
   const context = await storefrontPricing.contextFor(currency, games, req);

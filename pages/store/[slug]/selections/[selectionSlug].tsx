@@ -4,6 +4,9 @@ import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 import { ArrowLeft, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
+import Head from "next/head";
+import { resolveOutletDesign } from "components/storefront/presets/config";
+import { paletteToCss } from "components/storefront/palette";
 import { SeoHead } from "components/SeoHead";
 import { GameArtwork } from "components/store/GameArtwork";
 import { SelectionGames } from "components/store/SelectionGames";
@@ -64,6 +67,10 @@ export default function SelectionPage({
   const [copyError, setCopyError] = useState(false);
   const { selection, outlet, games } = data;
   const metadata = selectionMetadata(data);
+  const design = resolveOutletDesign({
+    brand_tokens: outlet.brand_tokens,
+    layout_preset: null,
+  });
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -74,7 +81,13 @@ export default function SelectionPage({
     }
   }
   return (
-    <main className="min-h-screen bg-[#0d0913] px-4 py-8 text-white sm:px-6 lg:px-10">
+    <main className="min-h-screen bg-sf-bg px-4 py-6 pb-28 text-sf-fg sm:px-6 lg:px-10">
+      <Head>
+        <style
+          key="selection-palette"
+          dangerouslySetInnerHTML={{ __html: paletteToCss(design.palette) }}
+        />
+      </Head>
       <ProductPageEvent
         preview={preview}
         event={{
@@ -113,7 +126,7 @@ export default function SelectionPage({
             {t("Private selection preview. Draft changes are not public.")}
           </p>
         )}
-        <header className="mt-3 grid overflow-hidden rounded-3xl border border-white/10 bg-[#171120] lg:grid-cols-[1.1fr_1fr]">
+        <header className="mt-3 grid overflow-hidden rounded-3xl border border-sf-border bg-sf-surface lg:grid-cols-[1.1fr_1fr]">
           <GameArtwork
             src={selection.cover_url}
             alt={selection.title}
@@ -121,7 +134,7 @@ export default function SelectionPage({
             className="aspect-[16/10] lg:aspect-auto lg:min-h-96"
           />
           <div className="flex flex-col justify-center gap-5 p-6 sm:p-9">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sf-accent">
               {t("Game selection")}
             </p>
             <h1 className="break-words text-3xl font-black sm:text-4xl">
@@ -169,7 +182,7 @@ export default function SelectionPage({
             )}
           </div>
         </header>
-        <p className="my-8 max-w-3xl whitespace-pre-line break-words text-base leading-8 text-white/75">
+        <p className="my-8 max-w-3xl whitespace-pre-line break-words text-base leading-8 text-sf-muted">
           {selection.description}
         </p>
         {selection.image_urls.length > 0 && (
@@ -187,9 +200,6 @@ export default function SelectionPage({
           </section>
         )}
         <section aria-label={t("Games in this selection")}>
-          <h2 className="mb-5 text-2xl font-black">
-            {t("Games in this selection")}
-          </h2>
           {games.length ? (
             <SelectionGames
               games={games}
@@ -197,7 +207,7 @@ export default function SelectionPage({
               preview={preview}
             />
           ) : (
-            <p className="rounded-xl border border-white/10 p-6 text-white/60">
+            <p className="rounded-xl border border-sf-border p-6 text-white/60">
               {t(
                 "No games from this selection are currently available in your region.",
               )}
