@@ -60,6 +60,7 @@ export const OUTLET_PALETTES: Record<
 > = {
   crimson: {
     id: "crimson",
+    socialPanel: { bg: "#E60013", fg: "#FFFFFF" },
     bg: "#110B0D",
     surface: "#221619",
     border: "#57363E",
@@ -70,6 +71,7 @@ export const OUTLET_PALETTES: Record<
   },
   burgundy: {
     id: "burgundy",
+    socialPanel: { bg: "#850012", fg: "#FFFFFF" },
     bg: "#0F0A14",
     surface: "#25101C",
     border: "#5C3044",

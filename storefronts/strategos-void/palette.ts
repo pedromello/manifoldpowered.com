@@ -14,4 +14,6 @@ export const strategosVoidPalette: StorefrontPalette = {
   muted: "rgba(244, 241, 236, 0.58)",
   accent: "#e04444",
   accentFg: "#fdf5f2",
+  // Small social-card text needs more contrast than the button foreground.
+  socialPanel: { bg: "#e04444", fg: "#0e0e0f" },
 };
