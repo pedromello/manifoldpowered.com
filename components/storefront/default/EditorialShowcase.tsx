@@ -3,9 +3,18 @@ import { ArrowRight, Quote } from "lucide-react";
 import { GameArtwork } from "components/store/GameArtwork";
 import { GameWishlistButton } from "components/store/GameWishlistButton";
 import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
 import { itemHref } from "lib/store-context";
 import type { SelectionPageApi } from "lib/selection-client";
+
+function reviewExcerpt(review: GameApi["outlet_review"]) {
+  return (
+    review?.headline?.trim() ||
+    review?.body.trim().split(/\r?\n\s*\r?\n/, 1)[0] ||
+    null
+  );
+}
 
 function Curator({ entry }: { entry: SelectionPageApi }) {
   const { t } = useI18n();
@@ -47,7 +56,7 @@ export function EditorialShowcase({
     .slice(0, 3);
   if (!hero) return null;
   const game = hero.games[0];
-  const reason = game.recommendation_reason || hero.selection.description;
+  const excerpt = reviewExcerpt(game.outlet_review);
   return (
     <div data-testid="editorial-showcase">
       <article className="grid overflow-hidden rounded-2xl border border-white/10 bg-[#171120] lg:grid-cols-[1.4fr_1fr]">
@@ -80,18 +89,20 @@ export function EditorialShowcase({
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-6 p-6 sm:p-8 xl:p-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-200/75">
-            {t("Why discover it")}
+            {t(excerpt ? "Why discover it" : "In this selection")}
           </p>
-          <blockquote className="flex gap-3">
-            <Quote
-              size={28}
-              className="shrink-0 text-violet-400"
-              aria-hidden="true"
-            />
-            <p className="line-clamp-6 break-words text-xl font-bold leading-relaxed sm:text-2xl">
-              {reason}
-            </p>
-          </blockquote>
+          {excerpt && (
+            <blockquote className="flex gap-3">
+              <Quote
+                size={28}
+                className="shrink-0 text-violet-400"
+                aria-hidden="true"
+              />
+              <p className="line-clamp-6 break-words text-xl font-bold leading-relaxed sm:text-2xl">
+                {excerpt}
+              </p>
+            </blockquote>
+          )}
           <Curator entry={hero} />
           <Link
             href={hero.selection.public_path}
@@ -109,6 +120,7 @@ export function EditorialShowcase({
           <div className="grid gap-4 lg:grid-cols-2">
             {others.map((entry) => {
               const pick = entry.games[0];
+              const pickExcerpt = reviewExcerpt(pick.outlet_review);
               return (
                 <article
                   key={entry.selection.id}
@@ -122,10 +134,11 @@ export function EditorialShowcase({
                     <h3 className="break-words text-xl font-black">
                       {pick.title}
                     </h3>
-                    <p className="line-clamp-2 text-sm leading-6 text-white/65">
-                      {pick.recommendation_reason ||
-                        entry.selection.description}
-                    </p>
+                    {pickExcerpt && (
+                      <p className="line-clamp-2 text-sm leading-6 text-white/65">
+                        {pickExcerpt}
+                      </p>
+                    )}
                     <Curator entry={entry} />
                     <div className="mt-auto flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold">
                       <Link

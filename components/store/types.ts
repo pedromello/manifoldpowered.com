@@ -67,7 +67,7 @@ export type GameApi = {
   positive_reviews?: number;
   negative_reviews?: number;
   review_score?: string | null;
-  /** Outlet-authored editorial copy; present only in editorial Featured feeds. */
+  /** Outlet-authored game recommendation or review text; never selection copy. */
   recommendation_reason?: string | null;
   /** Independent Outlet × game review, available in an Outlet context. */
   outlet_review?: {
