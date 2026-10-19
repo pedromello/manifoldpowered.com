@@ -23,8 +23,18 @@ export default async function handler(
     return;
   }
   try {
-    return res.status(200).json(await pruneProductEvents());
+    const result = await pruneProductEvents();
+    console.info(
+      JSON.stringify({ component: "product_events_retention", ...result }),
+    );
+    res.status(200).json(result);
   } catch {
-    return res.status(503).json({ error: "Product event maintenance failed" });
+    console.error(
+      JSON.stringify({
+        component: "product_events_retention",
+        outcome: "failed",
+      }),
+    );
+    res.status(503).json({ error: "Product event maintenance failed" });
   }
 }

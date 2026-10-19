@@ -34,5 +34,12 @@ export async function pruneProductEvents(
     buckets += deleted;
     if (deleted < batchSize) break;
   }
-  return { events, buckets, cutoff: cutoff.toISOString(), bounded: true };
+  return {
+    events,
+    buckets,
+    cutoff: cutoff.toISOString(),
+    bounded: true,
+    events_capped: events === batchSize * maxBatches,
+    buckets_capped: buckets === batchSize * maxBatches,
+  };
 }

@@ -360,7 +360,7 @@ No futuro, conectar o low code a uma credencial de leitura restrita a views/colu
 
 ## 15. Revisão independente
 
-Revisão independente de desenho realizada pelo subagente `review_product_events_plan`, somente leitura, conforme solicitado pelo usuário. Parecer: adequado ao MVP após incorporar os ajustes abaixo; a implementação continua aguardando a revisão do usuário.
+Revisão independente de desenho realizada pelo subagente `review_product_events_plan`, somente leitura, conforme solicitado pelo usuário. Parecer da etapa de planejamento: adequado ao MVP após incorporar os ajustes abaixo. O usuário autorizou a implementação em 19/10/2026.
 
 Ajustes incorporados:
 
@@ -371,4 +371,6 @@ Ajustes incorporados:
 - Avaliação de índice por visita com EXPLAIN, sem acrescentar índices preventivamente.
 - Rollback da ação quando falha o evento SERVER, comportamento explicitado para decisão do usuário.
 
-A revisão não executou testes, migrations ou operações de produção. As suítes descritas neste documento são o plano de validação da futura implementação; não são resultados já obtidos.
+Na revisão posterior do código, o mesmo subagente apontou a restauração de cookies antigos e a perda da primeira visualização após inatividade. A implementação acrescentou o vínculo interno único de visita e a revalidação/notificação do cliente após reconhecer um novo contexto. A revisão final de leitura não identificou bloqueios no cliente/efeito corrigido. Detalhes implementados e evidências estão em `docs/product-events.md` e na PR.
+
+O subagente não executou testes, migrations ou operações de produção. As suítes desta proposta foram executadas pelo agente principal durante a implementação; os resultados finais são registrados na PR, separadamente do parecer de desenho.

@@ -97,7 +97,7 @@ The API logs only aggregate outcome/status/counts. It deliberately sanitizes une
 
 A daily Vercel cron invokes the protected `/api/internal/product-events/prune`. It requires `Authorization: Bearer <CRON_SECRET>`. No unauthenticated read or deletion is available.
 
-Maintenance uses short, bounded deletes with SKIP LOCKED: at most twenty batches of 1000 rows per table per invocation. Monitor the cap and invoke additional maintenance or revise scheduling if traffic creates a backlog. Ninety days is the cutoff, not a guarantee that a capped daily job drains arbitrarily high volume. Internal identity boundaries outlive a visit's maximum 24-hour lifetime at the default retention.
+Maintenance uses short, bounded deletes with SKIP LOCKED: at most twenty batches of 1000 rows per table per invocation. Aggregate logs and the protected response include counts and `events_capped`/`buckets_capped` warnings. Monitor the cap and invoke additional maintenance or revise scheduling if traffic creates a backlog. Ninety days is the cutoff, not a guarantee that a capped daily job drains arbitrarily high volume. Internal identity boundaries outlive a visit's maximum 24-hour lifetime at the default retention.
 
 Run the normal integration suite, including `tests/integration/api/v1/events/events.test.ts`, plus the client and React lifecycle tests. These cover real HTTP/Postgres, INSERT failure/rollback, concurrent transitions, stale contexts, immutable revision attribution, quotas, cookie preservation, ordering and bounded retention.
 

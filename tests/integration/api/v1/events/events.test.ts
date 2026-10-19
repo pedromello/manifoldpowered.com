@@ -593,13 +593,17 @@ describe("first-party product events HTTP → PostgreSQL", () => {
       view({ name: "not_allowed" }),
     );
     const responses = [];
-    for (let i = 0; i < 13; i++)
-      responses.push(await browser.send(invalidBatch));
-    expect(responses.slice(0, 12).map((r) => r.status)).toEqual(
-      Array(12).fill(400),
-    );
-    expect(responses[12].status).toBe(429);
-    expect(responses[12].headers.get("retry-after")).toBeTruthy();
+    // Allow one minute-boundary rollover during the HTTP loop. The fixed-clock
+    // concurrent model test above establishes the exact reservation counts.
+    for (let i = 0; i < 25; i++) {
+      const response = await browser.send(invalidBatch);
+      responses.push(response);
+      if (response.status === 429) break;
+      expect(response.status).toBe(400);
+    }
+    expect(responses.length).toBeGreaterThanOrEqual(13);
+    expect(responses.at(-1).status).toBe(429);
+    expect(responses.at(-1).headers.get("retry-after")).toBeTruthy();
     expect(await prisma.productEvent.count()).toBe(0);
   });
 
@@ -665,6 +669,7 @@ describe("first-party product events HTTP → PostgreSQL", () => {
     });
     const result = await pruneProductEvents({ batchSize: 2, maxBatches: 1 });
     expect(result.events).toBe(2);
+    expect(result.events_capped).toBe(true);
     expect(result.buckets).toBe(1);
     expect(
       await prisma.productEvent.count({ where: { received_at: { lt: old } } }),
