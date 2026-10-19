@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { EVENT_BATCH_SIZE } from "contracts/product-event-constants";
+import { EVENT_BATCH_SIZE } from "./product-event-constants";
 export {
   EVENT_BATCH_SIZE,
   EVENT_BODY_BYTES,
   EVENT_PROPERTIES_BYTES,
   EVENT_CONTEXT_HEADER,
-} from "contracts/product-event-constants";
+} from "./product-event-constants";
 
 const slug = z.string().min(1).max(255);
 const commonProperties = z

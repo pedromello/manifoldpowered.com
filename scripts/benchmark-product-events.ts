@@ -155,7 +155,15 @@ try {
         batch_size: 10,
         insert_ms: Math.round(insertMs),
         funnel_ms: Math.round(queryMs),
-        funnel: funnel.map(({ selection_id: _selection, ...counts }) => counts),
+        funnel: funnel.map(
+          ({ visits, accounts, wishlisted, followed, completed }) => ({
+            visits,
+            accounts,
+            wishlisted,
+            followed,
+            completed,
+          }),
+        ),
         p50_ms: Math.round(sorted[24]),
         p95_ms: Math.round(sorted[47]),
         statuses: measurements.reduce(
