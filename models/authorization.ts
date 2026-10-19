@@ -22,6 +22,7 @@ import {
   GameOwnershipClaim,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
+import { purchaseModeForGame, steamPageForGame } from "lib/game-purchase-mode";
 import { InternalServerError } from "infra/errors";
 import {
   downloadAuthorizationSchema,
@@ -742,21 +743,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     const nintendoOffer = gameOutput.nintendo_nsuid
       ? gameOutput.external_offer_row
       : undefined;
-    const steamPage =
-      gameOutput.social_links &&
-      typeof gameOutput.social_links === "object" &&
-      !Array.isArray(gameOutput.social_links) &&
-      "steam_page" in gameOutput.social_links &&
-      typeof gameOutput.social_links.steam_page === "string"
-        ? gameOutput.social_links.steam_page
-        : null;
-    const purchaseMode = gameOutput.nintendo_nsuid
-      ? "NINTENDO_ONLY"
-      : gameOutput.status === "ACTIVE"
-        ? "PLATFORM"
-        : steamPage
-          ? "STEAM_ONLY"
-          : "UNAVAILABLE";
+    const steamPage = steamPageForGame(gameOutput.social_links);
+    const purchaseMode = purchaseModeForGame(gameOutput);
 
     return {
       id: gameOutput.id,
