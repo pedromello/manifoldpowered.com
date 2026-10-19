@@ -6,6 +6,10 @@ import session from "models/session";
 import authorization from "models/authorization";
 import { ForbiddenError, RateLimitError } from "infra/errors";
 import authRateLimit from "infra/auth_rate_limit";
+import {
+  loginEventContext,
+  logoutEventContext,
+} from "infra/product_event_context";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -40,6 +44,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   authRateLimit.reset(userAuthDto.email);
 
   controller.setSessionCookie(res, newSession.token);
+  await loginEventContext(req, res, authUser.id);
 
   const secureOutputValues = authorization.filterOutput(
     authUser,
@@ -57,6 +62,7 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
   const validSession = await session.findOneValidByToken(sessionToken);
   const expiredSession = await session.expireById(validSession.id);
   controller.clearSessionCookie(res);
+  logoutEventContext(res);
 
   const secureOutputValues = authorization.filterOutput(
     userTryingToLogout,

@@ -1,5 +1,6 @@
-import { Prisma } from "generated/prisma/client";
 import { prisma } from "infra/database";
+import { recordDomainEvent } from "models/product_event";
+import type { ProductEventContext } from "infra/product_event_context";
 import storeModel from "models/store";
 import { z } from "zod";
 
@@ -13,41 +14,49 @@ export const storeFollowQuerySchema = z
   .object({ store_slug: storeSlug })
   .strict();
 
-async function follow(userId: string, storeSlug: string) {
+async function follow(
+  userId: string,
+  storeSlug: string,
+  context?: ProductEventContext,
+) {
   const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
-  try {
-    await prisma.storeFollow.create({
-      data: {
+  await prisma.$transaction(async (tx) => {
+    const created = await tx.storeFollow.createManyAndReturn({
+      data: [{ user_id: userId, store_id: store.id }],
+      skipDuplicates: true,
+      select: { id: true },
+    });
+    if (created[0])
+      await recordDomainEvent(tx, {
+        name: "outlet_followed",
+        relation_id: created[0].id,
         user_id: userId,
         store_id: store.id,
-      },
-    });
-  } catch (error) {
-    // A unique index is the source of truth for simultaneous requests. Prisma
-    // upsert can still race when multiple transactions see no row, so treat
-    // only the resulting duplicate as the successful idempotent no-op.
-    if (
-      !(
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      )
-    ) {
-      throw error;
-    }
-  }
+        context,
+      });
+  });
 }
 
-async function unfollow(userId: string, storeSlug: string) {
+async function unfollow(
+  userId: string,
+  storeSlug: string,
+  context?: ProductEventContext,
+) {
   const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
-  // deleteMany makes a repeated unfollow a successful no-op while keeping the
-  // user id entirely server-derived.
-  await prisma.storeFollow.deleteMany({
-    where: {
-      user_id: userId,
-      store_id: store.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    const removed = await tx.$queryRaw<Array<{ id: string }>>`
+      DELETE FROM store_follows WHERE user_id = ${userId} AND store_id = ${store.id} RETURNING id
+    `;
+    if (removed[0])
+      await recordDomainEvent(tx, {
+        name: "outlet_unfollowed",
+        relation_id: removed[0].id,
+        user_id: userId,
+        store_id: store.id,
+        context,
+      });
   });
 }
 

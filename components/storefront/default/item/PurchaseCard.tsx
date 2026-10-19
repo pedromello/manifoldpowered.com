@@ -26,6 +26,7 @@ import { useI18n } from "lib/i18n";
 import { NintendoRefreshButton } from "components/store/NintendoRefreshButton";
 import { ExternalGameRefreshButton } from "components/store/ExternalGameRefreshButton";
 import { extractSteamAppId } from "lib/steam";
+import { trackExternalStore } from "lib/product-events-client";
 
 export function PurchaseCard({
   game,
@@ -160,6 +161,17 @@ export function PurchaseCard({
           (externalUrl ? (
             <a
               href={externalUrl}
+              onClick={() =>
+                trackExternalStore({
+                  name: "external_store_clicked",
+                  target: { game_slug: game.slug },
+                  properties: {
+                    locale,
+                    entry_surface: "game_page",
+                    provider: isNintendo ? "nintendo" : "steam",
+                  },
+                })
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"

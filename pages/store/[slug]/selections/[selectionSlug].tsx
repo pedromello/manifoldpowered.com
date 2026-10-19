@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 import { ArrowLeft, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
@@ -74,6 +75,18 @@ export default function SelectionPage({
   }
   return (
     <main className="min-h-screen bg-[#0d0913] px-4 py-8 text-white sm:px-6 lg:px-10">
+      <ProductPageEvent
+        preview={preview}
+        event={{
+          name: "selection_viewed",
+          target: {
+            store_slug: outlet.slug,
+            selection_slug: selection.slug,
+            published_revision: selection.published_revision,
+          },
+          properties: { locale, entry_surface: "selection_page" },
+        }}
+      />
       <SeoHead
         locale={locale}
         path={selection.public_path}
