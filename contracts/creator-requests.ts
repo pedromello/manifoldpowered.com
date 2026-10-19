@@ -1,5 +1,6 @@
 /** Pure API inputs shared by the website and the agent CLI. */
 import { z } from "zod";
+import { featuredVideoUrlSchema } from "./featured-video";
 import {
   STORE_LAYOUT_PRESETS,
   STORE_PALETTES,
@@ -78,6 +79,7 @@ export const storeSchema = z
     layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable().optional(),
     tagline: z.string().trim().max(160).nullable().optional(),
     cover_url: httpsUrlSchema.nullable().optional(),
+    featured_video_url: featuredVideoUrlSchema.nullable().optional(),
     social_links: storeSocialLinksSchema.nullable().optional(),
     brand_tokens: storeBrandTokensSchema.nullable().optional(),
   })

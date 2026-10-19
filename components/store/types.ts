@@ -1,3 +1,4 @@
+import type { FeaturedVideo } from "contracts/featured-video";
 import type { DisplayPrice } from "lib/price";
 import type { CatalogOffer } from "lib/catalog-offer";
 import type { OutletRating, OutletRatingScale } from "contracts/outlet-rating";
@@ -121,6 +122,7 @@ export type StorePresentation = StorePresentationSnapshot;
  * admin branch and must never reach a storefront.
  */
 export type StoreApi = {
+  featured_video?: FeaturedVideo | null;
   id: string;
   slug: string;
   name: string;
@@ -217,6 +219,10 @@ export function storeContextFromApi(store: StoreApi) {
       typography: typography ?? DEFAULT_STORE_BRAND_TOKENS.typography,
       shape: shape ?? DEFAULT_STORE_BRAND_TOKENS.shape,
     },
+    featured_video:
+      store.featured_video !== undefined
+        ? store.featured_video
+        : (presentation?.featured_video ?? null),
     presentation,
   };
 }

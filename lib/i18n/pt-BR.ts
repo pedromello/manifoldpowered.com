@@ -1,4 +1,17 @@
 export const ptBR: Record<string, string> = {
+  "Watch on YouTube": "Assistir no YouTube",
+  "Filter games": "Filtrar jogos",
+  "Featured YouTube video": "Vídeo em destaque do YouTube",
+  "Featured video": "Vídeo em destaque",
+  "YouTube video URL": "Link do vídeo no YouTube",
+  "Play featured video": "Reproduzir vídeo em destaque",
+  "Watch presentation": "Assistir apresentação",
+  "Close video": "Fechar vídeo",
+  "Remove video": "Remover vídeo",
+  "Optional. This video becomes public only after publication.":
+    "Opcional. O vídeo só fica público após a publicação.",
+  "Use an HTTPS YouTube watch or youtu.be video URL.":
+    "Use um link HTTPS de vídeo do YouTube ou youtu.be.",
   "Recorded price": "Último preço registrado",
   "Checked {date}": "Consultado em {date}",
   "On sale in this curation": "Em promoção na curadoria",

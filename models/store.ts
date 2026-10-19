@@ -1,3 +1,4 @@
+import { youtubeVideoId } from "contracts/featured-video";
 import { prisma } from "infra/database";
 import { ratingFromStorage } from "contracts/outlet-rating";
 import { z } from "zod";
@@ -205,6 +206,9 @@ async function create(storeData: StoreCreateDto) {
       layout_preset: storeData.layout_preset ?? null,
       tagline: storeData.tagline,
       cover_url: storeData.cover_url,
+      featured_video_id: storeData.featured_video_url
+        ? youtubeVideoId(storeData.featured_video_url)
+        : null,
       social_links: storeData.social_links ?? {},
       brand_tokens: storeData.brand_tokens ?? DEFAULT_STORE_BRAND_TOKENS,
     },
@@ -536,6 +540,7 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
       layout_preset: storeRow.layout_preset,
       tagline: storeRow.tagline,
       cover_url: storeRow.cover_url,
+      featured_video_id: storeRow.featured_video_id,
       social_links: storeRow.social_links,
       brand_tokens: storeRow.brand_tokens,
     }),
@@ -630,8 +635,17 @@ async function update(
     });
   }
 
+  const { featured_video_url, ...draftFields } = result.data;
   const normalizedData = {
-    ...result.data,
+    ...draftFields,
+    ...(featured_video_url !== undefined
+      ? {
+          featured_video_id:
+            featured_video_url === null
+              ? null
+              : youtubeVideoId(featured_video_url),
+        }
+      : {}),
     ...(result.data.social_links === null ? { social_links: {} } : {}),
     ...(result.data.brand_tokens === null
       ? { brand_tokens: DEFAULT_STORE_BRAND_TOKENS }

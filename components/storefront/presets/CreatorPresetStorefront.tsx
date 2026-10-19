@@ -1,3 +1,4 @@
+import { FeaturedVideo } from "components/store/FeaturedVideo";
 import Form from "next/form";
 import { GamePriceBlock } from "components/store/GamePriceBlock";
 import { OutletPromotions } from "components/storefront/OutletPromotions";
@@ -803,6 +804,17 @@ function ChannelLayout(props: PresetLayoutProps) {
           <SocialLinks store={store} tokens={tokens} />
         </div>
       </header>
+      {store.layout_preset !== "community" && store.featured_video && (
+        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
+          <div className="max-w-sm">
+            <FeaturedVideo
+              video={store.featured_video}
+              poster={store.cover_url}
+              teaser
+            />
+          </div>
+        </section>
+      )}
 
       <section className="border-y border-sf-border bg-sf-surface/45">
         <div className="mx-auto max-w-[1500px] px-4 py-9 sm:px-6 lg:px-10 lg:py-12">
@@ -999,6 +1011,17 @@ function EditorialLayout(props: PresetLayoutProps) {
           </div>
         </div>
       </header>
+      {store.layout_preset !== "community" && store.featured_video && (
+        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
+          <div className="max-w-sm">
+            <FeaturedVideo
+              video={store.featured_video}
+              poster={store.cover_url}
+              teaser
+            />
+          </div>
+        </section>
+      )}
 
       {store.cover_url && (
         <div className="mx-auto max-w-[1440px] px-4 pt-8 sm:px-8">
@@ -1173,7 +1196,7 @@ function CommunityLayout(props: PresetLayoutProps) {
     >
       <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-8">
         <div
-          className={`${tokens.card} relative grid gap-5 overflow-hidden border border-sf-border bg-sf-surface p-5 sm:p-7`}
+          className={`${tokens.card} relative grid gap-5 overflow-hidden border border-sf-border bg-sf-surface p-5 sm:p-7 ${store.featured_video ? "lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.45fr)]" : ""}`}
         >
           <div
             aria-hidden="true"
@@ -1208,11 +1231,31 @@ function CommunityLayout(props: PresetLayoutProps) {
               </div>
             </div>
           </div>
+          {store.featured_video && (
+            <div className="relative lg:row-span-2">
+              <FeaturedVideo
+                video={store.featured_video}
+                poster={store.cover_url}
+                teaser
+              />
+            </div>
+          )}
           <div className="relative">
             <SocialLinks store={store} tokens={tokens} />
           </div>
         </div>
       </header>
+      {store.layout_preset !== "community" && store.featured_video && (
+        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
+          <div className="max-w-sm">
+            <FeaturedVideo
+              video={store.featured_video}
+              poster={store.cover_url}
+              teaser
+            />
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-[1380px] px-4 py-12 sm:px-8 lg:py-16">
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

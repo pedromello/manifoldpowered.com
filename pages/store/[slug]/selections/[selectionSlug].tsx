@@ -1,3 +1,4 @@
+import { FeaturedVideo } from "components/store/FeaturedVideo";
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
 import { ProductPageEvent } from "components/analytics/ProductPageEvent";
@@ -127,12 +128,21 @@ export default function SelectionPage({
           </p>
         )}
         <header className="mt-3 grid overflow-hidden rounded-3xl border border-sf-border bg-sf-surface lg:grid-cols-[1.1fr_1fr]">
-          <GameArtwork
-            src={selection.cover_url}
-            alt={selection.title}
-            loading="eager"
-            className="aspect-[16/10] lg:aspect-auto lg:min-h-96"
-          />
+          {selection.featured_video ? (
+            <div className="min-w-0 p-3 sm:p-5">
+              <FeaturedVideo
+                video={selection.featured_video}
+                poster={selection.cover_url}
+              />
+            </div>
+          ) : (
+            <GameArtwork
+              src={selection.cover_url}
+              alt={selection.title}
+              loading="eager"
+              className="aspect-[16/10] lg:aspect-auto lg:min-h-96"
+            />
+          )}
           <div className="flex flex-col justify-center gap-5 p-6 sm:p-9">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-sf-accent">
               {t("Game selection")}

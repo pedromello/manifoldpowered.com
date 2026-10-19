@@ -19,10 +19,11 @@ export type { GameApi, GameDetailApi, PaginationApi };
  */
 export type StoreContext = Omit<
   ReturnType<typeof storeContextFromApi>,
-  "presentation" | "rating_scale"
+  "presentation" | "rating_scale" | "featured_video"
 > & {
   presentation?: StoreApi["presentation"];
   rating_scale?: StoreApi["rating_scale"];
+  featured_video?: StoreApi["featured_video"];
 };
 
 /**
