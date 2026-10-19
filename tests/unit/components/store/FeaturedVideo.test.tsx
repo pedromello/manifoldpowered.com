@@ -25,11 +25,12 @@ afterEach(async () => {
   container.remove();
 });
 const video = { provider: "YOUTUBE" as const, video_id: "g7QcidQx73s" };
-test("defers the player until click and always offers the canonical fallback", async () => {
+test("shows the original video thumbnail and defers the player until click, without an external link", async () => {
   await act(async () => root.render(<FeaturedVideo video={video} />));
   expect(container.querySelector("iframe")).toBeNull();
-  expect(container.querySelector("a")?.href).toBe(
-    "https://www.youtube.com/watch?v=g7QcidQx73s",
+  expect(container.querySelector("a")).toBeNull();
+  expect(container.querySelector("img")?.src).toBe(
+    "https://img.youtube.com/vi/g7QcidQx73s/maxresdefault.jpg",
   );
   await act(async () => container.querySelector("button")!.click());
   const frame = container.querySelector("iframe")!;
@@ -39,12 +40,45 @@ test("defers the player until click and always offers the canonical fallback", a
   expect(frame.getAttribute("referrerpolicy")).toBe(
     "strict-origin-when-cross-origin",
   );
+  expect(container.querySelector("a")).toBeNull();
+});
+test.each(["error", "placeholder"])(
+  "uses the standard video thumbnail when the HD thumbnail returns %s",
+  async (failure) => {
+    await act(async () => root.render(<FeaturedVideo video={video} />));
+    const image = container.querySelector("img")!;
+    if (failure === "placeholder")
+      Object.defineProperty(image, "naturalWidth", { value: 120 });
+    await act(async () =>
+      image.dispatchEvent(new Event(failure === "error" ? "error" : "load")),
+    );
+    expect(container.querySelector("img")?.src).toBe(
+      "https://img.youtube.com/vi/g7QcidQx73s/hqdefault.jpg",
+    );
+  },
+);
+test("keeps playback available when neither video thumbnail loads", async () => {
+  await act(async () => root.render(<FeaturedVideo video={video} />));
+  await act(async () =>
+    container.querySelector("img")!.dispatchEvent(new Event("error")),
+  );
+  await act(async () =>
+    container.querySelector("img")!.dispatchEvent(new Event("error")),
+  );
+  expect(container.querySelector("img")).toBeNull();
+  await act(async () => container.querySelector("button")!.click());
+  expect(container.querySelector("iframe")).not.toBeNull();
 });
 test("closes the teaser dialog and unmounts playback", async () => {
   await act(async () => root.render(<FeaturedVideo video={video} teaser />));
+  expect(container.querySelector("img")?.src).toBe(
+    "https://img.youtube.com/vi/g7QcidQx73s/maxresdefault.jpg",
+  );
+  expect(container.querySelector("a")).toBeNull();
   await act(async () => container.querySelector("button")!.click());
   expect(container.querySelector("dialog")?.hasAttribute("open")).toBe(true);
   expect(container.querySelector("iframe")).not.toBeNull();
+  expect(container.querySelector("a")).toBeNull();
   await act(async () =>
     (
       container.querySelector('[aria-label="Close video"]') as HTMLButtonElement
@@ -58,13 +92,10 @@ test("renders no empty slot for a missing video", async () => {
   expect(container.innerHTML).toBe("");
 });
 
-test("uses the start time in the player and canonical fallback", async () => {
+test("preserves the configured start time in the player", async () => {
   await act(async () =>
     root.render(<FeaturedVideo video={{ ...video, start_seconds: 623 }} />),
   );
-  expect(
-    new URL(container.querySelector("a")!.href).searchParams.get("t"),
-  ).toBe("623");
   await act(async () => container.querySelector("button")!.click());
   expect(
     new URL(container.querySelector("iframe")!.src).searchParams.get("start"),
