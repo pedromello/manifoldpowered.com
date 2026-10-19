@@ -3,6 +3,7 @@ import { Play, X } from "lucide-react";
 import { GameArtwork } from "components/store/GameArtwork";
 import {
   featuredVideoUrl,
+  featuredVideoSchema,
   type FeaturedVideo as Video,
 } from "contracts/featured-video";
 import { useI18n } from "lib/i18n";
@@ -16,11 +17,13 @@ export function FeaturedVideo({
   poster?: string | null;
   teaser?: boolean;
 }) {
-  if (!video || !/^[A-Za-z0-9_-]{11}$/.test(video.video_id)) return null;
+  if (!video) return null;
+  const validated = featuredVideoSchema.safeParse(video);
+  if (!validated.success) return null;
   return (
     <YouTubeVideo
-      key={video.video_id}
-      video={video}
+      key={`${video.video_id}:${video.start_seconds ?? 0}`}
+      video={validated.data}
       poster={poster}
       teaser={teaser}
     />
@@ -50,7 +53,7 @@ function YouTubeVideo({
     <>
       <iframe
         title={t("Featured YouTube video")}
-        src={`https://www.youtube-nocookie.com/embed/${video.video_id}?autoplay=1&playsinline=1`}
+        src={`https://www.youtube-nocookie.com/embed/${video.video_id}?autoplay=1&playsinline=1${video.start_seconds ? `&start=${video.start_seconds}` : ""}`}
         className="aspect-video min-h-[200px] w-full rounded-xl border-0 bg-black"
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen

@@ -50,11 +50,11 @@ export const DEFAULT_STORE_BRAND_TOKENS: StoreBrandTokens = {
 
 export const DEFAULT_STORE_LAYOUT_PRESET: StoreLayoutPreset = "channel";
 
-export const STORE_PRESENTATION_VERSION = 2 as const;
+export const STORE_PRESENTATION_VERSION = 3 as const;
 
 /** The versioned presentation JSON captured by each immutable StoreRevision. */
 export type StorePresentationSnapshot = {
-  version: 1 | typeof STORE_PRESENTATION_VERSION;
+  version: 1 | 2 | typeof STORE_PRESENTATION_VERSION;
   featured_video?: FeaturedVideo | null;
   theme_key: string | null;
   layout_preset: StoreLayoutPreset | null;

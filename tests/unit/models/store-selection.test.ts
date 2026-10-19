@@ -26,6 +26,7 @@ function selection(overrides: Partial<StoreSelection> = {}): StoreSelection {
     description: "A selection for friends.",
     cover_url: "https://cdn.example.com/cover.png",
     featured_video_id: null,
+    featured_video_start_seconds: 0,
     image_urls: [],
     game_ids: ["game-1", "game-2"],
     draft_revision: 4,

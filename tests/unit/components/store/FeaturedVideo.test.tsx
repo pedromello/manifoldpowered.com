@@ -57,3 +57,30 @@ test("renders no empty slot for a missing video", async () => {
   await act(async () => root.render(<FeaturedVideo video={null} />));
   expect(container.innerHTML).toBe("");
 });
+
+test("uses the start time in the player and canonical fallback", async () => {
+  await act(async () =>
+    root.render(<FeaturedVideo video={{ ...video, start_seconds: 623 }} />),
+  );
+  expect(
+    new URL(container.querySelector("a")!.href).searchParams.get("t"),
+  ).toBe("623");
+  await act(async () => container.querySelector("button")!.click());
+  expect(
+    new URL(container.querySelector("iframe")!.src).searchParams.get("start"),
+  ).toBe("623");
+});
+test("resets playback when the same video changes to another segment", async () => {
+  await act(async () =>
+    root.render(<FeaturedVideo video={{ ...video, start_seconds: 623 }} />),
+  );
+  await act(async () => container.querySelector("button")!.click());
+  await act(async () =>
+    root.render(<FeaturedVideo video={{ ...video, start_seconds: 68 }} />),
+  );
+  expect(container.querySelector("iframe")).toBeNull();
+  await act(async () => container.querySelector("button")!.click());
+  expect(
+    new URL(container.querySelector("iframe")!.src).searchParams.get("start"),
+  ).toBe("68");
+});

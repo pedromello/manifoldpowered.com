@@ -641,6 +641,7 @@ model Store {
   tagline       String? @db.VarChar(160)
   cover_url     String? @db.VarChar(2048)
   featured_video_id String? @db.VarChar(11)
+  featured_video_start_seconds Int @default(0)
   social_links  Json    @default("{}")
   brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
 
@@ -699,6 +700,7 @@ model StoreSelection {
   description           String      @default("") @db.Text
   cover_url             String?     @db.VarChar(2048)
   featured_video_id     String?     @db.VarChar(11)
+  featured_video_start_seconds Int @default(0)
   image_urls            String[]    @default([])
   game_ids              String[]    @default([])
   draft_revision        Int         @default(1)

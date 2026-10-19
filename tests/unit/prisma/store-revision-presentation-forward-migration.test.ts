@@ -102,7 +102,7 @@ describe("StoreRevision presentation forward migration", () => {
     };
     expect(storePresentationSchema.parse(normalized)).toEqual({
       ...normalized,
-      version: 2,
+      version: 3,
       featured_video: null,
     });
     expect(normalized.version).toBe(1);
@@ -146,7 +146,7 @@ describe("StoreRevision presentation forward migration", () => {
     };
     expect(storePresentationSchema.parse(sanitized)).toEqual({
       ...sanitized,
-      version: 2,
+      version: 3,
       featured_video: null,
     });
   });

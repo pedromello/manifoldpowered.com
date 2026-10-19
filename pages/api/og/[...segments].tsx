@@ -307,7 +307,7 @@ export function publishedStoreFromResponse(
     !isNullableString(candidate.description) ||
     !isNullableString(candidate.logo_url) ||
     !presentation ||
-    ![1, 2].includes(Number(presentation.version)) ||
+    ![1, 2, 3].includes(Number(presentation.version)) ||
     !isNullableString(presentation.theme_key) ||
     !isNullableString(presentation.layout_preset) ||
     !isNullableString(presentation.tagline) ||

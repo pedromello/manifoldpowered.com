@@ -90,10 +90,11 @@ test("the CLI creates, previews, publishes, replaces and removes a selection vid
       description: "A curated selection with an independent video.",
       cover_url: "https://example.com/cover.png",
       game_slugs: [f.games[0].slug],
-      featured_video_url: `https://youtu.be/${firstVideo}`,
+      featured_video_url: `https://youtu.be/${firstVideo}?t=68`,
     });
     const preview = cli(["outlets", "selections", "preview"], ref);
     expect(preview.data.selection.featured_video.video_id).toBe(firstVideo);
+    expect(preview.data.selection.featured_video.start_seconds).toBe(68);
     const published = cli(["outlets", "selections", "publish"], {
       ...ref,
       expected_draft_revision: 1,
@@ -103,11 +104,13 @@ test("the CLI creates, previews, publishes, replaces and removes a selection vid
     cli(["outlets", "selections", "update"], {
       ...ref,
       expected_draft_revision: published.data.selection.draft_revision,
-      featured_video_url: `https://www.youtube.com/watch?v=${otherVideo}`,
+      featured_video_url: `https://www.youtube.com/watch?v=${otherVideo}&t=623`,
     });
     expect((await publicView()).featured_video.video_id).toBe(firstVideo);
+    expect((await publicView()).featured_video.start_seconds).toBe(68);
     const state = cli(["outlets", "selections", "get"], ref);
     expect(state.data.selection.featured_video.video_id).toBe(otherVideo);
+    expect(state.data.selection.featured_video.start_seconds).toBe(623);
     const renamed = cli(["outlets", "selections", "update"], {
       ...ref,
       expected_draft_revision: state.data.selection.draft_revision,
@@ -117,6 +120,10 @@ test("the CLI creates, previews, publishes, replaces and removes a selection vid
       cli(["outlets", "selections", "get"], ref).data.selection.featured_video
         .video_id,
     ).toBe(otherVideo);
+    expect(
+      cli(["outlets", "selections", "get"], ref).data.selection.featured_video
+        .start_seconds,
+    ).toBe(623);
     const removed = cli(["outlets", "selections", "update"], {
       ...ref,
       expected_draft_revision: renamed.data.selection.draft_revision,
@@ -167,11 +174,12 @@ test("outlet videos obey publication boundaries, ownership and expected revision
     ).status,
   ).toBe(400);
   const changed = await update(f.sessionToken, f.store.draft_revision, {
-    featured_video_url: `https://youtu.be/${firstVideo}`,
+    featured_video_url: `https://youtu.be/${firstVideo}?t=68`,
   });
   expect(changed.status).toBe(200);
   const draft = await changed.json();
   expect(draft.featured_video.video_id).toBe(firstVideo);
+  expect(draft.featured_video.start_seconds).toBe(68);
   expect(
     (
       await publicationRequest(
@@ -208,6 +216,12 @@ test("outlet videos obey publication boundaries, ownership and expected revision
     ).status,
   ).toBe(200);
   expect((await (await fetch(path)).json()).featured_video).toBeNull();
+  await expect(
+    prisma.store.update({
+      where: { id: f.store.id },
+      data: { featured_video_start_seconds: 68 },
+    }),
+  ).rejects.toThrow();
 });
 
 test("promotion pagination considers all eligible games before slicing a page", async () => {
