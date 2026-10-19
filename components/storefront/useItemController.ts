@@ -5,6 +5,7 @@ import useSWR from "swr";
 import type { Review, ReviewsApiResponse } from "components/store/ReviewCard";
 import { withStore } from "lib/store-context";
 import { useI18n } from "lib/i18n";
+import { ApiClientError, isAuthenticationError } from "lib/api-client";
 
 export type ItemControllerOptions = {
   gameSlug: string;
@@ -72,22 +73,12 @@ export type ItemControllerResult = {
   backHref: string;
 };
 
-class ApiRequestError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ApiRequestError";
-    this.status = status;
-  }
-}
-
 const okJson = async (res: Response) => {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new ApiRequestError(
-      body?.message || `Request failed: ${res.status}`,
+    throw new ApiClientError(
       res.status,
+      body?.message || `Request failed: ${res.status}`,
     );
   }
   return body;
@@ -121,7 +112,7 @@ export function useItemController({
   isPreview = false,
 }: ItemControllerOptions): ItemControllerResult {
   const router = useRouter();
-  const { t, translateError } = useI18n();
+  const { translateError } = useI18n();
   const [reviewPage, setReviewPage] = useState(1);
 
   const {
@@ -148,14 +139,12 @@ export function useItemController({
 
   const { data: wishlistData, mutate: mutateWishlist } = useSWR(
     isPreview ? null : `/api/v1/wishlists?slug=${gameSlug}`,
-    (url) => fetch(url).then((res) => res.json()),
+    fetchJson,
   );
 
   // Anonymous access is forbidden, while a server-side failure is a real
   // library error and must not be disguised as a login redirect.
-  const isLoggedOut =
-    libraryError instanceof ApiRequestError &&
-    (libraryError.status === 401 || libraryError.status === 403);
+  const isLoggedOut = isAuthenticationError(libraryError);
   const isCheckingLibrary = !isPreview && !libraryData && !libraryError;
   const [hasJustAcquired, setHasJustAcquired] = useState(false);
   const isInLibrary =
@@ -176,6 +165,16 @@ export function useItemController({
   );
   const [isToggling, setIsToggling] = useState(false);
 
+  const redirectToLogin = () => {
+    void router.push(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
+  };
+
+  const redirectIfAuthenticationRequired = (response: Response) => {
+    if (response.status !== 401 && response.status !== 403) return false;
+    redirectToLogin();
+    return true;
+  };
+
   const redeem = async () => {
     setAcquisitionError(null);
 
@@ -185,11 +184,7 @@ export function useItemController({
     if (isPreview) return;
 
     if (isLoggedOut) {
-      router.push(
-        `/login?callbackUrl=${encodeURIComponent(
-          withStore(`/item/${gameSlug}`, attributionStoreSlug, isPreview),
-        )}`,
-      );
+      redirectToLogin();
       return;
     }
 
@@ -205,6 +200,7 @@ export function useItemController({
         ),
       });
 
+      if (redirectIfAuthenticationRequired(res)) return;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(
@@ -233,6 +229,10 @@ export function useItemController({
     recommended: boolean;
   }) => {
     if (isPreview) return false;
+    if (isLoggedOut) {
+      redirectToLogin();
+      return false;
+    }
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -244,6 +244,7 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, ...input }),
       });
 
+      if (redirectIfAuthenticationRequired(res)) return false;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message || "Failed to post review");
@@ -271,6 +272,10 @@ export function useItemController({
     recommended: boolean;
   }) => {
     if (isPreview) return false;
+    if (isLoggedOut) {
+      redirectToLogin();
+      return false;
+    }
     if (!input.message.trim()) return false;
 
     setReviewActionError(null);
@@ -282,6 +287,7 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug, ...input }),
       });
 
+      if (redirectIfAuthenticationRequired(res)) return false;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message || "Failed to update review");
@@ -305,6 +311,10 @@ export function useItemController({
 
   const removeReview = async () => {
     if (isPreview) return false;
+    if (isLoggedOut) {
+      redirectToLogin();
+      return false;
+    }
     setReviewActionError(null);
     setIsDeletingReview(true);
     try {
@@ -314,6 +324,7 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug }),
       });
 
+      if (redirectIfAuthenticationRequired(res)) return false;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message || "Failed to delete review");
@@ -338,6 +349,10 @@ export function useItemController({
 
   const toggleWishlist = async () => {
     if (isPreview) return;
+    if (isLoggedOut) {
+      redirectToLogin();
+      return;
+    }
     if (!wishlistData || isToggling) return;
     setIsToggling(true);
 
@@ -359,13 +374,15 @@ export function useItemController({
         body: JSON.stringify({ slug: gameSlug }),
       });
 
+      if (redirectIfAuthenticationRequired(res)) {
+        await mutateWishlist(wishlistData, false);
+        return;
+      }
       if (!res.ok) {
-        if (res.status === 401) {
-          alert(t("You need to be logged in to add to wishlist."));
-        }
         throw new Error("Failed to toggle wishlist");
       }
     } catch (error) {
+      await mutateWishlist(wishlistData, false);
       console.error(error);
     } finally {
       mutateWishlist();

@@ -13,6 +13,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useI18n } from "lib/i18n";
+import { fetchJson } from "lib/api-client";
 import {
   acceptProductEventContext,
   resetProductEventsClient,
@@ -33,17 +34,9 @@ export function UserMenu({
     error,
     isLoading,
     mutate,
-  } = useSWR(
-    "/api/v1/user",
-    (url) =>
-      fetch(url).then(async (res) => {
-        if (!res.ok) {
-          throw new Error("Not logged in");
-        }
-        return res.json();
-      }),
-    { shouldRetryOnError: false },
-  );
+  } = useSWR<{ username: string }>("/api/v1/user", fetchJson, {
+    shouldRetryOnError: false,
+  });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -80,7 +73,7 @@ export function UserMenu({
   if (isLoggedOut) {
     return (
       <Link
-        href="/login"
+        href={`/login?callbackUrl=${encodeURIComponent(router.asPath)}`}
         className={
           isStoreHome
             ? "flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/70 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
