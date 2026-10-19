@@ -30,6 +30,7 @@ import { trackExternalStore } from "lib/product-events-client";
 
 export function PurchaseCard({
   game,
+  storeSlug,
   isFreeGame,
   isInLibrary,
   isCheckingLibrary,
@@ -40,6 +41,7 @@ export function PurchaseCard({
   isPreview,
 }: {
   game: GameDetailApi;
+  storeSlug?: string;
   isFreeGame: boolean;
   isInLibrary: boolean;
   isCheckingLibrary: boolean;
@@ -164,7 +166,10 @@ export function PurchaseCard({
               onClick={() =>
                 trackExternalStore({
                   name: "external_store_clicked",
-                  target: { game_slug: game.slug },
+                  target: {
+                    game_slug: game.slug,
+                    ...(storeSlug ? { store_slug: storeSlug } : {}),
+                  },
                   properties: {
                     locale,
                     entry_surface: "game_page",

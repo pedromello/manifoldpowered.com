@@ -74,6 +74,7 @@ export function DefaultItemPage({
           <aside className="flex flex-col gap-8 lg:col-span-4">
             <PurchaseCard
               game={game}
+              storeSlug={store?.slug}
               isFreeGame={isFreeGame}
               isInLibrary={isInLibrary}
               isCheckingLibrary={isCheckingLibrary}
