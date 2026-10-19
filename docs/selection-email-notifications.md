@@ -4,6 +4,8 @@ The outlet bell subscribes a signed-in user to future selections from that outle
 
 The first opt-in initializes a single user-wide email language from the current site locale (`pt-BR` or `en`, otherwise `en`). Later browsing language changes do not change it. Users can change it under notification preferences. Email subjects, interface copy, and links are localized; curator titles and descriptions remain in their original language.
 
+The status API separates stored consent (`consent_enabled`) from current email eligibility (`enabled`) and rollout availability (`available`). Existing subscriptions can always opt out while sending is paused or a changed email is awaiting normal OTP verification. New opt-ins remain blocked when sending is paused, and opting out never requires proving the new address.
+
 ## Publication and delivery
 
 Only a selection's **first public publication** creates an event. Event creation commits with publication, with a unique event per selection. Edits, price changes, reordering, republication, changing the slug, and withdrawing then publishing again produce no new email event. Delivery rows are unique per event/user, and the database owns all leases, frozen payloads, due times, and terminal states.

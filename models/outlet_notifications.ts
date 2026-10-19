@@ -92,6 +92,7 @@ export async function notificationStatus(
   const confirmed = hasConfirmedNotificationEmail(user);
   return {
     available: selectionEmailsEnabled(),
+    consent_enabled: Boolean(subscription?.enabled && follow),
     enabled: Boolean(
       subscription?.enabled &&
       follow &&
@@ -213,6 +214,7 @@ export async function listOutletNotifications(
       store_slug: row.store_slug,
       store_name: row.store_name,
       available: selectionEmailsEnabled(),
+      consent_enabled: row.enabled && row.is_followed,
       is_followed: row.is_followed,
       enabled:
         row.enabled &&

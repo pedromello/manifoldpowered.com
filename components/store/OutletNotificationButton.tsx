@@ -46,9 +46,14 @@ export function OutletNotificationButton({
   const signedOut = isAuthenticationError(userError);
   const loading = busy || loadingUser || (!!user && isLoading);
   const loadError = !signedOut && (userError || error);
-  const title = data?.enabled
-    ? t("Email notifications enabled")
-    : t("Receive new selections by email");
+  const consentEnabled = data?.consent_enabled ?? data?.enabled ?? false;
+  const paused =
+    consentEnabled && (data?.available === false || !data?.enabled);
+  const title = paused
+    ? t("Email notifications paused. Click to disable.")
+    : consentEnabled
+      ? t("Email notifications enabled")
+      : t("Receive new selections by email");
   const login = (verifyEmail = false) =>
     router.push(
       `/login?${verifyEmail ? "verifyEmail=1&" : ""}callbackUrl=${encodeURIComponent(router.asPath)}`,
@@ -59,13 +64,14 @@ export function OutletNotificationButton({
     if (signedOut) return void login();
     if (loadError) return void (userError ? retryUser() : mutate());
     if (!data) return;
-    if (!data.enabled && data.requires_email_login) return void login(true);
+    if (!consentEnabled && data.available === false) return;
+    if (!consentEnabled && data.requires_email_login) return void login(true);
     setBusy(true);
     setFailed(false);
     try {
       const confirmed = await updateOutletNotifications(
         storeSlug,
-        !data.enabled,
+        !consentEnabled,
         locale,
       );
       await mutate(confirmed, { revalidate: false });
@@ -88,7 +94,7 @@ export function OutletNotificationButton({
     }
   }
 
-  if (data?.available === false) return null;
+  if (data?.available === false && !consentEnabled) return null;
 
   return (
     <div className="flex flex-col items-start gap-1.5">
@@ -100,16 +106,16 @@ export function OutletNotificationButton({
             loadError ? t("Could not load notifications. Retry") : title
           }
           aria-describedby={tooltipId}
-          aria-pressed={!!data?.enabled}
+          aria-pressed={consentEnabled}
           disabled={loading || (!signedOut && !loadError && !data)}
           onClick={toggle}
-          className={`relative inline-flex min-h-11 min-w-11 items-center justify-center border transition-colors hover:border-sf-accent hover:text-sf-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-60 ${variant === "platform" ? "rounded-lg" : ""} ${data?.enabled ? "border-sf-accent bg-sf-accent/10 text-sf-accent" : "border-sf-border bg-sf-surface text-sf-muted"}`}
+          className={`relative inline-flex min-h-11 min-w-11 items-center justify-center border transition-colors hover:border-sf-accent hover:text-sf-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-60 ${variant === "platform" ? "rounded-lg" : ""} ${consentEnabled ? "border-sf-accent bg-sf-accent/10 text-sf-accent" : "border-sf-border bg-sf-surface text-sf-muted"}`}
         >
           {loading ? (
             <Loader2 size={19} className="animate-spin" aria-hidden="true" />
           ) : loadError ? (
             <RotateCcw size={19} aria-hidden="true" />
-          ) : data?.enabled ? (
+          ) : consentEnabled ? (
             <>
               <BellRing size={19} fill="currentColor" aria-hidden="true" />
               <Check

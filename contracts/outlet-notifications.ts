@@ -14,6 +14,8 @@ export const notificationUnsubscribeSchema = z
 
 export type NotificationStatus = {
   available?: boolean;
+  /** Stored consent, including delivery paused until the current email is proven. */
+  consent_enabled?: boolean;
   enabled: boolean;
   is_followed: boolean;
   requires_email_login: boolean;

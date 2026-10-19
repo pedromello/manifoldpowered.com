@@ -2002,6 +2002,8 @@ export const ptBR: Record<string, string> = {
   "Publish the outlet catalog changes or remove ineligible games.":
     "Publique as alterações do catálogo da outlet ou remova os jogos indisponíveis.",
   "Email notifications enabled": "Avisos por e-mail ativados",
+  "Email notifications paused. Click to disable.":
+    "Avisos por e-mail pausados. Clique para desativar.",
   "Receive new selections by email": "Receber novas seleções por e-mail",
   "Could not load notifications. Retry":
     "Não foi possível carregar os avisos. Tentar novamente",

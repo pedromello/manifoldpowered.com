@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { OutletNotificationButton } from "components/store/OutletNotificationButton";
 import { ApiClientError } from "lib/api-client";
+import type { NotificationStatus } from "contracts/outlet-notifications";
 
 const mockSWR = jest.fn();
 const mockPush = jest.fn();
@@ -48,7 +49,7 @@ afterAll(() => {
 });
 
 function state(
-  data = {
+  data: NotificationStatus = {
     enabled: false,
     is_followed: false,
     requires_email_login: false,
@@ -190,7 +191,81 @@ test("rollout-disabled notifications do not offer a bell", () => {
   });
   render();
   expect(container.querySelector("button")).toBeNull();
+  expect(mockFetch).not.toHaveBeenCalled();
 });
+
+test("an existing subscription can opt out while delivery is paused and cannot opt back in", async () => {
+  state({
+    enabled: true,
+    consent_enabled: true,
+    is_followed: true,
+    requires_email_login: false,
+    available: false,
+  });
+  const confirmed = {
+    enabled: false,
+    consent_enabled: false,
+    is_followed: true,
+    requires_email_login: false,
+    available: false,
+  };
+  mockFetch.mockResolvedValue({ ok: true, json: async () => confirmed });
+  render();
+  expect(container.querySelector("button")?.getAttribute("aria-label")).toBe(
+    "Email notifications paused. Click to disable.",
+  );
+  expect(container.querySelector("button")?.disabled).toBe(false);
+  await click();
+  expect(mockFetch).toHaveBeenCalledWith(
+    "/api/v1/stores/club/notifications",
+    expect.objectContaining({
+      method: "PUT",
+      body: JSON.stringify({ enabled: false, locale: "pt-BR" }),
+    }),
+  );
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(mockMutate).toHaveBeenCalledWith(confirmed, { revalidate: false });
+  state(confirmed);
+  render();
+  expect(container.querySelector("button")).toBeNull();
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+});
+
+test.each([false, true])(
+  "stored consent can be withdrawn without OTP while proof is pending and availability=%s",
+  async (available) => {
+    state({
+      enabled: false,
+      consent_enabled: true,
+      is_followed: true,
+      requires_email_login: true,
+      available,
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        enabled: false,
+        consent_enabled: false,
+        is_followed: true,
+        requires_email_login: true,
+        available,
+      }),
+    });
+    render();
+    expect(
+      container.querySelector("button")?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    await click();
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/v1/stores/club/notifications",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ enabled: false, locale: "pt-BR" }),
+      }),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  },
+);
 
 test("a failed follow-up refresh does not turn an accepted toggle into a retryable failure", async () => {
   const confirmed = {
