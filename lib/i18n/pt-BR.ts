@@ -1,4 +1,5 @@
 export const ptBR: Record<string, string> = {
+  "Filter games": "Filtrar jogos",
   "Recorded price": "Último preço registrado",
   "Checked {date}": "Consultado em {date}",
   "On sale in this curation": "Em promoção na curadoria",
