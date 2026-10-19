@@ -68,8 +68,14 @@ export function FollowOutletButton({
         mutateStatus(),
         mutateGlobal("/api/v1/store-follows"),
       ]);
-    } catch {
-      setMutationFailed(true);
+    } catch (error) {
+      if (isAuthenticationError(error)) {
+        void router.push(
+          `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+        );
+      } else {
+        setMutationFailed(true);
+      }
     } finally {
       setIsMutating(false);
     }
