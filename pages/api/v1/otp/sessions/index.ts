@@ -6,6 +6,7 @@ import session from "models/session";
 import authorization from "models/authorization";
 import { ForbiddenError, RateLimitError, ValidationError } from "infra/errors";
 import authRateLimit from "infra/auth_rate_limit";
+import { loginEventContext } from "infra/product_event_context";
 
 import { verifyOtpSchema } from "contracts/creator-requests";
 
@@ -49,6 +50,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   authRateLimit.reset(result.data.login);
 
   controller.setSessionCookie(res, newSession.token);
+  await loginEventContext(req, res, authUser.id);
 
   const secureOutputValues = authorization.filterOutput(
     authUser,

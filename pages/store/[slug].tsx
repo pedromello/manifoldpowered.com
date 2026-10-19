@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 import useSWR from "swr";
 import { GetServerSideProps } from "next";
 import { Settings } from "lucide-react";
@@ -112,6 +113,14 @@ export default function StorePage({
 
   return (
     <StorefrontRouteLayout store={viewStore} visitorPreview={isPreview}>
+      <ProductPageEvent
+        preview={isPreview}
+        event={{
+          name: "outlet_viewed",
+          target: { store_slug: store.slug },
+          properties: { locale, entry_surface: "outlet_page" },
+        }}
+      />
       <Storefront
         featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
         listEndpoint={`/api/v1/stores/${store.slug}/search`}

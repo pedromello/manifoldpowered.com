@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 
 import controller from "infra/controller";
+import { eventContextForAction } from "infra/product_event_context";
 import { ValidationError } from "infra/errors";
 import authorization from "models/authorization";
 import storeFollow, { storeFollowBodySchema } from "models/store_follow";
@@ -46,7 +47,11 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  await storeFollow.follow(req.context.user.id, result.data.store_slug);
+  await storeFollow.follow(
+    req.context.user.id,
+    result.data.store_slug,
+    eventContextForAction(req),
+  );
   const output = authorization.filterOutput(
     req.context.user,
     "create:store_follow",
@@ -67,7 +72,11 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  await storeFollow.unfollow(req.context.user.id, result.data.store_slug);
+  await storeFollow.unfollow(
+    req.context.user.id,
+    result.data.store_slug,
+    eventContextForAction(req),
+  );
   const output = authorization.filterOutput(
     req.context.user,
     "delete:store_follow",

@@ -1,4 +1,5 @@
 import { GetServerSideProps } from "next";
+import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 
 import webserver from "infra/webserver";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
@@ -166,6 +167,17 @@ export default function GameDetailsPage({
       jsonLd={isPreview ? undefined : gameJsonLd(game, locale)}
       noIndex={isPreview}
     >
+      <ProductPageEvent
+        preview={isPreview}
+        event={{
+          name: "game_viewed",
+          target: {
+            game_slug: game.slug,
+            ...(store ? { store_slug: store.slug } : {}),
+          },
+          properties: { locale, entry_surface: "game_page" },
+        }}
+      />
       {isPreview && store && <OutletPreviewBanner storeSlug={store.slug} />}
       <ItemView
         {...controller}

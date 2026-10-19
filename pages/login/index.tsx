@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
 
 import AuthLayout from "components/AuthLayout";
+import { acceptProductEventContext } from "lib/product-events-client";
 import { useI18n } from "lib/i18n";
 
 type Step = "login" | "code";
@@ -98,6 +99,7 @@ export default function LoginPage() {
       }
 
       const callbackUrl = router.query.callbackUrl;
+      acceptProductEventContext(response);
       router.push(typeof callbackUrl === "string" ? callbackUrl : "/store");
     } catch (error) {
       setErrorMessage(

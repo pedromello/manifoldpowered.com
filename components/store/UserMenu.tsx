@@ -13,6 +13,10 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useI18n } from "lib/i18n";
+import {
+  acceptProductEventContext,
+  resetProductEventsClient,
+} from "lib/product-events-client";
 
 export function UserMenu({
   variant = "default",
@@ -52,7 +56,9 @@ export function UserMenu({
   }, []);
 
   const handleSignOut = async () => {
-    await fetch("/api/v1/sessions", { method: "DELETE" });
+    resetProductEventsClient();
+    const response = await fetch("/api/v1/sessions", { method: "DELETE" });
+    acceptProductEventContext(response);
     await mutate();
     router.push("/store");
     setIsOpen(false);

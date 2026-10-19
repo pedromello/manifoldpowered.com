@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
+import {
+  acceptProductEventContext,
+  resetProductEventsClient,
+} from "lib/product-events-client";
 
 const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
@@ -39,7 +43,9 @@ export function BackofficeTopNav({ username }: { username: string }) {
   const { t } = useI18n();
 
   async function handleSignOut() {
-    await fetch("/api/v1/sessions", { method: "DELETE" });
+    resetProductEventsClient();
+    const response = await fetch("/api/v1/sessions", { method: "DELETE" });
+    acceptProductEventContext(response);
     router.push("/store");
   }
 
