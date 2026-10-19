@@ -84,14 +84,15 @@ export async function selectionView(
       const featured = outlet.featured_games_snapshot.find(
         (pick) => pick.game_id === game.id,
       );
+      const review = filterStorefrontEditorial(req.context.user, editorial);
       return {
         ...game,
         recommendation_reason:
-          editorial?.headline ||
-          editorial?.body ||
-          featured?.recommendation_reason ||
-          content.description,
-        outlet_review: filterStorefrontEditorial(req.context.user, editorial),
+          review?.headline?.trim() ||
+          review?.body.trim() ||
+          featured?.recommendation_reason?.trim() ||
+          null,
+        outlet_review: review,
       };
     }),
     currency,

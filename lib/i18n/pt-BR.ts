@@ -1903,6 +1903,7 @@ export const ptBR: Record<string, string> = {
     "Conheça o jogo. Entenda a indicação. Continue explorando.",
   "Discover the game": "Conhecer o jogo",
   "Why discover it": "Por que vale conhecer",
+  "In this selection": "Nesta seleção",
   "Explore selection": "Explorar a seleção",
   "View selection": "Ver seleção",
   "From the selection: {title}": "Da seleção: {title}",
