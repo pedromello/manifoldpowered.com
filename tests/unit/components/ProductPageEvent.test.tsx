@@ -3,7 +3,10 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 
-const router = { asPath: "/store", query: {} as Record<string, string> };
+const router = {
+  asPath: "/store",
+  query: {} as Record<string, string | string[]>,
+};
 const client = {
   ready: jest.fn(),
   capturePage: jest.fn(),
@@ -60,8 +63,11 @@ test("StrictMode does not observe the discarded effect", async () => {
 });
 test.each([
   { preview: true },
+  { preview: true, query: { preview: "0", social_preview: "false" } },
   { query: { preview: "1" } },
   { query: { social_preview: "1" } },
+  { query: { preview: "1", social_preview: "false" } },
+  { query: { preview: "false", social_preview: "1" } },
 ])("excludes private/social previews %o", async (testCase) => {
   router.query = testCase.query ?? {};
   await act(async () =>
@@ -70,6 +76,23 @@ test.each([
   expect(client.ready).not.toHaveBeenCalled();
   expect(client.capturePage).not.toHaveBeenCalled();
 });
+test.each(["preview", "social_preview"])(
+  "measures public pages with non-preview values of %s",
+  async (parameter) => {
+    for (const value of ["0", "false", "", "unrelated", ["1", "0"]]) {
+      router.query = { [parameter]: value };
+      router.asPath = `/store?${parameter}=${String(value)}`;
+      client.capturePage.mockClear();
+      await act(async () => root.render(<ProductPageEvent event={event} />));
+      expect(client.capturePage).toHaveBeenCalledTimes(1);
+      expect(client.capturePage).toHaveBeenCalledWith(
+        event,
+        expect.any(String),
+      );
+    }
+  },
+);
+
 test("waits for visibility and ignores an unmounted page awaiting bootstrap", async () => {
   Object.defineProperty(document, "visibilityState", {
     configurable: true,

@@ -15,7 +15,12 @@ export function ProductPageEvent({
   const serialized = JSON.stringify(event);
   const occurrence = useRef<{ key: string; id: string } | null>(null);
   useEffect(() => {
-    if (preview || router.query.preview || router.query.social_preview) return;
+    if (
+      preview ||
+      router.query.preview === "1" ||
+      router.query.social_preview === "1"
+    )
+      return;
     const client = productEventsClient();
     if (!client) return;
     const key = router.asPath + ":" + serialized;
