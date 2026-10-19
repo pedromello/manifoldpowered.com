@@ -1,4 +1,5 @@
 import type { DisplayPrice } from "lib/price";
+import type { CatalogOffer } from "lib/catalog-offer";
 import type { OutletRating, OutletRatingScale } from "contracts/outlet-rating";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
@@ -39,6 +40,7 @@ export type ExternalOffer = {
  * than inside a presentational component.
  */
 export type GameApi = {
+  catalog_offer?: CatalogOffer;
   id: string;
   slug: string;
   title: string;

@@ -11,7 +11,7 @@ jest.mock("next/link", () => ({
   ),
 }));
 
-test("keeps full game titles, ordering, and outlet attribution without a price taking over the card", () => {
+test("keeps full titles, ordering, attribution and an honest unavailable price", () => {
   const { games } = selectionFixture();
   games[0].title =
     "A particularly long title that still needs to be readable on a phone";
@@ -22,7 +22,7 @@ test("keeps full game titles, ordering, and outlet attribution without a price t
   expect(html).toContain('href="/item/peak?store=example-outlet"');
   expect(html).toContain("<ol");
   expect(html).not.toContain("truncate");
-  expect(html).not.toContain("Price unavailable");
+  expect(html).toContain("Price unavailable");
 });
 test("private preview navigation stays in the draft outlet context", () => {
   const html = renderToStaticMarkup(

@@ -66,6 +66,7 @@ function OutletSelectionPage({ slug, preview = false }: OutletSelectionsProps) {
   return (
     <section
       className="mx-auto max-w-[1500px] px-4 py-8 text-white sm:px-6 lg:px-10"
+      id="outlet-selections"
       aria-label={t("Game selections")}
     >
       <h2 className="mb-5 flex items-center gap-2 text-2xl font-black">

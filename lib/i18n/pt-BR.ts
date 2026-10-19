@@ -1,4 +1,12 @@
 export const ptBR: Record<string, string> = {
+  "Recorded price": "Último preço registrado",
+  "Checked {date}": "Consultado em {date}",
+  "On sale in this curation": "Em promoção na curadoria",
+  "On sale": "Em promoção",
+  "View selections": "Ver seleções",
+  "{count} games in this selection": "{count} jogos nesta seleção",
+  "No games on sale in this selection.":
+    "Nenhum jogo em promoção nesta seleção.",
   Rating: "Nota",
   "Creator rating: {rating}": "Nota do criador: {rating}",
   "{value} out of 5 stars": "{value} de 5 estrelas",

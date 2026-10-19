@@ -8,6 +8,10 @@ import type { GameExternalOffer } from "generated/prisma/client";
 import type { GameLocalization } from "generated/prisma/client";
 import gameLocalization from "models/game_localization";
 import type { AppLocale } from "lib/locale";
+import {
+  resolveCatalogOffer,
+  EXTERNAL_OFFER_MAX_AGE_MS,
+} from "lib/catalog-offer";
 
 // Everything a storefront read needs to price its results for the visitor,
 // resolved once per request. Kept in one place because seven read endpoints
@@ -21,6 +25,13 @@ export interface StorefrontPricingContext {
   externalOffers: Map<string, GameExternalOffer>;
   localizations: Map<string, GameLocalization>;
   locale: AppLocale;
+}
+
+function externalOfferMaxAgeMs() {
+  const hours = Number(process.env.EXTERNAL_OFFER_MAX_AGE_HOURS);
+  return Number.isFinite(hours) && hours >= 1 && hours <= 720
+    ? hours * 3_600_000
+    : EXTERNAL_OFFER_MAX_AGE_MS;
 }
 
 // The id constraint to apply to the query, so unpriceable games never enter the
@@ -99,7 +110,7 @@ function filterAndPrice<T extends Game>(
           }
         : localizedGame;
 
-      return {
+      const priced = {
         ...authorization.filterOutput(
           user,
           "read:public_game",
@@ -110,10 +121,17 @@ function filterAndPrice<T extends Game>(
             ? null
             : context.displayPrices.get(game.id),
       };
+      return {
+        ...priced,
+        catalog_offer: resolveCatalogOffer(priced as never, {
+          maxAgeMs: externalOfferMaxAgeMs(),
+        }),
+      };
     });
 }
 
 const storefrontPricing = {
+  externalOfferMaxAgeMs,
   idConstraintForRequest,
   contextFor,
   filterAndPrice,
