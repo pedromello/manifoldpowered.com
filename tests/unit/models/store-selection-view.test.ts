@@ -14,6 +14,8 @@ jest.mock("models/store", () => ({
       slug: "cozy",
       name: "Cozy",
       logo_url: null,
+      brand_tokens: { palette: "crimson", typography: "modern", shape: "soft" },
+      theme_key: null,
       game_editorials_snapshot: [],
       featured_games_snapshot: [],
     }),
@@ -118,4 +120,8 @@ test("keeps ordered display-only games without a checkout price and excludes unp
   expect(result.games[0].display_price).toBeNull();
   expect(result.games[1].display_price).toMatchObject({ currency: "BRL" });
   expect(result.currency).toBe("BRL");
+  expect(result.outlet).toMatchObject({
+    brand_tokens: { palette: "crimson", typography: "modern", shape: "soft" },
+    theme_key: null,
+  });
 });

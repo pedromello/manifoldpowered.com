@@ -3,10 +3,23 @@ import type { CSSProperties, ReactNode } from "react";
 import type { AppLocale } from "lib/locale";
 import { fitPreviewText, type PreviewBanner } from "lib/social-preview";
 import { OUTLET_PALETTES } from "components/storefront/presets/config";
+import type { StorefrontPalette } from "components/storefront/palette";
 import { storeContextFromApi, type StoreApi } from "components/store/types";
+import type { SelectionPageApi } from "lib/selection-client";
 import { cleanMetadataText } from "lib/seo";
 import { strategosVoidPalette } from "storefronts/strategos-void/palette";
 import { neonAlleyPalette } from "storefronts/neon-alley/palette";
+
+function previewPalette(
+  identity: Pick<StoreApi, "theme_key" | "brand_tokens">,
+): StorefrontPalette {
+  return identity.theme_key === "strategos-void"
+    ? strategosVoidPalette
+    : identity.theme_key === "neon-alley"
+      ? neonAlleyPalette
+      : (OUTLET_PALETTES[identity.brand_tokens?.palette ?? "manifold"] ??
+        OUTLET_PALETTES.manifold);
+}
 
 function Surface({
   children,
@@ -153,19 +166,31 @@ function Banner({
 
 export function SelectionPreviewCard({
   title,
-  outletName,
+  outlet,
   count,
   banners,
-  logo,
+  avatar,
   locale,
 }: {
   title: string;
-  outletName: string;
+  outlet: SelectionPageApi["outlet"];
   count: number;
   banners: PreviewBanner[];
-  logo: string | null;
+  avatar: string | null;
   locale: AppLocale;
 }) {
+  const palette = previewPalette(outlet);
+  const panelColors = palette.socialPanel ?? {
+    bg: palette.accent,
+    fg: palette.accentFg,
+  };
+  const initials = cleanMetadataText(outlet.name, 120)
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0])
+    .join("")
+    .toUpperCase();
   const full = banners.length === 3;
   const panel =
     banners.length === 0
@@ -175,10 +200,10 @@ export function SelectionPreviewCard({
         : { x: 605, y: 8, width: 587, height: 614 };
   const quantity =
     locale === "pt-BR"
-      ? `SELEÇÃO · ${count} ${count === 1 ? "JOGO" : "JOGOS"}`
-      : `SELECTION · ${count} ${count === 1 ? "GAME" : "GAMES"}`;
+      ? `${count} ${count === 1 ? "jogo" : "jogos"}`
+      : `${count} ${count === 1 ? "game" : "games"}`;
   return (
-    <Surface background="#10091e">
+    <Surface background={palette.bg}>
       {banners.map((banner, index) => {
         const x = full && index === 1 ? 605 : 8;
         const y = full
@@ -209,53 +234,88 @@ export function SelectionPreviewCard({
           width: panel.width,
           height: panel.height,
           borderRadius: 6,
-          background: "#7c2bd7",
-          color: "#ffffff",
+          background: panelColors.bg,
+          color: panelColors.fg,
         }}
       >
         <div
-          style={{ display: "flex", position: "absolute", left: 28, top: 20 }}
+          style={{
+            display: "flex",
+            position: "absolute",
+            left: 28,
+            top: 20,
+            width: 112,
+            height: 112,
+            alignItems: "center",
+            justifyContent: "center",
+            background: palette.bg,
+            color: palette.fg,
+            borderRadius: 8,
+            fontSize: 50,
+          }}
         >
-          <Mark logo={logo} color="#ffffff" />
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={outlet.name}
+              width={112}
+              height={112}
+              style={{ objectFit: "contain" }}
+            />
+          ) : (
+            initials
+          )}
+        </div>
+        <Lines
+          value={outlet.name}
+          width={panel.width - 184}
+          maxLines={2}
+          maxFont={40}
+          minFont={32}
+          maxHeight={96}
+          style={{
+            position: "absolute",
+            left: 156,
+            top: 28,
+            fontWeight: 700,
+          }}
+        />
+        <Lines
+          value={title}
+          width={panel.width - 56}
+          maxLines={3}
+          maxFont={full ? 48 : 58}
+          minFont={full ? 32 : 34}
+          maxHeight={full ? 108 : 330}
+          style={{
+            position: "absolute",
+            left: 28,
+            top: full ? 140 : 180,
+            fontWeight: 700,
+          }}
+        />
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            left: 28,
+            bottom: 20,
+            fontSize: 23,
+          }}
+        >
+          {quantity}
         </div>
         <div
           style={{
             display: "flex",
             position: "absolute",
             right: 28,
-            top: 26,
+            bottom: 22,
             fontSize: 18,
-            color: "#eadbff",
           }}
         >
-          {quantity}
+          via Manifold
         </div>
-        <Lines
-          value={title}
-          width={panel.width - 56}
-          maxLines={3}
-          maxFont={full ? 43 : 58}
-          minFont={34}
-          style={{
-            position: "absolute",
-            left: 28,
-            top: full ? 78 : 156,
-            fontWeight: 700,
-          }}
-        />
-        <Lines
-          value={outletName}
-          width={panel.width - 56}
-          maxLines={1}
-          maxFont={23}
-          minFont={20}
-          style={{
-            position: "absolute",
-            left: 28,
-            bottom: 20,
-            color: "#eadbff",
-          }}
-        />
       </div>
     </Surface>
   );
@@ -286,13 +346,7 @@ export function OutletPreviewCard({
   locale: AppLocale;
 }) {
   const identity = storeContextFromApi(store);
-  const palette =
-    identity.theme_key === "strategos-void"
-      ? strategosVoidPalette
-      : identity.theme_key === "neon-alley"
-        ? neonAlleyPalette
-        : (OUTLET_PALETTES[identity.brand_tokens.palette] ??
-          OUTLET_PALETTES.manifold);
+  const palette = previewPalette(identity);
   const color = palette.bg;
   const hasGames = banners.length > 0;
   const initials = cleanMetadataText(store.name, 120)

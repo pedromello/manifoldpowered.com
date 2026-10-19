@@ -1,9 +1,12 @@
 import type { SelectionSummary } from "contracts/outlet-selections";
-import type { GameApi } from "components/store/types";
+import type { GameApi, StoreApi } from "components/store/types";
 
 export type SelectionPageApi = {
   selection: SelectionSummary;
-  outlet: { id: string; slug: string; name: string; logo_url: string | null };
+  outlet: Pick<
+    StoreApi,
+    "id" | "slug" | "name" | "logo_url" | "brand_tokens" | "theme_key"
+  >;
   games: GameApi[];
   currency: string;
 };

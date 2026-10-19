@@ -21,6 +21,8 @@ export type StorefrontPalette = {
   accent: string;
   /** Text placed on top of `accent`. */
   accentFg: string;
+  /** Optional saturated brand surface and readable text for editorial social cards. */
+  socialPanel?: { bg: string; fg: string };
 };
 
 /** Manifold's own palette — the values every storefront used before theming. */

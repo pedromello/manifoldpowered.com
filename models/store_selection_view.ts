@@ -76,6 +76,8 @@ export async function selectionView(
       slug: outlet.slug,
       name: outlet.name,
       logo_url: outlet.logo_url,
+      brand_tokens: outlet.brand_tokens,
+      theme_key: outlet.theme_key,
     },
     games: priced.map((game) => {
       const editorial = reviews.find((review) => review.game_id === game.id);

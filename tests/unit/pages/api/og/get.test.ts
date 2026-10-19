@@ -9,6 +9,19 @@ import handler, {
   loadOutletPreview,
 } from "pages/api/og/[...segments]";
 import { selectionFixture } from "tests/unit/_fixtures/selection";
+// Keep Jest's unit layer independent of next/og's dynamic WASM import.
+// The visual fixture runner separately exercises the real PNG renderer.
+jest.mock("next/og", () => ({
+  ImageResponse: jest.fn(
+    (card, options) =>
+      new Response(
+        jest.requireActual("react-dom/server").renderToStaticMarkup(card),
+        {
+          headers: options.headers,
+        },
+      ),
+  ),
+}));
 
 const ORIGIN = "https://www.manifoldpowered.com";
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
@@ -57,6 +70,59 @@ afterEach(() => {
 });
 
 describe("selection social preview privacy", () => {
+  test("composes the published Outlet palette and avatar, and revalidates identity changes", async () => {
+    const data = selectionFixture();
+    data.outlet.name = "Comunidade Nintendo";
+    data.selection.title = "Lançamentos da semana (19/10/2026)";
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) => {
+        if (String(url).includes("/selections/"))
+          return new Response(JSON.stringify(data));
+        if (String(url) === data.outlet.logo_url)
+          return imageResponse("image/png", PNG_BYTES);
+        return new Response(null, { status: 404 });
+      });
+    const request = new NextRequest(
+      `${ORIGIN}/api/og/selection/example-outlet/weekend-coop?preview=1&locale=pt-BR`,
+      { headers: { cookie: "session_id=private-session" } },
+    );
+    const response = await handler(request);
+    expect(response.status).toBe(200);
+    const markup = await response.text();
+    expect(markup).toContain("background:#E60013");
+    expect(markup).toContain('alt="Comunidade Nintendo"');
+    expect(markup).toContain("via Manifold");
+    expect(markup).not.toContain("MANIFOLD");
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => String(url) === data.outlet.logo_url,
+      ),
+    ).toBe(true);
+    for (const [, init] of fetchMock.mock.calls)
+      expect(init?.headers ?? {}).not.toHaveProperty("cookie");
+
+    const etag = response.headers.get("etag")!;
+    const cachedRequest = new NextRequest(request.url, {
+      headers: { "if-none-match": etag },
+    });
+    expect((await handler(cachedRequest)).status).toBe(304);
+    data.outlet.brand_tokens = {
+      palette: "ocean",
+      typography: "modern",
+      shape: "soft",
+    };
+    const recolored = await handler(cachedRequest);
+    expect(recolored.status).toBe(200);
+    expect(recolored.headers.get("etag")).not.toBe(etag);
+    data.outlet.logo_url = null;
+    const withoutAvatar = await handler(new NextRequest(request.url));
+    expect(withoutAvatar.headers.get("etag")).not.toBe(
+      recolored.headers.get("etag"),
+    );
+    expect(await withoutAvatar.text()).toContain(">CN</div>");
+  });
+
   test("accepts a published snapshot but refuses draft content or unpublished state", () => {
     const data = selectionFixture();
     expect(publishedSelectionFromResponse(data)).toEqual(data);

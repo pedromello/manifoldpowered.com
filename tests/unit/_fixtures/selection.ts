@@ -19,6 +19,8 @@ export function selectionFixture(): SelectionPageApi {
       slug: "example-outlet",
       name: "Example Outlet",
       logo_url: "https://images.unsplash.com/avatar.png",
+      brand_tokens: { palette: "crimson", typography: "modern", shape: "soft" },
+      theme_key: null,
     },
     games: [
       {

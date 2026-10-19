@@ -2,11 +2,7 @@ import { ImageResponse } from "next/og";
 import { isNintendoImage } from "lib/nintendo";
 import type { NextRequest } from "next/server";
 
-import {
-  storeContextFromApi,
-  type GameDetailApi,
-  type StoreApi,
-} from "components/store/types";
+import { type GameDetailApi, type StoreApi } from "components/store/types";
 import type { AppLocale } from "lib/locale";
 import {
   cleanMetadataText,
@@ -328,11 +324,14 @@ export function publishedStoreFromResponse(
 }
 
 export function outletAvatarCandidates(
-  store: PublishedStoreApi,
+  store: Pick<StoreApi, "logo_url" | "theme_key" | "presentation">,
 ): ImageCandidate[] {
-  const presentation = storeContextFromApi(store);
-  const bespokeArtwork = isBespokeThemeKey(presentation.theme_key)
-    ? BESPOKE_OG_ARTWORK[presentation.theme_key]
+  const themeKey =
+    store.theme_key !== undefined
+      ? store.theme_key
+      : store.presentation?.theme_key;
+  const bespokeArtwork = isBespokeThemeKey(themeKey)
+    ? BESPOKE_OG_ARTWORK[themeKey]
     : null;
 
   return [
@@ -810,18 +809,18 @@ export default async function handler(request: NextRequest) {
         headers: { "Cache-Control": "no-store" },
       });
     const games = previewGames(data.games);
-    const [brandLogo, banners] = await Promise.all([
-      loadImageData("/images/brand/manifold-logo.png", url.origin, true),
+    const [avatar, banners] = await Promise.all([
+      loadFirstImageData(outletAvatarCandidates(data.outlet), url.origin),
       loadPreviewBanners(games, (candidate) =>
         loadImageData(candidate, url.origin),
       ),
     ]);
     const props = {
       title: data.selection.title,
-      outletName: data.outlet.name,
+      outlet: data.outlet,
       count: games.length,
       banners,
-      logo: brandLogo,
+      avatar,
       locale,
     };
     imageHeaders = await composedPreviewHeaders("selection", locale, {
