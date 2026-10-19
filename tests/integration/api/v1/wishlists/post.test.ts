@@ -32,6 +32,96 @@ describe("POST /api/v1/wishlists", () => {
   });
 
   describe("Authenticated user", () => {
+    test.each(["steam", "nintendo"] as const)(
+      "can save, read and remove a %s game in the platform wishlist",
+      async (provider) => {
+        const user = await orchestrator.createUser();
+        await orchestrator.activateUser(user.id);
+        const session = await orchestrator.createSession(user.id);
+        const created = await orchestrator.createGame(user.id, { price: 0 });
+        const game = await prisma.game.update({
+          where: { id: created.id },
+          data: {
+            status: "ONLY_DISPLAY",
+            studio_id: null,
+            publisher_id: null,
+            ...(provider === "steam"
+              ? {
+                  steam_app_id: "901234",
+                  social_links: {
+                    steam_page: "https://store.steampowered.com/app/901234/",
+                  },
+                }
+              : { nintendo_nsuid: "70010000000001" }),
+          },
+        });
+        const endpoint = `${webserver.getOrigin()}/api/v1/wishlists`;
+        const headers = {
+          "Content-Type": "application/json",
+          Cookie: `session_id=${session.token}`,
+        };
+        const body = JSON.stringify({ slug: game.slug });
+        const statusUrl = `${endpoint}?slug=${encodeURIComponent(game.slug)}`;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body,
+          });
+          expect(response.status).toBe(201);
+          expect(await response.json()).toEqual({
+            message: "Game added to wishlist",
+          });
+        }
+        const saved = await fetch(statusUrl, { headers });
+        expect(saved.status).toBe(200);
+        expect(await saved.json()).toEqual({ count: 1, is_wishlisted: true });
+        expect(await (await fetch(statusUrl)).json()).toEqual({
+          count: 1,
+          is_wishlisted: false,
+        });
+        expect(
+          await prisma.productEvent.count({
+            where: {
+              name: "game_wishlisted",
+              user_id: user.id,
+              game_id: game.id,
+            },
+          }),
+        ).toBe(1);
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const response = await fetch(endpoint, {
+            method: "DELETE",
+            headers,
+            body,
+          });
+          expect(response.status).toBe(200);
+        }
+        const removed = await fetch(statusUrl, { headers });
+        expect(removed.status).toBe(200);
+        expect(await removed.json()).toEqual({
+          count: 0,
+          is_wishlisted: false,
+        });
+        expect(
+          await prisma.wishlistItem.count({
+            where: { user_id: user.id, game_id: game.id },
+          }),
+        ).toBe(0);
+        expect(
+          await prisma.productEvent.count({
+            where: {
+              name: "game_unwishlisted",
+              user_id: user.id,
+              game_id: game.id,
+            },
+          }),
+        ).toBe(1);
+      },
+    );
+
     test("With valid slug should add to wishlist and return 201", async () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);

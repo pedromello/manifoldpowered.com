@@ -159,59 +159,62 @@ export function PurchaseCard({
           </p>
         )}
 
-        {!isPreview &&
-          (externalUrl ? (
-            <a
-              href={externalUrl}
-              onClick={() =>
-                trackExternalStore({
-                  name: "external_store_clicked",
-                  target: {
-                    game_slug: game.slug,
-                    ...(storeSlug ? { store_slug: storeSlug } : {}),
-                  },
-                  properties: {
-                    locale,
-                    entry_surface: "game_page",
-                    provider: isNintendo ? "nintendo" : "steam",
-                  },
-                })
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-            >
-              {isNintendo ? (
-                <Gamepad2 size={24} />
-              ) : (
-                <IconBrandSteam size={24} className="text-white/65" />
-              )}
-              <span>
-                {t(isNintendo ? "View on Nintendo eShop" : "View on Steam")}
-              </span>
-              <ExternalLink
-                size={16}
-                className="opacity-60 transition-opacity group-hover:opacity-100"
-              />
-            </a>
-          ) : (
-            <button
-              onClick={wishlist.toggle}
-              disabled={wishlist.isToggling}
-              className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
-                wishlist.isWishlisted
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
-                  : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-              }`}
-            >
-              <Heart
-                size={20}
-                fill={wishlist.isWishlisted ? "currentColor" : "none"}
-                className={wishlist.isToggling ? "opacity-50" : ""}
-              />
-              {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
-            </button>
-          ))}
+        {!isPreview && externalUrl && (
+          <a
+            href={externalUrl}
+            onClick={() =>
+              trackExternalStore({
+                name: "external_store_clicked",
+                target: {
+                  game_slug: game.slug,
+                  ...(storeSlug ? { store_slug: storeSlug } : {}),
+                },
+                properties: {
+                  locale,
+                  entry_surface: "game_page",
+                  provider: isNintendo ? "nintendo" : "steam",
+                },
+              })
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+          >
+            {isNintendo ? (
+              <Gamepad2 size={24} />
+            ) : (
+              <IconBrandSteam size={24} className="text-white/65" />
+            )}
+            <span>
+              {t(isNintendo ? "View on Nintendo eShop" : "View on Steam")}
+            </span>
+            <ExternalLink
+              size={16}
+              className="opacity-60 transition-opacity group-hover:opacity-100"
+            />
+          </a>
+        )}
+
+        {!isPreview && (
+          <button
+            type="button"
+            onClick={wishlist.toggle}
+            disabled={wishlist.isToggling}
+            aria-pressed={wishlist.isWishlisted}
+            className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
+              wishlist.isWishlisted
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
+                : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+            }`}
+          >
+            <Heart
+              size={20}
+              fill={wishlist.isWishlisted ? "currentColor" : "none"}
+              className={wishlist.isToggling ? "opacity-50" : ""}
+            />
+            {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
+          </button>
+        )}
 
         {isNintendo && (
           <div className="text-xs leading-5 text-white/60">

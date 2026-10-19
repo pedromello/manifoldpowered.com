@@ -2,7 +2,7 @@ import { prisma } from "infra/database";
 import { recordDomainEvent } from "models/product_event";
 import type { ProductEventContext } from "infra/product_event_context";
 import gameModel from "models/game";
-import { NotFoundError, ValidationError } from "infra/errors";
+import { NotFoundError } from "infra/errors";
 
 async function add(
   userId: string,
@@ -15,14 +15,6 @@ async function add(
     throw new NotFoundError({
       message: `The game with slug "${slug}" was not found.`,
       action: "Check if the slug is correct.",
-    });
-  }
-
-  if (game.status === "ONLY_DISPLAY") {
-    throw new ValidationError({
-      message:
-        "This game uses its Steam wishlist instead of a platform wishlist.",
-      action: "Open the game's Steam page to add it to your wishlist.",
     });
   }
 

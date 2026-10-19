@@ -303,7 +303,7 @@ describe("first-party product events HTTP → PostgreSQL", () => {
     expect(await prisma.productEvent.count()).toBe(1);
   });
 
-  test("collects public game/external click without claiming an external wishlist", async () => {
+  test("keeps external store clicks separate from platform wishlist saves", async () => {
     const browser = new Browser();
     await browser.bootstrap();
     expect(
@@ -326,14 +326,23 @@ describe("first-party product events HTTP → PostgreSQL", () => {
         where: { name: "external_store_clicked", game_id: external.id },
       }),
     ).toBe(1);
+    expect(
+      await prisma.productEvent.count({ where: { name: "game_wishlisted" } }),
+    ).toBe(0);
     await browser.login(player.email);
     expect(
       (await browser.request("/api/v1/wishlists", { slug: external.slug }))
         .status,
-    ).toBe(400);
+    ).toBe(201);
     expect(
-      await prisma.productEvent.count({ where: { name: "game_wishlisted" } }),
-    ).toBe(0);
+      await prisma.productEvent.findFirstOrThrow({
+        where: { name: "game_wishlisted" },
+      }),
+    ).toMatchObject({
+      source: "SERVER",
+      user_id: player.id,
+      game_id: external.id,
+    });
   });
 
   test("records true transitions once under concurrency and preserves legitimate cycles", async () => {
