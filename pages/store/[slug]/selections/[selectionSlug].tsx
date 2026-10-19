@@ -130,10 +130,7 @@ export default function SelectionPage({
         <header className="mt-3 grid overflow-hidden rounded-3xl border border-sf-border bg-sf-surface lg:grid-cols-[1.1fr_1fr]">
           {selection.featured_video ? (
             <div className="min-w-0 p-3 sm:p-5">
-              <FeaturedVideo
-                video={selection.featured_video}
-                poster={selection.cover_url}
-              />
+              <FeaturedVideo video={selection.featured_video} />
             </div>
           ) : (
             <GameArtwork

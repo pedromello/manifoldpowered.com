@@ -1,8 +1,6 @@
 import { useRef, useState } from "react";
 import { Play, X } from "lucide-react";
-import { GameArtwork } from "components/store/GameArtwork";
 import {
-  featuredVideoUrl,
   featuredVideoSchema,
   type FeaturedVideo as Video,
 } from "contracts/featured-video";
@@ -10,11 +8,9 @@ import { useI18n } from "lib/i18n";
 
 export function FeaturedVideo({
   video,
-  poster,
   teaser = false,
 }: {
   video?: Video | null;
-  poster?: string | null;
   teaser?: boolean;
 }) {
   if (!video) return null;
@@ -24,50 +20,33 @@ export function FeaturedVideo({
     <YouTubeVideo
       key={`${video.video_id}:${video.start_seconds ?? 0}`}
       video={validated.data}
-      poster={poster}
       teaser={teaser}
     />
   );
 }
 
-function YouTubeVideo({
-  video,
-  poster,
-  teaser,
-}: {
-  video: Video;
-  poster?: string | null;
-  teaser: boolean;
-}) {
+function YouTubeVideo({ video, teaser }: { video: Video; teaser: boolean }) {
   const { t } = useI18n();
   const [active, setActive] = useState(false);
+  const [thumbnail, setThumbnail] = useState<
+    "maxresdefault" | "hqdefault" | null
+  >("maxresdefault");
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const url = featuredVideoUrl(video)!;
   function close() {
     dialog.current?.close();
     setActive(false);
     trigger.current?.focus();
   }
   const frame = active && (
-    <>
-      <iframe
-        title={t("Featured YouTube video")}
-        src={`https://www.youtube-nocookie.com/embed/${video.video_id}?autoplay=1&playsinline=1${video.start_seconds ? `&start=${video.start_seconds}` : ""}`}
-        className="aspect-video min-h-[200px] w-full rounded-xl border-0 bg-black"
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-      />
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex min-h-11 items-center text-sm font-bold text-sf-accent"
-      >
-        {t("Watch on YouTube")} ↗
-      </a>
-    </>
+    <iframe
+      title={t("Featured YouTube video")}
+      src={`https://www.youtube-nocookie.com/embed/${video.video_id}?autoplay=1&playsinline=1${video.start_seconds ? `&start=${video.start_seconds}` : ""}`}
+      className="aspect-video min-h-[200px] w-full rounded-xl border-0 bg-black"
+      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+      allowFullScreen
+      referrerPolicy="strict-origin-when-cross-origin"
+    />
   );
   return (
     <div className="min-w-0" data-featured-video={teaser ? "teaser" : "hero"}>
@@ -82,14 +61,35 @@ function YouTubeVideo({
           aria-label={t("Play featured video")}
           className={`group relative w-full overflow-hidden rounded-2xl border border-sf-border bg-sf-surface text-left focus-visible:outline-2 focus-visible:outline-sf-accent ${teaser ? "grid grid-cols-[112px_minmax(0,1fr)] items-center gap-4 sm:grid-cols-1 sm:gap-0" : ""}`}
         >
-          <div className="relative">
-            <GameArtwork
-              src={
-                poster ||
-                `https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`
-              }
-              className={`aspect-video w-full ${teaser ? "" : "min-h-[200px]"}`}
-            />
+          <div
+            className={`relative aspect-video w-full bg-black ${teaser ? "" : "min-h-[200px]"}`}
+          >
+            {thumbnail && (
+              // YouTube thumbnails are public images; the player loads only on click.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={thumbnail}
+                src={`https://img.youtube.com/vi/${video.video_id}/${thumbnail}.jpg`}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 h-full w-full object-cover"
+                onLoad={(event) => {
+                  // Some videos return a small placeholder for a missing HD image.
+                  if (
+                    thumbnail === "maxresdefault" &&
+                    event.currentTarget.naturalWidth <= 120
+                  )
+                    setThumbnail("hqdefault");
+                }}
+                onError={() =>
+                  setThumbnail(
+                    thumbnail === "maxresdefault" ? "hqdefault" : null,
+                  )
+                }
+              />
+            )}
             <span className="absolute inset-0 grid place-items-center bg-black/15">
               <span className="grid h-12 w-12 place-items-center rounded-full bg-black/75 text-white">
                 <Play size={24} fill="currentColor" aria-hidden="true" />
@@ -110,16 +110,6 @@ function YouTubeVideo({
         </button>
       )}
       {!teaser && frame}
-      {!active && (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-flex min-h-11 items-center text-xs text-sf-muted"
-        >
-          {t("Watch on YouTube")} ↗
-        </a>
-      )}
       {teaser && (
         <dialog
           ref={dialog}

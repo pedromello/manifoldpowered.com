@@ -807,11 +807,7 @@ function ChannelLayout(props: PresetLayoutProps) {
       {store.layout_preset !== "community" && store.featured_video && (
         <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
           <div className="max-w-sm">
-            <FeaturedVideo
-              video={store.featured_video}
-              poster={store.cover_url}
-              teaser
-            />
+            <FeaturedVideo video={store.featured_video} teaser />
           </div>
         </section>
       )}
@@ -1014,11 +1010,7 @@ function EditorialLayout(props: PresetLayoutProps) {
       {store.layout_preset !== "community" && store.featured_video && (
         <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
           <div className="max-w-sm">
-            <FeaturedVideo
-              video={store.featured_video}
-              poster={store.cover_url}
-              teaser
-            />
+            <FeaturedVideo video={store.featured_video} teaser />
           </div>
         </section>
       )}
@@ -1233,11 +1225,7 @@ function CommunityLayout(props: PresetLayoutProps) {
           </div>
           {store.featured_video && (
             <div className="relative lg:row-span-2">
-              <FeaturedVideo
-                video={store.featured_video}
-                poster={store.cover_url}
-                teaser
-              />
+              <FeaturedVideo video={store.featured_video} teaser />
             </div>
           )}
           <div className="relative">
@@ -1248,11 +1236,7 @@ function CommunityLayout(props: PresetLayoutProps) {
       {store.layout_preset !== "community" && store.featured_video && (
         <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
           <div className="max-w-sm">
-            <FeaturedVideo
-              video={store.featured_video}
-              poster={store.cover_url}
-              teaser
-            />
+            <FeaturedVideo video={store.featured_video} teaser />
           </div>
         </section>
       )}

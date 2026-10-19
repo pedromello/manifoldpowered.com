@@ -32,8 +32,8 @@ Outlets and selections each own an independent optional `featured_video_url`.
 Use an HTTPS `youtube.com/watch?v=...` or `youtu.be/...` URL. The shared validator
 accepts exact YouTube hosts and stores an 11-character video ID and validated start
 time. Optional `t=68`, `t=1m8s` or `start=68` preserves a segment in both the player
-and canonical fallback link. Duplicate, ambiguous, negative, fractional and
-over-seven-day offsets are rejected. Tracking parameters are discarded. Arbitrary
+and the canonical URL used by the owner panel. Duplicate, ambiguous, negative,
+fractional and over-seven-day offsets are rejected. Tracking parameters are discarded. Arbitrary
 embed HTML and third-party URLs are rejected. A social channel link or a URL in
 the description does not automatically become a featured video.
 
@@ -41,8 +41,11 @@ Playback uses YouTube's documented [start parameter](https://developers.google.c
 
 The outlet uses a compact teaser with a keyboard-accessible dialog; the selection
 uses an in-place hero. Both load the `youtube-nocookie.com` iframe only after a
-click, retain a direct YouTube fallback, and leave the original cover composition
-when no video is configured. No video is inherited from the outlet by a selection.
+click. Before playback, they show the video's original YouTube thumbnail, using
+the high-resolution thumbnail and falling back to the standard thumbnail.
+There is no separate external YouTube link below the player. The original cover
+composition remains when no video is configured. No video is inherited from the
+outlet by a selection.
 
 The owner panel supports setting, replacing, previewing and removing videos.
 The same input is available in the existing CLI create/update commands:
