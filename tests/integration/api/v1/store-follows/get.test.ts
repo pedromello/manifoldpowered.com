@@ -13,6 +13,7 @@ const PUBLIC_STORE_FIELDS = [
   "layout_preset",
   "tagline",
   "cover_url",
+  "featured_video",
   "social_links",
   "brand_tokens",
   "presentation",
@@ -92,6 +93,7 @@ describe("GET /api/v1/store-follows", () => {
     ]);
     for (const store of body.stores) {
       expect(Object.keys(store).sort()).toEqual(PUBLIC_STORE_FIELDS);
+      expect(store.featured_video).toBeNull();
       expect(store).not.toHaveProperty("user_id");
       expect(store).not.toHaveProperty("follow_id");
     }

@@ -18,6 +18,7 @@ describe("named outlet selection contracts", () => {
       title: "Weekend co-op",
       description: "",
       cover_url: null,
+      featured_video_url: null,
       image_urls: [],
       game_slugs: [],
     });

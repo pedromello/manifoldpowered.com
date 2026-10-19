@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  featuredVideoSchema,
+  featuredVideoUrlSchema,
+  type FeaturedVideo,
+} from "./featured-video";
 
 export const MAX_SELECTION_GAMES = 100;
 export const MAX_SELECTION_IMAGES = 6;
@@ -45,6 +50,7 @@ export const selectionCreateSchema = z
     title: z.string().trim().min(1).max(120),
     description: z.string().trim().max(5000).default(""),
     cover_url: selectionImageUrlSchema.nullable().default(null),
+    featured_video_url: featuredVideoUrlSchema.nullable().default(null),
     image_urls: z
       .array(selectionImageUrlSchema)
       .max(MAX_SELECTION_IMAGES)
@@ -60,6 +66,7 @@ export const selectionUpdateSchema = z
     title: selectionCreateSchema.shape.title.optional(),
     description: z.string().trim().max(5000).optional(),
     cover_url: selectionImageUrlSchema.nullable().optional(),
+    featured_video_url: featuredVideoUrlSchema.nullable().optional(),
     image_urls: z
       .array(selectionImageUrlSchema)
       .max(MAX_SELECTION_IMAGES)
@@ -75,6 +82,7 @@ export const selectionUpdateSchema = z
           "title",
           "description",
           "cover_url",
+          "featured_video_url",
           "image_urls",
           "game_slugs",
         ] as const
@@ -92,14 +100,18 @@ export const selectionPublicationSchema = z
   .strict();
 
 export const selectionSnapshotSchema = selectionCreateSchema
-  .omit({ slug: true, game_slugs: true })
-  .extend({ game_ids: z.array(z.string().min(1)).max(MAX_SELECTION_GAMES) })
+  .omit({ slug: true, game_slugs: true, featured_video_url: true })
+  .extend({
+    game_ids: z.array(z.string().min(1)).max(MAX_SELECTION_GAMES),
+    featured_video: featuredVideoSchema.nullable().default(null),
+  })
   .strict();
 
 export type SelectionSnapshot = z.infer<typeof selectionSnapshotSchema>;
 export type SelectionInput = z.infer<typeof selectionCreateSchema>;
 export type SelectionUpdate = z.infer<typeof selectionUpdateSchema>;
 export type SelectionSummary = {
+  featured_video?: FeaturedVideo | null;
   id: string;
   slug: string;
   title: string;

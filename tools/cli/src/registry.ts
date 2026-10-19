@@ -296,6 +296,7 @@ export const payloadOptions = Object.fromEntries(
     "layout-preset",
     "tagline",
     "cover-url",
+    "featured-video-url",
     "social-links",
     "brand-tokens",
     "expected-draft-revision",

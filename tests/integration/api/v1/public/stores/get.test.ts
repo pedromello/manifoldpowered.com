@@ -16,6 +16,7 @@ const PUBLIC_STORE_FIELDS = [
   "layout_preset",
   "tagline",
   "cover_url",
+  "featured_video",
   "social_links",
   "brand_tokens",
   "owner_id",
@@ -81,6 +82,7 @@ describe("GET /api/v1/public/stores", () => {
       expect(responseBody.stores.length).toBeGreaterThanOrEqual(1);
       for (const item of responseBody.stores) {
         expect(Object.keys(item).sort()).toEqual(PUBLIC_STORE_FIELDS);
+        expect(item.featured_video).toBeNull();
       }
     });
 

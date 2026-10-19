@@ -1,3 +1,5 @@
+import { FeaturedVideoField } from "components/creator/FeaturedVideoField";
+import { featuredVideoUrl } from "contracts/featured-video";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -36,6 +38,7 @@ const empty: SelectionInput = {
   title: "",
   description: "",
   cover_url: null,
+  featured_video_url: null,
   image_urls: [],
   game_slugs: [],
 };
@@ -48,6 +51,7 @@ function fromSelection(row: SelectionSummary): SelectionInput {
     title: row.title,
     description: row.description,
     cover_url: row.cover_url,
+    featured_video_url: featuredVideoUrl(row.featured_video),
     image_urls: row.image_urls,
     game_slugs: row.game_slugs,
   };
@@ -107,6 +111,7 @@ function SelectionWorkspaceDraft({
         form.title ||
         form.description ||
         form.cover_url ||
+        form.featured_video_url ||
         imageText ||
         form.game_slugs.length,
       );
@@ -171,6 +176,7 @@ function SelectionWorkspaceDraft({
         title: parsed.data.title,
         description: parsed.data.description,
         cover_url: parsed.data.cover_url,
+        featured_video_url: parsed.data.featured_video_url,
         image_urls: parsed.data.image_urls,
         game_slugs: parsed.data.game_slugs,
       };
@@ -399,6 +405,13 @@ function SelectionWorkspaceDraft({
                   {t("Up to six HTTPS image URLs, one per line.")}
                 </span>
               </label>
+              <FeaturedVideoField
+                value={form.featured_video_url ?? ""}
+                onChange={(value) =>
+                  setForm({ ...form, featured_video_url: value || null })
+                }
+                disabled={!canEdit || pending}
+              />
               <div>
                 <p className="mb-2 text-sm font-semibold">
                   {t("Games in this selection")}

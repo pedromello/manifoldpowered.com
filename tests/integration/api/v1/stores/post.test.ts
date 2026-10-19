@@ -58,6 +58,7 @@ describe("POST /api/v1/stores", () => {
         layout_preset: null,
         tagline: null,
         cover_url: null,
+        featured_video: null,
         social_links: {},
         brand_tokens: {
           palette: "manifold",
@@ -72,7 +73,8 @@ describe("POST /api/v1/stores", () => {
         last_published_at: null,
         published_revision: null,
         presentation: {
-          version: 1,
+          version: 2,
+          featured_video: null,
           layout_preset: null,
           tagline: null,
           cover_image_url: null,

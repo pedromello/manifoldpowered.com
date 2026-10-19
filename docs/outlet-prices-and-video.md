@@ -25,3 +25,38 @@ complete eligible selection while retaining author order.
 
 Prices are resolved from the catalog on read. Editorial publication snapshots
 freeze curation, not changing provider prices. A missing price is never free.
+
+## Featured YouTube videos
+
+Outlets and selections each own an independent optional `featured_video_url`.
+Use an HTTPS `youtube.com/watch?v=...` or `youtu.be/...` URL. The shared validator
+accepts exact YouTube hosts and stores only an 11-character video ID. Arbitrary
+embed HTML and third-party URLs are rejected. A social channel link or a URL in
+the description does not automatically become a featured video.
+
+The outlet uses a compact teaser with a keyboard-accessible dialog; the selection
+uses an in-place hero. Both load the `youtube-nocookie.com` iframe only after a
+click, retain a direct YouTube fallback, and leave the original cover composition
+when no video is configured. No video is inherited from the outlet by a selection.
+
+The owner panel supports setting, replacing, previewing and removing videos.
+The same input is available in the existing CLI create/update commands:
+
+```sh
+manifold outlets update --env local --account curator --slug my-outlet \
+  --revision 7 --featured-video-url https://youtu.be/g7QcidQx73s --json
+manifold outlets selections update --env local --account curator \
+  --slug my-outlet --selection-slug weekend --revision 3 \
+  --featured-video-url https://youtu.be/g7QcidQx73s --json
+```
+
+Send `featured_video_url: null` through JSON input to remove a video. Omitting
+the field on update preserves the existing video. Consult `schema <command>
+--json` for the full input, and use the draft revision returned by each action,
+including publication. A conflict requires a fresh read and review before retry.
+
+Video edits affect only the working draft until explicit publication. Outlet
+presentation v2 reads historical v1 presentations as video-free; historical
+selection snapshots missing the field similarly normalize to null. The additive
+migration adds nullable checked columns and never rewrites published editions.
+SEO metadata and social images continue to use the selection cover and identity.

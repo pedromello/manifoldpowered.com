@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  featuredVideoSchema,
+  featuredVideoFromId,
+} from "contracts/featured-video";
 import { STORE_THEME_KEYS } from "lib/storefront-theme-contract";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
@@ -29,9 +33,10 @@ export { storeSocialLinksSchema };
 
 // This is the sole presentation allowlist used by drafts, snapshots and public
 // projection. Keep it strict: adding a field is a versioned contract change.
-export const storePresentationSchema = z
+const currentPresentationSchema = z
   .object({
     version: z.literal(STORE_PRESENTATION_VERSION),
+    featured_video: featuredVideoSchema.nullable().default(null),
     // Null is the durable legacy value and renders as the classic storefront.
     layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable(),
     tagline: z.string().trim().max(160).nullable(),
@@ -48,6 +53,17 @@ export const storePresentationSchema = z
   })
   .strict();
 
+const legacyPresentationSchema = currentPresentationSchema
+  .omit({ featured_video: true })
+  .extend({ version: z.literal(1) });
+export const storePresentationSchema = z
+  .union([currentPresentationSchema, legacyPresentationSchema])
+  .transform((value) => ({
+    ...value,
+    version: STORE_PRESENTATION_VERSION,
+    featured_video: "featured_video" in value ? value.featured_video : null,
+  }));
+
 export type StorePresentation = z.infer<typeof storePresentationSchema>;
 export type StorePresentationDraft = Omit<StorePresentation, "theme_key"> & {
   theme_key?: never;
@@ -55,6 +71,7 @@ export type StorePresentationDraft = Omit<StorePresentation, "theme_key"> & {
 
 export const DEFAULT_STORE_PRESENTATION: StorePresentationDraft = {
   version: STORE_PRESENTATION_VERSION,
+  featured_video: null,
   layout_preset: null,
   tagline: null,
   cover_image_url: null,
@@ -72,6 +89,7 @@ export function resolveDraftPresentation({
   layout_preset = DEFAULT_STORE_PRESENTATION.layout_preset,
   tagline = DEFAULT_STORE_PRESENTATION.tagline,
   cover_url = DEFAULT_STORE_PRESENTATION.cover_image_url,
+  featured_video_id = null,
   social_links = DEFAULT_STORE_PRESENTATION.social_links,
   brand_tokens = DEFAULT_STORE_PRESENTATION.brand_tokens,
 }: {
@@ -79,6 +97,7 @@ export function resolveDraftPresentation({
   layout_preset?: unknown;
   tagline?: unknown;
   cover_url?: unknown;
+  featured_video_id?: unknown;
   social_links?: unknown;
   brand_tokens?: unknown;
   // Compatibility-only input. It is deliberately ignored and is not an
@@ -91,6 +110,9 @@ export function resolveDraftPresentation({
     layout_preset,
     tagline,
     cover_image_url: cover_url,
+    featured_video: featuredVideoFromId(
+      typeof featured_video_id === "string" ? featured_video_id : null,
+    ),
     social_links,
     brand_tokens,
   });

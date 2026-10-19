@@ -23,6 +23,7 @@ test("selection schemas expose drafts, publication, and ordered game membership 
     assert.equal(result.exit, 0);
     assert.match(JSON.stringify(result.output), /selection_slug/);
     assert.match(JSON.stringify(result.output), /game_slugs/);
+    assert.match(JSON.stringify(result.output), /featured_video_url/);
   } finally {
     await f.cleanup();
   }
@@ -75,14 +76,20 @@ test("selection CRUD keeps outlet and selection addresses distinct and sends the
         "peak,repo",
         "--image-urls",
         "https://cdn.example.com/image.png",
+        "--featured-video-url",
+        "https://youtu.be/g7QcidQx73s",
       ],
       f.state,
       fetcher,
     );
-    assert.equal(create.exit, 0);
+    assert.equal(create.exit, 0, JSON.stringify(create.output));
     assert.equal(calls[0].path, "/api/v1/stores/cozy/selections");
     assert.equal(calls[0].method, "POST");
     assert.equal(calls[0].body.slug, "weekend");
+    assert.equal(
+      calls[0].body.featured_video_url,
+      "https://youtu.be/g7QcidQx73s",
+    );
     assert.deepEqual(calls[0].body.game_slugs, ["peak", "repo"]);
     assert.deepEqual(calls[0].body.image_urls, [
       "https://cdn.example.com/image.png",
@@ -306,7 +313,7 @@ test("selection conflicts remain conflicts and are not replayed", async () => {
       fetcher,
     );
     assert.equal(result.exit, 1);
-    assert.equal(writes, 1);
+    assert.equal(writes, 1, JSON.stringify(result.output));
     assert.equal(result.output.error.retryable, false);
   } finally {
     await f.cleanup();

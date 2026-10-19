@@ -1,3 +1,5 @@
+import type { FeaturedVideo } from "./featured-video";
+
 export const STORE_LAYOUT_PRESETS = [
   "channel",
   "editorial",
@@ -48,11 +50,12 @@ export const DEFAULT_STORE_BRAND_TOKENS: StoreBrandTokens = {
 
 export const DEFAULT_STORE_LAYOUT_PRESET: StoreLayoutPreset = "channel";
 
-export const STORE_PRESENTATION_VERSION = 1 as const;
+export const STORE_PRESENTATION_VERSION = 2 as const;
 
 /** The versioned presentation JSON captured by each immutable StoreRevision. */
 export type StorePresentationSnapshot = {
-  version: typeof STORE_PRESENTATION_VERSION;
+  version: 1 | typeof STORE_PRESENTATION_VERSION;
+  featured_video?: FeaturedVideo | null;
   theme_key: string | null;
   layout_preset: StoreLayoutPreset | null;
   tagline: string | null;

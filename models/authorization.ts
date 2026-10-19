@@ -1038,6 +1038,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         layout_preset: storeOutput.layout_preset,
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
+        featured_video_id: storeOutput.featured_video_id,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });
@@ -1052,6 +1053,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       layout_preset: presentation.layout_preset,
       tagline: presentation.tagline,
       cover_url: presentation.cover_image_url,
+      featured_video: presentation.featured_video ?? null,
       social_links: presentation.social_links,
       brand_tokens: presentation.brand_tokens,
       presentation,
@@ -1107,6 +1109,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         layout_preset: storeOutput.layout_preset,
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
+        featured_video_id: storeOutput.featured_video_id,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });
@@ -1127,6 +1130,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       layout_preset: presentation.layout_preset,
       tagline: presentation.tagline,
       cover_url: presentation.cover_image_url,
+      featured_video: presentation.featured_video ?? null,
       social_links: presentation.social_links,
       brand_tokens: presentation.brand_tokens,
       presentation,
