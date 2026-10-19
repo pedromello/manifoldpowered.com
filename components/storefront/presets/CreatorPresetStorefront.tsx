@@ -213,6 +213,24 @@ function GameArtwork({
   return <SharedGameArtwork src={artworkUrl} className={className} />;
 }
 
+function CatalogCurrencyLabel({ props }: { props: StorefrontViewProps }) {
+  const { t } = useI18n();
+  const currencies = new Set(
+    [...props.featured, ...props.games]
+      .map((game) =>
+        ["STEAM_ONLY", "NINTENDO_ONLY"].includes(game.purchase_mode)
+          ? game.external_offer?.currency
+          : (game.display_price?.currency ?? props.currency),
+      )
+      .filter(Boolean),
+  );
+  return currencies.size > 1
+    ? t("Prices shown in each store's currency")
+    : t("Prices shown in {currency}", {
+        currency: currencies.values().next().value ?? props.currency,
+      });
+}
+
 function GamePrice({ game }: { game: GameApi }) {
   return <GamePriceBlock game={game} compact />;
 }
@@ -899,7 +917,7 @@ function ChannelLayout(props: PresetLayoutProps) {
                 {t("Browse all games")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <span className="text-xs font-bold text-sf-muted">
@@ -1131,7 +1149,8 @@ function EditorialLayout(props: PresetLayoutProps) {
             </h2>
           </div>
           <p className="hidden text-xs font-bold uppercase tracking-wider text-sf-muted sm:block">
-            {props.currency} · {t("Page {page}", { page: props.page })}
+            <CatalogCurrencyLabel props={props} /> ·{" "}
+            {t("Page {page}", { page: props.page })}
           </p>
         </div>
         <CatalogResults props={props} tokens={tokens} preset="editorial" />
@@ -1226,9 +1245,9 @@ function CommunityLayout(props: PresetLayoutProps) {
                 className={`${tokens.card} group flex min-h-72 flex-col overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
               >
                 <GameArtwork game={game} className="aspect-[16/9] w-full" />
-                <div className="flex-1 bg-sf-bg p-5">
+                <div className="flex flex-1 flex-col bg-sf-bg p-5">
                   <span
-                    className={`${tokens.control} inline-flex bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
+                    className={`${tokens.control} inline-flex self-start bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
                   >
                     {t("Pick #{number}", { number: index + 1 })}
                   </span>
@@ -1240,7 +1259,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                   <p className="mt-1 text-xs font-semibold text-sf-muted">
                     {t("By {studio}", { studio: game.developer_name })}
                   </p>
-                  <div className="mt-4">
+                  <div className="mt-auto pt-4">
                     <GamePriceBlock game={game} />
                   </div>
                   <span className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-sf-accent px-4 text-sm font-bold text-sf-accent-fg">
@@ -1268,7 +1287,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                 {t("Community shelf")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <SearchAndFilters

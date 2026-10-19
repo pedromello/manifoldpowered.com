@@ -408,6 +408,7 @@ export const ptBR: Record<string, string> = {
   "Pick #{number}": "Escolha nº {number}",
   "Preparing featured games…": "Preparando jogos em destaque…",
   "Prices shown in {currency}": "Preços exibidos em {currency}",
+  "Prices shown in each store's currency": "Preços na moeda de cada loja",
   "Search this Outlet": "Buscar nesta Outlet",
   "Selected by this Outlet": "Selecionado por esta Outlet",
   "The front page": "A primeira página",

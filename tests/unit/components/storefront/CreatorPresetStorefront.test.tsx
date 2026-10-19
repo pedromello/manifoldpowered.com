@@ -128,6 +128,27 @@ function props(
 }
 
 describe("CreatorPresetStorefront", () => {
+  test("labels provider currencies accurately instead of assuming native checkout currency", () => {
+    const input = props("community");
+    const external = {
+      ...game,
+      purchase_mode: "NINTENDO_ONLY" as const,
+      external_offer: {
+        provider: "NINTENDO" as const,
+        amount: "10.00",
+        currency: "BRL",
+      },
+    };
+    input.featured = [external];
+    input.games = [external];
+    expect(
+      renderToStaticMarkup(<CreatorPresetStorefront {...input} />),
+    ).toContain("Prices shown in BRL");
+    input.games = [game];
+    expect(
+      renderToStaticMarkup(<CreatorPresetStorefront {...input} />),
+    ).toContain("Prices shown in each store");
+  });
   test.each([
     ["channel", "Featured games"],
     ["editorial", "The front page"],
