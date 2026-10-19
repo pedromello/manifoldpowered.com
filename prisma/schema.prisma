@@ -415,6 +415,117 @@ model StoreFollow {
   @@map("store_follows")
 }
 
+// Email consent is explicit and independent of following. References remain logical.
+model UserNotificationPreference {
+  user_id String @id
+  email_locale String @db.VarChar(5)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  @@map("user_notification_preferences")
+}
+
+model OutletNotificationSubscription {
+  id String @id @default(uuid())
+  user_id String
+  store_id String
+  enabled Boolean @default(true)
+  consent_email String @db.VarChar(234)
+  email_version Int
+  generation Int @default(1)
+  enabled_at DateTime @default(now()) @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  @@unique([user_id, store_id])
+  @@index([store_id, enabled, id])
+  @@index([user_id, enabled])
+  @@map("outlet_notification_subscriptions")
+}
+
+model SelectionEmailEvent {
+  id String @id @default(uuid())
+  selection_id String @unique
+  store_id String
+  revision_id String
+  occurred_at DateTime @db.Timestamptz(3)
+  status String @default("PENDING") @db.VarChar(16)
+  fanout_cursor String?
+  lease_token String?
+  lease_until DateTime? @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  @@index([status, lease_until, created_at])
+  @@map("selection_email_events")
+}
+
+model SelectionEmailBatch {
+  id String @id @default(uuid())
+  event_id String
+  status String @default("PREPARED") @db.VarChar(16)
+  payload Json?
+  payload_hash String? @db.VarChar(64)
+  idempotency_key String @unique @db.VarChar(256)
+  first_attempt_at DateTime? @db.Timestamptz(3)
+  next_attempt_at DateTime @default(now()) @db.Timestamptz(3)
+  attempts Int @default(0)
+  lease_token String?
+  lease_until DateTime? @db.Timestamptz(3)
+  last_error_code String? @db.VarChar(80)
+  last_error_kind String? @db.VarChar(16)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  @@index([status, next_attempt_at, lease_until])
+  @@index([event_id])
+  @@map("selection_email_batches")
+}
+
+model SelectionEmailDelivery {
+  id String @id @default(uuid())
+  event_id String
+  user_id String
+  subscription_id String
+  subscription_generation Int
+  email_version Int
+  recipient_email String @db.VarChar(234)
+  batch_id String?
+  status String @default("PENDING") @db.VarChar(16)
+  provider_id String? @unique @db.VarChar(128)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([event_id, user_id])
+  @@index([batch_id, status])
+  @@index([subscription_id, status])
+  @@map("selection_email_deliveries")
+}
+
+model SelectionEmailSuppression {
+  email_hash String @id @db.VarChar(64)
+  reason String @db.VarChar(32)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  @@map("selection_email_suppressions")
+}
+
+model SelectionEmailWebhook {
+  id String @id @db.VarChar(200)
+  provider_id String @db.VarChar(128)
+  kind String @db.VarChar(32)
+  occurred_at DateTime @db.Timestamptz(3)
+  processed Boolean @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  @@index([processed, created_at])
+  @@index([provider_id])
+  @@map("selection_email_webhooks")
+}
+
+model SelectionEmailRateLimit {
+  key String @id @db.VarChar(32)
+  next_at DateTime @default(now()) @db.Timestamptz(3)
+  @@map("selection_email_rate_limits")
+}
+
+model SelectionEmailDailyBudget {
+  key String @id @db.VarChar(10)
+  reserved Int @default(0)
+  @@map("selection_email_daily_budgets")
+}
+
 enum GamePlatform {
   WINDOWS
   MAC

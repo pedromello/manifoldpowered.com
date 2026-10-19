@@ -50,6 +50,59 @@ export async function curatorAction(
   const storePath = `/stores/${slug}`;
   const changed = (data: Record<string, unknown>) =>
     completeOutletChange(String(slug), data, api);
+  if (name === "auth notifications get" || name === "auth notifications set")
+    return {
+      data: (
+        await api.request(
+          "/user/notification-preferences",
+          name.endsWith("set") ? { method: "PATCH", body: payload } : {},
+        )
+      ).body,
+    };
+  if (name === "outlets notifications list")
+    return { data: (await api.request("/outlet-notifications")).body };
+  if (name.startsWith("outlets notifications ")) {
+    try {
+      return {
+        data: (
+          await api.request(
+            `${storePath}/notifications`,
+            name.endsWith("status")
+              ? {}
+              : {
+                  method: "PUT",
+                  body: {
+                    enabled: name.endsWith("enable"),
+                    ...(name.endsWith("enable")
+                      ? { locale: api.locale === "pt-BR" ? "pt-BR" : "en" }
+                      : {}),
+                    ...body,
+                  },
+                },
+          )
+        ).body,
+      };
+    } catch (error) {
+      const details =
+        error instanceof CliError
+          ? (error.details as { context?: { code?: string } } | undefined)
+          : undefined;
+      if (
+        error instanceof CliError &&
+        details?.context?.code === "EMAIL_LOGIN_REQUIRED"
+      )
+        throw new CliError(
+          "EMAIL_LOGIN_REQUIRED",
+          "Confirme o endereço pelo login OTP habitual antes de ativar os avisos.",
+          1,
+          {
+            ...details,
+            next_command: "auth login request",
+          },
+        );
+      throw error;
+    }
+  }
   if (name === "outlets ratings options")
     return {
       data: {

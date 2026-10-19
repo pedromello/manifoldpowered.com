@@ -46,8 +46,20 @@ async function unfollow(
   const store = await storeModel.findOnePublishedBySlug(storeSlug);
 
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
     const removed = await tx.$queryRaw<Array<{ id: string }>>`
       DELETE FROM store_follows WHERE user_id = ${userId} AND store_id = ${store.id} RETURNING id
+    `;
+    await tx.outletNotificationSubscription.updateMany({
+      where: { user_id: userId, store_id: store.id, enabled: true },
+      data: { enabled: false, generation: { increment: 1 } },
+    });
+    await tx.$executeRaw`
+      UPDATE selection_email_deliveries d SET status = 'CANCELLED'
+      FROM selection_email_batches b, selection_email_events e
+      WHERE d.batch_id = b.id AND d.event_id = e.id
+        AND d.user_id = ${userId} AND e.store_id = ${store.id}
+        AND d.status = 'PENDING' AND b.first_attempt_at IS NULL
     `;
     if (removed[0])
       await recordDomainEvent(tx, {

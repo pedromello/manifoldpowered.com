@@ -5,6 +5,7 @@ import { z } from "zod";
 import authorization from "models/authorization";
 import { Prisma } from "generated/prisma/client";
 import { lockEmailIdentity, normalizeEmail } from "models/email_identity";
+import { suspendPendingNotificationDeliveries } from "models/notification_identity";
 
 import { userSchema, userUpdateSchema } from "contracts/creator-requests";
 export { userSchema };
@@ -201,6 +202,7 @@ const update = async (id: string, userUpdateDto: UpdateUserDto) => {
       },
     });
     if (emailChanged) {
+      await suspendPendingNotificationDeliveries(tx, id);
       const now = new Date();
       await tx.userActivationToken.updateMany({
         where: { user_id: id, used_at: null },

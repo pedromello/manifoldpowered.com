@@ -1,7 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run vercel:build",
+  "functions": {
+    "pages/api/internal/queues/selection-email-fanout.ts": {
+      "experimentalTriggers": [
+        { "type": "queue/v2beta", "topic": "selection-email-fanout" }
+      ]
+    },
+    "pages/api/internal/queues/selection-email-send.ts": {
+      "experimentalTriggers": [
+        { "type": "queue/v2beta", "topic": "selection-email-send" }
+      ]
+    }
+  },
   "crons": [
-    { "path": "/api/internal/product-events/prune", "schedule": "0 8 * * *" }
+    { "path": "/api/internal/product-events/prune", "schedule": "0 8 * * *" },
+    {
+      "path": "/api/internal/selection-emails/recover",
+      "schedule": "15 8 * * *"
+    }
   ]
 }

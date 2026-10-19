@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { Command } from "./registry";
 import {
+  notificationPreferencesSchema,
+  notificationToggleSchema,
+} from "../../../contracts/outlet-notifications";
+import {
   outletRatingSchema,
   ratingSystemInputSchema,
 } from "../../../contracts/outlet-rating";
@@ -35,6 +39,33 @@ function command(
   return { schema, description, mutation, authenticated };
 }
 export const curatorCommands: Record<string, Command> = {
+  "outlets notifications status": command(
+    reference,
+    "Consultar avisos de novas seleções desta outlet",
+  ),
+  "outlets notifications enable": command(
+    notificationToggleSchema.omit({ enabled: true }).extend({ slug }).strict(),
+    "Ativar e-mails para novas seleções e acompanhar a outlet",
+    true,
+  ),
+  "outlets notifications disable": command(
+    reference,
+    "Desativar e-mails desta outlet preservando o follow",
+    true,
+  ),
+  "outlets notifications list": command(
+    empty,
+    "Listar assinaturas de e-mails da conta",
+  ),
+  "auth notifications get": command(
+    empty,
+    "Consultar o idioma global dos e-mails de notificações",
+  ),
+  "auth notifications set": command(
+    notificationPreferencesSchema,
+    "Definir o idioma dos e-mails de todas as outlets",
+    true,
+  ),
   "outlets ratings options": command(
     empty,
     "Listar escalas e valores de notas disponíveis",

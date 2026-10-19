@@ -31,10 +31,15 @@ async function send(mailOptions: MailOptions) {
     await transporter.sendMail(mailOptions);
   } catch (error) {
     throw new ServiceError({
-      cause: error,
+      cause:
+        error instanceof Error &&
+        error.message ===
+          "From is not defined in mailOptions nor in env EMAIL_FROM"
+          ? error
+          : new Error("Email transport request failed"),
       message: "Could not send email",
       action: "Check if email service is available",
-      context: mailOptions,
+      context: { component: "email", recipient_count: 1 },
     });
   }
 }

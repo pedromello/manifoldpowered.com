@@ -10,6 +10,18 @@ import { useI18n } from "lib/i18n";
 
 type Step = "login" | "code";
 
+function safeCallbackUrl(value: string | string[] | undefined) {
+  if (typeof value !== "string" || !value.startsWith("/")) return "/store";
+  try {
+    const url = new URL(value, "https://manifold.invalid");
+    return url.origin === "https://manifold.invalid"
+      ? `${url.pathname}${url.search}${url.hash}`
+      : "/store";
+  } catch {
+    return "/store";
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { t, translateError } = useI18n();
@@ -19,8 +31,12 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const verifyEmail = router.query.verifyEmail === "1";
+  const callbackUrl = safeCallbackUrl(router.query.callbackUrl);
 
   useEffect(() => {
+    if (!router.isReady) return;
+    if (verifyEmail) return;
     let isMounted = true;
 
     fetch("/api/v1/user")
@@ -28,10 +44,7 @@ export default function LoginPage() {
         if (!isMounted) return;
 
         if (response.ok) {
-          const callbackUrl = router.query.callbackUrl;
-          router.replace(
-            typeof callbackUrl === "string" ? callbackUrl : "/store",
-          );
+          router.replace(callbackUrl);
           return;
         }
 
@@ -44,8 +57,7 @@ export default function LoginPage() {
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [callbackUrl, router, verifyEmail]);
 
   async function handleRequestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,9 +110,8 @@ export default function LoginPage() {
         );
       }
 
-      const callbackUrl = router.query.callbackUrl;
       acceptProductEventContext(response);
-      router.push(typeof callbackUrl === "string" ? callbackUrl : "/store");
+      router.push(callbackUrl);
     } catch (error) {
       setErrorMessage(
         translateError(
@@ -119,7 +130,7 @@ export default function LoginPage() {
     setErrorMessage("");
   }
 
-  if (isCheckingSession) {
+  if (isCheckingSession && !verifyEmail) {
     return (
       <AuthLayout
         title={t("Login | Manifold")}

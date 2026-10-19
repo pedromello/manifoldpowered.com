@@ -21,6 +21,8 @@ import {
 } from "models/store_catalog";
 import { parseStoreRevision } from "models/store_revision";
 import { isTransactionWriteConflict } from "lib/transaction-conflict";
+import { recordSelectionEmailPublication } from "models/selection_email_event";
+import { enqueueSelectionEmailEvent } from "infra/selection-email-queue";
 
 type Client = Prisma.TransactionClient;
 
@@ -252,7 +254,8 @@ async function publish(
   actorId: string,
   expected: number,
 ) {
-  return mutate(storeId, slug, expected, async (tx, row) => {
+  let notificationEventId: string | null = null;
+  const published = await mutate(storeId, slug, expected, async (tx, row) => {
     const result = await readiness(row, tx);
     if (!result.ready)
       throw new ValidationError({
@@ -269,6 +272,13 @@ async function publish(
         snapshot: snapshot(row) as Prisma.InputJsonValue,
       },
     });
+    if (row.published_revision === 0)
+      notificationEventId = await recordSelectionEmailPublication(tx, {
+        selectionId: row.id,
+        storeId,
+        revisionId: revision.id,
+        occurredAt: revision.created_at,
+      });
     return tx.storeSelection.update({
       where: { id: row.id },
       data: {
@@ -279,6 +289,20 @@ async function publish(
       },
     });
   });
+  if (notificationEventId) {
+    try {
+      await enqueueSelectionEmailEvent(notificationEventId);
+    } catch {
+      // Publication already committed. The durable outbox is recovered by cron.
+      console.warn(
+        JSON.stringify({
+          component: "selection_email_outbox",
+          outcome: "queue_wakeup_pending",
+        }),
+      );
+    }
+  }
+  return published;
 }
 
 async function unpublish(storeId: string, slug: string, expected: number) {
