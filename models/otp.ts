@@ -1,10 +1,17 @@
 import crypto from "node:crypto";
-import { User } from "generated/prisma/client";
+import { User, UserOtp } from "generated/prisma/client";
 import { prisma } from "infra/database";
 import email from "infra/email";
-import { UnauthorizedError } from "infra/errors";
+import { ForbiddenError, UnauthorizedError } from "infra/errors";
 import password from "models/password";
 import user from "models/user";
+import authorization from "models/authorization";
+import {
+  confirmEmailIdentity,
+  lockEmailIdentity,
+  matchesEmailIdentity,
+  normalizeEmail,
+} from "models/email_identity";
 
 const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 10; // 10 minutes
 const CODE_LENGTH = 6;
@@ -19,34 +26,29 @@ async function create(userId: string) {
   const code = generateCode();
   const codeHash = await password.hash(code);
 
-  await invalidateOutstandingCodes(userId);
-
-  const otp = await prisma.userOtp.create({
-    data: {
-      user_id: userId,
-      code_hash: codeHash,
-      expires_at: new Date(Date.now() + EXPIRATION_IN_MILLISECONDS),
-    },
+  const otp = await prisma.$transaction(async (tx) => {
+    const identity = await lockEmailIdentity(tx, userId);
+    await tx.userOtp.updateMany({
+      where: { user_id: userId, used_at: null },
+      data: { used_at: new Date() },
+    });
+    return tx.userOtp.create({
+      data: {
+        user_id: userId,
+        code_hash: codeHash,
+        recipient_email: normalizeEmail(identity.email),
+        email_version: identity.email_version,
+        expires_at: new Date(Date.now() + EXPIRATION_IN_MILLISECONDS),
+      },
+    });
   });
 
   return { code, otp };
 }
 
-async function invalidateOutstandingCodes(userId: string) {
-  await prisma.userOtp.updateMany({
-    where: {
-      user_id: userId,
-      used_at: null,
-    },
-    data: {
-      used_at: new Date(),
-    },
-  });
-}
-
-async function sendEmailToUser(user: User, code: string) {
+async function sendEmailToUser(user: User, code: string, challenge: UserOtp) {
   await email.send({
-    to: user.email,
+    to: challenge.recipient_email ?? user.email,
     subject: "Your Manifold login code",
     text: `Hey ${user.username},
 
@@ -96,16 +98,28 @@ async function validateAndConsume(providedLogin: string, providedCode: string) {
     throw invalidOrExpiredError;
   }
 
-  await prisma.userOtp.update({
-    where: {
-      id: activeOtp.id,
-    },
-    data: {
-      used_at: new Date(),
-    },
+  return prisma.$transaction(async (tx) => {
+    const identity = await lockEmailIdentity(tx, userFound.id);
+    if (!matchesEmailIdentity(identity, activeOtp)) throw invalidOrExpiredError;
+    if (!authorization.can(identity, "create:session")) {
+      throw new ForbiddenError({
+        message: "You do not have permission to login",
+        action: "Contact support if you believe this is an error",
+      });
+    }
+    const now = new Date();
+    const consumed = await tx.userOtp.updateMany({
+      where: {
+        id: activeOtp.id,
+        user_id: identity.id,
+        used_at: null,
+        expires_at: { gt: now },
+      },
+      data: { used_at: now },
+    });
+    if (consumed.count !== 1) throw invalidOrExpiredError;
+    return confirmEmailIdentity(tx, identity, activeOtp, now);
   });
-
-  return userFound;
 }
 
 const otp = {
