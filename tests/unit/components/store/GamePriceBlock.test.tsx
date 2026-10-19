@@ -29,3 +29,10 @@ test("does not turn missing external prices into free games", () => {
   expect(html).toContain("Price unavailable");
   expect(html).not.toContain("Free");
 });
+
+test("does not advertise Manifold as the seller of an unavailable game", () => {
+  const game = selectionFixture().games[0];
+  const html = renderToStaticMarkup(<GamePriceBlock game={game} />);
+  expect(html).toContain("Price unavailable");
+  expect(html).not.toContain("Manifold");
+});

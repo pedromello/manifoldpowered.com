@@ -19,7 +19,9 @@ export function GamePriceBlock({
       ? "Steam"
       : game.purchase_mode === "NINTENDO_ONLY"
         ? "Nintendo eShop"
-        : "Manifold";
+        : game.purchase_mode === "PLATFORM"
+          ? "Manifold"
+          : null;
   const price =
     offer.state === "unavailable"
       ? t("Price unavailable")
@@ -46,10 +48,12 @@ export function GamePriceBlock({
           {price}
         </span>
       </div>
-      <span className="text-xs text-sf-muted">
-        {provider}
-        {recorded && <> · {t("Recorded price")}</>}
-      </span>
+      {provider && (
+        <span className="text-xs text-sf-muted">
+          {provider}
+          {recorded && <> · {t("Recorded price")}</>}
+        </span>
+      )}
       {recorded &&
         offer.captured_at &&
         Number.isFinite(Date.parse(offer.captured_at)) && (
