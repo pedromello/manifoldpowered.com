@@ -56,9 +56,8 @@ describe("infra/email.ts", () => {
           "Check if email service is available",
         );
         expect(error).toHaveProperty("context", {
-          to: "receiver@manifoldpowered.com",
-          subject: "First Email",
-          text: "Text First Email",
+          component: "email",
+          recipient_count: 1,
         });
         expect(error.cause).toBeInstanceOf(Error);
         expect(error.cause).toHaveProperty(

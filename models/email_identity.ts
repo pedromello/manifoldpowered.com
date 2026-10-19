@@ -1,5 +1,6 @@
 import type { Prisma, User } from "generated/prisma/client";
 import { NotFoundError } from "infra/errors";
+import { resumeNotificationSubscriptions } from "models/notification_identity";
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -47,11 +48,13 @@ export async function confirmEmailIdentity(
   ) {
     return identity;
   }
-  return tx.user.update({
+  const confirmed = await tx.user.update({
     where: { id: identity.id },
     data: {
       verified_email: challenge.recipient_email,
       email_verified_at: now,
     },
   });
+  await resumeNotificationSubscriptions(tx, confirmed);
+  return confirmed;
 }

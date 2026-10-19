@@ -388,6 +388,30 @@ availability check, not a visual-quality judgment. Without the flag, images
 are explicitly reported as not checked. Blocking issues return exit `1` with
 the completed report; warnings remain exit `0`.
 
+## New selection email notifications
+
+Each account can subscribe to an Outlet's new selections using the same verified
+email and permissions as the website. Enabling also follows the Outlet; disabling
+keeps the follow. Unfollowing disables its emails. Only the first publication of
+a new selection sends a notification; editing or republishing does not.
+
+```sh
+manifold outlets notifications status --profile reader --slug club --json
+manifold outlets notifications enable --profile reader --slug club --locale pt-BR --json
+manifold outlets notifications disable --profile reader --slug club --json
+manifold outlets notifications list --profile reader --json
+manifold auth notifications get --profile reader --json
+manifold auth notifications set --profile reader --email-locale en --json
+```
+
+The first enable seeds the account's email language from `--locale`. Later enables
+and browsing in a different language do not change that global preference. Use
+`auth notifications set` to change future emails from every Outlet. Input schemas
+are available through `schema` and support JSON stdin like other CLI commands.
+If the API returns `EMAIL_LOGIN_REQUIRED`, complete the normal
+`auth login request` / `auth login verify` flow and explicitly enable again. This
+does not expire the existing session or silently subscribe the account.
+
 ## Execution records and recovery
 
 Resource mutations return an `execution_id`. Their local journals retain

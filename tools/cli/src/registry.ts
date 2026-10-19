@@ -276,6 +276,7 @@ export const payloadOptions = Object.fromEntries(
     "url",
     "username",
     "email",
+    "email-locale",
     "login",
     "name",
     "description",

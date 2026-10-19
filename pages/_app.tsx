@@ -1,5 +1,5 @@
 import type { AppProps } from "next/app";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics, type BeforeSendEvent } from "@vercel/analytics/next";
 import "../styles/global.css";
 
 import { ReactElement, ReactNode } from "react";
@@ -9,6 +9,11 @@ import { useRouter } from "next/router";
 import { PullToRefresh } from "components/PullToRefresh";
 import { I18nProvider } from "lib/i18n";
 import { isNoIndexRoute } from "lib/seo";
+import { isPrivateNotificationUrl } from "lib/notification-privacy";
+
+function notificationSafeAnalytics(event: BeforeSendEvent) {
+  return isPrivateNotificationUrl(event.url) ? null : event;
+}
 
 export type NextPageWithLayout<P = Record<string, unknown>, IP = P> = NextPage<
   P,
@@ -39,7 +44,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
       </Head>
       {getLayout(<Component {...pageProps} />)}
       <PullToRefresh />
-      <Analytics />
+      <Analytics beforeSend={notificationSafeAnalytics} />
     </I18nProvider>
   );
 }

@@ -9,6 +9,7 @@ import {
   Loader2,
   Shield,
   Download,
+  Bell,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -107,6 +108,14 @@ export function UserMenu({
           </div>
 
           <div className="flex flex-col">
+            <Link
+              href="/settings/notifications"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Bell size={16} className="text-indigo-400" />
+              {t("Notification preferences")}
+            </Link>
             <Link
               href="/library"
               onClick={() => setIsOpen(false)}

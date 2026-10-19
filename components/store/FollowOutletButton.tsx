@@ -9,10 +9,33 @@ import {
   updateOutletFollow,
 } from "lib/store-follow-client";
 import { useI18n } from "lib/i18n";
+import { OutletNotificationButton } from "components/store/OutletNotificationButton";
+import { notificationStatusUrl } from "lib/outlet-notification-client";
 
 type CurrentUser = { id: string };
 
 export function FollowOutletButton({
+  storeSlug,
+  storeName,
+  variant = "theme",
+}: {
+  storeSlug: string;
+  storeName: string;
+  variant?: "platform" | "theme";
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <FollowButton
+        storeSlug={storeSlug}
+        storeName={storeName}
+        variant={variant}
+      />
+      <OutletNotificationButton storeSlug={storeSlug} variant={variant} />
+    </div>
+  );
+}
+
+function FollowButton({
   storeSlug,
   storeName,
   variant = "theme",
@@ -64,9 +87,11 @@ export function FollowOutletButton({
         isFollowed: followStatus.is_followed,
         applyStatus: mutateStatus,
       });
-      await Promise.all([
+      await Promise.allSettled([
         mutateStatus(),
         mutateGlobal("/api/v1/store-follows"),
+        mutateGlobal(notificationStatusUrl(storeSlug)),
+        mutateGlobal("/api/v1/outlet-notifications"),
       ]);
     } catch (error) {
       if (isAuthenticationError(error)) {
@@ -88,7 +113,7 @@ export function FollowOutletButton({
         data-storefront="follow-outlet"
         disabled
         aria-label={t("Loading follow status")}
-        className={`inline-flex min-h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-muted opacity-80 ${shapeClass}`}
+        className={`inline-flex min-h-11 items-center gap-2 border border-sf-border bg-sf-surface px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-muted opacity-80 ${shapeClass}`}
       >
         <Loader2 size={15} className="animate-spin" aria-hidden="true" />
         {t("Follow")}
@@ -105,7 +130,7 @@ export function FollowOutletButton({
           router.push(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`)
         }
         aria-label={t("Follow {name}", { name: storeName })}
-        className={`inline-flex min-h-10 items-center gap-2 bg-sf-accent px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${shapeClass}`}
+        className={`inline-flex min-h-11 items-center gap-2 bg-sf-accent px-4 py-2 text-xs font-black uppercase tracking-wider text-sf-accent-fg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${shapeClass}`}
       >
         <Plus size={15} aria-hidden="true" />
         {t("Follow")}
@@ -120,7 +145,7 @@ export function FollowOutletButton({
         data-storefront="follow-outlet"
         onClick={() => (userError ? retryUser() : mutateStatus())}
         aria-label={t("Could not load follow status. Retry")}
-        className={`inline-flex min-h-10 items-center gap-2 border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-500/20 ${shapeClass}`}
+        className={`inline-flex min-h-11 items-center gap-2 border border-rose-400/50 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-500/20 ${shapeClass}`}
       >
         <RotateCcw size={15} aria-hidden="true" />
         {t("Retry")}
@@ -143,7 +168,7 @@ export function FollowOutletButton({
             ? t("Unfollow {name}", { name: storeName })
             : t("Follow {name}", { name: storeName })
         }
-        className={`inline-flex min-h-10 items-center gap-2 border px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-70 ${shapeClass} ${
+        className={`inline-flex min-h-11 items-center gap-2 border px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent disabled:cursor-wait disabled:opacity-70 ${shapeClass} ${
           isFollowed
             ? "border-sf-border bg-sf-surface text-sf-fg hover:border-sf-accent"
             : "border-transparent bg-sf-accent text-sf-accent-fg hover:opacity-90"

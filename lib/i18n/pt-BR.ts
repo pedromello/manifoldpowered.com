@@ -2001,4 +2001,38 @@ export const ptBR: Record<string, string> = {
     "Publique a outlet antes de publicar suas seleções.",
   "Publish the outlet catalog changes or remove ineligible games.":
     "Publique as alterações do catálogo da outlet ou remova os jogos indisponíveis.",
+  "Email notifications enabled": "Avisos por e-mail ativados",
+  "Email notifications paused. Click to disable.":
+    "Avisos por e-mail pausados. Clique para desativar.",
+  "Receive new selections by email": "Receber novas seleções por e-mail",
+  "Could not load notifications. Retry":
+    "Não foi possível carregar os avisos. Tentar novamente",
+  "Could not update notifications. Try again.":
+    "Não foi possível atualizar os avisos. Tente novamente.",
+  "Notification preferences | Manifold": "Preferências de avisos | Manifold",
+  "Notification preferences": "Preferências de avisos",
+  "Receive emails only when an Outlet publishes a new selection. Edits never send another email.":
+    "Receba e-mails somente quando uma Outlet publicar uma seleção nova. Edições não enviam outro e-mail.",
+  "Loading notifications": "Carregando avisos",
+  "Email language": "Idioma dos e-mails",
+  "This language applies to notification emails from every Outlet. Changing the site language does not change it.":
+    "Este idioma vale para os e-mails de avisos de todas as Outlets. Alterar o idioma do site não muda esta preferência.",
+  "Save preferences": "Salvar preferências",
+  "Preferences saved": "Preferências salvas",
+  "Your Outlets": "Suas Outlets",
+  "Turning off emails keeps you following the Outlet.":
+    "Desativar os e-mails mantém você seguindo a Outlet.",
+  "No Outlet email notifications yet. Enable the bell on an Outlet to get started.":
+    "Você ainda não recebe avisos de Outlets por e-mail. Ative o sininho em uma Outlet para começar.",
+  "Unsubscribe | Manifold": "Cancelar avisos | Manifold",
+  "Email notifications disabled": "Avisos por e-mail desativados",
+  "Disable emails from this Outlet?": "Desativar e-mails desta Outlet?",
+  "You will no longer receive new selection emails from this Outlet. You are still following it.":
+    "Você não receberá mais e-mails de novas seleções desta Outlet. Você continua seguindo ela.",
+  "This only disables new selection emails from this Outlet. Your other subscriptions are unchanged.":
+    "Isso desativa apenas os e-mails de novas seleções desta Outlet. Suas outras assinaturas continuam iguais.",
+  "Disable email notifications": "Desativar avisos por e-mail",
+  "Could not unsubscribe. Try again or manage your preferences.":
+    "Não foi possível desativar os avisos. Tente novamente ou gerencie suas preferências.",
+  "Manage preferences": "Gerenciar preferências",
 };
