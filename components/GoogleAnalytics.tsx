@@ -43,7 +43,9 @@ export function GoogleAnalytics() {
     };
 
     const pageLocation = analyticsPageLocation(router.asPath, router.pathname);
-    if (pageLocation === previousLocation.current) return;
+    // Campaign/filter changes are not another visit. Referrers omit UTMs too.
+    const pagePath = pageLocation.split("?")[0];
+    if (pagePath === previousLocation.current) return;
 
     const page = {
       page_location: pageLocation,
@@ -66,7 +68,7 @@ export function GoogleAnalytics() {
     }
 
     window.gtag("event", "page_view", page);
-    previousLocation.current = pageLocation;
+    previousLocation.current = pagePath;
   }, [enabled, router.isReady, router.asPath, router.pathname]);
 
   if (!enabled) return null;

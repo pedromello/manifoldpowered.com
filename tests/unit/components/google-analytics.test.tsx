@@ -70,7 +70,8 @@ function commands() {
 }
 
 test("initializes once and sends one sanitized view through StrictMode effect replay", () => {
-  mockRouter.asPath = "/store?email=private%40example.com#secret";
+  mockRouter.asPath =
+    "/store?utm_source=linkedin&utm_medium=social&utm_campaign=launch&email=private%40example.com#secret";
   renderAnalytics();
   const queued = commands();
   expect(queued.filter(([command]) => command === "config")).toEqual([
@@ -89,7 +90,8 @@ test("initializes once and sends one sanitized view through StrictMode effect re
       "event",
       "page_view",
       {
-        page_location: "https://www.manifoldpowered.com/store",
+        page_location:
+          "https://www.manifoldpowered.com/store?utm_source=linkedin&utm_medium=social&utm_campaign=launch",
         page_title: "Manifold",
         page_referrer: "https://example.com/",
       },
@@ -103,11 +105,14 @@ test("initializes once and sends one sanitized view through StrictMode effect re
 });
 
 test("tracks client navigation once and ignores query-only and fragment-only changes", () => {
+  mockRouter.asPath = "/store?utm_source=linkedin&utm_campaign=launch";
+  renderAnalytics();
+  mockRouter.asPath = "/store?utm_source=other&utm_campaign=other#private";
   renderAnalytics();
   mockRouter.asPath = "/item/example-game?token=secret";
   mockRouter.pathname = "/item/[slug]";
   renderAnalytics();
-  mockRouter.asPath = "/item/example-game?token=other#private";
+  mockRouter.asPath = "/item/example-game?utm_source=other&token=other#private";
   renderAnalytics();
   const views = commands().filter(([command]) => command === "event");
   expect(views).toHaveLength(2);
@@ -121,13 +126,14 @@ test("tracks client navigation once and ignores query-only and fragment-only cha
 test("redacts both the location and title on private dynamic routes", () => {
   Object.assign(mockRouter, {
     asPath:
-      "/signup/activate/example-private-token?email=private%40example.com",
+      "/signup/activate/example-private-token?email=private%40example.com&utm_campaign=private-campaign",
     pathname: "/signup/activate/[activation_token]",
   });
   document.title = "Activate example-private-token";
   renderAnalytics();
   expect(JSON.stringify(commands())).not.toContain("example-private-token");
   expect(JSON.stringify(commands())).not.toContain("private%40example.com");
+  expect(JSON.stringify(commands())).not.toContain("private-campaign");
 });
 
 test("development and a router that is not ready never queue analytics", () => {
@@ -143,7 +149,7 @@ test("development and a router that is not ready never queue analytics", () => {
 
 test("redacts a draft preview's name and slug", () => {
   Object.assign(mockRouter, {
-    asPath: "/store/private-draft?preview=1",
+    asPath: "/store/private-draft?preview=1&utm_campaign=private-draft-name",
     pathname: "/store/[slug]",
   });
   document.title = "Private draft name";

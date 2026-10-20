@@ -60,15 +60,52 @@ describe("Google Analytics privacy and environment boundaries", () => {
     ).toBe("https://www.manifoldpowered.com/pt-BR/item/example-game");
   });
 
+  test("preserves only supported campaign parameters on public pages", () => {
+    const location = new URL(
+      analyticsPageLocation(
+        "/pt-BR/store?utm_source=linkedin&utm_medium=social&utm_campaign=launch&utm_id=launch-2026&utm_term=indie+games&utm_content=post-a&utm_source_platform=linkedin&email=private%40example.com&token=secret&utm_email=private%40example.com&gclid=private-click-id#private",
+        "/store",
+      ),
+    );
+
+    expect(location.pathname).toBe("/pt-BR/store");
+    expect(Object.fromEntries(location.searchParams)).toEqual({
+      utm_source: "linkedin",
+      utm_medium: "social",
+      utm_campaign: "launch",
+      utm_id: "launch-2026",
+      utm_term: "indie games",
+      utm_content: "post-a",
+      utm_source_platform: "linkedin",
+    });
+    expect(location.hash).toBe("");
+  });
+
+  test("keeps encoded campaign labels without forwarding duplicate or empty parameters", () => {
+    const location = new URL(
+      analyticsPageLocation(
+        "/item/example-game?utm_source=newsletter&utm_source=ignored&utm_campaign=Lan%C3%A7amento+%26+ofertas&utm_medium=",
+        "/item/[slug]",
+      ),
+    );
+    expect(Object.fromEntries(location.searchParams)).toEqual({
+      utm_source: "newsletter",
+      utm_campaign: "Lançamento & ofertas",
+    });
+  });
+
   test.each([
     ["/signup/activate/example-token", "/signup/activate/[activation_token]"],
     ["/backoffice/users/example-id", "/backoffice/users/[id]"],
     ["/studio/example-studio", "/studio/[slug]/index"],
     ["/store/example-outlet/manage", "/store/[slug]/manage"],
   ])("redacts private identifiers from %s", (asPath, route) => {
-    expect(analyticsPageLocation(`${asPath}?token=private`, route)).toBe(
-      `https://www.manifoldpowered.com${route}`,
-    );
+    expect(
+      analyticsPageLocation(
+        `${asPath}?token=private&utm_source=private-campaign`,
+        route,
+      ),
+    ).toBe(`https://www.manifoldpowered.com${route}`);
   });
 
   test("preserves the locale when redacting an activation token", () => {
@@ -104,7 +141,7 @@ describe("Google Analytics privacy and environment boundaries", () => {
   test("redacts draft previews even when they use a public page route", () => {
     expect(
       analyticsPageLocation(
-        "/pt-BR/store/private-draft?preview=1",
+        "/pt-BR/store/private-draft?preview=1&utm_campaign=private-draft-name",
         "/store/[slug]",
       ),
     ).toBe("https://www.manifoldpowered.com/pt-BR/store/[slug]");
