@@ -179,7 +179,7 @@ export default function BackofficeHome() {
                     key={item.id}
                     className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 p-4"
                   >
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
                       <p className="break-words font-bold">
                         {item.entry?.selection.title ||
                           t("Unavailable selection")}
