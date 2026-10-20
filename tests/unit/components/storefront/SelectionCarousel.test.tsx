@@ -46,6 +46,88 @@ function entries(count = 3) {
   });
 }
 const title = () => container.querySelector("h2")?.textContent;
+
+test("classifies artwork already loaded before hydration without waiting for another load event", () => {
+  const complete = jest
+    .spyOn(HTMLImageElement.prototype, "complete", "get")
+    .mockReturnValue(true);
+  const width = jest
+    .spyOn(HTMLImageElement.prototype, "naturalWidth", "get")
+    .mockReturnValue(1000);
+  const height = jest
+    .spyOn(HTMLImageElement.prototype, "naturalHeight", "get")
+    .mockReturnValue(150);
+  try {
+    act(() => root.render(<SelectionCarousel selections={entries(1)} />));
+    expect(
+      container
+        .querySelector("[data-artwork-layout]")
+        .getAttribute("data-artwork-layout"),
+    ).toBe("contained");
+  } finally {
+    complete.mockRestore();
+    width.mockRestore();
+    height.mockRestore();
+  }
+});
+
+test("preserves the complete Next Fest strip and restores cover layout for conventional artwork", () => {
+  const data = entries(2);
+  data[0].selection.cover_url = "https://example.com/image-a.jpg";
+  data[1].selection.cover_url = "https://example.com/image-b.jpg";
+  act(() => root.render(<SelectionCarousel selections={data} />));
+  const artwork = () => container.querySelector("[data-artwork-layout]");
+  function loadImage(width: number, height: number) {
+    const image = artwork().querySelector("img:last-child");
+    Object.defineProperties(image, {
+      naturalWidth: { configurable: true, value: width },
+      naturalHeight: { configurable: true, value: height },
+    });
+    act(() => image.dispatchEvent(new Event("load")));
+  }
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  loadImage(1000, 150);
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="Show selection: Selection 1"]',
+      )
+      .click(),
+  );
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  loadImage(1600, 900);
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("cover");
+  const updated = data.map((entry) => ({
+    ...entry,
+    selection: { ...entry.selection },
+  }));
+  updated[1].selection.cover_url = "https://example.com/replacement.jpg";
+  act(() => root.render(<SelectionCarousel selections={updated} />));
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  loadImage(800, 120);
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+});
+
+test("edge arrows wrap both ways and restart the automatic interval", () => {
+  act(() => root.render(<SelectionCarousel selections={entries()} />));
+  const click = (label: string) =>
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)
+        .click(),
+    );
+  click("Previous selection");
+  expect(title()).toBe("Selection 2");
+  click("Next selection");
+  expect(title()).toBe("Selection 0");
+  act(() => jest.advanceTimersByTime(4000));
+  click("Next selection");
+  act(() => jest.advanceTimersByTime(5999));
+  expect(title()).toBe("Selection 1");
+  act(() => jest.advanceTimersByTime(1));
+  expect(title()).toBe("Selection 2");
+});
 test("cycles, resets after manual choice and pauses for page visibility with remaining time", () => {
   act(() => root.render(<SelectionCarousel selections={entries()} />));
   expect(title()).toBe("Selection 0");

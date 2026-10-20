@@ -426,7 +426,9 @@ export function PlatformStorefrontHome({
 
   return (
     <main className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
-      <section className="mx-auto max-w-[1500px] px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9">
+      <section
+        className={`mx-auto px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9 ${store ? "max-w-[1500px]" : "max-w-[1280px]"}`}
+      >
         <PreviewNotice />
 
         {store?.presentation?.cover_image_url && (

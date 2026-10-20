@@ -1,0 +1,67 @@
+.edges {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 160ms ease;
+}
+.previous {
+  left: 0;
+}
+.next {
+  right: 0;
+}
+.edge svg {
+  filter: drop-shadow(0 1px 5px #000b);
+}
+:global([data-carousel-frame]:hover) .edge,
+:global([data-carousel-frame]:has(:focus-visible)) .edge {
+  opacity: 1;
+}
+.previous:hover,
+.previous:focus-visible {
+  background: linear-gradient(90deg, #0b0812b3, #0b081200);
+}
+.next:hover,
+.next:focus-visible {
+  background: linear-gradient(270deg, #0b0812b3, #0b081200);
+}
+.edge:focus-visible {
+  opacity: 1;
+  outline: 2px solid #bca3e7;
+  outline-offset: -3px;
+}
+@media (max-width: 767px) {
+  .edge {
+    width: 32px;
+  }
+  .edge svg {
+    width: 24px;
+  }
+}
+@media (hover: none) {
+  .edge {
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edge {
+    transition: none;
+  }
+}
