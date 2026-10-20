@@ -1,94 +1,102 @@
 import Link from "next/link";
-import useSWR from "swr";
 import { useI18n } from "lib/i18n";
+import { itemHref } from "lib/store-context";
+import type { HomeCommunity } from "lib/home-client";
+import { FollowOutletButton } from "components/store/FollowOutletButton";
+import { EditorialImage } from "components/storefront/default/SelectionCarousel";
 
-interface PublicOutlet {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  logo_url: string | null;
-}
-
-interface PublicOutletsResponse {
-  stores: PublicOutlet[];
-}
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-// Renders at the bottom of the MAIN storefront only (gated by the Storefront
-// `showDiscover` prop) so shoppers can find other creators' outlets. Data
-// comes from the public GET /api/v1/public/stores listing.
-export function DiscoverOutlets() {
+export function DiscoverOutlets({
+  outlets = [],
+}: {
+  outlets?: HomeCommunity[];
+}) {
   const { t } = useI18n();
-  const { data, isLoading } = useSWR<PublicOutletsResponse>(
-    "/api/v1/public/stores?limit=12",
-    fetcher,
-  );
-
-  const outlets = data?.stores ?? [];
-
+  if (!outlets.length) return null;
   return (
-    <section className="w-full border-t border-white/[0.08] py-12 md:py-16">
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-8 px-4 sm:px-6 lg:px-10">
-        <div className="flex flex-col gap-3 max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
-            {t("Independent storefronts")}
-          </p>
-          <h2 className="text-2xl font-black tracking-[-0.02em] md:text-3xl">
-            {t("Discover Outlets")}
-          </h2>
-          <p className="text-sm leading-6 text-white/45">
-            {t(
-              "Browse storefronts curated by creators across Manifold — each with its own taste, its own picks, and the same catalog behind it.",
-            )}
-          </p>
-        </div>
-
-        {isLoading ? (
-          <div className="py-10 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/30" />
-          </div>
-        ) : outlets.length === 0 ? (
-          <p className="text-sm font-semibold text-white/30">
-            {t("No other Outlets to show yet.")}
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {outlets.map((outlet) => (
-              <Link
-                key={outlet.id}
-                href={`/store/${outlet.slug}`}
-                className="flex min-w-0 items-center gap-4 rounded-xl border border-white/[0.09] bg-[#14101c] p-4 transition-colors hover:border-white/20 hover:bg-[#181320]"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.07]">
-                  {outlet.logo_url ? (
-                    // Outlet logos are arbitrary user-supplied URLs, so next/image
-                    // (host-allowlisted) can't be used here.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={outlet.logo_url}
-                      alt={t("{name} logo", { name: outlet.name })}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-lg font-black text-white/60">
-                      {outlet.name.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-bold text-white">{outlet.name}</p>
-                  {outlet.description && (
-                    <p className="line-clamp-2 text-sm text-white/45">
-                      {outlet.description}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
+    <section
+      className="mx-auto max-w-[1500px] py-10 text-white sm:py-12"
+      aria-label={t("Find your next community")}
+    >
+      <p className="text-xs font-bold uppercase tracking-[.18em] text-violet-300">
+        {t("Communities on Manifold")}
+      </p>
+      <h2 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">
+        {t("Find your next community")}
+      </h2>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55">
+        {t(
+          "Different tastes, shared discoveries. Find the people behind your next game.",
         )}
+      </p>
+      <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-color:#51425e_transparent] [scrollbar-width:thin]">
+        {outlets.slice(0, 12).map((outlet) => (
+          <article
+            key={outlet.id}
+            className="min-w-0 flex-[0_0_86%] snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#15101e] md:basis-[calc((100%-2rem)/3)]"
+          >
+            <Link
+              href={`/store/${outlet.slug}`}
+              aria-label={outlet.name}
+              className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+            >
+              <EditorialImage
+                src={outlet.cover_url || outlet.games[0]?.media?.banner}
+                className="aspect-[2.8]"
+              />
+            </Link>
+            <div className="p-5">
+              <Link
+                href={`/store/${outlet.slug}`}
+                className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+              >
+                <EditorialImage
+                  src={outlet.logo_url}
+                  className="h-12 w-12 shrink-0 rounded-xl"
+                />
+                <h3 className="min-w-0 break-words text-lg font-bold">
+                  {outlet.name}
+                </h3>
+              </Link>
+              <p className="mt-4 min-h-12 line-clamp-2 text-sm leading-6 text-white/60">
+                {outlet.description ||
+                  t("Discover this community's published picks.")}
+              </p>
+              {outlet.games.length > 0 && (
+                <div className="mt-5 flex flex-col gap-2">
+                  {outlet.games.slice(0, 3).map((game) => (
+                    <Link
+                      key={game.id}
+                      href={itemHref(game.slug, outlet.slug)}
+                      data-storefront="game-link"
+                      className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+                    >
+                      <EditorialImage
+                        src={game.media?.banner}
+                        className="aspect-[1.6] w-16 shrink-0 rounded-lg"
+                      />
+                      <span className="line-clamp-2 text-xs leading-5 text-white/75">
+                        {game.title}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+                <Link
+                  href={`/store/${outlet.slug}`}
+                  className="inline-flex min-h-11 items-center text-xs font-bold text-violet-200"
+                >
+                  {t("Explore community")}
+                </Link>
+                <FollowOutletButton
+                  storeSlug={outlet.slug}
+                  storeName={outlet.name}
+                  variant="platform"
+                />
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );

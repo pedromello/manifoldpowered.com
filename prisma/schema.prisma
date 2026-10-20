@@ -1225,3 +1225,12 @@ model GamePriceOverride {
   @@index([currency])
   @@map("game_price_overrides")
 }
+model HomeEditorial {
+  id            String   @id @default("home")
+  selection_ids String[] @default([])
+  revision      Int      @default(0)
+  updated_by    String?
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("home_editorial")
+}

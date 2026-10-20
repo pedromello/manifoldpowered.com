@@ -9,6 +9,7 @@ import type { ItemControllerResult } from "components/storefront/useItemControll
 import type { ReactNode } from "react";
 import type { OutletRatingFilter } from "lib/outlet-rating-filter";
 import type { SelectionPageApi } from "lib/selection-client";
+import type { HomeCommunity } from "lib/home-client";
 
 export type { GameApi, GameDetailApi, PaginationApi };
 
@@ -143,6 +144,7 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
   followControl: ReactNode;
   showDiscover?: boolean;
   editorialSelections?: SelectionPageApi[];
+  homeCommunities?: HomeCommunity[];
 };
 
 /**

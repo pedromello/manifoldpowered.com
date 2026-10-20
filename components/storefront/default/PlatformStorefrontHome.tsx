@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
-import { EditorialShowcase } from "components/storefront/default/EditorialShowcase";
+import { SelectionCarousel } from "components/storefront/default/SelectionCarousel";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { GameArtwork } from "components/store/GameArtwork";
 import { OutletRatingBadge } from "components/store/OutletRatingBadge";
@@ -411,6 +411,7 @@ export function PlatformStorefrontHome({
   setPage,
   showDiscover,
   editorialSelections = [],
+  homeCommunities = [],
 }: DefaultStorefrontProps) {
   const { t } = useI18n();
   const spotlightGames = featured.slice(0, 3);
@@ -486,7 +487,7 @@ export function PlatformStorefrontHome({
         </div>
 
         {!store && editorialSelections.length > 0 ? (
-          <EditorialShowcase selections={editorialSelections} />
+          <SelectionCarousel selections={editorialSelections} />
         ) : isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
         ) : spotlightGames.length > 0 ? (
@@ -498,6 +499,11 @@ export function PlatformStorefrontHome({
         ) : (
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
             {t("The first games are being prepared for the catalog.")}
+          </div>
+        )}
+        {!store && showDiscover && (
+          <div id="outlets" className="scroll-mt-20">
+            <DiscoverOutlets outlets={homeCommunities} />
           </div>
         )}
         {!store && (
@@ -667,12 +673,6 @@ export function PlatformStorefrontHome({
           <Pagination pagination={pagination} onPageChange={setPage} />
         </div>
       </section>
-
-      {showDiscover && (
-        <div id="outlets" className="scroll-mt-20 bg-[#0d0a13]">
-          <DiscoverOutlets />
-        </div>
-      )}
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar {

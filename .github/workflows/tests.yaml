@@ -3,6 +3,17 @@ name: Automated Tests
 on: pull_request
 
 jobs:
+  production-build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run build
   agent-cli:
     name: Agent CLI Ubuntu
     runs-on: ubuntu-latest

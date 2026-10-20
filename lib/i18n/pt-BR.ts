@@ -1,4 +1,48 @@
 export const ptBR: Record<string, string> = {
+  "Add selection": "Adicionar seleção",
+  Homepage: "Página inicial",
+  "Featured selections": "Seleções em destaque",
+  "Selected by": "Uma seleção de",
+  "Show selection: {title}": "Mostrar seleção: {title}",
+  carousel: "carrossel",
+  slide: "slide",
+  "Find your next community": "Encontre sua próxima comunidade",
+  "Communities on Manifold": "Comunidades no Manifold",
+  "Different tastes, shared discoveries. Find the people behind your next game.":
+    "Gostos diferentes, descobertas em comum. Conheça quem pode indicar seu próximo jogo.",
+  "Discover this community's published picks.":
+    "Conheça as indicações publicadas desta comunidade.",
+  "Explore community": "Explorar comunidade",
+  "Choose up to three published selections. If none is usable, Manifold automatically shows recent selections from different communities.":
+    "Escolha até três seleções publicadas. Se nenhuma estiver disponível, o Manifold mostra automaticamente seleções recentes de comunidades diferentes.",
+  "Live mode": "Modo em vigor",
+  "Editorial selection": "Escolha editorial",
+  "Automatic discovery": "Descoberta automática",
+  "Catalog fallback": "Destaques do catálogo",
+  "Saving replaces the entire list immediately. Empty spaces in a usable editorial list are not filled automatically.":
+    "Salvar substitui a lista inteira imediatamente. Vagas em uma lista editorial válida não são preenchidas automaticamente.",
+  "No manual selection. Automatic discovery will be used.":
+    "Nenhuma escolha manual. A descoberta automática será usada.",
+  "Unavailable selection": "Seleção indisponível",
+  "Unpublished or unavailable in this region. Remove this item before saving.":
+    "Despublicada ou indisponível nesta região. Remova este item antes de salvar.",
+  "Move selection up: {title}": "Mover seleção para cima: {title}",
+  "Move selection down: {title}": "Mover seleção para baixo: {title}",
+  "Search Outlets": "Buscar Outlets",
+  "No published selections.": "Nenhuma seleção publicada.",
+  "Homepage saved.": "Página inicial salva.",
+  "Could not load the homepage.": "Não foi possível carregar a página inicial.",
+  "Could not save the homepage.": "Não foi possível salvar a página inicial.",
+  "Reload saved configuration": "Recarregar configuração salva",
+  "Use automatic discovery": "Usar descoberta automática",
+  "Automatic discovery preview": "Prévia da descoberta automática",
+  "This selection is unavailable in your region.":
+    "Esta seleção está indisponível na sua região.",
+  "The homepage configuration changed.":
+    "A configuração foi alterada por outra pessoa. Recarregue a configuração salva antes de tentar novamente.",
+  "Some selections are no longer published.":
+    "Algumas seleções não estão mais publicadas. Remova os itens indisponíveis e tente novamente.",
+  "Invalid homepage configuration.": "Configuração inválida da página inicial.",
   "Import from PlayStation Store": "Importar da PlayStation Store",
   "Add PS4 and PS5 games to the catalog. Purchases take place on PlayStation Store.":
     "Adicione jogos de PS4 e PS5 ao catálogo. A compra é feita na PlayStation Store.",
