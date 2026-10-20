@@ -162,6 +162,7 @@ describe("PATCH /api/v1/activations/[activation_id]", () => {
         "read:public_game",
         "import:steam_game",
         "import:nintendo_game",
+        "import:playstation_game",
         "create:wishlist",
         "read:wishlist",
         "delete:wishlist",
