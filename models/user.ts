@@ -4,8 +4,9 @@ import { NotFoundError, ValidationError } from "infra/errors";
 import { z } from "zod";
 import authorization from "models/authorization";
 import { Prisma } from "generated/prisma/client";
+import { lockEmailIdentity, normalizeEmail } from "models/email_identity";
 
-import { userSchema } from "contracts/creator-requests";
+import { userSchema, userUpdateSchema } from "contracts/creator-requests";
 export { userSchema };
 
 export const userAdminQuerySchema = z.object({
@@ -18,33 +19,22 @@ export type CreateUserDto = z.infer<typeof userSchema> & {
   features?: string[];
 };
 
-interface UpdateUserDto {
-  username?: string;
-  email?: string;
-  password?: string;
-  features?: string[];
-}
+type UpdateUserDto = z.infer<typeof userUpdateSchema>;
 
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
   await validateUniqueUsername(createUserDto.username);
   await hashPasswordInObject(createUserDto);
-  injectDefaultFeaturesInObject(createUserDto);
 
   return prisma.user.create({
     data: {
       username: createUserDto.username.toLowerCase().trim(),
       email: createUserDto.email.toLowerCase().trim(),
       password: createUserDto.password,
-      features: createUserDto.features,
+      // The public signup schema rejects features. Internal callers may set them.
+      features: createUserDto.features ?? ["read:activation_token"],
     },
   });
-
-  function injectDefaultFeaturesInObject(
-    userDto: CreateUserDto | UpdateUserDto,
-  ) {
-    userDto.features = ["read:activation_token"];
-  }
 };
 
 const validateUniqueEmail = async (email: string) => {
@@ -161,32 +151,68 @@ const updateByUsername = async (
   username: string,
   userUpdateDto: UpdateUserDto,
 ) => {
-  if (userUpdateDto.username) {
-    await validateUniqueUsername(userUpdateDto.username);
+  const input = parseUserUpdate(userUpdateDto);
+  const existingUser = await findOneByUsername(username);
+  if (input.username && input.username !== existingUser.username) {
+    await validateUniqueUsername(input.username);
   }
 
-  if (userUpdateDto.email) {
-    await validateUniqueEmail(userUpdateDto.email);
+  if (input.email && input.email !== normalizeEmail(existingUser.email)) {
+    await validateUniqueEmail(input.email);
   }
 
-  if (userUpdateDto.password) {
-    await hashPasswordInObject(userUpdateDto);
-  }
-
-  const user = await findOneByUsername(username);
-
-  return update(user.id, userUpdateDto);
+  return update(existingUser.id, input);
 };
 
-const update = async (id: string, userUpdateDto: UpdateUserDto) => {
-  const updatedUser = await prisma.user.update({
-    where: {
-      id,
-    },
-    data: userUpdateDto,
-  });
+function parseUserUpdate(value: unknown) {
+  const result = userUpdateSchema.safeParse(value);
+  if (!result.success) {
+    throw new ValidationError({
+      message: "One or more fields are invalid",
+      action: "Only username, email and password can be updated here",
+    });
+  }
+  return result.data;
+}
 
-  return updatedUser;
+const update = async (id: string, userUpdateDto: UpdateUserDto) => {
+  const input = parseUserUpdate(userUpdateDto);
+  const hashedPassword = input.password
+    ? await password.hash(input.password)
+    : undefined;
+  return prisma.$transaction(async (tx) => {
+    const identity = await lockEmailIdentity(tx, id);
+    const emailChanged =
+      input.email !== undefined &&
+      input.email !== normalizeEmail(identity.email);
+    const updatedUser = await tx.user.update({
+      where: { id },
+      data: {
+        ...(input.username !== undefined ? { username: input.username } : {}),
+        ...(input.email !== undefined ? { email: input.email } : {}),
+        ...(hashedPassword !== undefined ? { password: hashedPassword } : {}),
+        ...(emailChanged
+          ? {
+              verified_email: null,
+              email_verified_at: null,
+              email_version: { increment: 1 },
+            }
+          : {}),
+      },
+    });
+    if (emailChanged) {
+      const now = new Date();
+      await tx.userActivationToken.updateMany({
+        where: { user_id: id, used_at: null },
+        data: { used_at: now },
+      });
+      await tx.userOtp.updateMany({
+        where: { user_id: id, used_at: null },
+        data: { used_at: now },
+      });
+    }
+    return updatedUser;
+  });
 };
 
 const setFeatures = async (id: string, features: string[]) => {

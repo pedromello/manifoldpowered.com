@@ -9,11 +9,20 @@ import {
   STORE_TYPOGRAPHIES,
 } from "./store-presentation";
 
-export const userSchema = z.object({
-  username: z.string().min(1).max(30),
-  email: z.email(),
-  password: z.string().min(1).nullable(),
-});
+export const userSchema = z
+  .object({
+    username: z.string().min(1).max(30),
+    email: z.email().max(234),
+    password: z.string().min(1).nullable(),
+  })
+  .strict();
+export const userUpdateSchema = z
+  .object({
+    username: userSchema.shape.username.optional(),
+    email: z.string().trim().toLowerCase().pipe(z.email().max(234)).optional(),
+    password: z.string().min(1).optional(),
+  })
+  .strict();
 export const requestOtpSchema = z.object({ login: z.string().trim().min(1) });
 export const verifyOtpSchema = z.object({
   login: z.string().trim().min(1),

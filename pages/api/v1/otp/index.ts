@@ -24,8 +24,8 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const userRequestingCode = await user.findOneByLogin(result.data.login);
 
-  const { code } = await otp.create(userRequestingCode.id);
-  await otp.sendEmailToUser(userRequestingCode, code);
+  const { code, otp: challenge } = await otp.create(userRequestingCode.id);
+  await otp.sendEmailToUser(userRequestingCode, code, challenge);
 
   return res.status(201).json({ message: "OTP code sent to your email" });
 }
