@@ -760,7 +760,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       launch_date: gameOutput.launch_date,
       // Display-only catalogue entries deliberately expose no local price.
       price:
-        gameOutput.nintendo_nsuid || gameOutput.status === "ONLY_DISPLAY"
+        gameOutput.nintendo_nsuid ||
+        gameOutput.playstation_product_id ||
+        gameOutput.status === "ONLY_DISPLAY"
           ? null
           : gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
@@ -784,9 +786,10 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
-      base_price: gameOutput.nintendo_nsuid
-        ? null
-        : (gameOutput.base_price?.toFixed(2) ?? null),
+      base_price:
+        gameOutput.nintendo_nsuid || gameOutput.playstation_product_id
+          ? null
+          : (gameOutput.base_price?.toFixed(2) ?? null),
       ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
       purchase_mode: purchaseMode,
       external_offer: consoleOffer
