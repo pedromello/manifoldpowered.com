@@ -1,0 +1,27 @@
+.frame {
+  position: relative;
+  margin-top: 24px;
+}
+.track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 0 44px 16px;
+  scroll-padding-inline: 44px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.track:focus-visible {
+  border-radius: 16px;
+  outline: 2px solid #bca3e7;
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .track {
+    padding-inline: 32px;
+    scroll-padding-inline: 32px;
+  }
+}

@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Pause, Play } from "lucide-react";
 import type { SelectionPageApi } from "lib/selection-client";
 import { useI18n } from "lib/i18n";
 import { createCarouselClock } from "lib/carousel-clock";
+import { CarouselEdges } from "components/store/CarouselEdges";
 import styles from "./SelectionCarousel.module.css";
 
 export function EditorialImage({
@@ -40,6 +41,86 @@ export function EditorialImage({
 
 export function selectionArtwork(entry: SelectionPageApi) {
   return entry.selection.cover_url || entry.games[0]?.media?.banner;
+}
+
+function SelectionArtwork({
+  src,
+  eager,
+}: {
+  src?: string | null;
+  eager: boolean;
+}) {
+  const [image, setImage] = useState<{
+    src: string;
+    contained: boolean;
+  } | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const element = useRef<HTMLImageElement>(null);
+  const readDimensions = useCallback(
+    (image: HTMLImageElement) => {
+      if (!src || !image.naturalWidth || !image.naturalHeight) return;
+      const width = image.naturalWidth;
+      const ratio = width / image.naturalHeight;
+      const contained = ratio >= 3.2 || ratio < 1.2 || width < 900;
+      setImage((current) =>
+        current?.src === src && current.contained === contained
+          ? current
+          : { src, contained },
+      );
+    },
+    [src],
+  );
+  useEffect(() => {
+    // A cached/SSR image may finish before React attaches its load handler.
+    const image = element.current;
+    if (image?.complete) {
+      if (image.naturalWidth) readDimensions(image);
+      else if (src) setFailed(src);
+    }
+  }, [src, readDimensions]);
+  const contained = image?.src === src && image?.contained;
+  return (
+    <div
+      className={`${styles.artwork} ${contained ? styles.contained : ""}`}
+      data-artwork-layout={
+        !src || failed === src
+          ? "empty"
+          : image?.src !== src
+            ? "loading"
+            : contained
+              ? "contained"
+              : "cover"
+      }
+    >
+      {src && failed !== src && (
+        <>
+          {contained && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt=""
+              aria-hidden="true"
+              referrerPolicy="no-referrer"
+              className={styles.backdrop}
+            />
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={element}
+            src={src}
+            alt=""
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : "auto"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className={styles.heroImage}
+            onLoad={(event) => readDimensions(event.currentTarget)}
+            onError={() => setFailed(src)}
+          />
+        </>
+      )}
+    </div>
+  );
 }
 
 export function SelectionCarousel({
@@ -146,6 +227,7 @@ function Carousel({ slides }: { slides: SelectionPageApi[] }) {
   return (
     <section
       className={styles.carousel}
+      data-carousel-frame
       aria-label={t("Featured selections")}
       aria-roledescription={t("carousel")}
       onPointerEnter={(event) => {
@@ -205,46 +287,40 @@ function Carousel({ slides }: { slides: SelectionPageApi[] }) {
         aria-label={entry.selection.title}
         aria-roledescription={t("slide")}
       >
-        <EditorialImage
-          src={selectionArtwork(entry)}
-          className={styles.artwork}
-          eager={index === 0}
-        />
+        <SelectionArtwork src={selectionArtwork(entry)} eager={index === 0} />
         <div className={styles.shade} aria-hidden="true" />
         <div className={styles.copy}>
           <p className="text-xs font-bold uppercase tracking-[.18em] text-violet-200">
             {t("Featured selections")}
           </p>
-          <h2 className="mt-4 break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl xl:text-5xl">
-            {entry.selection.title}
-          </h2>
-          <p className="mt-4 line-clamp-3 text-sm leading-6 text-white/85">
-            {entry.selection.description}
-          </p>
-          <Link
-            href={`/store/${entry.outlet.slug}`}
-            className="mt-6 flex w-fit max-w-full items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
-          >
-            <EditorialImage
-              src={entry.outlet.logo_url}
-              className="h-[38px] w-[38px] shrink-0 rounded-xl md:h-11 md:w-11"
-            />
-            <span className="min-w-0">
-              <span className="block text-[11px] text-white/60">
-                {t("Selected by")}
+          <h2 className={styles.title}>{entry.selection.title}</h2>
+          <p className={styles.description}>{entry.selection.description}</p>
+          <div className={styles.footer}>
+            <Link
+              href={`/store/${entry.outlet.slug}`}
+              className="flex w-fit max-w-full items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+            >
+              <EditorialImage
+                src={entry.outlet.logo_url}
+                className="h-[38px] w-[38px] shrink-0 rounded-xl md:h-11 md:w-11"
+              />
+              <span className="min-w-0">
+                <span className="block text-[11px] text-white/60">
+                  {t("Selected by")}
+                </span>
+                <span className="block truncate text-sm font-bold">
+                  {entry.outlet.name}
+                </span>
               </span>
-              <span className="block truncate text-sm font-bold">
-                {entry.outlet.name}
-              </span>
-            </span>
-          </Link>
-          <Link
-            href={entry.selection.public_path}
-            className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-5 text-sm font-bold text-[#171120] hover:bg-violet-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300"
-          >
-            {t("Explore selection")}
-            <ArrowRight size={16} aria-hidden="true" />
-          </Link>
+            </Link>
+            <Link
+              href={entry.selection.public_path}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-5 text-sm font-bold text-[#171120] hover:bg-violet-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300"
+            >
+              {t("Explore selection")}
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </article>
       {multiple && (
@@ -303,6 +379,14 @@ function Carousel({ slides }: { slides: SelectionPageApi[] }) {
             {paused ? <Play size={16} /> : <Pause size={16} />}
           </button>
         </div>
+      )}
+      {multiple && (
+        <CarouselEdges
+          previousLabel={t("Previous selection")}
+          nextLabel={t("Next selection")}
+          onPrevious={() => choose(index - 1)}
+          onNext={() => choose(index + 1)}
+        />
       )}
     </section>
   );

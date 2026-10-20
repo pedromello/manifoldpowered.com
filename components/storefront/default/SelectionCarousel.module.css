@@ -1,4 +1,5 @@
 .carousel {
+  position: relative;
   overflow: hidden;
   border: 1px solid #ffffff18;
   border-radius: 20px;
@@ -6,19 +7,56 @@
 }
 .hero {
   position: relative;
-  min-height: 460px;
+  height: 420px;
+  overflow: hidden;
   isolation: isolate;
 }
 .artwork {
   position: absolute;
   inset: 0;
+  z-index: 0;
+  background: #15101e;
 }
-.artwork img {
+.heroImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   object-position: center top;
+}
+[data-artwork-layout="loading"] .heroImage {
+  opacity: 0;
+}
+.contained {
+  inset: 28px 52px 28px 46%;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  background: #17202c;
+  box-shadow: 0 16px 44px #0003;
+}
+.contained .heroImage {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  object-fit: contain;
+  object-position: center;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(28px) saturate(0.7);
+  opacity: 0.38;
+  transform: scale(1.15);
 }
 .shade {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background: linear-gradient(
     90deg,
     rgba(11, 8, 18, 0.9) 0%,
@@ -29,15 +67,50 @@
 }
 .copy {
   position: relative;
-  width: 43%;
-  padding: 44px 0 44px 40px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: 46%;
+  height: 100%;
+  padding: 32px 52px;
   text-shadow: 0 2px 12px #0005;
+}
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 12px;
+  font-size: clamp(28px, 2.6vw, 36px);
+  font-weight: 900;
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #ffffffd9;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 .navigation {
   display: flex;
   align-items: stretch;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 48px;
+  height: 92px;
 }
 .thumbnails {
   position: relative;
@@ -101,13 +174,18 @@
 }
 @media (max-width: 767px) {
   .hero {
-    min-height: 530px;
-    display: flex;
-    align-items: flex-end;
+    height: 540px;
   }
   .artwork {
     bottom: auto;
-    height: 62%;
+    height: 56%;
+  }
+  .contained {
+    inset: 20px 20px auto;
+    height: 148px;
+  }
+  .contained .heroImage {
+    padding: 12px;
   }
   .shade {
     background: linear-gradient(
@@ -120,11 +198,18 @@
   }
   .copy {
     width: 100%;
-    padding: 170px 24px 28px;
+    padding: 186px 36px 24px;
+  }
+  .title {
+    font-size: 28px;
+  }
+  .footer {
+    gap: 12px;
   }
   .navigation {
     gap: 4px;
-    padding: 8px;
+    padding: 8px 36px;
+    height: 84px;
   }
   .thumbnail {
     flex: 0 0 78%;
@@ -133,7 +218,13 @@
 }
 @media (min-width: 768px) and (max-width: 1100px) {
   .copy {
-    padding-left: 24px;
+    padding: 28px 48px;
+  }
+  .contained {
+    inset: 24px 48px 24px 46%;
+  }
+  .contained .heroImage {
+    padding: 16px;
   }
   .thumbnail {
     gap: 8px;
