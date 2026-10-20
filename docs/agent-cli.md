@@ -141,6 +141,17 @@ Steam accepts App IDs or store URLs. Nintendo accepts supported Brazilian or US
 product-page URLs through `games import nintendo --reference <url>`. Imported
 games belong to the shared catalog; importing does not assign studio ownership.
 
+PlayStation accepts exact Brazilian or US PS4/PS5 edition links through
+`games import playstation --reference <url>`, with explicit environment/account
+or a bound profile. Use a `/product/<product-id>` URL from
+`https://store.playstation.com/pt-br/` or `/en-us/`; concept pages aggregate
+editions and are rejected. Batch imports and status queries accept provider
+`playstation` too. Console editions remain separate from Steam editions.
+The importer reads public outright prices in BRL/USD, records their capture
+and expiration, and ignores PS Plus inclusion and subscriber-only offers.
+Purchases are completed at the matching regional PlayStation Store page.
+See [source contract and rollout](playstation-store-import-plan.md).
+
 `games import batch --input games.json` accepts:
 
 ```json

@@ -10,14 +10,17 @@ export function steamPageForGame(socialLinks: unknown): string | null {
 
 export function purchaseModeForGame(game: {
   nintendo_nsuid: string | null;
+  playstation_product_id?: string | null;
   status: string;
   social_links: unknown;
 }) {
-  return game.nintendo_nsuid
-    ? "NINTENDO_ONLY"
-    : game.status === "ACTIVE"
-      ? "PLATFORM"
-      : steamPageForGame(game.social_links)
-        ? "STEAM_ONLY"
-        : "UNAVAILABLE";
+  return game.playstation_product_id
+    ? "PLAYSTATION_ONLY"
+    : game.nintendo_nsuid
+      ? "NINTENDO_ONLY"
+      : game.status === "ACTIVE"
+        ? "PLATFORM"
+        : steamPageForGame(game.social_links)
+          ? "STEAM_ONLY"
+          : "UNAVAILABLE";
 }

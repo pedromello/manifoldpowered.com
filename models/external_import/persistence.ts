@@ -14,10 +14,13 @@ type LegacyPriceColumns = Pick<
 
 /** Adapters preserve deployed identity columns and price contracts without exposing them to strategies. */
 export interface StorePersistenceBinding {
-  source: "STEAM" | "NINTENDO";
+  source: "STEAM" | "NINTENDO" | "PLAYSTATION";
   identity(
     externalId: string,
-  ): { steam_app_id: string } | { nintendo_nsuid: string };
+  ):
+    | { steam_app_id: string }
+    | { nintendo_nsuid: string }
+    | { playstation_product_id: string };
   lock?(tx: Prisma.TransactionClient, externalId: string): Promise<unknown>;
   canRefresh(game: Game): boolean;
   updateCondition?: Pick<Prisma.GameWhereInput, "status" | "studio_id">;

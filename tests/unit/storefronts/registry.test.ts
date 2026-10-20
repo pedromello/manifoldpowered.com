@@ -19,7 +19,7 @@ describe("storefront registry", () => {
     ).toBe("standard");
   });
 
-  test.each(["strategos-void", "neon-alley"])(
+  test.each(["neon-alley"])(
     "resolves the registered theme key %s to its custom experience",
     (themeKey) => {
       const resolution = resolveStorefront({
@@ -40,6 +40,16 @@ describe("storefront registry", () => {
     },
   );
 
+  test.each(["strategos-void", "renamed-strategos"])(
+    "uses standard rendering for retired theme on %s",
+    (slug) => {
+      expect(resolveStorefront({ slug, theme_key: "strategos-void" })).toEqual({
+        kind: "standard",
+        themeKey: "platform",
+      });
+    },
+  );
+
   test("fails closed for an unknown theme key", () => {
     expect(
       resolveStorefront({
@@ -50,9 +60,6 @@ describe("storefront registry", () => {
   });
 
   test("keeps custom behavior opt-in through the registry", () => {
-    expect(registeredStorefrontSlugs().sort()).toEqual([
-      "neon-alley",
-      "strategos-void",
-    ]);
+    expect(registeredStorefrontSlugs()).toEqual(["neon-alley"]);
   });
 });

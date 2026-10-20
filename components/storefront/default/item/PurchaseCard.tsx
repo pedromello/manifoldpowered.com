@@ -15,11 +15,11 @@ import { GameFeatures } from "components/store/GameFeatures";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
 import {
-  catalogDiscountLabel,
   formatCatalogBasePrice,
   formatCatalogPrice,
   isCatalogFree,
 } from "lib/price";
+import { catalogOffer } from "lib/catalog-offer";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 import { useI18n } from "lib/i18n";
@@ -55,18 +55,25 @@ export function PurchaseCard({
   const { locale, t } = useI18n();
   const isPlatformPurchase = game.purchase_mode === "PLATFORM";
   const free = isCatalogFree(game);
-  const basePrice = formatCatalogBasePrice(game);
-  const discountLabel = catalogDiscountLabel(game);
+  const offer = catalogOffer(game);
+  const basePrice = offer.discount_percent
+    ? formatCatalogBasePrice(game)
+    : null;
+  const discountLabel = offer.discount_percent
+    ? "-" + offer.discount_percent + "%"
+    : null;
   const hasDisplayedPrice =
     isPlatformPurchase || game.external_offer?.amount != null;
+  const isPlayStation = game.purchase_mode === "PLAYSTATION_ONLY";
   const isNintendo = game.purchase_mode === "NINTENDO_ONLY";
   const refreshSteamId =
     game.purchase_mode === "STEAM_ONLY" && game.ownership_status === "UNCLAIMED"
       ? extractSteamAppId(game.social_links.steam_page ?? "")
       : null;
-  const externalUrl = isNintendo
-    ? game.external_offer?.url
-    : game.social_links.steam_page;
+  const externalUrl =
+    isNintendo || isPlayStation
+      ? game.external_offer?.url
+      : game.social_links.steam_page;
 
   const hasSocialLinks = Boolean(
     game.social_links.twitter ||
@@ -172,7 +179,11 @@ export function PurchaseCard({
                 properties: {
                   locale,
                   entry_surface: "game_page",
-                  provider: isNintendo ? "nintendo" : "steam",
+                  provider: isNintendo
+                    ? "nintendo"
+                    : isPlayStation
+                      ? "playstation"
+                      : "steam",
                 },
               })
             }
@@ -180,13 +191,19 @@ export function PurchaseCard({
             rel="noopener noreferrer"
             className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
           >
-            {isNintendo ? (
+            {isNintendo || isPlayStation ? (
               <Gamepad2 size={24} />
             ) : (
               <IconBrandSteam size={24} className="text-white/65" />
             )}
             <span>
-              {t(isNintendo ? "View on Nintendo eShop" : "View on Steam")}
+              {t(
+                isNintendo
+                  ? "View on Nintendo eShop"
+                  : isPlayStation
+                    ? "View on PlayStation Store"
+                    : "View on Steam",
+              )}
             </span>
             <ExternalLink
               size={16}
@@ -216,6 +233,32 @@ export function PurchaseCard({
           </button>
         )}
 
+        {isPlayStation && (
+          <div className="text-xs leading-5 text-white/60">
+            <p>
+              {t(
+                game.external_offer?.country === "BR"
+                  ? "PlayStation Store Brazil"
+                  : "PlayStation Store United States",
+              )}
+            </p>
+            {game.external_offer?.captured_at && (
+              <p>
+                {t("Reference price · checked {date}", {
+                  date: new Date(
+                    game.external_offer.captured_at,
+                  ).toLocaleString(locale),
+                })}
+              </p>
+            )}
+            {!isPreview && externalUrl && (
+              <ExternalGameRefreshButton
+                provider="playstation"
+                value={externalUrl}
+              />
+            )}
+          </div>
+        )}
         {isNintendo && (
           <div className="text-xs leading-5 text-white/60">
             <p>
@@ -261,6 +304,7 @@ export function PurchaseCard({
         )}
 
         {!isNintendo &&
+          !isPlayStation &&
           game.claimable !== false &&
           game.ownership_status === "UNCLAIMED" && (
             <Link

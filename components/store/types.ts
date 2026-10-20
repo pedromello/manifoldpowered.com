@@ -21,7 +21,8 @@ export {
 } from "contracts/store-presentation";
 
 export type ExternalOffer = {
-  provider: "STEAM" | "NINTENDO";
+  expires_at?: string | null;
+  provider: "STEAM" | "NINTENDO" | "PLAYSTATION";
   country?: string;
   amount: string | null;
   original_amount: string | null;
@@ -63,8 +64,14 @@ export type GameApi = {
   };
   status?: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
   ownership_status?: "UNCLAIMED" | "CLAIMED";
-  purchase_mode: "STEAM_ONLY" | "NINTENDO_ONLY" | "UNAVAILABLE" | "PLATFORM";
+  purchase_mode:
+    | "STEAM_ONLY"
+    | "NINTENDO_ONLY"
+    | "PLAYSTATION_ONLY"
+    | "UNAVAILABLE"
+    | "PLATFORM";
   nintendo_nsuid?: string | null;
+  playstation_product_id?: string | null;
   claimable?: boolean;
   external_offer: ExternalOffer | null;
   positive_reviews?: number;
@@ -101,6 +108,7 @@ export type GameDetailApi = GameApi & {
     twitter?: string;
     discord?: string;
     steam_page?: string;
+    playstation_page?: string;
   };
 };
 

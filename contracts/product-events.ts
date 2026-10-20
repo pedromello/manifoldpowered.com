@@ -77,7 +77,7 @@ export const clientEventSchema = z.discriminatedUnion("name", [
         .object({ game_slug: slug, store_slug: slug.optional() })
         .strict(),
       properties: commonProperties
-        .extend({ provider: z.enum(["steam", "nintendo"]) })
+        .extend({ provider: z.enum(["steam", "nintendo", "playstation"]) })
         .strict(),
     })
     .strict(),

@@ -39,7 +39,11 @@ export async function regionalSteamOffers(
 const externalOffer = {
   regionalSteamOffers,
   regionalOffers: (gameIds: string[], currency: string) =>
-    regionalSteamOffers(gameIds, currency, ["STEAM", "NINTENDO"]),
+    regionalSteamOffers(gameIds, currency, [
+      "STEAM",
+      "NINTENDO",
+      "PLAYSTATION",
+    ]),
 };
 
 export default externalOffer;

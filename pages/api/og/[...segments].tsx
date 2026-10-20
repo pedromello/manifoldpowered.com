@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { isPlayStationImage } from "lib/playstation";
 import { isNintendoImage } from "lib/nintendo";
 import type { NextRequest } from "next/server";
 
@@ -151,7 +152,8 @@ function resolveImageUrl(
       url.hostname === "api.dicebear.com" &&
       /^\/9\.x\/[a-z0-9-]+\/png$/.test(url.pathname)
     ) &&
-    !isNintendoImage(url.href)
+    !isNintendoImage(url.href) &&
+    !isPlayStationImage(url.href)
   )
     return null;
   if (!sameOrigin && url.port && url.port !== "443") return null;

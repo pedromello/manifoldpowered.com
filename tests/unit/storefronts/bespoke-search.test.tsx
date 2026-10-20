@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { StorefrontViewProps } from "components/storefront/types";
 import { NeonAlleyStorefront } from "storefronts/neon-alley/Storefront";
-import { StrategosVoidStorefront } from "storefronts/strategos-void/Storefront";
 
 jest.mock("next/form", () => ({
   __esModule: true,
@@ -97,16 +96,16 @@ function previewSubmission(markup: string) {
   return { action: form?.[1], hiddenPreviewFields, query };
 }
 
-describe.each([
-  ["Neon Alley", NeonAlleyStorefront],
-  ["Strategos Void", StrategosVoidStorefront],
-] as const)("%s bespoke search", (_name, Storefront) => {
-  test("submits exactly one preview field and preserves preview=1", () => {
-    const markup = renderToStaticMarkup(<Storefront {...props()} />);
-    const submission = previewSubmission(markup);
+describe.each([["Neon Alley", NeonAlleyStorefront]] as const)(
+  "%s bespoke search",
+  (_name, Storefront) => {
+    test("submits exactly one preview field and preserves preview=1", () => {
+      const markup = renderToStaticMarkup(<Storefront {...props()} />);
+      const submission = previewSubmission(markup);
 
-    expect(submission.action).toBe("/store/preview-outlet");
-    expect(submission.hiddenPreviewFields).toHaveLength(1);
-    expect(submission.query.toString()).toBe("preview=1");
-  });
-});
+      expect(submission.action).toBe("/store/preview-outlet");
+      expect(submission.hiddenPreviewFields).toHaveLength(1);
+      expect(submission.query.toString()).toBe("preview=1");
+    });
+  },
+);

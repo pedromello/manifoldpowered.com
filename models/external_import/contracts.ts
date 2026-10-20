@@ -14,6 +14,7 @@ export interface ImportedPrice {
   currency: string | null;
   discount_percent: number | null;
   captured_at: Date;
+  expires_at?: Date | null;
 }
 
 /** Source data only. Identity, moderation, ownership and local prices are not writable fields. */

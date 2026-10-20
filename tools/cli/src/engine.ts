@@ -15,6 +15,7 @@ import { ApiClient, sessionToken, type ApiResponse } from "./client";
 import { asCliError, CliError, invalid } from "./errors";
 import { readVerificationEmail, mailcatcherWatermark } from "./mailcatcher";
 import { extractSteamAppId } from "../../../contracts/game-reference";
+import { parsePlayStationUrl } from "../../../lib/playstation";
 import { parseNintendoUrl } from "../../../lib/nintendo";
 import {
   steamImportRequestSchema,
@@ -68,7 +69,7 @@ export type Dependencies = {
   checkpoint?: (data: unknown, nextAction: unknown) => Promise<void>;
 };
 type ImportReference = {
-  provider: "steam" | "nintendo";
+  provider: "steam" | "nintendo" | "playstation";
   reference: string;
   original_reference?: string;
 };
@@ -123,6 +124,20 @@ function normalizeImport(
       reference,
       body: { steam_app_id: reference },
       endpoint: "/items/games/steam-import",
+    };
+  }
+  if (input.provider === "playstation") {
+    const parsed = parsePlayStationUrl(input.reference);
+    if (!parsed)
+      invalid(
+        "Informe um link de produto/edição da PlayStation Store brasileira ou americana.",
+      );
+    return {
+      ...input,
+      original_reference: input.original_reference ?? input.reference,
+      reference: parsed.url,
+      body: { store_url: parsed.url },
+      endpoint: "/items/games/playstation-import",
     };
   }
   const parsed = parseNintendoUrl(input.reference);
@@ -846,9 +861,17 @@ export async function execute(
       }
     }
   };
-  if (name === "games import steam" || name === "games import nintendo")
+  if (
+    name === "games import steam" ||
+    name === "games import nintendo" ||
+    name === "games import playstation"
+  )
     return importGame({
-      provider: name.endsWith("steam") ? "steam" : "nintendo",
+      provider: name.endsWith("steam")
+        ? "steam"
+        : name.endsWith("playstation")
+          ? "playstation"
+          : "nintendo",
       reference: String(payload.reference),
     });
   if (name === "games import status")

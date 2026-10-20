@@ -1,4 +1,18 @@
 export const ptBR: Record<string, string> = {
+  "Import from PlayStation Store": "Importar da PlayStation Store",
+  "Add PS4 and PS5 games to the catalog. Purchases take place on PlayStation Store.":
+    "Adicione jogos de PS4 e PS5 ao catálogo. A compra é feita na PlayStation Store.",
+  "PlayStation Store product link": "Link de produto da PlayStation Store",
+  "Copy a Brazilian or US product/edition link from store.playstation.com.":
+    "Copie o link brasileiro ou americano de um produto ou edição em store.playstation.com.",
+  "PlayStation import failed.": "Falha ao importar da PlayStation Store.",
+  "Update from PlayStation Store": "Atualizar da PlayStation Store",
+  "Use the exact edition product link. Gamehub/concept links, add-ons and subscriptions are not supported.":
+    "Use o link de produto da edição desejada. Links de conceito, complementos e assinaturas não são compatíveis.",
+  "View on PlayStation Store": "Ver na PlayStation Store",
+  "PlayStation Store Brazil": "PlayStation Store Brasil",
+  "PlayStation Store United States": "PlayStation Store Estados Unidos",
+
   "Watch on YouTube": "Assistir no YouTube",
   "Filter games": "Filtrar jogos",
   "Featured YouTube video": "Vídeo em destaque do YouTube",

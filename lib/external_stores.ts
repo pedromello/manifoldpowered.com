@@ -1,3 +1,4 @@
+import { parsePlayStationUrl } from "lib/playstation";
 import { parseNintendoUrl } from "lib/nintendo";
 import { extractSteamAppId } from "lib/steam";
 
@@ -24,6 +25,30 @@ export interface ExternalStoreDefinition {
 }
 
 export const externalStores = {
+  playstation: {
+    endpoint: "/api/v1/items/games/playstation-import",
+    requestField: "store_url",
+    permission: "import:playstation_game",
+    normalizeReference: (input: string) =>
+      parsePlayStationUrl(input)?.url ?? null,
+    input: {
+      type: "url",
+      placeholder:
+        "https://store.playstation.com/pt-br/product/UP9000-PPSA21564_00-0000000000000000",
+    },
+    messages: {
+      title: "Import from PlayStation Store",
+      heading: "Import from PlayStation Store",
+      description:
+        "Add PS4 and PS5 games to the catalog. Purchases take place on PlayStation Store.",
+      inputLabel: "PlayStation Store product link",
+      invalidReference:
+        "Copy a Brazilian or US product/edition link from store.playstation.com.",
+      failure: "PlayStation import failed.",
+      refresh: "Update from PlayStation Store",
+      hint: "Use the exact edition product link. Gamehub/concept links, add-ons and subscriptions are not supported.",
+    },
+  },
   steam: {
     endpoint: "/api/v1/items/games/steam-import",
     requestField: "steam_app_id",

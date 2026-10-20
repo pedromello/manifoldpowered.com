@@ -484,7 +484,7 @@ describe("published Outlet OG presentation", () => {
     ).toBeNull();
   });
 
-  test("uses the published logo or registered identity asset, never an Outlet cover", () => {
+  test("uses the published logo for a retired theme, never an Outlet cover", () => {
     expect(
       outletAvatarCandidates(
         publishedStore({
@@ -494,13 +494,7 @@ describe("published Outlet OG presentation", () => {
           },
         }),
       ),
-    ).toEqual([
-      { url: "https://images.unsplash.com/logo.png" },
-      {
-        url: "/storefronts/strategos-void/logo.jpg",
-        trustedInternalAsset: true,
-      },
-    ]);
+    ).toEqual([{ url: "https://images.unsplash.com/logo.png" }]);
 
     // A creator cannot obtain bespoke presentation by choosing its public slug.
     expect(

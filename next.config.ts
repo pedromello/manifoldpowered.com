@@ -24,6 +24,12 @@ module.exports = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "image.api.playstation.com",
+        port: "",
+        pathname: "/vulcan/**",
+      },
+      {
+        protocol: "https",
         hostname: "assets.nintendo.com",
         port: "",
         pathname: "/image/upload/**",
