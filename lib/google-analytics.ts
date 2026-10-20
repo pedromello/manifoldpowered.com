@@ -40,16 +40,32 @@ export function isPrivateAnalyticsRoute(
   );
 }
 
-/** Keep query strings, fragments and private route identifiers out of GA4. */
+const CAMPAIGN_PARAMETERS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_id",
+  "utm_term",
+  "utm_content",
+  "utm_source_platform",
+] as const;
+
+/** Keep public campaign labels, but redact other queries and private routes. */
 export function analyticsPageLocation(asPath: string, route: string): string {
   const url = new URL(asPath, "https://www.manifoldpowered.com");
+  const campaign = new URLSearchParams();
 
   if (isPrivateAnalyticsRoute(route, asPath)) {
     const localePrefix = url.pathname.startsWith("/pt-BR/") ? "/pt-BR" : "";
     url.pathname = `${localePrefix}${route}`;
+  } else {
+    for (const parameter of CAMPAIGN_PARAMETERS) {
+      const value = url.searchParams.get(parameter);
+      if (value) campaign.set(parameter, value);
+    }
   }
 
-  url.search = "";
+  url.search = campaign.toString();
   url.hash = "";
   return url.toString();
 }
