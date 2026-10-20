@@ -3,6 +3,8 @@ import orchestrator from "tests/orchestrator";
 import auditLog from "models/audit_log";
 import authorization from "models/authorization";
 import user from "models/user";
+import featureBackfill from "models/feature_backfill";
+import { prisma } from "infra/database";
 import { MEMBER_PERMISSIONS as STUDIO_MEMBER_PERMISSIONS } from "models/studio";
 import { MEMBER_PERMISSIONS as STORE_MEMBER_PERMISSIONS } from "models/store";
 
@@ -11,18 +13,146 @@ beforeAll(async () => {
   await orchestrator.clearDatabaseRows();
 });
 
-async function postBackfill(sessionToken?: string) {
+async function postBackfill(
+  sessionToken?: string,
+  body: Record<string, unknown> = {},
+) {
   return fetch(`${webserver.getOrigin()}/api/v1/backoffice/feature-backfill`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(sessionToken ? { Cookie: `session_id=${sessionToken}` } : {}),
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   });
 }
 
 describe("POST /api/v1/backoffice/feature-backfill", () => {
+  test.each(["disable", "revoke", "grant"])(
+    "home_admins preserves a concurrent %s instead of overwriting permissions",
+    async (change) => {
+      const target = await orchestrator.createAdminUser();
+      const previous = target.features.filter(
+        (feature) =>
+          !["read:home:any", "update:home:any", "create:studio"].includes(
+            feature,
+          ),
+      );
+      await user.setFeatures(target.id, previous);
+      const concurrentFeatures =
+        change === "disable"
+          ? authorization.DISABLED_USER_FEATURES
+          : change === "revoke"
+            ? authorization.ACTIVATED_USER_FEATURES
+            : [...previous, "create:studio"];
+      const updateMany = prisma.user.updateMany.bind(prisma.user);
+      const spy = jest
+        .spyOn(prisma.user, "updateMany")
+        .mockImplementation(async (args) => {
+          if (args.where?.id === target.id)
+            await user.setFeatures(target.id, concurrentFeatures);
+          return updateMany(args);
+        });
+      try {
+        const report = await featureBackfill.reconcileHomeAdmins();
+        expect(report.admins.skipped_ineligible).toBeGreaterThanOrEqual(1);
+        expect((await orchestrator.getUserById(target.id)).features).toEqual(
+          concurrentFeatures,
+        );
+      } finally {
+        spy.mockRestore();
+        // Keep this fixture from becoming a candidate in later cases.
+        await user.setFeatures(target.id, authorization.DISABLED_USER_FEATURES);
+      }
+    },
+  );
+
+  test("home_admins adds only homepage permissions to existing active admins and is idempotent", async () => {
+    const homeFeatures = ["read:home:any", "update:home:any"];
+    const staleAdmin = await orchestrator.createAdminUser();
+    const previous = staleAdmin.features.filter(
+      (feature) =>
+        !homeFeatures.includes(feature) && feature !== "create:currency:any",
+    );
+    await user.setFeatures(staleAdmin.id, previous);
+    const ordinary = await orchestrator.createUser();
+    await orchestrator.activateUser(ordinary.id);
+    await orchestrator.createStudio(ordinary.id);
+    await orchestrator.createStore(ordinary.id);
+    const ordinaryBefore = authorization.ACTIVATED_USER_FEATURES.filter(
+      (feature) => feature !== "create:studio",
+    );
+    await user.setFeatures(ordinary.id, ordinaryBefore);
+    const disabled = await orchestrator.createAdminUser();
+    await orchestrator.disableUser(disabled.id);
+    const disabledBefore = (await orchestrator.getUserById(disabled.id))
+      .features;
+    const actor = await orchestrator.createAdminUser();
+    const session = await orchestrator.createSession(actor.id);
+    const response = await postBackfill(session.token, {
+      scope: "home_admins",
+    });
+    expect(response.status).toBe(200);
+    const report = await response.json();
+    expect(report.admins.updated).toBe(1);
+    for (const pass of [
+      "baseline",
+      "studio_owners",
+      "studio_members",
+      "store_owners",
+      "store_members",
+    ])
+      expect(report[pass]).toEqual({
+        scanned: 0,
+        updated: 0,
+        skipped_ineligible: 0,
+      });
+    const updated = await orchestrator.getUserById(staleAdmin.id);
+    expect([...updated.features].sort()).toEqual(
+      [...previous, ...homeFeatures].sort(),
+    );
+    expect((await orchestrator.getUserById(ordinary.id)).features).toEqual(
+      ordinaryBefore,
+    );
+    expect((await orchestrator.getUserById(disabled.id)).features).toEqual(
+      disabledBefore,
+    );
+    const second = await postBackfill(session.token, { scope: "home_admins" });
+    expect((await second.json()).total_unique_users_updated).toBe(0);
+    expect((await orchestrator.getUserById(staleAdmin.id)).updated_at).toEqual(
+      updated.updated_at,
+    );
+    const { logs } = await auditLog.findAllPaginated({
+      action: "feature_backfill:home_admins",
+      target_type: "system",
+      target_id: "feature_backfill",
+    });
+    expect(
+      logs.some(
+        (log) =>
+          log.admin_user_id === actor.id &&
+          (log.metadata as { scope: string }).scope === "home_admins",
+      ),
+    ).toBe(true);
+  });
+
+  test("scoped reconciliation rejects non-admin requests and unknown scopes", async () => {
+    const ordinary = await orchestrator.createUser();
+    await orchestrator.activateUser(ordinary.id);
+    const session = await orchestrator.createSession(ordinary.id);
+    expect(
+      (await postBackfill(undefined, { scope: "home_admins" })).status,
+    ).toBe(403);
+    expect(
+      (await postBackfill(session.token, { scope: "home_admins" })).status,
+    ).toBe(403);
+    const actor = await orchestrator.createAdminUser();
+    const actorSession = await orchestrator.createSession(actor.id);
+    expect(
+      (await postBackfill(actorSession.token, { scope: "unknown" })).status,
+    ).toBe(400);
+  });
+
   describe("Anonymous user", () => {
     test("Should return 403 Forbidden", async () => {
       const response = await postBackfill();

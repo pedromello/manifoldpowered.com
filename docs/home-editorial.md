@@ -11,10 +11,14 @@ selections, including multiple selections from one outlet. Changes apply togethe
 when saved. Clearing the list restores automatic discovery.
 
 `GET/PUT /api/v1/backoffice/home` require `read:home:any` and `update:home:any`,
-respectively. These belong to the existing admin bundle. After deployment, run the
-existing feature reconciliation workflow (`feature-backfill.yaml`) or use the
-backoffice feature reconciliation control to grant them to existing admins.
-Regular activated users and outlet collaborators do not receive these permissions.
+respectively. These belong to the existing admin bundle. After deployment, an
+existing administrator with `update:user:features:any` can POST
+`{"scope":"home_admins"}` to `/api/v1/backoffice/feature-backfill`. This mode adds
+only those two capabilities to active existing administrators. It does not run
+baseline, Studio or Outlet owner/member reconciliation, restore unrelated admin
+capabilities, or promote ordinary users. It is idempotent and audit-logged as
+`feature_backfill:home_admins`. Regular activated users and outlet collaborators
+do not receive homepage permissions.
 
 The singleton `home_editorial` row stores ordered selection IDs, an optimistic
 revision and the last editor/time. PUT requires `expected_revision`; a stale
