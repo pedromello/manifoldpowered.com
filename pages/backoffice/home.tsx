@@ -7,7 +7,7 @@ import { useI18n } from "lib/i18n";
 import { fetchJson } from "lib/api-client";
 import { selectionRequest, type SelectionPageApi } from "lib/selection-client";
 import type { SelectionSummary } from "contracts/outlet-selections";
-import type { AdminHome } from "contracts/home-editorial";
+import type { AdminHome } from "lib/home-client";
 
 const control =
   "min-h-11 rounded-lg border border-white/15 bg-white/5 px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 disabled:opacity-35";

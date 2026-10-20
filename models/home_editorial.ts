@@ -1,11 +1,8 @@
 import type { NextApiRequest } from "next";
 import { prisma } from "infra/database";
 import { ConflictError, ValidationError } from "infra/errors";
-import {
-  homeUpdateSchema,
-  type PublicHome,
-  type AdminHome,
-} from "contracts/home-editorial";
+import { homeUpdateSchema } from "contracts/home-editorial";
+import type { PublicHome, AdminHome } from "lib/home-client";
 import { discoverSelections } from "models/store_selection_discovery";
 import { publicSelectionViews } from "models/home_selection_views";
 import store from "models/store";

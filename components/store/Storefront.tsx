@@ -18,7 +18,7 @@ import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
 import { OutletSelections } from "components/store/SelectionCards";
 import type { SelectionPageApi } from "lib/selection-client";
-import type { HomeCommunity } from "contracts/home-editorial";
+import type { HomeCommunity } from "lib/home-client";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */

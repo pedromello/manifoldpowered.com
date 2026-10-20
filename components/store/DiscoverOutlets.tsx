@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useI18n } from "lib/i18n";
 import { itemHref } from "lib/store-context";
-import type { HomeCommunity } from "contracts/home-editorial";
+import type { HomeCommunity } from "lib/home-client";
 import { FollowOutletButton } from "components/store/FollowOutletButton";
 import { EditorialImage } from "components/storefront/default/SelectionCarousel";
 
@@ -28,7 +28,7 @@ export function DiscoverOutlets({
           "Different tastes, shared discoveries. Find the people behind your next game.",
         )}
       </p>
-      <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
+      <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-color:#51425e_transparent] [scrollbar-width:thin]">
         {outlets.slice(0, 12).map((outlet) => (
           <article
             key={outlet.id}

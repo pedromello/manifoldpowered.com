@@ -8,7 +8,7 @@ import webserver from "infra/webserver";
 import { headersForInternalFetch } from "lib/internal-fetch";
 import { fetchPageData } from "lib/page-data";
 import type { SelectionPageApi } from "lib/selection-client";
-import type { HomeCommunity, PublicHome } from "contracts/home-editorial";
+import type { HomeCommunity, PublicHome } from "lib/home-client";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   context.res.setHeader("Cache-Control", "private, no-store");
