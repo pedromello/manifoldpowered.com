@@ -47,7 +47,7 @@ export function GoogleAnalytics() {
 
     const page = {
       page_location: pageLocation,
-      page_title: isPrivateAnalyticsRoute(router.pathname)
+      page_title: isPrivateAnalyticsRoute(router.pathname, router.asPath)
         ? router.pathname
         : document.title,
       page_referrer:

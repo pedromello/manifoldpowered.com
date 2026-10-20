@@ -140,3 +140,19 @@ test("development and a router that is not ready never queue analytics", () => {
   renderAnalytics();
   expect(commands()).toEqual([]);
 });
+
+test("redacts a draft preview's name and slug", () => {
+  Object.assign(mockRouter, {
+    asPath: "/store/private-draft?preview=1",
+    pathname: "/store/[slug]",
+  });
+  document.title = "Private draft name";
+  renderAnalytics();
+  const views = commands().filter(([command]) => command === "event");
+  expect(views).toHaveLength(1);
+  expect(views[0][2]).toEqual({
+    page_location: "https://www.manifoldpowered.com/store/[slug]",
+    page_title: "/store/[slug]",
+    page_referrer: "https://example.com/",
+  });
+});

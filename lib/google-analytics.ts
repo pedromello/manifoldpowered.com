@@ -18,7 +18,18 @@ export function isAnalyticsEnabled(
   );
 }
 
-export function isPrivateAnalyticsRoute(route: string): boolean {
+export function isPrivateAnalyticsRoute(
+  route: string,
+  asPath?: string,
+): boolean {
+  if (
+    asPath &&
+    new URL(asPath, "https://www.manifoldpowered.com").searchParams.has(
+      "preview",
+    )
+  ) {
+    return true;
+  }
   return (
     route.includes("[") &&
     ![
@@ -33,7 +44,7 @@ export function isPrivateAnalyticsRoute(route: string): boolean {
 export function analyticsPageLocation(asPath: string, route: string): string {
   const url = new URL(asPath, "https://www.manifoldpowered.com");
 
-  if (isPrivateAnalyticsRoute(route)) {
+  if (isPrivateAnalyticsRoute(route, asPath)) {
     const localePrefix = url.pathname.startsWith("/pt-BR/") ? "/pt-BR" : "";
     url.pathname = `${localePrefix}${route}`;
   }

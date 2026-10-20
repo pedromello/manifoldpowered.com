@@ -85,7 +85,7 @@ describe("Google Analytics privacy and environment boundaries", () => {
   test("keeps public outlet and selection slugs", () => {
     expect(
       analyticsPageLocation(
-        "/store/example-outlet/selections/example-selection?preview=true",
+        "/store/example-outlet/selections/example-selection?source=menu",
         "/store/[slug]/selections/[selectionSlug]",
       ),
     ).toBe(
@@ -99,5 +99,14 @@ describe("Google Analytics privacy and environment boundaries", () => {
     ).toBe("https://example.com/");
     expect(analyticsReferrer("")).toBe("");
     expect(analyticsReferrer("invalid URL")).toBe("");
+  });
+
+  test("redacts draft previews even when they use a public page route", () => {
+    expect(
+      analyticsPageLocation(
+        "/pt-BR/store/private-draft?preview=1",
+        "/store/[slug]",
+      ),
+    ).toBe("https://www.manifoldpowered.com/pt-BR/store/[slug]");
   });
 });

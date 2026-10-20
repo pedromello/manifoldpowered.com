@@ -23,7 +23,7 @@ link and download measurement must remain disabled so those events cannot
 forward raw URLs or form metadata outside this adapter.
 
 The adapter removes query strings and fragments, replaces private dynamic
-route identifiers with their Next.js route templates, and limits the initial
+route identifiers and draft preview paths with their Next.js route templates, and limits the initial
 referrer to its origin. Public game, Outlet and selection paths remain available
 for page reports. Navigations that change only query strings or fragments do
 not create another view. UTM parameters are intentionally omitted with the
