@@ -3,7 +3,6 @@ import type { ComponentType } from "react";
 
 import type { StorefrontPalette } from "components/storefront/palette";
 import { neonAlleyPalette } from "storefronts/neon-alley/palette";
-import { strategosVoidPalette } from "storefronts/strategos-void/palette";
 import type {
   ItemViewProps,
   StorefrontViewProps,
@@ -66,16 +65,6 @@ const CUSTOM_STOREFRONTS: Record<BespokeThemeKey, CustomStorefront> = {
       { ssr: true },
     ),
     palette: neonAlleyPalette,
-  },
-  "strategos-void": {
-    Storefront: dynamic(
-      () =>
-        import("storefronts/strategos-void/Storefront").then(
-          (m) => m.StrategosVoidStorefront,
-        ),
-      { ssr: true },
-    ),
-    palette: strategosVoidPalette,
   },
 };
 

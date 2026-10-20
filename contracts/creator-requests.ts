@@ -29,6 +29,9 @@ export const steamImportRequestSchema = z.object({
     .max(20)
     .regex(/^[1-9]\d*$/, "steam_app_id must be a positive integer string"),
 });
+export const playstationImportRequestSchema = z
+  .object({ store_url: z.string().max(2048) })
+  .strict();
 export const nintendoImportRequestSchema = z
   .object({ eshop_url: z.string().max(2048) })
   .strict();

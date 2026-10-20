@@ -43,7 +43,11 @@ async function createDraft(input: GameReleaseCreateDto) {
         async (tx) => {
           const game = await tx.game.findUnique({
             where: { id: data.game_id },
-            select: { id: true, nintendo_nsuid: true },
+            select: {
+              id: true,
+              nintendo_nsuid: true,
+              playstation_product_id: true,
+            },
           });
 
           if (!game) {
@@ -53,10 +57,14 @@ async function createDraft(input: GameReleaseCreateDto) {
             });
           }
 
-          if (game.nintendo_nsuid)
+          if (game.nintendo_nsuid || game.playstation_product_id)
             throw new ValidationError({
-              message: "Nintendo games are catalog-only.",
-              action: "Open Nintendo eShop to access this game.",
+              message: game?.playstation_product_id
+                ? "PlayStation games are catalog-only."
+                : "Nintendo games are catalog-only.",
+              action: game?.playstation_product_id
+                ? "Open PlayStation Store to access this game."
+                : "Open Nintendo eShop to access this game.",
             });
           const latest = await tx.gameRelease.aggregate({
             where: { game_id: data.game_id },

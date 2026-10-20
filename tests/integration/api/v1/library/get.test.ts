@@ -133,6 +133,7 @@ describe("GET /api/v1/library", () => {
         ownership_status: "CLAIMED",
         claimable: false,
         nintendo_nsuid: null,
+        playstation_product_id: null,
         purchase_mode: "UNAVAILABLE",
         external_offer: null,
         review_score: game.review_score,

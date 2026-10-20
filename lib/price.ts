@@ -20,7 +20,7 @@ export interface PricedItem {
 
 export interface ExternalPricedItem {
   external_offer?: {
-    provider: "STEAM" | "NINTENDO";
+    provider: "STEAM" | "NINTENDO" | "PLAYSTATION";
     amount: string | null;
     original_amount?: string | null;
     discount_percent?: number | null;
@@ -112,7 +112,9 @@ export function formatExternalBasePrice(
 export function formatCatalogBasePrice(
   item: PricedItem & ExternalPricedItem & { purchase_mode: string },
 ): string | null {
-  return ["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)
+  return ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+    item.purchase_mode,
+  )
     ? formatExternalBasePrice(item)
     : formatBasePrice(item);
 }
@@ -124,7 +126,11 @@ export function catalogDiscountLabel(
       discount_label?: string | null;
     },
 ): string | null {
-  if (["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)) {
+  if (
+    ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+      item.purchase_mode,
+    )
+  ) {
     const percent = item.external_offer?.discount_percent;
     return percent && formatExternalBasePrice(item) ? `-${percent}%` : null;
   }
@@ -135,7 +141,11 @@ export function catalogDiscountLabel(
 export function isCatalogFree(
   item: PricedItem & ExternalPricedItem & { purchase_mode: string },
 ): boolean {
-  if (["STEAM_ONLY", "NINTENDO_ONLY"].includes(item.purchase_mode)) {
+  if (
+    ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+      item.purchase_mode,
+    )
+  ) {
     const amount = item.external_offer?.amount;
     return amount !== null && amount !== undefined && Number(amount) === 0;
   }
@@ -150,6 +160,8 @@ export function formatCatalogPrice(
   if (item.purchase_mode === "STEAM_ONLY") {
     return formatExternalPrice(item) ?? "View on Steam";
   }
+  if (item.purchase_mode === "PLAYSTATION_ONLY")
+    return formatExternalPrice(item) ?? "PlayStation Store";
   if (item.purchase_mode === "NINTENDO_ONLY") {
     return formatExternalPrice(item) ?? "Nintendo eShop";
   }

@@ -63,6 +63,7 @@ describe("GET /api/v1/user", () => {
           "read:public_game",
           "import:steam_game",
           "import:nintendo_game",
+          "import:playstation_game",
           "create:wishlist",
           "read:wishlist",
           "delete:wishlist",

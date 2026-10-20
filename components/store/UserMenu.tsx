@@ -126,6 +126,14 @@ export function UserMenu({
             </Link>
 
             <Link
+              href="/games/playstation-import"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/5"
+            >
+              <Download size={16} className="text-cyan-400" />
+              {t("Import from PlayStation Store")}
+            </Link>
+            <Link
               href="/games/nintendo-import"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/5"

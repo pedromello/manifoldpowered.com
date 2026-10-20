@@ -684,6 +684,12 @@ export function CatalogCurationWorkspace({
           >
             {t("Import from Nintendo eShop")}
           </Link>
+          <Link
+            href="/games/playstation-import"
+            className="ml-4 mt-3 inline-block text-sm font-bold text-violet-200"
+          >
+            {t("Import from PlayStation Store")}
+          </Link>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/50">
             {t(
               "Find the right games, review the impact, and shape what your audience sees.",

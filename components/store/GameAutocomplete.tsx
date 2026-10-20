@@ -194,6 +194,13 @@ export function GameAutocomplete({
                 />
                 <span className="font-bold text-white text-sm truncate">
                   {game.title}
+                  {game.playstation_product_id && (
+                    <span className="ml-2 text-xs text-white/50">
+                      {game.tags
+                        .filter((tag) => tag === "PS4" || tag === "PS5")
+                        .join(" / ") || "PlayStation"}
+                    </span>
+                  )}
                   {game.nintendo_nsuid && (
                     <span className="ml-2 text-xs text-white/50">
                       {game.tags.find((tag) =>

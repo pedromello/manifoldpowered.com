@@ -114,6 +114,7 @@ enum SteamImportAttemptOutcome {
 enum GameLocalizationSource {
   STEAM
   NINTENDO
+  PLAYSTATION
   FALLBACK
 }
 
@@ -159,8 +160,9 @@ model Game {
   // Source Steam app id, set only for games imported via the Steam import
   // flow. Nullable + unique: multiple NULLs are allowed (manual games), but
   // the same Steam app can't be imported twice.
-  steam_app_id   String? @unique @db.VarChar(20)
-  nintendo_nsuid String? @unique @db.VarChar(14)
+  steam_app_id           String? @unique @db.VarChar(20)
+  nintendo_nsuid         String? @unique @db.VarChar(14)
+  playstation_product_id String? @unique @db.VarChar(64)
 
   // Informational Steam offer captured during import. These fields are kept
   // separate from price/base_price because they never make the game
@@ -218,18 +220,19 @@ model GameOwnershipClaim {
 }
 
 model GameExternalOffer {
-  id               String   @id @default(uuid())
+  expires_at       DateTime? @db.Timestamptz(3)
+  id               String    @id @default(uuid())
   game_id          String
-  provider         String   @db.VarChar(20)
-  country          String   @db.VarChar(2)
-  currency         String   @db.VarChar(3)
-  amount           Decimal? @db.Decimal(19, 4)
-  original_amount  Decimal? @db.Decimal(19, 4)
+  provider         String    @db.VarChar(20)
+  country          String    @db.VarChar(2)
+  currency         String    @db.VarChar(3)
+  amount           Decimal?  @db.Decimal(19, 4)
+  original_amount  Decimal?  @db.Decimal(19, 4)
   discount_percent Int?
   captured_at      DateTime
-  url              String   @db.Text
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  url              String    @db.Text
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   game Game @relation(fields: [game_id], references: [id], onDelete: Cascade)
 
@@ -258,6 +261,39 @@ model GameLocalization {
 
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
+model PlayStationRefresh {
+  id                String    @id @default(uuid())
+  product_id        String    @unique @db.VarChar(64)
+  game_id           String?
+  state             String    @default("IDLE")
+  last_completed_at DateTime?
+  next_allowed_at   DateTime?
+  lease_token       String?
+  lease_expires_at  DateTime?
+  error_name        String?
+  error_message     String?
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  @@index([game_id])
+  @@index([lease_expires_at])
+  @@map("playstation_refreshes")
+}
+
+model PlayStationImportAttempt {
+  id                String   @id @default(uuid())
+  user_id           String
+  product_id        String   @db.VarChar(64)
+  outcome           String   @default("PENDING") @db.VarChar(32)
+  regional_outcomes Json     @default("{}")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([user_id, created_at])
+  @@map("playstation_import_attempts")
+}
+
 model NintendoRefresh {
   id                String    @id @default(uuid())
   identity          String    @unique

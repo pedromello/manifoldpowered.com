@@ -1,5 +1,11 @@
 # Custom Storefronts
 
+Current active bespoke theme: Neon Alley. Strategos Void uses the same standard
+Outlet renderer, navigation and social cards as other Outlets. Its historical
+`theme_key` remains readable so existing published snapshots retain their data;
+it no longer selects custom code or locks self-service customization. Stored
+logo URLs and catalog membership are preserved.
+
 How an outlet gets a storefront that looks nothing like Manifold's, without losing any of the functionality that makes it a storefront.
 
 Delivery status lives in [`custom-storefronts-tasks.md`](./custom-storefronts-tasks.md). This document covers the runtime design and the authoring workflow.

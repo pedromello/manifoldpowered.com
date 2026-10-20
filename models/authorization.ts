@@ -111,6 +111,7 @@ const AVAILABLE_FEATURES = [
   "create:game:any",
   "import:steam_game",
   "import:nintendo_game",
+  "import:playstation_game",
   "read:public_game",
   "update:game",
   "update:game:any",
@@ -239,6 +240,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:public_game",
   "import:steam_game",
   "import:nintendo_game",
+  "import:playstation_game",
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
@@ -366,7 +368,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     const gameResource = resource as GameWithStudio;
     const studioResource = gameResource.studio;
 
-    if (gameResource.nintendo_nsuid) return false;
+    if (gameResource.nintendo_nsuid || gameResource.playstation_product_id)
+      return false;
 
     const isOwner = Boolean(
       studioResource && user.id === studioResource.owner_id,
@@ -732,6 +735,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     feature === "create:game" ||
     feature === "import:steam_game" ||
     feature === "import:nintendo_game" ||
+    feature === "import:playstation_game" ||
     feature === "read:public_game" ||
     feature === "update:game" ||
     feature === "read:game:any" ||
@@ -740,9 +744,10 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     const gameOutput = resource as Game & {
       external_offer_row?: GameExternalOffer;
     };
-    const nintendoOffer = gameOutput.nintendo_nsuid
-      ? gameOutput.external_offer_row
-      : undefined;
+    const consoleOffer =
+      gameOutput.nintendo_nsuid || gameOutput.playstation_product_id
+        ? gameOutput.external_offer_row
+        : undefined;
     const steamPage = steamPageForGame(gameOutput.social_links);
     const purchaseMode = purchaseModeForGame(gameOutput);
 
@@ -755,7 +760,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       launch_date: gameOutput.launch_date,
       // Display-only catalogue entries deliberately expose no local price.
       price:
-        gameOutput.nintendo_nsuid || gameOutput.status === "ONLY_DISPLAY"
+        gameOutput.nintendo_nsuid ||
+        gameOutput.playstation_product_id ||
+        gameOutput.status === "ONLY_DISPLAY"
           ? null
           : gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
@@ -769,29 +776,35 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       publisher_id: gameOutput.publisher_id,
       steam_app_id: gameOutput.steam_app_id,
       nintendo_nsuid: gameOutput.nintendo_nsuid,
+      playstation_product_id: gameOutput.playstation_product_id,
       claimable:
         !gameOutput.nintendo_nsuid &&
+        !gameOutput.playstation_product_id &&
         gameOutput.status === "ONLY_DISPLAY" &&
         !gameOutput.studio_id,
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
-      base_price: gameOutput.nintendo_nsuid
-        ? null
-        : (gameOutput.base_price?.toFixed(2) ?? null),
+      base_price:
+        gameOutput.nintendo_nsuid || gameOutput.playstation_product_id
+          ? null
+          : (gameOutput.base_price?.toFixed(2) ?? null),
       ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
       purchase_mode: purchaseMode,
-      external_offer: nintendoOffer
+      external_offer: consoleOffer
         ? {
-            provider: "NINTENDO",
-            country: nintendoOffer.country,
-            amount: nintendoOffer.amount?.toFixed(2) ?? null,
-            original_amount: nintendoOffer.original_amount?.toFixed(2) ?? null,
-            discount_percent: nintendoOffer.discount_percent,
-            currency: nintendoOffer.currency,
-            url: nintendoOffer.url,
-            captured_at: nintendoOffer.captured_at.toISOString(),
+            provider: gameOutput.playstation_product_id
+              ? "PLAYSTATION"
+              : "NINTENDO",
+            country: consoleOffer.country,
+            amount: consoleOffer.amount?.toFixed(2) ?? null,
+            original_amount: consoleOffer.original_amount?.toFixed(2) ?? null,
+            discount_percent: consoleOffer.discount_percent,
+            currency: consoleOffer.currency,
+            url: consoleOffer.url,
+            captured_at: consoleOffer.captured_at.toISOString(),
+            expires_at: consoleOffer.expires_at?.toISOString() ?? null,
           }
         : purchaseMode === "STEAM_ONLY" && steamPage
           ? {

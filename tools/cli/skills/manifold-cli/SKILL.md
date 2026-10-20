@@ -1,6 +1,6 @@
 ---
 name: manifold-cli
-description: "Operar a plataforma Manifold pela CLI: autenticar contas reais em local, hml ou produção, importar Steam/Nintendo e criar, personalizar, verificar e publicar outlets. Use também para manutenção de catálogo, editoriais, reviews elegíveis e execução de curadores paralelos. Para apenas descobrir jogos públicos, prefira o catálogo Manifold conectado."
+description: "Operar a plataforma Manifold pela CLI: autenticar contas reais em local, hml ou produção, importar Steam/Nintendo/PlayStation e criar, personalizar, verificar e publicar outlets. Use também para manutenção de catálogo, editoriais, reviews elegíveis e execução de curadores paralelos. Para apenas descobrir jogos públicos, prefira o catálogo Manifold conectado."
 ---
 
 # Manifold CLI

@@ -23,7 +23,7 @@ test.each<[StorePalette, string | null, string, string]>([
   ["ember", null, "#FB923C", "#100B09"],
   ["manifold", null, "#C4B5FD", "#0B0812"],
   ["crimson", "neon-alley", "#22d3ee", "#04141a"],
-  ["crimson", "strategos-void", "#e04444", "#0e0e0f"],
+  ["crimson", "strategos-void", "#E60013", "#FFFFFF"],
 ])(
   "uses %s / %s identity with readable text",
   (palette, theme, background, foreground) => {

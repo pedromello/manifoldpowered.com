@@ -12,6 +12,7 @@ export type CatalogPriceInput = PricedItem &
     catalog_offer?: CatalogOffer;
     external_offer?: ExternalPricedItem["external_offer"] & {
       captured_at?: string | null;
+      expires_at?: string | null;
     };
   };
 
@@ -27,7 +28,9 @@ export function resolveCatalogOffer(
   game: CatalogPriceInput,
   { now = Date.now(), maxAgeMs = EXTERNAL_OFFER_MAX_AGE_MS } = {},
 ): CatalogOffer {
-  const external = ["STEAM_ONLY", "NINTENDO_ONLY"].includes(game.purchase_mode);
+  const external = ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+    game.purchase_mode,
+  );
   const offer = game.external_offer;
   const amount = decimal(
     external ? offer?.amount : (game.display_price?.amount ?? game.price),
@@ -43,7 +46,9 @@ export function resolveCatalogOffer(
   const missing =
     amount === null ||
     (external && !offer?.currency) ||
-    !["STEAM_ONLY", "NINTENDO_ONLY", "PLATFORM"].includes(game.purchase_mode);
+    !["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY", "PLATFORM"].includes(
+      game.purchase_mode,
+    );
   if (missing)
     return {
       state: "unavailable",
@@ -55,7 +60,10 @@ export function resolveCatalogOffer(
     ? "current"
     : !Number.isFinite(captured) || captured > now + 300_000
       ? "unknown"
-      : now - captured > maxAgeMs
+      : (offer?.expires_at &&
+            (!Number.isFinite(Date.parse(offer.expires_at)) ||
+              Date.parse(offer.expires_at) <= now)) ||
+          now - captured > maxAgeMs
         ? "stale"
         : "current";
   const coherent =

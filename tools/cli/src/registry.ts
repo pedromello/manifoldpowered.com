@@ -24,7 +24,7 @@ const slugInput = z.object({ slug }).strict();
 const revision = z.number().int().positive();
 export const importReferenceSchema = z
   .object({
-    provider: z.enum(["steam", "nintendo"]),
+    provider: z.enum(["steam", "nintendo", "playstation"]),
     reference: z.string().trim().min(1).max(2048),
   })
   .strict();
@@ -170,6 +170,14 @@ export const commands: Record<string, Command> = {
       .object({ reference: z.string().trim().min(1).max(2048) })
       .strict(),
     description: "Importar URL Nintendo eShop",
+    mutation: true,
+    authenticated: true,
+  },
+  "games import playstation": {
+    schema: z
+      .object({ reference: z.string().trim().min(1).max(2048) })
+      .strict(),
+    description: "Importar URL de produto PlayStation Store",
     mutation: true,
     authenticated: true,
   },

@@ -9,7 +9,9 @@ import { resolveCatalogOffer } from "lib/catalog-offer";
 import { purchaseModeForGame } from "lib/game-purchase-mode";
 
 const batchSize = 256;
-const supportedProviders = { provider: { in: ["STEAM", "NINTENDO"] } };
+const supportedProviders = {
+  provider: { in: ["STEAM", "NINTENDO", "PLAYSTATION"] },
+};
 
 // Match regionalOffers' currency/Nintendo BR/USD/other fallback order. An
 // undiscounted or stale preferred offer must suppress a sale in another market.
@@ -61,6 +63,7 @@ export async function promotionGameIds(
           {
             status: "ACTIVE",
             nintendo_nsuid: null,
+            playstation_product_id: null,
             base_price: { gt: 0 },
             price: { lt: prisma.game.fields.base_price },
           },
@@ -76,6 +79,7 @@ export async function promotionGameIds(
           {
             status: "ONLY_DISPLAY",
             nintendo_nsuid: null,
+            playstation_product_id: null,
             external_offers: { none: supportedProviders },
             steam_discount_percent: { gt: 0, lte: 100 },
             steam_price_captured_at: capturedAt,
@@ -96,6 +100,7 @@ export async function promotionGameIds(
         id: true,
         status: true,
         nintendo_nsuid: true,
+        playstation_product_id: true,
         social_links: true,
         price: true,
         base_price: true,
@@ -114,7 +119,9 @@ export async function promotionGameIds(
       (game) => purchaseModeForGame(game) === "PLATFORM",
     );
     const externalGames = candidates.filter((game) =>
-      ["STEAM_ONLY", "NINTENDO_ONLY"].includes(purchaseModeForGame(game)),
+      ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+        purchaseModeForGame(game),
+      ),
     );
     const [displayPrices, offers] = await Promise.all([
       pricing.displayPricesFor(platformGames, currency),
@@ -134,6 +141,7 @@ export async function promotionGameIds(
             discount_percent: selected.discount_percent,
             currency: selected.currency,
             captured_at: selected.captured_at.toISOString(),
+            expires_at: selected.expires_at?.toISOString() ?? null,
           }
         : mode === "STEAM_ONLY"
           ? {
@@ -154,7 +162,12 @@ export async function promotionGameIds(
             external_offer: offer
               ? {
                   ...offer,
-                  provider: mode === "NINTENDO_ONLY" ? "NINTENDO" : "STEAM",
+                  provider:
+                    mode === "NINTENDO_ONLY"
+                      ? "NINTENDO"
+                      : mode === "PLAYSTATION_ONLY"
+                        ? "PLAYSTATION"
+                        : "STEAM",
                 }
               : null,
           },

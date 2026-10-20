@@ -7,17 +7,14 @@ import type { StorefrontPalette } from "components/storefront/palette";
 import { storeContextFromApi, type StoreApi } from "components/store/types";
 import type { SelectionPageApi } from "lib/selection-client";
 import { cleanMetadataText } from "lib/seo";
-import { strategosVoidPalette } from "storefronts/strategos-void/palette";
 import { neonAlleyPalette } from "storefronts/neon-alley/palette";
 
 function previewPalette(
   identity: Pick<StoreApi, "theme_key" | "brand_tokens">,
 ): StorefrontPalette {
-  return identity.theme_key === "strategos-void"
-    ? strategosVoidPalette
-    : identity.theme_key === "neon-alley"
-      ? neonAlleyPalette
-      : (OUTLET_PALETTES[identity.brand_tokens?.palette ?? "manifold"] ??
+  return identity.theme_key === "neon-alley"
+    ? neonAlleyPalette
+    : (OUTLET_PALETTES[identity.brand_tokens?.palette ?? "manifold"] ??
         OUTLET_PALETTES.manifold);
 }
 

@@ -253,7 +253,9 @@ function CatalogCurrencyLabel({ props }: { props: StorefrontViewProps }) {
   const currencies = new Set(
     [...props.featured, ...props.games]
       .map((game) =>
-        ["STEAM_ONLY", "NINTENDO_ONLY"].includes(game.purchase_mode)
+        ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+          game.purchase_mode,
+        )
           ? game.external_offer?.currency
           : (game.display_price?.currency ?? props.currency),
       )

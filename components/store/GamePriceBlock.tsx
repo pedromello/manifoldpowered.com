@@ -19,9 +19,11 @@ export function GamePriceBlock({
       ? "Steam"
       : game.purchase_mode === "NINTENDO_ONLY"
         ? "Nintendo eShop"
-        : game.purchase_mode === "PLATFORM"
-          ? "Manifold"
-          : null;
+        : game.purchase_mode === "PLAYSTATION_ONLY"
+          ? "PlayStation Store"
+          : game.purchase_mode === "PLATFORM"
+            ? "Manifold"
+            : null;
   const price =
     offer.state === "unavailable"
       ? t("Price unavailable")
