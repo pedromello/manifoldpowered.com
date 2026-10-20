@@ -8,31 +8,34 @@ import webserver from "infra/webserver";
 import { headersForInternalFetch } from "lib/internal-fetch";
 import { fetchPageData } from "lib/page-data";
 import type { SelectionPageApi } from "lib/selection-client";
+import type { HomeCommunity, PublicHome } from "contracts/home-editorial";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const url = new URL(
-    "/api/v1/public/selections?limit=3",
-    webserver.getOrigin(),
-  );
+  context.res.setHeader("Cache-Control", "private, no-store");
+  const url = new URL("/api/v1/public/home", webserver.getOrigin());
   url.searchParams.set("locale", context.locale === "pt-BR" ? "pt-BR" : "en");
   try {
-    const data = await fetchPageData<{ selections: SelectionPageApi[] }>(
-      url.href,
-      {
-        headers: headersForInternalFetch(context.req.headers),
+    const data = await fetchPageData<PublicHome>(url.href, {
+      headers: headersForInternalFetch(context.req.headers),
+    });
+    return {
+      props: {
+        editorialSelections: data?.selections ?? [],
+        homeCommunities: data?.communities ?? [],
       },
-    );
-    return { props: { editorialSelections: data?.selections ?? [] } };
+    };
   } catch {
     // Discovery is optional; the working shared catalog remains available.
-    return { props: { editorialSelections: [] } };
+    return { props: { editorialSelections: [], homeCommunities: [] } };
   }
 };
 
 export default function StoreOption2({
   editorialSelections = [],
+  homeCommunities = [],
 }: {
   editorialSelections?: SelectionPageApi[];
+  homeCommunities?: HomeCommunity[];
 }) {
   const { locale } = useI18n();
   const metadata = homeMetadata(locale);
@@ -66,6 +69,7 @@ export default function StoreOption2({
         jsonLd={homeJsonLd(locale)}
         showDiscover
         editorialSelections={editorialSelections}
+        homeCommunities={homeCommunities}
       />
     </>
   );

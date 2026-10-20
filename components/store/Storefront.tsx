@@ -18,6 +18,7 @@ import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
 import { OutletSelections } from "components/store/SelectionCards";
 import type { SelectionPageApi } from "lib/selection-client";
+import type { HomeCommunity } from "contracts/home-editorial";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -42,6 +43,7 @@ export type StorefrontProps = {
   isPreview?: boolean;
   onPreviewStatusChange?: (status: { ready: boolean; error?: string }) => void;
   editorialSelections?: SelectionPageApi[];
+  homeCommunities?: HomeCommunity[];
 };
 
 /**
@@ -69,6 +71,7 @@ export function Storefront({
   isPreview = false,
   onPreviewStatusChange,
   editorialSelections = [],
+  homeCommunities = [],
 }: StorefrontProps) {
   const { t } = useI18n();
   const controller = useStorefrontController({
@@ -158,6 +161,7 @@ export function Storefront({
           followControl={followControl}
           showDiscover={showDiscover}
           editorialSelections={editorialSelections}
+          homeCommunities={homeCommunities}
         />
       )}
       {store && <OutletSelections slug={store.slug} preview={isPreview} />}

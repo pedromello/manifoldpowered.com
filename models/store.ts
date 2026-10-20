@@ -422,7 +422,7 @@ async function findOnePublishedBySlug(slug: string) {
   }
 }
 
-function projectPublishedStore(
+export function projectPublishedStore(
   storeRow: Store,
   revisionRow: StoreRevision,
 ): StorefrontStore {

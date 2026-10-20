@@ -1,0 +1,142 @@
+.carousel {
+  overflow: hidden;
+  border: 1px solid #ffffff18;
+  border-radius: 20px;
+  background: #15101e;
+}
+.hero {
+  position: relative;
+  min-height: 460px;
+  isolation: isolate;
+}
+.artwork {
+  position: absolute;
+  inset: 0;
+}
+.artwork img {
+  object-position: center top;
+}
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(11, 8, 18, 0.9) 0%,
+    rgba(11, 8, 18, 0.76) 20%,
+    rgba(11, 8, 18, 0.35) 35%,
+    transparent 50%
+  );
+}
+.copy {
+  position: relative;
+  width: 43%;
+  padding: 44px 0 44px 40px;
+  text-shadow: 0 2px 12px #0005;
+}
+.navigation {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+}
+.thumbnails {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+.thumbnail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: left;
+  scroll-snap-align: start;
+}
+.thumbnail:hover,
+.active {
+  background: #ffffff08;
+}
+.thumbnail:focus-visible,
+.pause:focus-visible {
+  outline: 2px solid #bca3e7;
+  outline-offset: -2px;
+}
+.timeline {
+  position: absolute;
+  inset: auto 10px 0;
+  height: 2px;
+  overflow: hidden;
+}
+.timeline > span {
+  display: block;
+  height: 100%;
+  background: #bca3e7;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.pause {
+  display: flex;
+  width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #ffffffa6;
+}
+.pause:hover {
+  background: #ffffff0a;
+}
+@media (max-width: 767px) {
+  .hero {
+    min-height: 530px;
+    display: flex;
+    align-items: flex-end;
+  }
+  .artwork {
+    bottom: auto;
+    height: 62%;
+  }
+  .shade {
+    background: linear-gradient(
+      0deg,
+      #15101e 0%,
+      #15101ef5 25%,
+      #15101e99 48%,
+      transparent 72%
+    );
+  }
+  .copy {
+    width: 100%;
+    padding: 170px 24px 28px;
+  }
+  .navigation {
+    gap: 4px;
+    padding: 8px;
+  }
+  .thumbnail {
+    flex: 0 0 78%;
+    min-width: 0;
+  }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .copy {
+    padding-left: 24px;
+  }
+  .thumbnail {
+    gap: 8px;
+    padding: 8px;
+  }
+  .thumbnail > div {
+    width: 54px;
+    height: 40px;
+  }
+}

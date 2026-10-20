@@ -192,6 +192,8 @@ const AVAILABLE_FEATURES = [
   "read:studio_sale:any",
 
   // Backoffice (admin)
+  "read:home:any",
+  "update:home:any",
   "read:user:any",
   "update:user:status:any",
   "update:user:features:any",
@@ -274,6 +276,8 @@ const ACTIVATED_USER_FEATURES = [
 // tests/orchestrator.js `createAdminUser` helper — there are no partial admin
 // tiers today.
 const ADMIN_ONLY_FEATURES = [
+  "read:home:any",
+  "update:home:any",
   "read:user:any",
   "update:user:status:any",
   "update:user:features:any",

@@ -24,6 +24,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/backoffice/home", label: "Homepage", icon: Store },
   { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
   {

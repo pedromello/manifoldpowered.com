@@ -129,6 +129,66 @@ export async function getCurationWhereClause(
  * shared by readiness and every public feed, so published behavior cannot drift
  * from the checks that approved it.
  */
+export function gameMatchesCatalogSnapshot(
+  game: { id: string; tags: string[] },
+  value: StoreCatalogSnapshot,
+  knownTags: ReadonlySet<string>,
+) {
+  const snapshot = storeCatalogSnapshotSchema.parse(value);
+  const tags = new Set(game.tags.map((tag) => tag.toLowerCase()));
+  const whitelist = snapshot.tag_filters.filter(
+    (filter) => filter.mode === "WHITELIST",
+  );
+  const blacklist = snapshot.tag_filters.filter(
+    (filter) => filter.mode === "BLACKLIST",
+  );
+  const shown = snapshot.game_overrides.some(
+    (override) =>
+      override.game_id === game.id && override.visibility === "SHOW",
+  );
+  const hidden = snapshot.game_overrides.some(
+    (override) =>
+      override.game_id === game.id && override.visibility === "HIDE",
+  );
+  const included = whitelist.some((filter) =>
+    tags.has(filter.tag.toLowerCase()),
+  );
+  const excluded = blacklist.some((filter) =>
+    tags.has(filter.tag.toLowerCase()),
+  );
+  if (snapshot.catalog_mode === "LEGACY_ALL") {
+    if (
+      !whitelist.length &&
+      !blacklist.length &&
+      !snapshot.game_overrides.length
+    )
+      return true;
+    // Prisma omits an empty object inside OR in the legacy SQL predicate:
+    // with overrides alone, only explicit SHOW entries match.
+    if (
+      !whitelist.length &&
+      !blacklist.some((filter) => knownTags.has(filter.tag.toLowerCase()))
+    )
+      return !hidden && shown;
+    return !hidden && (shown || ((!whitelist.length || included) && !excluded));
+  }
+  if (hidden) return false;
+  if (snapshot.catalog_mode === "ALL") return shown || !excluded;
+  return shown || (included && !excluded);
+}
+
+export async function catalogMatchTags(snapshots: StoreCatalogSnapshot[]) {
+  if (
+    !snapshots.some(
+      (snapshot) =>
+        snapshot.catalog_mode === "LEGACY_ALL" &&
+        snapshot.tag_filters.some((filter) => filter.mode === "BLACKLIST"),
+    )
+  )
+    return new Set<string>();
+  return new Set((await getGameTagCasings(prisma)).keys());
+}
+
 export async function getSnapshotCurationWhereClause(
   value: StoreCatalogSnapshot,
   client: StoreCatalogClient = prisma,
