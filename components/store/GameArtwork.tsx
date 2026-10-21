@@ -8,6 +8,7 @@ export interface GameArtworkProps extends Omit<
   src?: string | null;
   alt?: string;
   loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
   background?: "blurred" | "neutral";
   fill?: boolean;
 }
@@ -17,6 +18,7 @@ export function GameArtwork({
   src,
   alt = "",
   loading = "lazy",
+  fetchPriority = "auto",
   background = "blurred",
   fill = false,
   className = "",
@@ -45,6 +47,7 @@ export function GameArtwork({
               alt=""
               aria-hidden="true"
               loading={loading}
+              fetchPriority="low"
               decoding="async"
               referrerPolicy="no-referrer"
               className="pointer-events-none absolute inset-0 h-full w-full scale-[1.15] object-cover blur-[18px] brightness-[.45]"
@@ -56,6 +59,7 @@ export function GameArtwork({
             src={artworkSrc}
             alt={alt}
             loading={loading}
+            fetchPriority={fetchPriority}
             decoding="async"
             referrerPolicy="no-referrer"
             onError={() => setFailedSrc(artworkSrc ?? null)}

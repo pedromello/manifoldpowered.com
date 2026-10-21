@@ -59,11 +59,13 @@ test("keeps cached artwork fully visible without waiting for another load event"
     .mockReturnValue(150);
   try {
     act(() => root.render(<SelectionCarousel selections={entries(1)} />));
+    const artwork = container.querySelector("[data-selection-artwork]");
+    expect(artwork.querySelector("img:last-child").classList).toContain(
+      "object-contain",
+    );
     expect(
-      container
-        .querySelector("[data-artwork-layout]")
-        .getAttribute("data-artwork-layout"),
-    ).toBe("contained");
+      artwork.querySelector("img:last-child").getAttribute("fetchpriority"),
+    ).toBe("high");
   } finally {
     complete.mockRestore();
     width.mockRestore();
@@ -76,7 +78,11 @@ test("preserves panoramic and conventional artwork before loading, after navigat
   data[0].selection.cover_url = "https://example.com/image-a.jpg";
   data[1].selection.cover_url = "https://example.com/image-b.jpg";
   act(() => root.render(<SelectionCarousel selections={data} />));
-  const artwork = () => container.querySelector("[data-artwork-layout]");
+  const artwork = () => container.querySelector("[data-selection-artwork]");
+  const expectWholeImage = () =>
+    expect(artwork().querySelector("img:last-child").classList).toContain(
+      "object-contain",
+    );
   function loadImage(width: number, height: number) {
     const image = artwork().querySelector("img:last-child");
     Object.defineProperties(image, {
@@ -85,9 +91,9 @@ test("preserves panoramic and conventional artwork before loading, after navigat
     });
     act(() => image.dispatchEvent(new Event("load")));
   }
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   loadImage(1000, 150);
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   act(() =>
     container
       .querySelector<HTMLButtonElement>(
@@ -95,25 +101,25 @@ test("preserves panoramic and conventional artwork before loading, after navigat
       )
       .click(),
   );
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   loadImage(1600, 900);
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   const updated = data.map((entry) => ({
     ...entry,
     selection: { ...entry.selection },
   }));
   updated[1].selection.cover_url = "https://example.com/replacement.jpg";
   act(() => root.render(<SelectionCarousel selections={updated} />));
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   loadImage(800, 120);
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   const foreground = artwork().querySelector("img:last-child");
   expect(foreground.getAttribute("src")).toBe(
     "https://example.com/replacement.jpg",
   );
   act(() => foreground.dispatchEvent(new Event("error")));
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("empty");
   expect(artwork().querySelector("img")).toBeNull();
+  expect(artwork().querySelector("svg")).not.toBeNull();
   act(() =>
     container
       .querySelector<HTMLButtonElement>(
@@ -121,7 +127,7 @@ test("preserves panoramic and conventional artwork before loading, after navigat
       )
       .click(),
   );
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expectWholeImage();
   expect(artwork().querySelector("img:last-child").getAttribute("src")).toBe(
     data[0].selection.cover_url,
   );

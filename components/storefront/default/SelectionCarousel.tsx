@@ -5,6 +5,7 @@ import type { SelectionPageApi } from "lib/selection-client";
 import { useI18n } from "lib/i18n";
 import { createCarouselClock } from "lib/carousel-clock";
 import { CarouselEdges } from "components/store/CarouselEdges";
+import { GameArtwork } from "components/store/GameArtwork";
 import styles from "./SelectionCarousel.module.css";
 
 export function EditorialImage({
@@ -50,38 +51,14 @@ function SelectionArtwork({
   src?: string | null;
   eager: boolean;
 }) {
-  const [failed, setFailed] = useState<string | null>(null);
   return (
-    <div
-      className={styles.artwork}
-      data-artwork-layout={!src || failed === src ? "empty" : "contained"}
-    >
-      {src && failed !== src && (
-        <>
-          {/* Only the decorative backdrop fills the frame; the artwork stays whole. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt=""
-            aria-hidden="true"
-            loading={eager ? "eager" : "lazy"}
-            fetchPriority="low"
-            referrerPolicy="no-referrer"
-            className={styles.backdrop}
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt=""
-            loading={eager ? "eager" : "lazy"}
-            fetchPriority={eager ? "high" : "auto"}
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className={styles.heroImage}
-            onError={() => setFailed(src)}
-          />
-        </>
-      )}
+    <div className={styles.artwork} data-selection-artwork>
+      <GameArtwork
+        src={src}
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : "auto"}
+        fill
+      />
     </div>
   );
 }
