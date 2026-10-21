@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Pause, Play } from "lucide-react";
 import type { SelectionPageApi } from "lib/selection-client";
 import { useI18n } from "lib/i18n";
@@ -50,63 +50,27 @@ function SelectionArtwork({
   src?: string | null;
   eager: boolean;
 }) {
-  const [image, setImage] = useState<{
-    src: string;
-    contained: boolean;
-  } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const element = useRef<HTMLImageElement>(null);
-  const readDimensions = useCallback(
-    (image: HTMLImageElement) => {
-      if (!src || !image.naturalWidth || !image.naturalHeight) return;
-      const width = image.naturalWidth;
-      const ratio = width / image.naturalHeight;
-      const contained = ratio >= 3.2 || ratio < 1.2 || width < 900;
-      setImage((current) =>
-        current?.src === src && current.contained === contained
-          ? current
-          : { src, contained },
-      );
-    },
-    [src],
-  );
-  useEffect(() => {
-    // A cached/SSR image may finish before React attaches its load handler.
-    const image = element.current;
-    if (image?.complete) {
-      if (image.naturalWidth) readDimensions(image);
-      else if (src) setFailed(src);
-    }
-  }, [src, readDimensions]);
-  const contained = image?.src === src && image?.contained;
   return (
     <div
-      className={`${styles.artwork} ${contained ? styles.contained : ""}`}
-      data-artwork-layout={
-        !src || failed === src
-          ? "empty"
-          : image?.src !== src
-            ? "loading"
-            : contained
-              ? "contained"
-              : "cover"
-      }
+      className={styles.artwork}
+      data-artwork-layout={!src || failed === src ? "empty" : "contained"}
     >
       {src && failed !== src && (
         <>
-          {contained && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={src}
-              alt=""
-              aria-hidden="true"
-              referrerPolicy="no-referrer"
-              className={styles.backdrop}
-            />
-          )}
+          {/* Only the decorative backdrop fills the frame; the artwork stays whole. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            ref={element}
+            src={src}
+            alt=""
+            aria-hidden="true"
+            loading={eager ? "eager" : "lazy"}
+            fetchPriority="low"
+            referrerPolicy="no-referrer"
+            className={styles.backdrop}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={src}
             alt=""
             loading={eager ? "eager" : "lazy"}
@@ -114,7 +78,6 @@ function SelectionArtwork({
             decoding="async"
             referrerPolicy="no-referrer"
             className={styles.heroImage}
-            onLoad={(event) => readDimensions(event.currentTarget)}
             onError={() => setFailed(src)}
           />
         </>
