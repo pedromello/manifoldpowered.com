@@ -46,6 +46,7 @@ test("preserves the full named artwork and keeps its blurred duplicate decorativ
     src: "https://example.com/artwork.jpg",
     alt: "Game cover",
     className: "aspect-[4/3]",
+    fetchPriority: "high",
   });
   const images = tree.filter((element) => element.type === "img");
   const foreground = images.find((image) => image.props.alt === "Game cover")!;
@@ -55,6 +56,8 @@ test("preserves the full named artwork and keeps its blurred duplicate decorativ
 
   expect(images).toHaveLength(2);
   expect(foreground.props.src).toBe(background.props.src);
+  expect(foreground.props.fetchPriority).toBe("high");
+  expect(background.props.fetchPriority).toBe("low");
   expect(foreground.props.className).toContain("object-contain");
   expect(foreground.props.className).not.toMatch(/scale|blur|brightness|hover/);
   expect(background.props.alt).toBe("");
