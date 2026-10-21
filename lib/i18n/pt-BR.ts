@@ -626,6 +626,7 @@ export const ptBR: Record<string, string> = {
   Channels: "Canais",
   "Choose a Featured game": "Escolher um jogo em Destaques",
   "Discover Outlets": "Descobrir Outlets",
+  "Dismiss preview notice": "Dispensar aviso de prévia",
   "Empty Archives": "Arquivos vazios",
   "Explore {name}'s curated catalog on Manifold.":
     "Explore o catálogo selecionado por {name} no Manifold.",
