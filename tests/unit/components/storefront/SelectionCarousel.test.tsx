@@ -47,7 +47,7 @@ function entries(count = 3) {
 }
 const title = () => container.querySelector("h2")?.textContent;
 
-test("classifies artwork already loaded before hydration without waiting for another load event", () => {
+test("keeps cached artwork fully visible without waiting for another load event", () => {
   const complete = jest
     .spyOn(HTMLImageElement.prototype, "complete", "get")
     .mockReturnValue(true);
@@ -71,7 +71,7 @@ test("classifies artwork already loaded before hydration without waiting for ano
   }
 });
 
-test("preserves the complete Next Fest strip and restores cover layout for conventional artwork", () => {
+test("preserves panoramic and conventional artwork before loading, after navigation and source replacement", () => {
   const data = entries(2);
   data[0].selection.cover_url = "https://example.com/image-a.jpg";
   data[1].selection.cover_url = "https://example.com/image-b.jpg";
@@ -85,7 +85,7 @@ test("preserves the complete Next Fest strip and restores cover layout for conve
     });
     act(() => image.dispatchEvent(new Event("load")));
   }
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
   loadImage(1000, 150);
   expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
   act(() =>
@@ -95,18 +95,36 @@ test("preserves the complete Next Fest strip and restores cover layout for conve
       )
       .click(),
   );
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
   loadImage(1600, 900);
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("cover");
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
   const updated = data.map((entry) => ({
     ...entry,
     selection: { ...entry.selection },
   }));
   updated[1].selection.cover_url = "https://example.com/replacement.jpg";
   act(() => root.render(<SelectionCarousel selections={updated} />));
-  expect(artwork().getAttribute("data-artwork-layout")).toBe("loading");
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
   loadImage(800, 120);
   expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  const foreground = artwork().querySelector("img:last-child");
+  expect(foreground.getAttribute("src")).toBe(
+    "https://example.com/replacement.jpg",
+  );
+  act(() => foreground.dispatchEvent(new Event("error")));
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("empty");
+  expect(artwork().querySelector("img")).toBeNull();
+  act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="Show selection: Selection 0"]',
+      )
+      .click(),
+  );
+  expect(artwork().getAttribute("data-artwork-layout")).toBe("contained");
+  expect(artwork().querySelector("img:last-child").getAttribute("src")).toBe(
+    data[0].selection.cover_url,
+  );
 });
 
 test("edge arrows wrap both ways and restart the automatic interval", () => {
