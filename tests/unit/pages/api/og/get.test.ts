@@ -70,6 +70,50 @@ afterEach(() => {
 });
 
 describe("selection social preview privacy", () => {
+  test.each(["outlet", "selection"])(
+    "renders the YouTube-hosted Flow Games logo in the %s preview",
+    async (kind) => {
+      const data = selectionFixture();
+      data.outlet.name = "Comunidade Flow Games";
+      data.outlet.logo_url =
+        "https://yt3.googleusercontent.com/public-flow-avatar=s900-c-k-c0x00ffffff-no-rj";
+      const store = publishedStore({
+        name: data.outlet.name,
+        logo_url: data.outlet.logo_url,
+      });
+      const fetchMock = jest
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async (input) => {
+          const url = String(input);
+          if (url.includes("/selections/")) return Response.json(data);
+          if (url.endsWith("/api/v1/stores/example-outlet"))
+            return Response.json(store);
+          if (url === data.outlet.logo_url)
+            return imageResponse("image/png", PNG_BYTES);
+          return new Response(null, { status: 404 });
+        });
+      const path =
+        kind === "outlet"
+          ? "outlet/example-outlet"
+          : "selection/example-outlet/weekend-coop";
+      const response = await handler(
+        new NextRequest(`${ORIGIN}/api/og/${path}?locale=pt-BR`),
+      );
+      expect(response.status).toBe(200);
+      const markup = await response.text();
+      if (kind === "selection")
+        expect(markup).toContain('alt="Comunidade Flow Games"');
+      expect(markup).toContain("data:image/png;base64,");
+      expect(markup).not.toContain(">CF</div>");
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) => String(url) === data.outlet.logo_url,
+        ),
+      ).toBe(true);
+      for (const [, init] of fetchMock.mock.calls)
+        expect(init?.headers ?? {}).not.toHaveProperty("cookie");
+    },
+  );
   test("composes the published Outlet palette and avatar, and revalidates identity changes", async () => {
     const data = selectionFixture();
     data.outlet.name = "Comunidade Nintendo";
@@ -169,6 +213,27 @@ describe("selection social preview privacy", () => {
 });
 
 describe("OG image loading", () => {
+  test.each(["yt3.googleusercontent.com", "yt3.ggpht.com"])(
+    "loads public channel avatars from %s",
+    async (host) => {
+      jest
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+      await expect(
+        loadImageData(`https://${host}/public-avatar=s900-c-k`, ORIGIN),
+      ).resolves.toMatch(/^data:image\/png/);
+    },
+  );
+  test.each([
+    "https://yt3.googleusercontent.com.attacker.example/avatar.png",
+    "https://yt3.googleusercontent.com@127.0.0.1/avatar.png",
+    "http://yt3.googleusercontent.com/avatar.png",
+    "https://yt3.googleusercontent.com:8443/avatar.png",
+  ])("rejects unsafe avatar origins: %s", async (url) => {
+    const fetchMock = jest.spyOn(globalThis, "fetch");
+    await expect(loadImageData(url, ORIGIN)).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   test("accepts the public PNG avatar service but not its SVG or other routes", async () => {
     const fetchMock = jest
       .spyOn(globalThis, "fetch")

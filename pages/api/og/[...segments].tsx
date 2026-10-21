@@ -41,6 +41,9 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 const ALLOWED_IMAGE_HOSTS = new Set([
   "images.unsplash.com",
+  // Public YouTube channel avatars used by creator Outlets.
+  "yt3.googleusercontent.com",
+  "yt3.ggpht.com",
   "shared.fastly.steamstatic.com",
   "shared.akamai.steamstatic.com",
   "cdn.akamai.steamstatic.com",
