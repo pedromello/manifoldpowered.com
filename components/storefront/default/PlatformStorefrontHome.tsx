@@ -3,14 +3,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Pause,
   Play,
   Search,
-  X,
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
@@ -363,32 +361,6 @@ function GameCard({
   );
 }
 
-function PreviewNotice() {
-  const [visible, setVisible] = useState(true);
-  const { t } = useI18n();
-
-  if (!visible) return null;
-
-  return (
-    <div className="mb-5 flex items-start gap-3 rounded-lg border border-violet-400/20 bg-violet-400/[0.06] px-4 py-3 text-sm text-violet-100/75">
-      <Check size={17} className="mt-0.5 shrink-0 text-violet-300" />
-      <p className="flex-1 leading-5">
-        {t(
-          "Manifold is in preview. You can explore games and Outlets while we finish the purchasing experience.",
-        )}
-      </p>
-      <button
-        type="button"
-        onClick={() => setVisible(false)}
-        aria-label={t("Dismiss preview notice")}
-        className="rounded p-0.5 text-white/35 hover:bg-white/10 hover:text-white"
-      >
-        <X size={16} />
-      </button>
-    </div>
-  );
-}
-
 export function PlatformStorefrontHome({
   store,
   followControl,
@@ -429,8 +401,6 @@ export function PlatformStorefrontHome({
       <section
         className={`mx-auto px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9 ${store ? "max-w-[1500px]" : "max-w-[1280px]"}`}
       >
-        <PreviewNotice />
-
         {store?.presentation?.cover_image_url && (
           <div className="mb-6 aspect-[3/1] min-h-36 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
             {/* Presentation URLs are selected by the server's versioned read

@@ -626,7 +626,6 @@ export const ptBR: Record<string, string> = {
   Channels: "Canais",
   "Choose a Featured game": "Escolher um jogo em Destaques",
   "Discover Outlets": "Descobrir Outlets",
-  "Dismiss preview notice": "Dispensar aviso de prévia",
   "Empty Archives": "Arquivos vazios",
   "Explore {name}'s curated catalog on Manifold.":
     "Explore o catálogo selecionado por {name} no Manifold.",
@@ -650,8 +649,6 @@ export const ptBR: Record<string, string> = {
   "Just Arrived at Manifold": "Acabaram de chegar ao Manifold",
   "Manifold | One library, endless storefronts":
     "Manifold | Uma biblioteca, infinitas Outlets",
-  "Manifold is in preview. You can explore games and Outlets while we finish the purchasing experience.":
-    "O Manifold está em versão prévia. Você pode explorar jogos e Outlets enquanto finalizamos a experiência de compra.",
   "Network Status: Optimal": "Status da rede: ideal",
   "New to Manifold?": "Conhecendo o Manifold agora?",
   "Next Featured game": "Próximo jogo em Destaques",
