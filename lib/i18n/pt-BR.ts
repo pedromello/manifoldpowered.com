@@ -334,6 +334,8 @@ export const ptBR: Record<string, string> = {
   "Complete these steps to publish": "Conclua estas etapas para publicar",
   "Complete identity": "Identidade completa",
   "Cover URL": "URL da capa",
+  "Use a wide image ({ratio}), ideally {dimensions} px. Other proportions are shown in full with a soft background.":
+    "Use uma imagem panorâmica ({ratio}), de preferência com {dimensions} px. Outras proporções são exibidas por inteiro com um fundo suave.",
   Crisp: "Preciso",
   "Deep Ocean": "Oceano profundo",
   "Editorial / Curation": "Editorial / Curadoria",
