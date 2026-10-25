@@ -868,11 +868,27 @@ export function OutletCustomizationForm({
                   />
                 </Field>
                 <Field label={t("Cover URL")}>
+                  <p
+                    id="outlet-cover-guidance"
+                    className="text-xs leading-5 text-white/50"
+                  >
+                    {t(
+                      "Use a wide image ({ratio}), ideally {dimensions} px. Other proportions are shown in full with a soft background.",
+                      {
+                        ratio: layoutPreset === "editorial" ? "16:5" : "5:1",
+                        dimensions:
+                          layoutPreset === "editorial"
+                            ? "1600 × 500"
+                            : "2000 × 400",
+                      },
+                    )}
+                  </p>
                   <input
                     type="url"
                     pattern="https://.*"
                     title={t("Use an HTTPS URL.")}
                     disabled={bespoke}
+                    aria-describedby="outlet-cover-guidance"
                     value={coverUrl}
                     onChange={(event) => setCoverUrl(event.target.value)}
                     placeholder="https://example.com/cover.jpg"

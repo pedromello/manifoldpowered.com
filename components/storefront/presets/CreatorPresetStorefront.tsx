@@ -197,15 +197,11 @@ function OutletCover({
   return (
     <div className={`relative overflow-hidden bg-sf-surface ${className}`}>
       {coverUrl ? (
-        // Outlet covers share the same URL validation as logos.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <SharedGameArtwork
           src={coverUrl}
-          alt=""
-          referrerPolicy="no-referrer"
-          decoding="async"
+          fill
+          loading="eager"
           fetchPriority={panorama ? "high" : "auto"}
-          className={`absolute inset-0 h-full w-full object-cover ${panorama ? "object-[center_35%]" : "object-center"}`}
         />
       ) : (
         <div

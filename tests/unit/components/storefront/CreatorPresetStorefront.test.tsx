@@ -128,6 +128,52 @@ function props(
 }
 
 describe("CreatorPresetStorefront", () => {
+  test.each(["channel", "editorial", "community"] as const)(
+    "%s covers preserve the complete artwork over a decorative background",
+    (preset) => {
+      const input = props(preset);
+      const markup = renderToStaticMarkup(
+        <CreatorPresetStorefront {...input} />,
+      );
+      const coverImages = [...markup.matchAll(/<img\b[^>]*>/g)]
+        .map(([image]) => image)
+        .filter((image) =>
+          image.includes('src="https://example.com/cover.jpg"'),
+        );
+      const foreground = coverImages.find(
+        (image) => !image.includes('aria-hidden="true"'),
+      );
+      const background = coverImages.find((image) =>
+        image.includes('aria-hidden="true"'),
+      );
+
+      expect(coverImages).toHaveLength(2);
+      expect(foreground).toContain("object-contain");
+      expect(foreground).not.toMatch(/object-cover|scale|blur|brightness/);
+      expect(foreground).toContain('loading="eager"');
+      expect(foreground).toContain(
+        `fetchPriority="${preset === "community" ? "high" : "auto"}"`,
+      );
+      expect(background).toContain('alt=""');
+      expect(background).toContain("blur-[18px]");
+    },
+  );
+
+  test.each([null, "http://example.com/cover.jpg", "javascript:alert(1)"])(
+    "keeps the community header and its fallback when the cover is %p",
+    (cover_url) => {
+      const input = props("community");
+      input.store.cover_url = cover_url;
+      const markup = renderToStaticMarkup(
+        <CreatorPresetStorefront {...input} />,
+      );
+      const header = markup.match(/<header\b[\s\S]*?<\/header>/)?.[0];
+      expect(header).toContain(input.store.name);
+      expect(header).toContain("bg-gradient-to-br");
+      expect(header).not.toContain('src="' + cover_url + '"');
+    },
+  );
+
   test.each([
     ["NINTENDO_ONLY", "NINTENDO"],
     ["PLAYSTATION_ONLY", "PLAYSTATION"],
