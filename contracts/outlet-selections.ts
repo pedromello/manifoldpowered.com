@@ -7,6 +7,13 @@ import {
 
 export const MAX_SELECTION_GAMES = 100;
 export const MAX_SELECTION_IMAGES = 6;
+export const selectionLibraryQuerySchema = z.object({
+  q: z.string().trim().max(200).default(""),
+  order: z.enum(["newest", "oldest", "title_asc"]).default("newest"),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+});
+export type SelectionLibraryQuery = z.infer<typeof selectionLibraryQuerySchema>;
+
 export const selectionSlugSchema = z
   .string()
   .trim()

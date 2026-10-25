@@ -14,6 +14,7 @@ import {
   type SelectionUpdate,
   type SelectionSnapshot,
   type SelectionSummary,
+  type SelectionLibraryQuery,
 } from "contracts/outlet-selections";
 import {
   getCurationWhereClause,
@@ -338,25 +339,56 @@ async function summary(
   };
 }
 
-async function list(storeId: string, preview: boolean, page = 1, limit = 20) {
-  const where: Prisma.StoreSelectionWhereInput = {
-    store_id: storeId,
-    ...(preview
-      ? {}
-      : { status: "PUBLISHED", published_revision_id: { not: null } }),
-  };
+async function list(
+  storeId: string,
+  preview: boolean,
+  page = 1,
+  limit = 20,
+  options: Pick<SelectionLibraryQuery, "q" | "order"> = {
+    q: "",
+    order: "newest",
+  },
+) {
+  // Public search and ordering must never inspect mutable draft content.
+  const title = preview
+    ? Prisma.sql`c.title`
+    : Prisma.sql`r.snapshot->>'title'`;
+  const description = preview
+    ? Prisma.sql`c.description`
+    : Prisma.sql`r.snapshot->>'description'`;
+  const published = preview
+    ? Prisma.empty
+    : Prisma.sql`AND c.status = 'PUBLISHED' AND r.id IS NOT NULL`;
+  const pattern = `%${options.q.replace(/[\\%_]/g, "\\$&")}%`;
+  const search = options.q
+    ? Prisma.sql`AND (${title} ILIKE ${pattern} OR ${description} ILIKE ${pattern})`
+    : Prisma.empty;
+  const source = Prisma.sql`FROM store_selections c
+    LEFT JOIN store_selection_revisions r ON r.id = c.published_revision_id AND r.selection_id = c.id
+    WHERE c.store_id = ${storeId} ${published} ${search}`;
+  const date = preview ? Prisma.sql`c.created_at` : Prisma.sql`c.published_at`;
+  const order =
+    options.order === "title_asc"
+      ? Prisma.sql`LOWER(${title}) ASC, c.id ASC`
+      : options.order === "oldest"
+        ? Prisma.sql`${date} ASC NULLS LAST, c.id ASC`
+        : Prisma.sql`${date} DESC NULLS LAST, c.id ASC`;
   const [rows, total] = await Promise.all([
-    prisma.storeSelection.findMany({
-      where,
-      orderBy: [{ created_at: "desc" }, { id: "asc" }],
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.storeSelection.count({ where }),
+    prisma.$queryRaw<
+      StoreSelection[]
+    >`SELECT c.* ${source} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`,
+    prisma.$queryRaw<
+      Array<{ count: number }>
+    >`SELECT COUNT(*)::int AS count ${source}`,
   ]);
   return {
     rows,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    pagination: {
+      page,
+      limit,
+      total: total[0].count,
+      pages: Math.ceil(total[0].count / limit),
+    },
   };
 }
 

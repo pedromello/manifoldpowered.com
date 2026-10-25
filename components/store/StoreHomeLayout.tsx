@@ -158,6 +158,7 @@ export function StoreHomeLayout({
     if (href === "/store#outlets") {
       return (
         router.pathname === "/store/[slug]" ||
+        router.pathname.startsWith("/store/[slug]/") ||
         router.asPath.startsWith("/store#outlets")
       );
     }
