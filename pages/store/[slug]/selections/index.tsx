@@ -204,7 +204,12 @@ export default function SelectionLibrary({
           </div>
         </form>
         <p role="status" className="mb-4 text-sm text-sf-muted">
-          {t("{count} selections", { count: data.pagination.total })}
+          {t(
+            data.pagination.total === 1
+              ? "{count} selection"
+              : "{count} selections",
+            { count: data.pagination.total },
+          )}
         </p>
         {data.selections.length ? (
           <SelectionCards

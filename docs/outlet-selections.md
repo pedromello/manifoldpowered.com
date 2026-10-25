@@ -41,6 +41,17 @@ publication permissions are unchanged.
 Approved references: [editorial option A](design/outlet-editorial-a.png) and
 [selection library](design/outlet-selection-library.png).
 
+Implementation screenshots: [desktop outlet](screenshots/outlet-editorial-library/outlet-desktop.jpg),
+[desktop library](screenshots/outlet-editorial-library/library-desktop.jpg),
+[phone outlet](screenshots/outlet-editorial-library/outlet-mobile.jpg), and
+[phone library](screenshots/outlet-editorial-library/library-mobile.jpg).
+These capture the production frontend build against read-only fixtures from the
+public Nuntius catalog. The shared preview's existing outlet API returns 500,
+including on the preceding PR's preview; these images do not claim preview
+database validation. Browser checks cover search, sorting, selection navigation,
+filter-preserving return links, and mobile layouts without horizontal overflow.
+The complete CI suite exercises the real PostgreSQL API independently.
+
 ## A selection is separate from the outlet catalog
 
 An outlet can have multiple named selections, and a game can belong to more

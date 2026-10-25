@@ -8,6 +8,7 @@ export const ptBR: Record<string, string> = {
   "Search selections in this community": "Buscar seleções nesta comunidade",
   "Sort selections": "Ordenar seleções",
   "{count} selections": "{count} seleções",
+  "{count} selection": "{count} seleção",
   "No selections match your search.":
     "Nenhuma seleção corresponde à sua busca.",
   "This community has not published any selections yet.":

@@ -43,7 +43,12 @@ export function SelectionCards({
             </p>
             {libraryQuery && (
               <p className="mt-3 text-xs text-sf-muted">
-                {t("{count} games", { count: selection.game_slugs.length })}
+                {t(
+                  selection.game_slugs.length === 1
+                    ? "{count} game"
+                    : "{count} games",
+                  { count: selection.game_slugs.length },
+                )}
               </p>
             )}
             <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-violet-300">

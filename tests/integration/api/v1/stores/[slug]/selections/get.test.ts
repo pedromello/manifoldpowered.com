@@ -107,7 +107,11 @@ describe("Anonymous user", () => {
       `${webserver.getOrigin()}/en/store/${fixture.store.slug}/selections?preview=1`,
     );
     expect(denied.status).toBe(404);
-    expect(denied.headers.get("cache-control")).toContain("private");
+    // next dev replaces the SSR Cache-Control value on 404 responses. The
+    // SSR unit test separately asserts private,no-store before that override.
+    expect(denied.headers.get("cache-control")).toMatch(/no-cache|no-store/);
+    expect(denied.headers.get("cache-control")).not.toMatch(/public|s-maxage/);
+    expect(await denied.text()).not.toContain("Private unpublished keyword");
   });
 });
 describe("Authenticated owner", () => {
