@@ -22,6 +22,7 @@ import {
   selectionSocialImageUrl,
 } from "lib/selection-seo";
 import type { SelectionPageApi } from "lib/selection-client";
+import { selectionLibraryReturnPath } from "lib/selection-library";
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug, selectionSlug } = context.params ?? {};
@@ -53,15 +54,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     throw error;
   }
   if (!data) return { notFound: true };
-  return { props: { data, preview } };
+  const libraryReturnPath = selectionLibraryReturnPath(
+    slug,
+    selectionSlug,
+    context.query,
+    preview,
+  );
+  return {
+    props: { data, preview, ...(libraryReturnPath && { libraryReturnPath }) },
+  };
 };
 
 export default function SelectionPage({
   data,
   preview,
+  libraryReturnPath,
 }: {
   data: SelectionPageApi;
   preview: boolean;
+  libraryReturnPath?: string;
 }) {
   const { t, locale } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -113,11 +124,14 @@ export default function SelectionPage({
       />
       <div className="mx-auto max-w-6xl">
         <Link
-          href={`/store/${outlet.slug}${preview ? "?preview=1" : ""}`}
+          href={
+            libraryReturnPath ??
+            `/store/${outlet.slug}${preview ? "?preview=1" : ""}#outlet-selections`
+          }
           className="inline-flex min-h-11 items-center gap-2 text-sm text-white/65"
         >
           <ArrowLeft size={16} />
-          {outlet.name}
+          {libraryReturnPath ? t("View all selections") : outlet.name}
         </Link>
         {preview && (
           <p

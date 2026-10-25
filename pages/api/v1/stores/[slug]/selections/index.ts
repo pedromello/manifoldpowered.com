@@ -8,7 +8,10 @@ import {
   selectionInput,
   selectionParams,
 } from "infra/selection-controller";
-import { selectionCreateSchema } from "contracts/outlet-selections";
+import {
+  selectionCreateSchema,
+  selectionLibraryQuerySchema,
+} from "contracts/outlet-selections";
 import store from "models/store";
 import storeSelection from "models/store_selection";
 import storefrontPricing from "models/storefront_pricing";
@@ -23,8 +26,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const { slug } = selectionParams(req);
   const query = selectionInput(
-    z.object({
-      page: z.coerce.number().int().min(1).default(1),
+    selectionLibraryQuerySchema.extend({
       limit: z.coerce.number().int().min(1).max(50).default(20),
       preview: z.enum(["0", "1"]).optional(),
     }),
@@ -44,6 +46,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     preview,
     query.page,
     query.limit,
+    { q: query.q, order: query.order },
   );
   let publicEligibility: Prisma.GameWhereInput = {};
   if (!preview) {

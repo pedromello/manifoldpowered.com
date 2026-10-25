@@ -18,6 +18,29 @@ The concept image is an illustrative composition. The implementation uses
 actual catalog artwork, published outlet identity and real selections, without
 inventing testimonials, scores, follower counts or recommendations.
 
+## Outlet editorial showcase and selection library
+
+Creator presets show a compact editorial selection showcase after the outlet
+header and before featured games. The most recently published selection is the
+lead; two secondary selections use horizontal thumbnails. All artwork keeps a
+16:9 frame and preserves the complete source image. The old trailing selection
+grid remains only for bespoke or legacy storefronts, avoiding duplicate sections.
+
+“View all selections” opens `/store/{outlet}/selections` in the same tab. This
+server-rendered library reuses the selection cards and supports title/description
+search, publication-date or title sorting, and six results per page. Public
+search and ordering read published snapshots; mutable draft fields are searchable
+only in authorized previews. Query state lives in the URL, and selection detail
+links preserve the library filters, page, preview, and card anchor on return.
+The same regional eligibility continues to determine visible game counts.
+
+This change does not add series, manual selection pinning, or a new image format.
+Those remain separate editorial capabilities. Existing selection addresses and
+publication permissions are unchanged.
+
+Approved references: [editorial option A](design/outlet-editorial-a.png) and
+[selection library](design/outlet-selection-library.png).
+
 ## A selection is separate from the outlet catalog
 
 An outlet can have multiple named selections, and a game can belong to more

@@ -17,6 +17,7 @@ import {
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
 import { OutletSelections } from "components/store/SelectionCards";
+import { OutletSelectionShowcase } from "components/store/OutletSelectionShowcase";
 import type { SelectionPageApi } from "lib/selection-client";
 import type { HomeCommunity } from "lib/home-client";
 
@@ -153,6 +154,9 @@ export function Storefront({
           {...controller}
           store={store}
           followControl={followControl}
+          selectionShowcase={
+            <OutletSelectionShowcase slug={store.slug} preview={isPreview} />
+          }
         />
       ) : (
         <DefaultStorefront
@@ -164,7 +168,9 @@ export function Storefront({
           homeCommunities={homeCommunities}
         />
       )}
-      {store && <OutletSelections slug={store.slug} preview={isPreview} />}
+      {store && (custom || !outletDesign) && (
+        <OutletSelections slug={store.slug} preview={isPreview} />
+      )}
     </StorefrontShell>
   );
 }

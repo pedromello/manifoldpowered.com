@@ -1,4 +1,18 @@
 export const ptBR: Record<string, string> = {
+  "View all selections": "Ver todas as seleções",
+  "Featured selection": "Em destaque",
+  "Back to community": "Voltar à comunidade",
+  "Explore all selections from {name}.": "Explore todas as seleções de {name}.",
+  "Explore all the curations from this community.":
+    "Explore todas as curadorias desta comunidade.",
+  "Search selections in this community": "Buscar seleções nesta comunidade",
+  "Sort selections": "Ordenar seleções",
+  "{count} selections": "{count} seleções",
+  "No selections match your search.":
+    "Nenhuma seleção corresponde à sua busca.",
+  "This community has not published any selections yet.":
+    "Esta comunidade ainda não publicou seleções.",
+  "Selection pages": "Páginas de seleções",
   "Add selection": "Adicionar seleção",
   Homepage: "Página inicial",
   "Featured selections": "Seleções em destaque",

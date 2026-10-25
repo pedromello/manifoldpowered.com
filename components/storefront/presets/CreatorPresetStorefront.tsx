@@ -7,7 +7,7 @@ import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
 import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
 import { GameArtwork as SharedGameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   IconBrandBluesky,
   IconBrandDiscord,
@@ -49,6 +49,7 @@ import { useI18n } from "lib/i18n";
 
 type PresetLayoutProps = StorefrontViewProps & {
   design: ResolvedOutletDesign;
+  selectionShowcase?: ReactNode;
 };
 
 type VisualTokens = {
@@ -836,6 +837,7 @@ function ChannelLayout(props: PresetLayoutProps) {
           <SocialLinks store={store} tokens={tokens} />
         </div>
       </header>
+      {props.selectionShowcase}
       {store.layout_preset !== "community" && store.featured_video && (
         <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
           <div className="max-w-sm">
@@ -1056,6 +1058,7 @@ function EditorialLayout(props: PresetLayoutProps) {
         </div>
       )}
 
+      {props.selectionShowcase}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-8 lg:py-16">
         <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-2 md:items-center">
           <div>
@@ -1271,6 +1274,7 @@ function CommunityLayout(props: PresetLayoutProps) {
         </div>
       </header>
 
+      {props.selectionShowcase}
       <section className="mx-auto max-w-[1380px] px-4 py-12 sm:px-8 lg:py-16">
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -1366,7 +1370,9 @@ function CommunityLayout(props: PresetLayoutProps) {
  * resolver: the registry selects those before rendering this component, which
  * keeps their private theme keys isolated from owner-writable preset tokens.
  */
-export function CreatorPresetStorefront(props: StorefrontViewProps) {
+export function CreatorPresetStorefront(
+  props: StorefrontViewProps & { selectionShowcase?: ReactNode },
+) {
   const design = resolveOutletDesign(props.store);
   if (design.preset === "editorial") {
     return <EditorialLayout {...props} design={design} />;
