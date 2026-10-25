@@ -32,6 +32,10 @@ function imageResponse(contentType: string, bytes: Uint8Array): Response {
   return new Response(body, { headers: { "content-type": contentType } });
 }
 
+function logoRequest(outlet: { slug: string; logo_url: string | null }) {
+  return `${ORIGIN}/api/outlet-logo/${outlet.slug}?source=${encodeURIComponent(outlet.logo_url!)}`;
+}
+
 function publishedStore(overrides: Record<string, unknown> = {}) {
   const value = publishedStoreFromResponse({
     id: "store-1",
@@ -70,14 +74,22 @@ afterEach(() => {
 });
 
 describe("selection social preview privacy", () => {
-  test.each(["outlet", "selection"])(
-    "renders the YouTube-hosted Flow Games logo in the %s preview",
-    async (kind) => {
+  test.each(
+    ["outlet", "selection"].flatMap((kind) =>
+      [
+        "https://yt3.googleusercontent.com/public-avatar=s900-c-k",
+        "https://pbs.twimg.com/profile_images/example/avatar.png",
+        "https://community.example/logo.png",
+      ].map((logo) => [kind, logo]),
+    ),
+  )(
+    "renders the published community logo in the %s preview from %s",
+    async (kind, logo) => {
       const data = selectionFixture();
-      data.outlet.name = "Comunidade Flow Games";
-      data.outlet.logo_url =
-        "https://yt3.googleusercontent.com/public-flow-avatar=s900-c-k-c0x00ffffff-no-rj";
+      data.outlet.name = "Comunidade Exemplo";
+      data.outlet.logo_url = logo;
       const store = publishedStore({
+        slug: data.outlet.slug,
         name: data.outlet.name,
         logo_url: data.outlet.logo_url,
       });
@@ -88,7 +100,7 @@ describe("selection social preview privacy", () => {
           if (url.includes("/selections/")) return Response.json(data);
           if (url.endsWith("/api/v1/stores/example-outlet"))
             return Response.json(store);
-          if (url === data.outlet.logo_url)
+          if (url === logoRequest(data.outlet))
             return imageResponse("image/png", PNG_BYTES);
           return new Response(null, { status: 404 });
         });
@@ -102,12 +114,12 @@ describe("selection social preview privacy", () => {
       expect(response.status).toBe(200);
       const markup = await response.text();
       if (kind === "selection")
-        expect(markup).toContain('alt="Comunidade Flow Games"');
+        expect(markup).toContain('alt="Comunidade Exemplo"');
       expect(markup).toContain("data:image/png;base64,");
-      expect(markup).not.toContain(">CF</div>");
+      expect(markup).not.toContain(">CE</div>");
       expect(
         fetchMock.mock.calls.some(
-          ([url]) => String(url) === data.outlet.logo_url,
+          ([url]) => String(url) === logoRequest(data.outlet),
         ),
       ).toBe(true);
       for (const [, init] of fetchMock.mock.calls)
@@ -123,7 +135,7 @@ describe("selection social preview privacy", () => {
       .mockImplementation(async (url) => {
         if (String(url).includes("/selections/"))
           return new Response(JSON.stringify(data));
-        if (String(url) === data.outlet.logo_url)
+        if (String(url) === logoRequest(data.outlet))
           return imageResponse("image/png", PNG_BYTES);
         return new Response(null, { status: 404 });
       });
@@ -140,7 +152,7 @@ describe("selection social preview privacy", () => {
     expect(markup).not.toContain("MANIFOLD");
     expect(
       fetchMock.mock.calls.some(
-        ([url]) => String(url) === data.outlet.logo_url,
+        ([url]) => String(url) === logoRequest(data.outlet),
       ),
     ).toBe(true);
     for (const [, init] of fetchMock.mock.calls)
@@ -297,6 +309,7 @@ describe("OG image loading", () => {
   test.each([
     "/api/og/selection/reviewer/self-reference",
     "/api/og/outlet/reviewer",
+    "/api/outlet-logo/reviewer?source=https://internal.example/image.png",
     "/api/v1/stores/reviewer/selections/private?preview=1",
     "/_next/image?url=%2Fapi%2Fog%2Fselection%2Freviewer%2Fself-reference&w=1200&q=75",
     "/store/reviewer/selections/weekend",
@@ -559,7 +572,12 @@ describe("published Outlet OG presentation", () => {
           },
         }),
       ),
-    ).toEqual([{ url: "https://images.unsplash.com/logo.png" }]);
+    ).toEqual([
+      {
+        url: "/api/outlet-logo/published-outlet?source=https%3A%2F%2Fimages.unsplash.com%2Flogo.png",
+        trustedInternalAsset: true,
+      },
+    ]);
 
     // A creator cannot obtain bespoke presentation by choosing its public slug.
     expect(
@@ -572,6 +590,11 @@ describe("published Outlet OG presentation", () => {
           },
         }),
       ),
-    ).toEqual([{ url: "https://images.unsplash.com/logo.png" }]);
+    ).toEqual([
+      {
+        url: "/api/outlet-logo/strategos-void?source=https%3A%2F%2Fimages.unsplash.com%2Flogo.png",
+        trustedInternalAsset: true,
+      },
+    ]);
   });
 });

@@ -28,13 +28,13 @@ Selection banners follow public selection order; the count includes all valid pu
 
 At most six banner candidates are attempted in batches of three, keeping the first three successful images. Missing media produces a smaller composition without duplicated games. Missing avatars use initials. Text wraps within bounded boxes and uses ellipsis only after reaching the minimum font size. Supported published palettes and registered bespoke palettes determine Outlet colors.
 
-Selection panels use the published palette's accent/foreground pair, or its explicit `socialPanel` pair where the brand needs a saturated editorial surface or higher small-text contrast. No Outlet name or slug selects a color. Unknown/missing palette tokens use the default palette. Avatar loading reuses the existing bounded, allowlisted raster loader and registered identity assets; unavailable or unsupported logos fall back to Outlet initials.
+Selection panels use the published palette's accent/foreground pair, or its explicit `socialPanel` pair where the brand needs a saturated editorial surface or higher small-text contrast. No Outlet name or slug selects a color. Unknown/missing palette tokens use the default palette. Avatars load through `/api/outlet-logo/[slug]`, which only serves the matching published logo URL. Logos can use any public HTTPS host: the Node loader checks and pins DNS addresses, rejects private networks and redirects, and limits downloads to 5 MiB and 2.5 seconds. PNG, JPEG, GIF and WebP signatures are validated. Unavailable or unsupported logos fall back to Outlet initials.
 
 Anonymous catalog lookups use an explicit US region with the requested locale, so previews do not vary by crawler location. The `social_preview=1` catalog flag does not change checkout or private preview handling. Cookies and private preview flags are never forwarded by the image route.
 
 ### URLs and cache
 
-Selection and Outlet image URLs retain locale/publication version and add `design=5`. Composed images use a content-based ETag, including Outlet identity and loaded image bytes, and a 60-second shared cache without `immutable`, because catalog/media dependencies can change independently of publication. A new image URL does not force sharing apps to refresh an already cached page preview immediately.
+Selection and Outlet image URLs retain locale/publication version and add `design=7`. Composed images use a content-based ETag, including Outlet identity and loaded image bytes, and a 60-second shared cache without `immutable`, because catalog/media dependencies can change independently of publication. A new image URL does not force sharing apps to refresh an already cached page preview immediately.
 
 ### Verification
 
