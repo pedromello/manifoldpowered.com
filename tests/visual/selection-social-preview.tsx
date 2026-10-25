@@ -1,6 +1,6 @@
 /** Offline review fixtures: npx tsx tests/visual/selection-social-preview.tsx */
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { NextRequest } from "next/server";
 import sharp from "sharp";
 import handler from "pages/api/og/[...segments]";
@@ -9,8 +9,12 @@ import type { SelectionPageApi } from "lib/selection-client";
 import type { StorePalette } from "contracts/store-presentation";
 
 const origin = "https://www.manifoldpowered.com";
-const directory = "docs/seo-previews";
-const source = await readFile(`${directory}/selection-three-banners-pt-BR.png`);
+const sourceDirectory = "docs/seo-previews";
+const directory = process.argv[2] ?? sourceDirectory;
+await mkdir(directory, { recursive: true });
+const source = await readFile(
+  `${sourceDirectory}/selection-three-banners-pt-BR.png`,
+);
 // Reuse the existing review fixture's real, horizontal game banners.
 const banners = await Promise.all(
   [
@@ -24,10 +28,10 @@ const banners = await Promise.all(
       .toBuffer(),
   ),
 );
-// Representative CN tile based on the supplied screenshot, not a remote asset.
+// A synthetic community logo distinct from the initials fallback.
 const avatar = await sharp(
   Buffer.from(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="#EF3030"/><text x="64" y="83" text-anchor="middle" font-family="sans-serif" font-size="56" fill="white">CN</text></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="#6D28D9"/><path d="M64 20L108 96H20Z" fill="white"/></svg>',
   ),
 )
   .png()
@@ -37,7 +41,10 @@ let data = selectionFixture();
 globalThis.fetch = (async (input) => {
   const url = String(input);
   if (url.startsWith(`${origin}/api/v1/stores/`)) return Response.json(data);
-  if (url === data.outlet.logo_url)
+  if (
+    url ===
+    `${origin}/api/outlet-logo/${data.outlet.slug}?source=${encodeURIComponent(data.outlet.logo_url ?? "")}`
+  )
     return new Response(new Uint8Array(avatar), {
       headers: { "content-type": "image/png" },
     });
@@ -57,7 +64,7 @@ function fixture(
   value.outlet = {
     ...value.outlet,
     name: "Comunidade Nintendo",
-    logo_url: "https://images.unsplash.com/review-cn.png",
+    logo_url: "https://community.example/logo.png",
     brand_tokens: { palette, typography: "modern", shape: "soft" },
   };
   value.selection.title = "Lançamentos da semana (19/10/2026)";
@@ -95,6 +102,14 @@ async function render(value: SelectionPageApi, expectedColor: string) {
     pixel.toString("hex").toUpperCase(),
     expectedColor.replace("#", "").toUpperCase(),
   );
+  if (value.outlet.logo_url && value.games.length >= 3) {
+    const avatarPixel = await sharp(png)
+      .extract({ left: 640, top: 348, width: 1, height: 1 })
+      .removeAlpha()
+      .raw()
+      .toBuffer();
+    assert.equal(avatarPixel.toString("hex").toUpperCase(), "6D28D9");
+  }
   return png;
 }
 
@@ -140,7 +155,7 @@ async function contactSheet(
 
 async function mobileReview(primary: Buffer) {
   const before = await readFile(
-    `${directory}/selection-outlet-branded-before-mobile.png`,
+    `${sourceDirectory}/selection-outlet-branded-before-mobile.png`,
   );
   const layers: sharp.OverlayOptions[] = [];
   let top = 16;
@@ -199,7 +214,7 @@ try {
   }
   for (const [theme, color] of [
     ["neon-alley", "#22D3EE"],
-    ["strategos-void", "#e04444"],
+    ["strategos-void", "#E60013"],
   ]) {
     const value = fixture();
     value.outlet.theme_key = theme;

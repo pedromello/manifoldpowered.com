@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { isPlayStationImage } from "lib/playstation";
 import { isNintendoImage } from "lib/nintendo";
+import { hasRasterSignature, isPublicStaticImage } from "lib/raster-image";
 import type { NextRequest } from "next/server";
 
 import { type GameDetailApi, type StoreApi } from "components/store/types";
@@ -51,7 +52,7 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 
 type ImageCandidate = {
   url: string | null | undefined;
-  /** Only checked-in, root-relative assets may use the local HTTP dev origin. */
+  /** Only code-generated internal asset paths may use the local HTTP origin. */
   trustedInternalAsset?: boolean;
 };
 
@@ -140,14 +141,7 @@ function resolveImageUrl(
   // Creator-controlled same-origin URLs must resolve to public static assets,
   // never another renderer, API, page, or image proxy. This also stops a cover
   // pointing at its own OG route from recursively invoking the renderer.
-  if (
-    sameOrigin &&
-    (!/^\/(images|storefronts)\//.test(url.pathname) ||
-      url.pathname.includes("%") ||
-      url.pathname.includes("\\") ||
-      Boolean(url.search))
-  )
-    return null;
+  if (sameOrigin && !isPublicStaticImage(url)) return null;
   if (
     !sameOrigin &&
     !ALLOWED_IMAGE_HOSTS.has(url.hostname) &&
@@ -162,31 +156,6 @@ function resolveImageUrl(
   if (!sameOrigin && url.port && url.port !== "443") return null;
 
   return url;
-}
-
-function hasRasterSignature(bytes: Uint8Array, contentType: string): boolean {
-  if (contentType === "image/jpeg") {
-    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  }
-
-  if (contentType === "image/png") {
-    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-    return signature.every((byte, index) => bytes[index] === byte);
-  }
-
-  if (contentType === "image/gif") {
-    const signature = String.fromCharCode(...bytes.subarray(0, 6));
-    return signature === "GIF87a" || signature === "GIF89a";
-  }
-
-  if (contentType === "image/webp") {
-    return (
-      String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
-      String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
-    );
-  }
-
-  return false;
 }
 
 async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
@@ -329,7 +298,7 @@ export function publishedStoreFromResponse(
 }
 
 export function outletAvatarCandidates(
-  store: Pick<StoreApi, "logo_url" | "theme_key" | "presentation">,
+  store: Pick<StoreApi, "slug" | "logo_url" | "theme_key" | "presentation">,
 ): ImageCandidate[] {
   const themeKey =
     store.theme_key !== undefined
@@ -340,7 +309,14 @@ export function outletAvatarCandidates(
     : null;
 
   return [
-    { url: store.logo_url },
+    ...(store.logo_url
+      ? [
+          {
+            url: `/api/outlet-logo/${encodeURIComponent(store.slug)}?source=${encodeURIComponent(store.logo_url)}`,
+            trustedInternalAsset: true,
+          },
+        ]
+      : []),
     ...(bespokeArtwork
       ? [{ url: bespokeArtwork, trustedInternalAsset: true }]
       : []),
