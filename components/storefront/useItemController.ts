@@ -151,7 +151,8 @@ export function useItemController({
     hasJustAcquired ||
     libraryData?.is_owned ||
     libraryData?.games?.some(
-      (item: { game: { slug: string } }) => item.game.slug === gameSlug,
+      (item: { game?: { slug: string } | null }) =>
+        item.game?.slug === gameSlug,
     ) ||
     false;
 

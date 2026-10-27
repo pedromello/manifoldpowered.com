@@ -189,7 +189,7 @@ describe("affiliate game resolution", () => {
     ).toEqual([digital.id, physical.id, gift.id]);
   });
 
-  test("never falls back to a storefront or an unrelated game/platform", () => {
+  test("uses a general catalog instead of unrelated game or platform offers", () => {
     const storefront = link({ kind: "storefront", platform: null });
     const unsupportedGift = link({ platform: "xbox" });
     const unrelated = link({
@@ -200,7 +200,194 @@ describe("affiliate game resolution", () => {
     });
     expect(
       resolveAffiliateLinks([storefront, unsupportedGift, unrelated], game),
+    ).toEqual([storefront]);
+    expect(resolveAffiliateLinks([unsupportedGift, unrelated], game)).toEqual(
+      [],
+    );
+  });
+
+  test("prefers Nuuvem among general catalogs without assigning a platform", () => {
+    const general = [
+      link({
+        id: "00000000-0000-4000-8000-000000000003",
+        kind: "storefront",
+        merchant: "nuuvem",
+        platform: null,
+        url: "https://www.nuuvem.com/br-pt/catalog",
+      }),
+      link({
+        id: "00000000-0000-4000-8000-000000000002",
+        kind: "storefront",
+        merchant: "mercado_livre",
+        platform: null,
+        url: "https://mercadolivre.com/sec/example",
+      }),
+      link({ kind: "storefront", platform: null }),
+    ];
+    const resolved = resolveAffiliateLinks(general, game);
+    expect(resolved.map((entry) => entry.merchant)).toEqual([
+      "nuuvem",
+      "amazon",
+      "mercado_livre",
+    ]);
+    expect(
+      resolved.every(
+        (entry) =>
+          entry.kind === "storefront" &&
+          entry.platform === null &&
+          entry.game_id === null,
+      ),
+    ).toBe(true);
+    expect(resolved.map((entry) => entry.url)).toEqual([
+      general[0].url,
+      general[2].url,
+      general[1].url,
+    ]);
+  });
+
+  test.each(["game", "gift_card"] as const)(
+    "retains the existing merchant order for %s offers",
+    (kind) => {
+      const offers = (["nuuvem", "mercado_livre", "amazon"] as const).map(
+        (merchant, index) =>
+          link({
+            id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+            kind,
+            merchant,
+            game_id: kind === "game" ? game.id : null,
+            game_slug: kind === "game" ? game.slug : null,
+            media_type: kind === "game" ? "digital" : null,
+            url:
+              merchant === "nuuvem"
+                ? "https://www.nuuvem.com/br-pt/catalog"
+                : merchant === "mercado_livre"
+                  ? "https://mercadolivre.com/sec/example"
+                  : "https://amzn.to/example",
+          }),
+      );
+      expect(
+        resolveAffiliateLinks(offers, game).map((entry) => entry.merchant),
+      ).toEqual(["amazon", "mercado_livre", "nuuvem"]);
+      const amazonOffer = offers.find((entry) => entry.merchant === "amazon")!;
+      const nuuvemGeneral = link({
+        id: "00000000-0000-4000-8000-000000000004",
+        kind: "storefront",
+        merchant: "nuuvem",
+        platform: null,
+        url: "https://www.nuuvem.com/br-pt/catalog",
+      });
+      expect(resolveAffiliateLinks([nuuvemGeneral, amazonOffer], game)).toEqual(
+        [amazonOffer, nuuvemGeneral],
+      );
+    },
+  );
+
+  test("shows general links even when no purchase platform is recognized", () => {
+    const general = link({ kind: "storefront", platform: null });
+    const gift = link({ id: "00000000-0000-4000-8000-000000000002" });
+    expect(
+      resolveAffiliateLinks([gift, general], {
+        ...game,
+        platforms: [],
+        primary_platform: null,
+      }),
+    ).toEqual([general]);
+  });
+
+  test("specific and gift-card options suppress only their merchant's general fallback", () => {
+    const amazonGeneral = link({
+      id: "00000000-0000-4000-8000-000000000001",
+      kind: "storefront",
+      platform: null,
+    });
+    const amazonGift = link({ id: "00000000-0000-4000-8000-000000000002" });
+    const marketGeneral = link({
+      id: "00000000-0000-4000-8000-000000000003",
+      kind: "storefront",
+      merchant: "mercado_livre",
+      platform: null,
+      url: "https://mercadolivre.com/sec/example",
+    });
+    const nuuvemGeneral = link({
+      id: "00000000-0000-4000-8000-000000000004",
+      kind: "storefront",
+      merchant: "nuuvem",
+      platform: null,
+      url: "https://nuuvem.com/br-pt/catalog",
+    });
+    const nuuvemSpecific = link({
+      id: "00000000-0000-4000-8000-000000000005",
+      kind: "game",
+      merchant: "nuuvem",
+      game_id: game.id,
+      game_slug: game.slug,
+      media_type: "digital",
+      url: "https://nuuvem.com/br-pt/item/sample",
+    });
+    const resolved = resolveAffiliateLinks(
+      [marketGeneral, amazonGeneral, nuuvemGeneral, amazonGift, nuuvemSpecific],
+      game,
+    );
+    expect(resolved).toEqual([nuuvemSpecific, amazonGift, marketGeneral]);
+  });
+
+  test("returns a merchant's general catalog once across multiple supported platforms and duplicate rows", () => {
+    const general = link({ kind: "storefront", platform: null });
+    const duplicate = {
+      ...general,
+      id: "00000000-0000-4000-8000-000000000002",
+    };
+    const multiplePlatforms = {
+      ...game,
+      platforms: ["steam", "nintendo"] as const,
+    };
+    expect(
+      resolveAffiliateLinks([duplicate, general, general], multiplePlatforms),
+    ).toEqual([general]);
+    expect(
+      resolveAffiliateLinks([general, duplicate], multiplePlatforms),
+    ).toEqual([general]);
+  });
+
+  test("ignores invalid offer URLs before selecting a valid generic fallback", () => {
+    const general = link({ kind: "storefront", platform: null });
+    const invalidGift = link({
+      id: "00000000-0000-4000-8000-000000000002",
+      url: "https://attacker.example/amazon",
+    });
+    const invalidSpecific = link({
+      id: "00000000-0000-4000-8000-000000000003",
+      kind: "game",
+      game_id: game.id,
+      game_slug: game.slug,
+      media_type: "digital",
+      url: "javascript:alert(1)",
+    });
+    expect(
+      resolveAffiliateLinks([invalidGift, invalidSpecific, general], game),
+    ).toEqual([general]);
+    expect(
+      resolveAffiliateLinks(
+        [{ ...general, url: "https://attacker.example/catalog" }],
+        game,
+      ),
     ).toEqual([]);
+  });
+
+  test("a compatible gift card suppresses the general catalog once, preserving primary-platform order", () => {
+    const general = link({ kind: "storefront", platform: null });
+    const steamGift = link({ id: "00000000-0000-4000-8000-000000000002" });
+    const nintendoGift = link({
+      id: "00000000-0000-4000-8000-000000000003",
+      platform: "nintendo",
+    });
+    expect(
+      resolveAffiliateLinks([general, steamGift, nintendoGift], {
+        ...game,
+        platforms: ["steam", "nintendo"],
+        primary_platform: "nintendo",
+      }),
+    ).toEqual([nintendoGift, steamGift]);
   });
 
   test("an explicit game link is platform evidence without inferring compatibility from OS tags", () => {

@@ -144,25 +144,43 @@ export function AffiliatePurchaseOptions({
   isPreview?: boolean;
 }) {
   const { t } = useI18n();
-  const available = links.filter(
-    (link) =>
-      link.kind !== "storefront" && isAffiliateUrl(link.merchant, link.url),
+  const available = links.filter((link) =>
+    isAffiliateUrl(link.merchant, link.url),
   );
   const [primary, ...alternatives] = available;
   if (!primary) return null;
   const metadata = (link: AffiliateLink) =>
     [
-      link.kind === "gift_card"
-        ? t("Gift card")
-        : link.media_type === "physical"
-          ? t("Physical game")
-          : t("Digital game"),
-      link.platform ? AFFILIATE_PLATFORM_LABELS[link.platform] : null,
+      link.kind === "storefront"
+        ? t("Affiliate link")
+        : link.kind === "gift_card"
+          ? t("Gift card")
+          : link.media_type === "physical"
+            ? t("Physical game")
+            : t("Digital game"),
+      link.kind !== "storefront" && link.platform
+        ? AFFILIATE_PLATFORM_LABELS[link.platform]
+        : null,
       t("Brazil"),
     ]
       .filter(Boolean)
       .join(" · ");
   const hasGiftCards = available.some((link) => link.kind === "gift_card");
+  const actionLabel = (link: AffiliateLink) => {
+    if (link.merchant === "mercado_livre") {
+      return t(
+        link.kind === "gift_card"
+          ? "Buy a gift card at Mercado Livre"
+          : "Buy at Mercado Livre",
+      );
+    }
+    return t(
+      link.kind === "gift_card"
+        ? "Buy a gift card at {store}"
+        : "Buy at {store}",
+      { store: AFFILIATE_MERCHANT_LABELS[link.merchant] },
+    );
+  };
   return (
     <section
       aria-label={t("Support {name}", { name: storeName })}
@@ -190,14 +208,7 @@ export function AffiliatePurchaseOptions({
         className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 py-3 text-center text-sm font-bold text-white transition hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 motion-reduce:transition-none"
       >
         <AffiliateMerchantIcon merchant={primary.merchant} size={24} />
-        <span>
-          {t(
-            primary.kind === "gift_card"
-              ? "Buy a gift card at {store}"
-              : "Buy at {store}",
-            { store: AFFILIATE_MERCHANT_LABELS[primary.merchant] },
-          )}
-        </span>
+        <span>{actionLabel(primary)}</span>
         <ExternalLink size={15} aria-hidden="true" className="shrink-0" />
       </AffiliateDestination>
       <p className="mt-2 text-center text-xs leading-5 text-white/65">
@@ -227,7 +238,7 @@ export function AffiliatePurchaseOptions({
               <AffiliateMerchantIcon merchant={link.merchant} size={23} />
               <span className="min-w-0 flex-1 text-left">
                 <span className="block text-xs font-bold">
-                  {AFFILIATE_MERCHANT_LABELS[link.merchant]}
+                  {actionLabel(link)}
                 </span>
                 <span className="mt-0.5 block text-[11px] leading-4 text-white/60">
                   {metadata(link)}

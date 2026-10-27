@@ -4,7 +4,10 @@ import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import { pruneProductEvents } from "models/product_event_retention";
 import { reserveEventQuota } from "models/product_event_ingest";
-import { selectionProductFunnel } from "models/product_event_reports";
+import {
+  outboundProductClicks,
+  selectionProductFunnel,
+} from "models/product_event_reports";
 import { EVENT_COOKIE } from "infra/product_event_context";
 import { visitBindingKey } from "models/product_event_identity";
 import { EVENT_CONTEXT_HEADER } from "contracts/product-events";
@@ -154,6 +157,170 @@ const selectionView = () =>
   });
 
 describe("first-party product events HTTP → PostgreSQL", () => {
+  test("attributes a general-store fallback to the referring game and rejects hidden or forged destinations", async () => {
+    const browser = new Browser();
+    await browser.bootstrap();
+    const outlet = await prisma.store.findUniqueOrThrow({
+      where: { id: store.id },
+    });
+    const revision = await prisma.storeRevision.findUniqueOrThrow({
+      where: { id: outlet.published_revision_id! },
+    });
+    const general = {
+      id: randomUUID(),
+      kind: "storefront",
+      merchant: "amazon",
+      platform: null,
+      media_type: null,
+      country: "BR",
+      game_id: null,
+      game_slug: null,
+      label: null,
+      url: "https://www.amazon.com.br/shop/synthetic?tag=synthetic-20",
+    };
+    // Fixture-only snapshots exercise the public resolver; application writes publish immutable revisions.
+    await prisma.storeRevision.update({
+      where: { id: revision.id },
+      data: { affiliate_links: { version: 1, links: [general] } },
+    });
+    try {
+      const clicked = view({
+        name: "affiliate_link_clicked",
+        target: {
+          store_slug: store.slug,
+          game_slug: external.slug,
+          link_id: general.id,
+          published_revision_id: revision.id,
+        },
+        properties: {
+          locale: "en",
+          entry_surface: "game_page",
+          merchant: "amazon",
+          kind: "storefront",
+          platform: null,
+          media_type: null,
+          country: "BR",
+          placement: "purchase_primary",
+        },
+      });
+      expect((await browser.send([clicked])).status).toBe(200);
+      expect((await browser.send([clicked])).status).toBe(200);
+      const observations = await prisma.productEvent.findMany({
+        where: { name: "affiliate_link_clicked" },
+      });
+      expect(observations).toHaveLength(1);
+      expect(observations[0]).toMatchObject({
+        store_id: store.id,
+        game_id: external.id,
+      });
+      expect(observations[0].properties).toMatchObject({
+        kind: "storefront",
+        platform: null,
+        published_revision_id: revision.id,
+      });
+      const report = await outboundProductClicks({ days: 30 }, store.id);
+      expect(report.totals).toMatchObject({
+        clicks: 1,
+        affiliate: 1,
+        official: 0,
+      });
+      expect(report.games).toEqual([
+        expect.objectContaining({ game_id: external.id, affiliate: 1 }),
+      ]);
+      expect(report.destinations).toEqual([
+        expect.objectContaining({ kind: "storefront", platform: null }),
+      ]);
+
+      const forge = (properties: Record<string, unknown>) => ({
+        ...clicked,
+        id: randomUUID(),
+        properties: { ...(clicked.properties as object), ...properties },
+      });
+      expect((await browser.send([forge({ platform: "steam" })])).status).toBe(
+        400,
+      );
+      expect((await browser.send([forge({ kind: "game" })])).status).toBe(400);
+      expect(
+        (await browser.send([forge({ placement: "outlet_links" })])).status,
+      ).toBe(400);
+      expect(
+        (
+          await browser.send([
+            {
+              ...clicked,
+              id: randomUUID(),
+              target: {
+                ...(clicked.target as object),
+                published_revision_id: randomUUID(),
+              },
+            },
+          ])
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await browser.send([
+            {
+              ...clicked,
+              id: randomUUID(),
+              target: {
+                ...(clicked.target as object),
+                store_slug: privateStore.slug,
+              },
+            },
+          ])
+        ).status,
+      ).toBe(400);
+      const gift = {
+        ...general,
+        id: randomUUID(),
+        kind: "gift_card",
+        platform: "steam",
+      };
+      const specific = {
+        ...gift,
+        id: randomUUID(),
+        kind: "game",
+        game_id: external.id,
+        game_slug: external.slug,
+        media_type: "digital",
+      };
+      for (const preferred of [gift, specific]) {
+        await prisma.storeRevision.update({
+          where: { id: revision.id },
+          data: {
+            affiliate_links: { version: 1, links: [general, preferred] },
+          },
+        });
+        expect(
+          (await browser.send([{ ...clicked, id: randomUUID() }])).status,
+        ).toBe(400);
+      }
+      await prisma.storeRevision.update({
+        where: { id: revision.id },
+        data: {
+          affiliate_links: {
+            version: 1,
+            links: [{ ...general, url: "https://attacker.example/store" }],
+          },
+        },
+      });
+      expect(
+        (await browser.send([{ ...clicked, id: randomUUID() }])).status,
+      ).toBe(400);
+      expect(
+        await prisma.productEvent.count({
+          where: { name: "affiliate_link_clicked" },
+        }),
+      ).toBe(1);
+    } finally {
+      await prisma.storeRevision.update({
+        where: { id: revision.id },
+        data: { affiliate_links: revision.affiliate_links },
+      });
+    }
+  });
+
   test("validates affiliate destinations against published snapshots and deduplicates retries", async () => {
     const browser = new Browser();
     await browser.bootstrap();
