@@ -51,11 +51,19 @@ function Harness({ preview = false }: { preview?: boolean }) {
   return null;
 }
 
-function swrState(libraryError?: Error) {
+type LibraryData = {
+  is_owned?: boolean;
+  games?: { game?: { slug: string } | null }[];
+};
+
+function swrState(
+  libraryError?: Error,
+  libraryData: LibraryData = { is_owned: false },
+) {
   mockSWR.mockImplementation((url: string | null) => {
     if (url?.startsWith("/api/v1/library")) {
       return {
-        data: libraryError ? undefined : { is_owned: false },
+        data: libraryError ? undefined : libraryData,
         error: libraryError,
         mutate: mockLibraryMutate,
       };
@@ -198,4 +206,42 @@ test("a library load failure does not mark the viewer as signed out", () => {
   act(() => root.render(<Harness />));
   expect(controller.isLoggedOut).toBe(false);
   expect(controller.acquisitionError).toBe("Library unavailable");
+});
+
+describe("library ownership with unavailable game projections", () => {
+  test.each([
+    { label: "null game", games: [{ game: null }] },
+    { label: "missing game", games: [{}] },
+    { label: "undefined game", games: [{ game: undefined }] },
+    {
+      label: "unavailable and unrelated games",
+      games: [{ game: null }, {}, { game: { slug: "another-game" } }],
+    },
+  ])("$label does not crash or mark the game as owned", ({ games }) => {
+    swrState(undefined, { is_owned: false, games });
+    act(() => root.render(<Harness />));
+    expect(controller.isInLibrary).toBe(false);
+    expect(controller.isCheckingLibrary).toBe(false);
+    expect(controller.acquisitionError).toBeNull();
+  });
+
+  test("a matching owned game after unavailable entries is still recognized", () => {
+    swrState(undefined, {
+      games: [
+        { game: null },
+        {},
+        { game: { slug: "another-game" } },
+        { game: { slug: "signal-garden" } },
+      ],
+    });
+    act(() => root.render(<Harness />));
+    expect(controller.isInLibrary).toBe(true);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test("the authoritative ownership flag still recognizes an owned game", () => {
+    swrState(undefined, { is_owned: true, games: [{ game: null }] });
+    act(() => root.render(<Harness />));
+    expect(controller.isInLibrary).toBe(true);
+  });
 });
