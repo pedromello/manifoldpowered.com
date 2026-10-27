@@ -8,7 +8,7 @@ Use **Manage Outlet → Affiliates**. General links appear beside social links o
 
 Save changes to the draft, then publish the Outlet. Preview shows the draft with disabled outgoing affiliate links. Existing public links remain unchanged until publication. An outdated draft returns HTTP 409 instead of overwriting another editor.
 
-For each merchant/platform, specific game links take precedence over gift cards. Unsupported platforms and empty destinations are hidden. General links never become game purchase fallbacks. The primary button prefers a specific game link, then a gift card, with merchant ties ordered Amazon, Mercado Livre, Nuuvem. Official store prices and buttons remain separate.
+For each merchant/platform, specific game links take precedence over compatible gift cards. If a merchant has neither for the game, its general affiliate link appears once in the purchase section, including games without a recognized platform. The primary destination has a direct "Buy at" button and the remaining destinations are secondary purchase links. General links are identified as affiliate links without claiming to be a specific product, gift card or confirmed price. Invalid destinations and incompatible gift cards are hidden. The primary button prefers a specific game link, then a gift card, then a general link. Specific offers and gift cards keep merchant ties ordered Amazon, Mercado Livre, Nuuvem; general links prefer Nuuvem, Amazon, Mercado Livre. Original affiliate URLs are preserved, so a general destination can still open the merchant's catalog. Official store prices and buttons remain separate.
 
 ## API
 

@@ -176,7 +176,13 @@ export const EMPTY_AFFILIATE_SNAPSHOT = {
   links: [] as AffiliateLink[],
 };
 
-/** Specific offers win independently for each merchant/platform. OS tags are never platform evidence. */
+/**
+ * Specific offers win independently for each merchant/platform, then compatible
+ * gift cards. A merchant's general catalog is a final alternative only when
+ * that merchant has neither for this game. General links remain platformless:
+ * they are not game/gift-card offers and can appear even for an unknown platform.
+ * OS tags are never platform evidence.
+ */
 export function resolveAffiliateLinks(
   links: readonly AffiliateLink[],
   game: {
@@ -200,13 +206,14 @@ export function resolveAffiliateLinks(
   ]);
   const resolved: AffiliateLink[] = [];
   for (const merchant of AFFILIATE_MERCHANTS) {
+    const merchantLinks: AffiliateLink[] = [];
     for (const platform of platforms) {
       const offers = specific.filter(
         (link) => link.merchant === merchant && link.platform === platform,
       );
-      if (offers.length) resolved.push(...offers);
+      if (offers.length) merchantLinks.push(...offers);
       else
-        resolved.push(
+        merchantLinks.push(
           ...links.filter(
             (link) =>
               link.kind === "gift_card" &&
@@ -216,12 +223,39 @@ export function resolveAffiliateLinks(
           ),
         );
     }
+    if (merchantLinks.length === 0) {
+      const general = links
+        .filter(
+          (link) =>
+            link.kind === "storefront" &&
+            link.merchant === merchant &&
+            link.platform === null &&
+            isAffiliateUrl(link.merchant, link.url),
+        )
+        .sort((a, b) => a.id.localeCompare(b.id))[0];
+      if (general) merchantLinks.push(general);
+    }
+    resolved.push(...merchantLinks);
   }
+  const kindOrder: Record<AffiliateKind, number> = {
+    game: 0,
+    gift_card: 1,
+    storefront: 2,
+  };
+  const generalMerchantOrder: readonly AffiliateMerchant[] = [
+    "nuuvem",
+    "amazon",
+    "mercado_livre",
+  ];
+  const merchantRank = (link: AffiliateLink) =>
+    (link.kind === "storefront"
+      ? generalMerchantOrder
+      : AFFILIATE_MERCHANTS
+    ).indexOf(link.merchant);
   return resolved.sort(
     (a, b) =>
-      Number(a.kind !== "game") - Number(b.kind !== "game") ||
-      AFFILIATE_MERCHANTS.indexOf(a.merchant) -
-        AFFILIATE_MERCHANTS.indexOf(b.merchant) ||
+      kindOrder[a.kind] - kindOrder[b.kind] ||
+      merchantRank(a) - merchantRank(b) ||
       Number(a.platform !== game.primary_platform) -
         Number(b.platform !== game.primary_platform) ||
       a.id.localeCompare(b.id),

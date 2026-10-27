@@ -109,7 +109,7 @@ test("affiliate ingestion validates published link, platform and visibility afte
   ).toThrow();
 });
 
-test("general outlet clicks have no game and cannot impersonate a purchase link", () => {
+test("general links clicked on the outlet surface cannot claim a purchase placement without game context", () => {
   const general: AffiliateLink = {
     ...link,
     kind: "storefront",
@@ -138,6 +138,125 @@ test("general outlet clicks have no game and cannot impersonate a purchase link"
       published([general]),
     ),
   ).toThrow();
+});
+
+test("a published general-store fallback can retain the referring game without claiming a platform", () => {
+  const general: AffiliateLink = {
+    ...link,
+    kind: "storefront",
+    platform: null,
+  };
+  const input = clientEventSchema.parse({
+    ...affiliateClickEvent({
+      storeSlug: "outlet-one",
+      gameSlug: game.slug,
+      link: general,
+      publishedRevisionId: revision,
+      placement: "purchase_primary",
+    }),
+    id: "10000000-0000-4000-8000-000000000003",
+    schema_version: 1,
+  });
+  if (input.name !== "affiliate_link_clicked")
+    throw new Error("Unexpected event");
+  expect(input.target.game_slug).toBe(game.slug);
+  expect(input.properties).toMatchObject({
+    entry_surface: "game_page",
+    kind: "storefront",
+    platform: null,
+    media_type: null,
+  });
+  expect(validateAffiliateClick(input, published([general]), game)).toEqual(
+    general,
+  );
+  expect(
+    validateAffiliateClick(input, published([general]), {
+      ...game,
+      has_steam: false,
+      affiliate_platforms: [],
+    }),
+  ).toEqual(general);
+  expect(() =>
+    validateAffiliateClick(
+      { ...input, properties: { ...input.properties, platform: "steam" } },
+      published([general]),
+      game,
+    ),
+  ).toThrow();
+  expect(() =>
+    validateAffiliateClick(
+      { ...input, properties: { ...input.properties, kind: "game" } },
+      published([general]),
+      game,
+    ),
+  ).toThrow();
+  expect(() =>
+    validateAffiliateClick(
+      {
+        ...input,
+        properties: { ...input.properties, placement: "outlet_links" },
+      },
+      published([general]),
+      game,
+    ),
+  ).toThrow();
+  expect(() =>
+    validateAffiliateClick(input, published([general]), undefined),
+  ).toThrow();
+  expect(() =>
+    validateAffiliateClick(
+      input,
+      { ...published([general]), published_revision_id: "another-revision" },
+      game,
+    ),
+  ).toThrow();
+});
+
+test("a general-store fallback hidden by an eligible gift card or specific game cannot forge a click", () => {
+  const general: AffiliateLink = {
+    ...link,
+    id: "10000000-0000-4000-8000-000000000005",
+    kind: "storefront",
+    platform: null,
+  };
+  const input = clientEventSchema.parse({
+    ...affiliateClickEvent({
+      storeSlug: "outlet-one",
+      gameSlug: game.slug,
+      link: general,
+      publishedRevisionId: revision,
+      placement: "purchase_alternative",
+    }),
+    id: "10000000-0000-4000-8000-000000000003",
+    schema_version: 1,
+  });
+  if (input.name !== "affiliate_link_clicked")
+    throw new Error("Unexpected event");
+  expect(() =>
+    validateAffiliateClick(input, published([general, link]), game),
+  ).toThrow();
+  const specific: AffiliateLink = {
+    ...link,
+    kind: "game",
+    game_id: game.id,
+    game_slug: game.slug,
+    media_type: "digital",
+  };
+  expect(() =>
+    validateAffiliateClick(input, published([general, specific]), game),
+  ).toThrow();
+  const incompatible = { ...link, platform: "nintendo" as const };
+  expect(
+    validateAffiliateClick(input, published([general, incompatible]), game),
+  ).toEqual(general);
+  const anotherMerchant = {
+    ...link,
+    merchant: "nuuvem" as const,
+    url: "https://www.nuuvem.com/br-pt/catalog",
+  };
+  expect(
+    validateAffiliateClick(input, published([general, anotherMerchant]), game),
+  ).toEqual(general);
 });
 
 test("PlayStation availability is independent of Nintendo", () => {
