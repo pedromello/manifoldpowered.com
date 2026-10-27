@@ -98,6 +98,8 @@ export function summarizeExecution(
         "reference",
         "state",
         "batch_id",
+        "affiliate_link_id",
+        "resource_status",
       ]
         .filter(
           (key) =>
@@ -149,16 +151,18 @@ export function mergeExecutionSummary(
   next: ReturnType<typeof summarizeExecution>,
 ) {
   const resourceKey = (entry: Record<string, unknown>) =>
-    entry.provider && entry.reference
-      ? `${entry.provider}:${entry.reference}`
-      : String(
-          entry.slug
-            ? `${entry.slug}${entry.game_slug ? `/${entry.game_slug}` : ""}`
-            : (entry.id ??
-                entry.public_url ??
-                entry.operation_id ??
-                entry.batch_id),
-        );
+    entry.affiliate_link_id
+      ? `${entry.slug ?? ""}/affiliate/${entry.affiliate_link_id}`
+      : entry.provider && entry.reference
+        ? `${entry.provider}:${entry.reference}`
+        : String(
+            entry.slug
+              ? `${entry.slug}${entry.game_slug ? `/${entry.game_slug}` : ""}`
+              : (entry.id ??
+                  entry.public_url ??
+                  entry.operation_id ??
+                  entry.batch_id),
+          );
   const resources = new Map(
     (previous.resources ?? []).map((entry) => [resourceKey(entry), entry]),
   );

@@ -25,6 +25,11 @@ import {
 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { OutletCustomizationForm } from "components/store/OutletCustomizationForm";
+import {
+  OutletAffiliateWorkspace,
+  type AffiliateEditState,
+} from "components/creator/OutletAffiliateWorkspace";
+import { OutletOutboundAnalytics } from "components/creator/OutletOutboundAnalytics";
 import { CreatorOutletOverview } from "components/creator/CreatorOutletOverview";
 import { CatalogCurationWorkspace } from "components/creator/CatalogCurationWorkspace";
 import { SelectionWorkspace } from "components/creator/SelectionWorkspace";
@@ -228,6 +233,8 @@ type Tab =
   | "curation"
   | "selections"
   | "settings"
+  | "affiliates"
+  | "analytics"
   | "sales"
   | "earnings";
 
@@ -237,6 +244,8 @@ const manageTabs: [Tab, string][] = [
   ["curation", "Your games"],
   ["selections", "Selections"],
   ["settings", "Identity"],
+  ["affiliates", "Affiliates"],
+  ["analytics", "Store clicks"],
   ["sales", "Sales"],
   ["earnings", "Earnings"],
 ];
@@ -253,6 +262,10 @@ function isManageTab(value: string): value is Tab {
 
 export default function StoreManagePage() {
   const router = useRouter();
+  const [affiliateEditState, setAffiliateEditState] =
+    useState<AffiliateEditState>({ dirty: false, pending: false });
+  const [affiliateNavigationBlocked, setAffiliateNavigationBlocked] =
+    useState(false);
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
   const requestedTab =
@@ -313,6 +326,8 @@ export default function StoreManagePage() {
     if (value === "curation") return capabilities.curation;
     if (value === "selections") return canAccessDraft;
     if (value === "settings") return capabilities.identity;
+    if (value === "affiliates") return capabilities.edit;
+    if (value === "analytics") return capabilities.analytics;
     if (value === "sales") return capabilities.sales;
     if (value === "earnings") return capabilities.earnings;
     return true;
@@ -323,6 +338,9 @@ export default function StoreManagePage() {
   const tab = tabIsAvailable
     ? requestedManageTab
     : (availableTabs[0]?.[0] ?? "overview");
+  const affiliateEditorBusy =
+    tab === "affiliates" &&
+    (affiliateEditState.dirty || affiliateEditState.pending);
 
   useEffect(() => {
     const error = managementShellError ?? storeError ?? publicationError;
@@ -355,6 +373,11 @@ export default function StoreManagePage() {
   }, [availableTabs.length, managementShell, router, tab, tabIsAvailable]);
 
   function selectTab(nextTab: Tab) {
+    if (nextTab !== tab && affiliateEditorBusy) {
+      setAffiliateNavigationBlocked(true);
+      return false;
+    }
+    setAffiliateNavigationBlocked(false);
     void router.replace(
       {
         pathname: router.pathname,
@@ -363,6 +386,7 @@ export default function StoreManagePage() {
       undefined,
       { shallow: true, scroll: false },
     );
+    return true;
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: Tab) {
@@ -381,8 +405,8 @@ export default function StoreManagePage() {
     if (nextIndex === null) return;
     event.preventDefault();
     const nextTab = tabs[nextIndex];
-    selectTab(nextTab);
-    document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
+    if (selectTab(nextTab))
+      document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
   }
 
   const {
@@ -486,6 +510,12 @@ export default function StoreManagePage() {
               href={`/store/${storeData.slug}${
                 storeData.status === "PUBLISHED" ? "" : "?preview=1"
               }`}
+              onClick={(event) => {
+                if (affiliateEditorBusy) {
+                  event.preventDefault();
+                  setAffiliateNavigationBlocked(true);
+                }
+              }}
               className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
             >
               {t("View my Outlet")}
@@ -497,8 +527,21 @@ export default function StoreManagePage() {
         {tab === "overview" && storeData ? (
           <CreatorOverviewPanel store={storeData} />
         ) : canAccessDraft && storeData ? (
-          <LifecyclePanel store={storeData} />
+          <LifecyclePanel store={storeData} editorBusy={affiliateEditorBusy} />
         ) : null}
+
+        {affiliateNavigationBlocked && affiliateEditorBusy && (
+          <p
+            role="alert"
+            className="rounded-xl border border-amber-300/25 bg-amber-300/5 p-4 text-sm text-amber-100"
+          >
+            {t(
+              affiliateEditState.pending
+                ? "Wait for the current action to finish before leaving this section."
+                : "Save or cancel your changes before switching sections or publishing.",
+            )}
+          </p>
+        )}
 
         {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
             Four tabs do not fit a 390px viewport: without this the row pushes
@@ -564,6 +607,16 @@ export default function StoreManagePage() {
               />
             ))}
           {tab === "settings" && storeData && <SettingsTab store={storeData} />}
+          {tab === "affiliates" && (
+            <OutletAffiliateWorkspace
+              storeSlug={shellStore.slug}
+              canPublish={capabilities.publish}
+              onEditStateChange={setAffiliateEditState}
+            />
+          )}
+          {tab === "analytics" && (
+            <OutletOutboundAnalytics storeSlug={shellStore.slug} />
+          )}
           {tab === "sales" && <SalesTab storeSlug={shellStore.slug} />}
           {tab === "earnings" && <EarningsTab storeSlug={shellStore.slug} />}
         </div>
@@ -754,7 +807,13 @@ function currentConflictRevision(body: unknown): number | null {
   return typeof revision === "number" ? revision : null;
 }
 
-function LifecyclePanel({ store }: { store: StoreApi }) {
+function LifecyclePanel({
+  store,
+  editorBusy = false,
+}: {
+  store: StoreApi;
+  editorBusy?: boolean;
+}) {
   const { t, locale, translateError } = useI18n();
   const { mutate: mutateGlobal } = useSWRConfig();
   const endpoint = publicationEndpoint(store.slug);
@@ -789,6 +848,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
     typeof data?.published_revision?.source_draft_revision === "number" &&
     data.draft_revision > data.published_revision.source_draft_revision;
   const canPublish =
+    !editorBusy &&
     data?.capabilities.publish === true &&
     (!isPublished || hasPendingChanges) &&
     readinessVersionIsValid &&
@@ -796,7 +856,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
     revisionIsValid;
 
   async function transition(action: "publish" | "unpublish") {
-    if (!data || pendingAction) return;
+    if (!data || pendingAction || editorBusy) return;
     if (
       (action === "publish" && !data.capabilities.publish) ||
       (action === "unpublish" && !data.capabilities.unpublish)
@@ -1067,7 +1127,9 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
               <button
                 type="button"
                 onClick={() => void transition("unpublish")}
-                disabled={pendingAction !== null || !revisionIsValid}
+                disabled={
+                  pendingAction !== null || !revisionIsValid || editorBusy
+                }
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-400/10 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-rose-200 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {pendingAction === "unpublish" ? (

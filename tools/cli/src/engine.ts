@@ -40,6 +40,7 @@ import {
   mergeExecutionSummary,
 } from "./journal";
 import { curatorAction, completeOutletChange } from "./curation";
+import { affiliateAction } from "./affiliate-commands";
 import type { probeImage } from "./image-probe";
 
 export type Options = {
@@ -502,6 +503,9 @@ export async function execute(
       },
     );
   }
+  const affiliated = await affiliateAction(name, payload, api);
+  if (affiliated)
+    return result(affiliated.data, { next_action: affiliated.next_action });
   const curated = await curatorAction(name, payload, api, deps.imageProbe);
   if (curated)
     return result(curated.data, {

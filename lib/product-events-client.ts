@@ -6,6 +6,7 @@ import {
   EVENT_BATCH_SIZE,
   EVENT_CONTEXT_HEADER,
 } from "contracts/product-event-constants";
+import type { AffiliateLink } from "contracts/outlet-affiliates";
 
 type Pending = {
   event: ClientProductEvent;
@@ -35,7 +36,7 @@ export function createProductEventsClient(runtime: Runtime) {
     if (timer) runtime.cancel(timer);
     timer = runtime.schedule(() => {
       timer = undefined;
-      void flush();
+      void flush().catch(() => undefined);
     }, ms);
   }
   function reset() {
@@ -96,7 +97,7 @@ export function createProductEventsClient(runtime: Runtime) {
       generation,
       attempt: 0,
     });
-    if (queue.length >= EVENT_BATCH_SIZE) void flush();
+    if (queue.length >= EVENT_BATCH_SIZE) void flush().catch(() => undefined);
     else schedule();
     return true;
   }
@@ -191,13 +192,14 @@ export function productEventsClient() {
       now: Date.now,
       uuid: () => crypto.randomUUID(),
       schedule: (cb, ms) => setTimeout(cb, ms),
-      cancel: clearTimeout,
+      cancel: (timer) => window.clearTimeout(timer),
     });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") void singleton?.flush();
+      if (document.visibilityState === "hidden")
+        void singleton?.flush().catch(() => undefined);
     });
     window.addEventListener("pagehide", () => {
-      void singleton?.flush();
+      void singleton?.flush().catch(() => undefined);
     });
     window.addEventListener("storage", (event) => {
       if (event.key === "manifold:event-context-reset") singleton?.reset();
@@ -220,6 +222,46 @@ export function acceptProductEventContext(response: Response) {
   if (value) productEventsClient()?.recognize(value);
 }
 export function trackExternalStore(input: ClientEventInput) {
-  const client = productEventsClient();
-  if (client?.capture(input)) void client.flush();
+  try {
+    const client = productEventsClient();
+    if (client?.capture(input)) void client.flush().catch(() => undefined);
+  } catch {
+    // Instrumentation must never prevent an external navigation.
+  }
+}
+
+export function affiliateClickEvent(input: {
+  storeSlug: string;
+  gameSlug?: string;
+  link: AffiliateLink;
+  publishedRevisionId: string;
+  placement: "outlet_links" | "purchase_primary" | "purchase_alternative";
+  locale?: "en" | "pt-BR";
+}): ClientEventInput {
+  return {
+    name: "affiliate_link_clicked",
+    target: {
+      store_slug: input.storeSlug,
+      ...(input.gameSlug ? { game_slug: input.gameSlug } : {}),
+      link_id: input.link.id,
+      published_revision_id: input.publishedRevisionId,
+    },
+    properties: {
+      locale: input.locale ?? "en",
+      entry_surface: input.gameSlug ? "game_page" : "outlet_page",
+      merchant: input.link.merchant,
+      kind: input.link.kind,
+      platform: input.link.platform,
+      media_type: input.link.media_type,
+      country: input.link.country,
+      placement: input.placement,
+    },
+  };
+}
+
+export function trackAffiliateLink(
+  input: Parameters<typeof affiliateClickEvent>[0] & { isPreview?: boolean },
+) {
+  if (input.isPreview || !input.publishedRevisionId) return;
+  trackExternalStore(affiliateClickEvent(input));
 }

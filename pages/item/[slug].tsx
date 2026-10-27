@@ -1,4 +1,5 @@
 import { GetServerSideProps } from "next";
+import type { AffiliateLink } from "contracts/outlet-affiliates";
 import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 
 import webserver from "infra/webserver";
@@ -34,6 +35,8 @@ type ItemPageProps = {
   /** Original attribution candidate, kept separate from public Store display. */
   requestedStoreSlug: string | null;
   outletReview: GameDetailApi["outlet_review"];
+  affiliateLinks: AffiliateLink[];
+  affiliateRevisionId: string | null;
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -75,6 +78,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     // degrade to an unattributed page rather than 404 a game that exists.
     let store: StoreApi | null = null;
     let outletReview: GameDetailApi["outlet_review"] = null;
+    let affiliateLinks: AffiliateLink[] = [];
+    let affiliateRevisionId: string | null = null;
     if (storeSlug) {
       try {
         const storeUrl = new URL(
@@ -95,6 +100,28 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
             const payload = await reviewResponse.json();
             outletReview = payload.review ?? null;
           }
+          try {
+            const affiliateUrl = new URL(
+              `/api/v1/stores/${encodeURIComponent(storeSlug)}/affiliate-links`,
+              webserver.getOrigin(),
+            );
+            affiliateUrl.searchParams.set("game_slug", slug);
+            if (isPreview) affiliateUrl.searchParams.set("preview", "1");
+            const response = await fetch(affiliateUrl, { headers });
+            if (response.ok) {
+              const payload = await response.json();
+              if (
+                !store.published_revision?.id ||
+                isPreview ||
+                payload.published_revision_id === store.published_revision.id
+              ) {
+                affiliateLinks = payload.links ?? [];
+                affiliateRevisionId = payload.published_revision_id ?? null;
+              }
+            }
+          } catch {
+            // Purchase destinations are optional; preserve the official offer.
+          }
         } else if (isPreview) {
           return { notFound: true };
         }
@@ -111,6 +138,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         isPreview,
         requestedStoreSlug: storeSlug ?? null,
         outletReview,
+        affiliateLinks,
+        affiliateRevisionId,
       },
     };
   } catch (error) {
@@ -125,6 +154,8 @@ export default function GameDetailsPage({
   isPreview,
   requestedStoreSlug,
   outletReview,
+  affiliateLinks,
+  affiliateRevisionId,
 }: ItemPageProps) {
   const { locale } = useI18n();
   const metadata = gameMetadata(game, locale);
@@ -184,6 +215,8 @@ export default function GameDetailsPage({
         game={game}
         store={viewStore}
         outletReview={outletReview}
+        affiliateLinks={affiliateLinks}
+        affiliateRevisionId={affiliateRevisionId}
       />
     </StorefrontShell>
   );

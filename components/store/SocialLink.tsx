@@ -4,10 +4,14 @@ export function SocialLink({
   icon: Icon,
   href,
   label,
+  onClick,
+  onAuxClick,
 }: {
   icon: React.ComponentType<LucideProps>;
   href?: string;
   label: string;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+  onAuxClick?: React.MouseEventHandler<HTMLAnchorElement>;
 }) {
   if (!href) return null;
   return (
@@ -15,6 +19,8 @@ export function SocialLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={onClick}
+      onAuxClick={onAuxClick}
       className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 group"
       title={label}
     >

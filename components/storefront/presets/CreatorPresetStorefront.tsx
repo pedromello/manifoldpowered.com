@@ -1,4 +1,5 @@
 import { FeaturedVideo } from "components/store/FeaturedVideo";
+import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
 import Form from "next/form";
 import { GamePriceBlock } from "components/store/GamePriceBlock";
 import { OutletPromotions } from "components/storefront/OutletPromotions";
@@ -834,7 +835,10 @@ function ChannelLayout(props: PresetLayoutProps) {
             {store.description ||
               t("Browse games from {name}.", { name: store.name })}
           </p>
-          <SocialLinks store={store} tokens={tokens} />
+          <div>
+            <SocialLinks store={store} tokens={tokens} />
+            <OutletAffiliateLinks store={store} isPreview={props.isPreview} />
+          </div>
         </div>
       </header>
       {props.selectionShowcase}
@@ -1039,6 +1043,11 @@ function EditorialLayout(props: PresetLayoutProps) {
             {followControl}
             <SocialLinks store={store} tokens={tokens} align="center" />
           </div>
+          <OutletAffiliateLinks
+            store={store}
+            isPreview={props.isPreview}
+            align="center"
+          />
         </div>
       </header>
       {store.layout_preset !== "community" && store.featured_video && (
@@ -1262,6 +1271,7 @@ function CommunityLayout(props: PresetLayoutProps) {
             </div>
             <div className="min-w-0 empty:hidden sm:col-start-2 lg:col-span-2">
               <SocialLinks store={store} tokens={tokens} masthead />
+              <OutletAffiliateLinks store={store} isPreview={props.isPreview} />
             </div>
           </div>
           {store.featured_video && (

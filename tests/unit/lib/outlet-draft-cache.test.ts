@@ -13,6 +13,8 @@ describe("Outlet draft cache revalidation", () => {
       "/api/v1/stores/lantern-club",
       "/api/v1/stores/lantern-club?preview=1",
       "/api/v1/stores/lantern-club/publication",
+      "/api/v1/stores/lantern-club/affiliate-links?draft=1",
+      ["/api/v1/stores/lantern-club/publication", "publication-raw"],
     ]);
     expect(mutate.mock.calls.map(([key]) => key)).toEqual(
       outletDraftCacheKeys("lantern-club"),
@@ -30,6 +32,6 @@ describe("Outlet draft cache revalidation", () => {
     await expect(
       revalidateOutletDraftCaches(mutate, "lantern-club"),
     ).resolves.toBeUndefined();
-    expect(mutate).toHaveBeenCalledTimes(3);
+    expect(mutate).toHaveBeenCalledTimes(5);
   });
 });

@@ -399,6 +399,59 @@ availability check, not a visual-quality judgment. Without the flag, images
 are explicitly reported as not checked. Blocking issues return exit `1` with
 the completed report; warnings remain exit `0`.
 
+## Affiliate links
+
+Affiliate commands use the same account permissions, explicit mutation context,
+and immutable profile binding as other outlet commands. They edit the draft;
+publication remains a separate `outlets publish` action using the current revision.
+
+```sh
+manifold schema outlets affiliates add --json
+manifold outlets affiliates list --profile curator-coop --slug my-outlet --json
+manifold outlets affiliates public --env prod --slug my-outlet --json
+manifold outlets affiliates public --env prod --slug my-outlet --game-slug portal --json
+manifold outlets affiliates add --profile curator-coop --input affiliate.json --json
+manifold outlets affiliates update --profile curator-coop --input affiliate-update.json --json
+manifold outlets affiliates remove --profile curator-coop --slug my-outlet \
+  --id 11111111-1111-4111-8111-111111111111 --revision 8 --json
+```
+
+`affiliate.json` uses the API's nested input:
+
+```json
+{
+  "slug": "my-outlet",
+  "expected_draft_revision": 7,
+  "link": {
+    "kind": "storefront",
+    "merchant": "amazon",
+    "url": "https://www.amazon.com.br/?tag=synthetic-example-20"
+  }
+}
+```
+
+The synthetic URL above is only a format example; use your program-generated link.
+`kind` accepts `storefront`, `gift_card`, or `game`. Gift cards require `platform`;
+game links additionally require `game_slug` and `media_type` (`physical` or `digital`).
+Platforms are `steam`, `nintendo`, `playstation`, and `xbox`; region is Brazil (`BR`).
+`merchant` accepts `amazon`, `mercado_livre`, and `nuuvem`. `label` is optional.
+The shared server contract validates official affiliate formats without rewriting
+tracking parameters. An update includes the existing UUID as `link.id`; add rejects
+supplied IDs. `--link` also accepts this nested object as JSON, alongside `--slug`
+and `--revision`.
+
+`list` reads the authenticated draft with its exact `draft_revision`. `public` sends
+no account cookie and reads only the published snapshot: general links by default,
+or the resolved purchase alternatives when `--game-slug` is supplied.
+
+Writes return the accepted revision, `mutation_outcome: applied`, a resource status,
+and the stable `affiliate_link_id` when verified. A failed follow-up read retains
+that accepted receipt and suggests only `outlets affiliates list`. A timeout,
+indeterminate API response, 5xx, or 412 preserves `mutation_outcome: unknown`;
+consult `list` and the execution journal before deciding whether another write is
+needed. Commands never retry the mutation automatically. Journals retain resource
+IDs and revisions, omitting URLs, labels, input content, and session credentials.
+
 ## Execution records and recovery
 
 Resource mutations return an `execution_id`. Their local journals retain

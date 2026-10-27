@@ -19,6 +19,7 @@ import {
   type StorePresentation,
 } from "models/store_presentation";
 import { isBespokeThemeKey } from "storefronts/bespoke";
+import { getDraftAffiliateSnapshot } from "models/store_affiliate";
 import { z } from "zod";
 import {
   outletRatingSchema,
@@ -88,6 +89,7 @@ type StoreRevisionClient = Pick<
   | "storeGameOverride"
   | "storeFeaturedGame"
   | "storeGameEditorial"
+  | "storeGameAffiliateLink"
   | "storeRevision"
   | "storeRevisionGameRating"
   | "game"
@@ -429,6 +431,10 @@ export async function createStoreRevision({
     _max: { revision: true },
   });
   const revision = (latest._max.revision ?? 0) + 1;
+  const affiliateLinks = await getDraftAffiliateSnapshot(
+    draft.store.id,
+    client,
+  );
 
   const createdRevision = await client.storeRevision.create({
     data: {
@@ -445,6 +451,7 @@ export async function createStoreRevision({
       game_overrides: draft.catalog.game_overrides as Prisma.InputJsonValue,
       featured_games: draft.featured_games as Prisma.InputJsonValue,
       game_editorials: draft.game_editorials as Prisma.InputJsonValue,
+      affiliate_links: affiliateLinks as Prisma.InputJsonValue,
       presentation: draft.presentation as Prisma.InputJsonValue,
     },
   });

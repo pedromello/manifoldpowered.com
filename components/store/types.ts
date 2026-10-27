@@ -130,6 +130,8 @@ export type StorePresentation = StorePresentationSnapshot;
  * admin branch and must never reach a storefront.
  */
 export type StoreApi = {
+  affiliate_links?: import("contracts/outlet-affiliates").AffiliateLink[];
+  affiliate_revision_id?: string | null;
   featured_video?: FeaturedVideo | null;
   id: string;
   slug: string;
@@ -202,6 +204,12 @@ export function storeContextFromApi(store: StoreApi) {
     id: store.id,
     slug: store.slug,
     name: store.name,
+    ...(store.affiliate_links
+      ? { affiliate_links: store.affiliate_links }
+      : {}),
+    ...(store.affiliate_revision_id !== undefined
+      ? { affiliate_revision_id: store.affiliate_revision_id }
+      : {}),
     rating_scale: store.rating_scale ?? null,
     description: store.description,
     logo_url: store.logo_url,

@@ -13,6 +13,11 @@ import {
   type ClientProductEvent,
 } from "contracts/product-events";
 import { visitWasBound } from "models/product_event_identity";
+import {
+  affiliateSnapshotSchema,
+  resolveAffiliateLinks,
+  type AffiliatePlatform,
+} from "contracts/outlet-affiliates";
 
 export async function reserveEventQuota(
   req: NextApiRequest,
@@ -71,7 +76,12 @@ function invalid() {
     action: "Use the current public event contract",
   });
 }
-type StoreTarget = { id: string; slug: string };
+type StoreTarget = {
+  id: string;
+  slug: string;
+  published_revision_id: string;
+  affiliate_links: unknown;
+};
 type SelectionTarget = {
   id: string;
   store_slug: string;
@@ -84,7 +94,66 @@ type GameTarget = {
   slug: string;
   has_steam: boolean;
   has_nintendo: boolean;
+  has_playstation: boolean;
+  has_xbox?: boolean;
+  affiliate_platforms?: AffiliatePlatform[];
 };
+
+export function officialStoreAvailable(
+  provider: "steam" | "nintendo" | "playstation",
+  game?: Pick<GameTarget, "has_steam" | "has_nintendo" | "has_playstation">,
+) {
+  return Boolean(
+    {
+      steam: game?.has_steam,
+      nintendo: game?.has_nintendo,
+      playstation: game?.has_playstation,
+    }[provider],
+  );
+}
+
+/** Resolve destinations from public data, never from a URL supplied in telemetry. */
+export function validateAffiliateClick(
+  event: Extract<ClientProductEvent, { name: "affiliate_link_clicked" }>,
+  store: Pick<StoreTarget, "published_revision_id" | "affiliate_links">,
+  game?: GameTarget,
+) {
+  if (store.published_revision_id !== event.target.published_revision_id)
+    throw invalid();
+  const snapshot = affiliateSnapshotSchema.safeParse(store.affiliate_links);
+  if (!snapshot.success) throw invalid();
+  const platforms: AffiliatePlatform[] = [];
+  if (game?.has_steam) platforms.push("steam");
+  if (game?.has_nintendo) platforms.push("nintendo");
+  if (game?.has_playstation) platforms.push("playstation");
+  if (game?.has_xbox) platforms.push("xbox");
+  const candidates = game
+    ? resolveAffiliateLinks(snapshot.data.links, {
+        id: game.id,
+        slug: game.slug,
+        // Affiliate gift cards are BR-only; official click availability can span regions.
+        platforms: game.affiliate_platforms ?? platforms,
+      })
+    : snapshot.data.links.filter((link) => link.kind === "storefront");
+  const link = candidates.find(
+    (candidate) => candidate.id === event.target.link_id,
+  );
+  if (
+    !link ||
+    event.properties.merchant !== link.merchant ||
+    event.properties.kind !== link.kind ||
+    event.properties.platform !== link.platform ||
+    event.properties.media_type !== link.media_type ||
+    event.properties.country !== link.country ||
+    (game
+      ? event.properties.placement === "outlet_links" ||
+        event.properties.entry_surface !== "game_page"
+      : event.properties.placement !== "outlet_links" ||
+        event.properties.entry_surface !== "outlet_page")
+  )
+    throw invalid();
+  return link;
+}
 
 export async function ingestProductEvents(
   req: NextApiRequest,
@@ -130,7 +199,9 @@ export async function ingestProductEvents(
   const games = [
     ...new Set(
       events.flatMap((e) =>
-        "game_slug" in e.target ? [e.target.game_slug] : [],
+        "game_slug" in e.target && e.target.game_slug
+          ? [e.target.game_slug]
+          : [],
       ),
     ),
   ];
@@ -138,7 +209,7 @@ export async function ingestProductEvents(
   const [storeRows, gameRows, selectionRows] = await Promise.all([
     stores.length
       ? prisma.$queryRaw<StoreTarget[]>`
-      SELECT s.id, s.slug FROM stores s
+      SELECT s.id, s.slug, s.published_revision_id, r.affiliate_links FROM stores s
       JOIN store_revisions r ON r.id = s.published_revision_id AND r.store_id = s.id
       WHERE s.status = 'PUBLISHED' AND s.slug IN (${Prisma.join(stores)})
     `
@@ -146,8 +217,21 @@ export async function ingestProductEvents(
     games.length
       ? prisma.$queryRaw<GameTarget[]>`
       SELECT g.id, g.slug,
-        (jsonb_typeof(g.social_links->'steam_page') = 'string' AND length(g.social_links->>'steam_page') > 0) AS has_steam,
-        EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'nintendo') AS has_nintendo
+        ((g.steam_app_id IS NOT NULL) OR (jsonb_typeof(g.social_links->'steam_page') = 'string' AND length(g.social_links->>'steam_page') > 0)
+          OR EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'steam')) AS has_steam,
+        ((g.nintendo_nsuid IS NOT NULL) OR EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'nintendo')) AS has_nintendo,
+        ((g.playstation_product_id IS NOT NULL) OR EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'playstation')) AS has_playstation,
+        EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'xbox') AS has_xbox,
+        array_remove(ARRAY[
+          CASE WHEN g.steam_app_id IS NOT NULL OR
+            (jsonb_typeof(g.social_links->'steam_page') = 'string' AND length(btrim(g.social_links->>'steam_page')) > 0) OR
+            EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'steam' AND o.country = 'BR') THEN 'steam' END,
+          CASE WHEN g.nintendo_nsuid IS NOT NULL OR
+            EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'nintendo' AND o.country = 'BR') THEN 'nintendo' END,
+          CASE WHEN g.playstation_product_id IS NOT NULL OR
+            EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'playstation' AND o.country = 'BR') THEN 'playstation' END,
+          CASE WHEN EXISTS(SELECT 1 FROM game_external_offers o WHERE o.game_id = g.id AND lower(o.provider) = 'xbox' AND o.country = 'BR') THEN 'xbox' END
+        ], NULL) AS affiliate_platforms
       FROM games g WHERE g.status IN ('ACTIVE', 'ONLY_DISPLAY') AND g.slug IN (${Prisma.join(games)})
     `
       : [],
@@ -181,10 +265,12 @@ export async function ingestProductEvents(
         ? storeMap.get(target.store_slug)
         : undefined;
     const game =
-      "game_slug" in target ? gameMap.get(target.game_slug) : undefined;
+      "game_slug" in target && target.game_slug
+        ? gameMap.get(target.game_slug)
+        : undefined;
     if (
       ("store_slug" in target && target.store_slug && !store) ||
-      ("game_slug" in target && !game)
+      ("game_slug" in target && target.game_slug && !game)
     )
       throw invalid();
     const selection =
@@ -200,11 +286,13 @@ export async function ingestProductEvents(
       throw invalid();
     if (
       event.name === "external_store_clicked" &&
-      !(event.properties.provider === "steam"
-        ? game?.has_steam
-        : game?.has_nintendo)
+      !officialStoreAvailable(event.properties.provider, game)
     )
       throw invalid();
+    if (event.name === "affiliate_link_clicked") {
+      if (!store) throw invalid();
+      validateAffiliateClick(event, store, game);
+    }
     return {
       event_key: "client:" + event.id,
       name: event.name,
@@ -223,6 +311,15 @@ export async function ingestProductEvents(
       selection_id: selection?.id,
       properties: {
         ...event.properties,
+        ...(event.name === "external_store_clicked"
+          ? { placement: event.properties.placement ?? "legacy" }
+          : {}),
+        ...(event.name === "affiliate_link_clicked"
+          ? {
+              link_id: event.target.link_id,
+              published_revision_id: event.target.published_revision_id,
+            }
+          : {}),
         ...(selection
           ? {
               published_revision_id: selection.revision_id,

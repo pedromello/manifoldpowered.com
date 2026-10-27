@@ -100,6 +100,20 @@ describe("PlatformStorefrontHome", () => {
           tagline: "Jogos escolhidos ao vivo.",
           cover_url: null,
           social_links: {},
+          affiliate_links: [
+            {
+              id: "2e989738-6f24-4aa7-a16b-4ee3e8661bd6",
+              kind: "storefront",
+              merchant: "amazon",
+              platform: null,
+              media_type: null,
+              country: "BR",
+              game_id: null,
+              game_slug: null,
+              url: "https://www.amazon.com.br/?tag=synthetic-20",
+              label: null,
+            },
+          ],
           brand_tokens: {
             palette: "manifold",
             typography: "modern",
@@ -110,6 +124,10 @@ describe("PlatformStorefrontHome", () => {
     );
 
     expect(markup).toContain("Outlet Teste 1");
+    expect(markup).toContain("Affiliate links");
+    expect(markup).toContain(
+      'href="https://www.amazon.com.br/?tag=synthetic-20"',
+    );
     expect(markup).toContain("Curadoria feita para esta comunidade.");
     expect(markup).toContain("Featured in Outlet Teste 1");
     expect(markup).toContain("A trusted editorial pick.");

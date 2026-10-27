@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
 import { SelectionCarousel } from "components/storefront/default/SelectionCarousel";
 import { DiscountBadge } from "components/store/DiscountBadge";
 import { GameArtwork } from "components/store/GameArtwork";
@@ -363,6 +364,7 @@ function GameCard({
 
 export function PlatformStorefrontHome({
   store,
+  isPreview,
   followControl,
   featured,
   isFeaturedLoading,
@@ -457,6 +459,12 @@ export function PlatformStorefrontHome({
 
           {store ? <div className="shrink-0">{followControl}</div> : null}
         </div>
+
+        {store && (
+          <div className="mb-6">
+            <OutletAffiliateLinks store={store} isPreview={isPreview} />
+          </div>
+        )}
 
         {!store && editorialSelections.length > 0 ? (
           <SelectionCarousel selections={editorialSelections} />

@@ -147,6 +147,7 @@ export const MEMBER_PERMISSIONS = [
   "manage:store_featured_games",
   "manage:store_members",
   "read:store_statement",
+  "read:store_analytics",
   "read:payout_account",
   "manage:payout_account",
 ];
