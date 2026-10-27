@@ -99,6 +99,34 @@ function previewSubmission(markup: string) {
 describe.each([["Neon Alley", NeonAlleyStorefront]] as const)(
   "%s bespoke search",
   (_name, Storefront) => {
+    test.each([false, true])(
+      "keeps affiliate links available in the bespoke theme (preview=%s)",
+      (isPreview) => {
+        const input = props();
+        input.isPreview = isPreview;
+        input.store.affiliate_links = [
+          {
+            id: "2e989738-6f24-4aa7-a16b-4ee3e8661bd6",
+            kind: "storefront",
+            merchant: "nuuvem",
+            platform: null,
+            media_type: null,
+            country: "BR",
+            game_id: null,
+            game_slug: null,
+            url: "https://www.nuuvem.com/br-pt/",
+            label: null,
+          },
+        ];
+        const markup = renderToStaticMarkup(<Storefront {...input} />);
+        expect(markup).toContain("Affiliate links");
+        expect(markup).toContain("Nuuvem");
+        expect(markup.includes('href="https://www.nuuvem.com/br-pt/"')).toBe(
+          !isPreview,
+        );
+      },
+    );
+
     test("submits exactly one preview field and preserves preview=1", () => {
       const markup = renderToStaticMarkup(<Storefront {...props()} />);
       const submission = previewSubmission(markup);

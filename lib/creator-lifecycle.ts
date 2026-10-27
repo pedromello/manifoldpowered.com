@@ -87,6 +87,7 @@ export interface OutletPublicationContract {
     featured: boolean;
     sales: boolean;
     earnings: boolean;
+    analytics?: boolean;
     edit: boolean;
     publish: boolean;
     unpublish: boolean;
@@ -416,6 +417,7 @@ export function normalizeOutletPublication(
       featured: rawCapabilities?.featured === true,
       sales: rawCapabilities?.sales === true,
       earnings: rawCapabilities?.earnings === true,
+      analytics: rawCapabilities?.analytics === true,
       edit: rawCapabilities?.edit === true,
       publish: rawCapabilities?.publish === true,
       unpublish: rawCapabilities?.unpublish === true,

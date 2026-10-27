@@ -73,6 +73,7 @@ export interface StoreManagementCapabilities {
   featured: boolean;
   sales: boolean;
   earnings: boolean;
+  analytics: boolean;
   edit: boolean;
   publish: boolean;
   unpublish: boolean;
@@ -173,6 +174,8 @@ const AVAILABLE_FEATURES = [
   // because the outlet is the payee — see the comment on the statement endpoint.
   "read:store_statement",
   "read:store_statement:any",
+  "read:store_analytics",
+  "read:store_analytics:any",
   // Where an outlet's money goes. Read has an admin escape hatch for support;
   // the write side deliberately does not — see the note above the can() branch.
   "read:payout_account",
@@ -263,6 +266,7 @@ const ACTIVATED_USER_FEATURES = [
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",
+  "read:store_analytics",
   "manage:payout_account",
   "read:own_sale",
   "create:studio",
@@ -299,6 +303,7 @@ const ADMIN_ONLY_FEATURES = [
   "update:supplier_terms:any",
   "read:store_statement:any",
   "read:studio_sale:any",
+  "read:store_analytics:any",
   "read:platform_ledger:any",
   "read:payout_account:any",
   "update:payout_account:status:any",
@@ -425,7 +430,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       feature === "publish:store" ||
       feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
-      feature === "read:store_statement") &&
+      feature === "read:store_statement" ||
+      feature === "read:store_analytics") &&
     resource
   ) {
     authorized = false;
@@ -436,6 +442,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       "update:store": "update:store:any",
       "manage:store_members": "manage:store_members:any",
       "read:store_statement": "read:store_statement:any",
+      "read:store_analytics": "read:store_analytics:any",
     }[feature] as string | undefined;
 
     const isOwner = user.id === storeResource.owner_id;
@@ -569,6 +576,7 @@ function storeManagementCapabilities(
     // it here would silently broaden who can inspect per-sale information.
     sales: canEdit,
     earnings: can(user, "read:store_statement", resource),
+    analytics: can(user, "read:store_analytics", resource),
     edit: canEdit,
     publish: canPublish,
     unpublish: canPublish,

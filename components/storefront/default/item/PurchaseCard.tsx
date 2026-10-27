@@ -27,10 +27,15 @@ import { NintendoRefreshButton } from "components/store/NintendoRefreshButton";
 import { ExternalGameRefreshButton } from "components/store/ExternalGameRefreshButton";
 import { extractSteamAppId } from "lib/steam";
 import { trackExternalStore } from "lib/product-events-client";
+import type { AffiliateLink } from "contracts/outlet-affiliates";
+import { AffiliatePurchaseOptions } from "components/store/OutletAffiliateLinks";
 
 export function PurchaseCard({
   game,
   storeSlug,
+  storeName,
+  affiliateLinks,
+  affiliateRevisionId,
   isFreeGame,
   isInLibrary,
   isCheckingLibrary,
@@ -42,6 +47,9 @@ export function PurchaseCard({
 }: {
   game: GameDetailApi;
   storeSlug?: string;
+  storeName?: string;
+  affiliateLinks?: AffiliateLink[];
+  affiliateRevisionId?: string | null;
   isFreeGame: boolean;
   isInLibrary: boolean;
   isCheckingLibrary: boolean;
@@ -82,6 +90,26 @@ export function PurchaseCard({
     (!isPreview && game.social_links.steam_page),
   );
 
+  const trackOfficial = (
+    provider: "steam" | "nintendo" | "playstation",
+    placement: "purchase_card" | "social_store_link",
+  ) => {
+    if (isPreview) return;
+    trackExternalStore({
+      name: "external_store_clicked",
+      target: {
+        game_slug: game.slug,
+        ...(storeSlug ? { store_slug: storeSlug } : {}),
+      },
+      properties: { locale, entry_surface: "game_page", provider, placement },
+    });
+  };
+  const externalProvider = isNintendo
+    ? "nintendo"
+    : isPlayStation
+      ? "playstation"
+      : "steam";
+
   return (
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
       <div className="flex flex-col gap-6">
@@ -90,6 +118,17 @@ export function PurchaseCard({
             <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">
               {game.title}
             </h2>
+            {!isPlatformPurchase && externalUrl && (
+              <p className="text-xs font-semibold text-white/55">
+                {t("Price on {store}", {
+                  store: isNintendo
+                    ? "Nintendo eShop"
+                    : isPlayStation
+                      ? "PlayStation Store"
+                      : "Steam",
+                })}
+              </p>
+            )}
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col">
                 {!free && basePrice && (
@@ -169,24 +208,11 @@ export function PurchaseCard({
         {!isPreview && externalUrl && (
           <a
             href={externalUrl}
-            onClick={() =>
-              trackExternalStore({
-                name: "external_store_clicked",
-                target: {
-                  game_slug: game.slug,
-                  ...(storeSlug ? { store_slug: storeSlug } : {}),
-                },
-                properties: {
-                  locale,
-                  entry_surface: "game_page",
-                  provider: isNintendo
-                    ? "nintendo"
-                    : isPlayStation
-                      ? "playstation"
-                      : "steam",
-                },
-              })
-            }
+            onClick={() => trackOfficial(externalProvider, "purchase_card")}
+            onAuxClick={(event) => {
+              if (event.button === 1)
+                trackOfficial(externalProvider, "purchase_card");
+            }}
             target="_blank"
             rel="noopener noreferrer"
             className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
@@ -210,6 +236,17 @@ export function PurchaseCard({
               className="opacity-60 transition-opacity group-hover:opacity-100"
             />
           </a>
+        )}
+
+        {storeSlug && storeName && (
+          <AffiliatePurchaseOptions
+            links={affiliateLinks}
+            storeSlug={storeSlug}
+            storeName={storeName}
+            gameSlug={game.slug}
+            publishedRevisionId={affiliateRevisionId}
+            isPreview={isPreview}
+          />
         )}
 
         {!isPreview && (
@@ -362,6 +399,11 @@ export function PurchaseCard({
                   icon={IconBrandSteam}
                   href={game.social_links.steam_page}
                   label="Steam"
+                  onClick={() => trackOfficial("steam", "social_store_link")}
+                  onAuxClick={(event) => {
+                    if (event.button === 1)
+                      trackOfficial("steam", "social_store_link");
+                  }}
                 />
               )}
               <SocialLink

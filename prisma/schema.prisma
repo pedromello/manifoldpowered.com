@@ -397,6 +397,7 @@ model ProductEvent {
   @@index([name, occurred_at])
   @@index([user_id, occurred_at])
   @@index([visit_id, occurred_at])
+  @@index([store_id, occurred_at])
   @@index([received_at])
   @@map("product_events")
 }
@@ -679,6 +680,7 @@ model Store {
   featured_video_id String? @db.VarChar(11)
   featured_video_start_seconds Int @default(0)
   social_links  Json    @default("{}")
+  affiliate_settings Json @default("{\"version\":1,\"links\":[]}")
   brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
@@ -718,6 +720,7 @@ model StoreRevision {
   game_overrides        Json
   featured_games        Json
   game_editorials       Json                     @default("[]")
+  affiliate_links       Json                     @default("{\"version\":1,\"links\":[]}")
   rating_scale          OutletRatingScale?
   presentation          Json
   // No updated_at: a published snapshot is immutable.
@@ -726,6 +729,24 @@ model StoreRevision {
   @@unique([store_id, revision])
   @@index([store_id, created_at])
   @@map("store_revisions")
+}
+
+model StoreGameAffiliateLink {
+  id         String   @id @default(uuid())
+  store_id   String
+  game_id    String
+  merchant   String   @db.VarChar(20)
+  platform   String   @db.VarChar(20)
+  media_type String   @db.VarChar(10)
+  country    String   @default("BR") @db.VarChar(2)
+  url        String   @db.VarChar(4096)
+  label      String?  @db.VarChar(120)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([store_id, game_id, merchant, platform, media_type, country], map: "store_game_affiliate_link_target_key")
+  @@index([store_id])
+  @@map("store_game_affiliate_links")
 }
 
 model StoreSelection {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { curatorCommands } from "./curator-commands";
 import { selectionCommands } from "./selection-commands";
+import { affiliateCommands } from "./affiliate-commands";
 import {
   userSchema,
   requestOtpSchema,
@@ -37,6 +38,7 @@ export type Command = {
 };
 export const commands: Record<string, Command> = {
   ...selectionCommands,
+  ...affiliateCommands,
   ...curatorCommands,
   "profiles create": {
     schema: z
@@ -331,6 +333,8 @@ export const payloadOptions = Object.fromEntries(
     "rating",
     "mapping",
     "execution-id",
+    "id",
+    "link",
   ].map((key) => [key, { type: "string" as const }]),
 );
 export const parseOptions = {

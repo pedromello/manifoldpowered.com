@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import {
   ArrowLeft,
   ArrowLeftRight,
+  BarChart3,
   Banknote,
   Building2,
   Coins,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
   { href: "/backoffice/home", label: "Homepage", icon: Store },
   { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
+  { href: "/backoffice/analytics", label: "Store clicks", icon: BarChart3 },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
   {
     href: "/backoffice/ownership-claims",

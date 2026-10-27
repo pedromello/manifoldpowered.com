@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  AFFILIATE_KINDS,
+  AFFILIATE_MERCHANTS,
+  AFFILIATE_PLATFORMS,
+} from "./outlet-affiliates";
 
 import { EVENT_BATCH_SIZE } from "./product-event-constants";
 export {
@@ -77,7 +82,40 @@ export const clientEventSchema = z.discriminatedUnion("name", [
         .object({ game_slug: slug, store_slug: slug.optional() })
         .strict(),
       properties: commonProperties
-        .extend({ provider: z.enum(["steam", "nintendo", "playstation"]) })
+        .extend({
+          provider: z.enum(["steam", "nintendo", "playstation"]),
+          placement: z
+            .enum(["purchase_card", "social_store_link", "legacy"])
+            .optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      ...base,
+      name: z.literal("affiliate_link_clicked"),
+      target: z
+        .object({
+          store_slug: slug,
+          game_slug: slug.optional(),
+          link_id: z.uuid(),
+          published_revision_id: z.uuid(),
+        })
+        .strict(),
+      properties: commonProperties
+        .extend({
+          merchant: z.enum(AFFILIATE_MERCHANTS),
+          kind: z.enum(AFFILIATE_KINDS),
+          platform: z.enum(AFFILIATE_PLATFORMS).nullable(),
+          media_type: z.enum(["physical", "digital"]).nullable(),
+          country: z.literal("BR"),
+          placement: z.enum([
+            "outlet_links",
+            "purchase_primary",
+            "purchase_alternative",
+          ]),
+        })
         .strict(),
     })
     .strict(),

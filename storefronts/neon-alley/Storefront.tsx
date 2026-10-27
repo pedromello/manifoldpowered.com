@@ -1,6 +1,7 @@
 import Form from "next/form";
 import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
 import { Pagination } from "components/Pagination";
 import Link from "next/link";
 
@@ -97,6 +98,7 @@ function Tile({
 
 export function NeonAlleyStorefront({
   store,
+  isPreview,
   followControl,
   featured,
   games,
@@ -157,6 +159,7 @@ export function NeonAlleyStorefront({
               {store.presentation?.tagline || store.description}
             </p>
           )}
+          <OutletAffiliateLinks store={store} isPreview={isPreview} />
         </div>
       </section>
 

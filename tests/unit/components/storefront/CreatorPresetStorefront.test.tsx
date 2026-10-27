@@ -129,6 +129,43 @@ function props(
 
 describe("CreatorPresetStorefront", () => {
   test.each(["channel", "editorial", "community"] as const)(
+    "%s exposes configured affiliate links even without social links, and disables them in preview",
+    (preset) => {
+      const input = props(preset);
+      input.store.social_links = {};
+      input.store.affiliate_links = [
+        {
+          id: "2e989738-6f24-4aa7-a16b-4ee3e8661bd6",
+          kind: "storefront",
+          merchant: "amazon",
+          platform: null,
+          media_type: null,
+          country: "BR",
+          game_id: null,
+          game_slug: null,
+          url: "https://www.amazon.com.br/?tag=synthetic-20",
+          label: null,
+        },
+      ];
+      input.store.affiliate_revision_id = "published-revision";
+      const publicMarkup = renderToStaticMarkup(
+        <CreatorPresetStorefront {...input} />,
+      );
+      expect(publicMarkup).toContain('data-storefront="affiliate-links"');
+      expect(publicMarkup).toContain(
+        'href="https://www.amazon.com.br/?tag=synthetic-20"',
+      );
+      expect(publicMarkup).toContain('rel="sponsored noopener noreferrer"');
+      const previewMarkup = renderToStaticMarkup(
+        <CreatorPresetStorefront {...input} isPreview />,
+      );
+      expect(previewMarkup).toContain("Affiliate links");
+      expect(previewMarkup).not.toContain('href="https://www.amazon.com.br/');
+      expect(previewMarkup).toContain('disabled=""');
+    },
+  );
+
+  test.each(["channel", "editorial", "community"] as const)(
     "%s covers preserve the complete artwork over a decorative background",
     (preset) => {
       const input = props(preset);

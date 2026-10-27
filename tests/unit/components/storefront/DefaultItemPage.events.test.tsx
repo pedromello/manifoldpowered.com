@@ -15,6 +15,7 @@ jest.mock("next/router", () => ({
 }));
 jest.mock("lib/product-events-client", () => ({
   trackExternalStore: jest.fn(),
+  trackAffiliateLink: jest.fn(),
 }));
 jest.mock("components/storefront/default/item/GameHero", () => ({
   GameHero: () => null,
@@ -148,7 +149,12 @@ test.each(["steam", "nintendo"] as const)(
           game_slug: "signal-garden",
           ...(outlet ? { store_slug: outlet.slug } : {}),
         },
-        properties: { locale: "en", entry_surface: "game_page", provider },
+        properties: {
+          locale: "en",
+          entry_surface: "game_page",
+          provider,
+          placement: "purchase_card",
+        },
       });
     }
   },
@@ -212,3 +218,35 @@ test.each(["steam", "nintendo"] as const)(
     expect(trackExternalStore).not.toHaveBeenCalled();
   },
 );
+
+test("the duplicated Steam link records its placement, including middle clicks, without counting right clicks", async () => {
+  await act(async () =>
+    root.render(<DefaultItemPage {...props("steam")} store={store} />),
+  );
+  const links = [
+    ...document.querySelectorAll<HTMLAnchorElement>(
+      'a[href="https://store.steampowered.com/app/123"]',
+    ),
+  ];
+  expect(links).toHaveLength(2);
+  await act(async () =>
+    links[1].dispatchEvent(
+      new MouseEvent("auxclick", { bubbles: true, button: 1 }),
+    ),
+  );
+  expect(trackExternalStore).toHaveBeenCalledTimes(1);
+  expect(trackExternalStore).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      properties: expect.objectContaining({
+        provider: "steam",
+        placement: "social_store_link",
+      }),
+    }),
+  );
+  await act(async () =>
+    links[0].dispatchEvent(
+      new MouseEvent("auxclick", { bubbles: true, button: 2 }),
+    ),
+  );
+  expect(trackExternalStore).toHaveBeenCalledTimes(1);
+});

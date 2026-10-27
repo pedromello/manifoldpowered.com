@@ -47,6 +47,7 @@ describe("GET /api/v1/stores/[slug]/publication", () => {
         featured: true,
         sales: true,
         earnings: true,
+        analytics: true,
         edit: true,
         publish: true,
         unpublish: true,

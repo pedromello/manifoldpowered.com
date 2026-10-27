@@ -23,6 +23,8 @@ import { useI18n } from "lib/i18n";
 export function DefaultItemPage({
   game,
   store,
+  affiliateLinks,
+  affiliateRevisionId,
   outletReview,
   isInLibrary,
   isCheckingLibrary,
@@ -75,6 +77,9 @@ export function DefaultItemPage({
             <PurchaseCard
               game={game}
               storeSlug={store?.slug}
+              storeName={store?.name}
+              affiliateLinks={affiliateLinks}
+              affiliateRevisionId={affiliateRevisionId}
               isFreeGame={isFreeGame}
               isInLibrary={isInLibrary}
               isCheckingLibrary={isCheckingLibrary}

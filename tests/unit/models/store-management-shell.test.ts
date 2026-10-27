@@ -8,6 +8,7 @@ describe("managementShellOutput", () => {
       featured: false,
       sales: false,
       earnings: true,
+      analytics: false,
       edit: false,
       publish: false,
       unpublish: false,

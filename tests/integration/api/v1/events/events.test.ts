@@ -154,6 +154,139 @@ const selectionView = () =>
   });
 
 describe("first-party product events HTTP → PostgreSQL", () => {
+  test("validates affiliate destinations against published snapshots and deduplicates retries", async () => {
+    const browser = new Browser();
+    await browser.bootstrap();
+    const outlet = await prisma.store.findUniqueOrThrow({
+      where: { id: store.id },
+    });
+    const revision = await prisma.storeRevision.findUniqueOrThrow({
+      where: { id: outlet.published_revision_id! },
+    });
+    const linkId = randomUUID();
+    const publishedLink = {
+      id: linkId,
+      kind: "gift_card",
+      merchant: "amazon",
+      platform: "steam",
+      media_type: null,
+      country: "BR",
+      game_id: null,
+      game_slug: null,
+      label: null,
+      url: "https://www.amazon.com.br/dp/example?tag=synthetic-20",
+    };
+    // Fixture-only snapshot setup: application writes go through publication.
+    await prisma.storeRevision.update({
+      where: { id: revision.id },
+      data: { affiliate_links: { version: 1, links: [publishedLink] } },
+    });
+    try {
+      const clicked = view({
+        name: "affiliate_link_clicked",
+        target: {
+          store_slug: store.slug,
+          game_slug: external.slug,
+          link_id: linkId,
+          published_revision_id: revision.id,
+        },
+        properties: {
+          locale: "en",
+          entry_surface: "game_page",
+          merchant: "amazon",
+          kind: "gift_card",
+          platform: "steam",
+          media_type: null,
+          country: "BR",
+          placement: "purchase_primary",
+        },
+      });
+      expect((await browser.send([clicked])).status).toBe(200);
+      expect((await browser.send([clicked])).status).toBe(200);
+      const persisted = await prisma.productEvent.findMany({
+        where: { name: "affiliate_link_clicked" },
+      });
+      expect(persisted).toHaveLength(1);
+      expect(persisted[0]).toMatchObject({
+        store_id: store.id,
+        game_id: external.id,
+      });
+      expect(JSON.stringify(persisted[0].properties)).not.toContain("https://");
+      expect(JSON.stringify(persisted[0].properties)).not.toContain(
+        "synthetic-20",
+      );
+      const forged = {
+        ...clicked,
+        id: randomUUID(),
+        target: { ...(clicked.target as object), link_id: randomUUID() },
+      };
+      expect((await browser.send([forged])).status).toBe(400);
+      expect(
+        (
+          await browser.send([
+            {
+              ...clicked,
+              id: randomUUID(),
+              target: {
+                ...(clicked.target as object),
+                store_slug: privateStore.slug,
+              },
+            },
+          ])
+        ).status,
+      ).toBe(400);
+    } finally {
+      await prisma.storeRevision.update({
+        where: { id: revision.id },
+        data: { affiliate_links: revision.affiliate_links },
+      });
+    }
+  });
+
+  test("accepts PlayStation clicks independently of Nintendo availability", async () => {
+    const browser = new Browser();
+    await browser.bootstrap();
+    const offer = await prisma.gameExternalOffer.create({
+      data: {
+        game_id: game.id,
+        provider: "playstation",
+        country: "BR",
+        currency: "BRL",
+        captured_at: new Date(),
+        url: "https://store.playstation.com/pt-br/product/example",
+      },
+    });
+    try {
+      const clicked = view({
+        name: "external_store_clicked",
+        target: { game_slug: game.slug },
+        properties: {
+          locale: "en",
+          entry_surface: "game_page",
+          provider: "playstation",
+          placement: "purchase_card",
+        },
+      });
+      expect((await browser.send([clicked])).status).toBe(200);
+      expect(
+        (
+          await browser.send([
+            {
+              ...clicked,
+              id: randomUUID(),
+              properties: {
+                ...(clicked.properties as object),
+                provider: "nintendo",
+              },
+            },
+          ])
+        ).status,
+      ).toBe(400);
+    } finally {
+      await prisma.gameExternalOffer.delete({ where: { id: offer.id } });
+    }
+  });
+
   test("bootstraps without events, stores a visible observation and preserves a retry", async () => {
     const browser = new Browser();
     const boot = await browser.bootstrap();

@@ -84,6 +84,7 @@ describe("GET /api/v1/user", () => {
           "manage:store_members",
           "read:store_statement",
           "read:payout_account",
+          "read:store_analytics",
           "manage:payout_account",
           "read:own_sale",
           "create:studio",

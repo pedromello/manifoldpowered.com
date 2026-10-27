@@ -76,6 +76,7 @@ function flagValue(key: string, value: string | boolean): unknown {
       "brand_tokens",
       "rating",
       "mapping",
+      "link",
     ].includes(key)
   ) {
     try {
