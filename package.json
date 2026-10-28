@@ -15,6 +15,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "cli": "tsx tools/cli/src/index.ts",
+    "cli:build": "node tools/cli/build.mjs",
+    "cli:test": "tsx --test tools/cli/tests/*.test.ts",
+    "cli:test:e2e": "node tools/cli/tests/local-e2e.mjs",
+    "cli:typecheck": "tsc -p tools/cli/tsconfig.json --noEmit",
+    "dev:nintendo": "cross-env POSTGRES_DB=nintendo_creator_demo MANIFOLD_DEV_COUNTRY=BR MANIFOLD_PREVIEW_ORIGIN=http://127.0.0.1:3001 NEXT_DIST_DIR=output/next-nintendo-demo next dev --webpack --hostname 127.0.0.1 --port 3001",
     "dev": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && next dev",
     "test": "npm run services:up && npm run services:wait:database && npm run prisma:generate && npm run migrate:dev && concurrently -n next,jest -k -s command-jest \"next dev\" \"jest --runInBand\"",
     "posttest": "npm run services:down",
@@ -47,6 +53,7 @@
     "commit": "cz"
   },
   "dependencies": {
+    "@napi-rs/keyring": "2.1.1",
     "@aws-sdk/client-s3": "3.1038.0",
     "@aws-sdk/s3-request-presigner": "3.1038.0",
     "@prisma/adapter-pg": "7.7.0",
@@ -77,6 +84,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@faker-js/faker": "10.4.0",
@@ -94,6 +102,7 @@
     "eslint-config-next": "16.2.3",
     "husky": "9.1.7",
     "jest": "30.3.0",
+    "jest-environment-jsdom": "30.3.0",
     "npm-check-updates": "20.0.0",
     "prettier": "3.8.1",
     "prisma": "7.7.0",

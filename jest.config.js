@@ -23,6 +23,7 @@ const createConfig = async () => {
       ...(nextConfig.testPathIgnorePatterns || []),
       "<rootDir>/.claude/",
       "<rootDir>/.codex/",
+      "<rootDir>/tools/cli/tests/",
     ],
     transformIgnorePatterns: [
       "/node_modules/(?!(@prisma|uuid|@faker-js/faker|@aws-sdk|@smithy)/)",

@@ -167,6 +167,7 @@ async function create({
       }
       if (
         game.nintendo_nsuid ||
+        game.playstation_product_id ||
         game.status !== "ONLY_DISPLAY" ||
         game.studio_id !== null
       ) {
@@ -383,6 +384,7 @@ async function decide({
           status: "ONLY_DISPLAY",
           studio_id: null,
           nintendo_nsuid: null,
+          playstation_product_id: null,
         },
         data: { studio_id: claim.studio_id },
       });

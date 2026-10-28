@@ -125,7 +125,7 @@ async function call(
   const result = {
     status: 0,
     body: undefined as unknown,
-    headers: {} as Record<string, string>,
+    headers: {} as Record<string, string | string[]>,
   };
   const res = {
     status: (value: number) => {
@@ -136,10 +136,11 @@ async function call(
       result.body = JSON.parse(JSON.stringify(value));
       return res;
     },
-    setHeader: (key: string, value: string) => {
-      result.headers[key] = value;
+    setHeader: (key: string, value: string | string[]) => {
+      result.headers[key.toLowerCase()] = value;
       return res;
     },
+    getHeader: (key: string) => result.headers[key.toLowerCase()],
   } as unknown as NextApiResponse;
   await handler(req, res);
   return result;
@@ -195,7 +196,7 @@ test("purchase, signed webhook, delivery, library and explicit disclosure compos
   });
   for (const response of [listing, detail, mutation]) {
     expect(response.status).toBe(200);
-    expect(response.headers["Cache-Control"]).toBe("no-store");
+    expect(response.headers["cache-control"]).toBe("no-store");
     expect(JSON.stringify(response.body)).not.toContain("gift_card_code");
     expect(JSON.stringify(response.body)).not.toContain(
       "SIMULATED-NOT-REDEEMABLE",
@@ -214,7 +215,7 @@ test("purchase, signed webhook, delivery, library and explicit disclosure compos
   ).toBe(400);
   const reveal = await call(revealHandler, { id, body: { confirm: true } });
   expect(reveal.status).toBe(200);
-  expect(reveal.headers["Cache-Control"]).toBe("no-store");
+  expect(reveal.headers["cache-control"]).toBe("no-store");
   expect(reveal.body).toMatchObject({
     gift_card_code: expect.stringContaining("SIMULATED-NOT-REDEEMABLE"),
     first_revealed_at: expect.any(String),

@@ -1,22 +1,32 @@
 import { ImageResponse } from "next/og";
+import { isPlayStationImage } from "lib/playstation";
 import { isNintendoImage } from "lib/nintendo";
+import { hasRasterSignature, isPublicStaticImage } from "lib/raster-image";
 import type { NextRequest } from "next/server";
 
-import {
-  storeContextFromApi,
-  type GameDetailApi,
-  type StoreApi,
-} from "components/store/types";
+import { type GameDetailApi, type StoreApi } from "components/store/types";
 import type { AppLocale } from "lib/locale";
 import {
   cleanMetadataText,
   gameMetadata,
   homeMetadata,
-  outletMetadata,
   SOCIAL_IMAGE_HEIGHT,
   SOCIAL_IMAGE_WIDTH,
 } from "lib/seo";
 import { BESPOKE_OG_ARTWORK, isBespokeThemeKey } from "storefronts/bespoke";
+import type { SelectionPageApi } from "lib/selection-client";
+import { selectionSlugSchema } from "contracts/outlet-selections";
+import {
+  SelectionPreviewCard,
+  OutletPreviewCard,
+} from "components/social/PreviewCards";
+import {
+  composedPreviewHeaders,
+  loadPreviewBanners,
+  previewGames,
+  publishedFeaturedGames,
+  type PreviewGame,
+} from "lib/social-preview";
 
 export const config = { runtime: "edge" };
 
@@ -24,8 +34,6 @@ const IMAGE_TIMEOUT_MS = 2500;
 const MAX_REMOTE_IMAGE_BYTES = 5 * 1024 * 1024;
 const SHARED_CACHE_CONTROL =
   "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
-const VERSIONED_CACHE_CONTROL =
-  "public, max-age=31536000, s-maxage=31536000, immutable";
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -34,6 +42,9 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 const ALLOWED_IMAGE_HOSTS = new Set([
   "images.unsplash.com",
+  // Public YouTube channel avatars used by creator Outlets.
+  "yt3.googleusercontent.com",
+  "yt3.ggpht.com",
   "shared.fastly.steamstatic.com",
   "shared.akamai.steamstatic.com",
   "cdn.akamai.steamstatic.com",
@@ -41,7 +52,7 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 
 type ImageCandidate = {
   url: string | null | undefined;
-  /** Only checked-in, root-relative assets may use the local HTTP dev origin. */
+  /** Only code-generated internal asset paths may use the local HTTP origin. */
   trustedInternalAsset?: boolean;
 };
 
@@ -127,40 +138,24 @@ function resolveImageUrl(
   if (url.protocol !== "https:") return null;
 
   const sameOrigin = url.origin === origin;
+  // Creator-controlled same-origin URLs must resolve to public static assets,
+  // never another renderer, API, page, or image proxy. This also stops a cover
+  // pointing at its own OG route from recursively invoking the renderer.
+  if (sameOrigin && !isPublicStaticImage(url)) return null;
   if (
     !sameOrigin &&
     !ALLOWED_IMAGE_HOSTS.has(url.hostname) &&
-    !isNintendoImage(url.href)
+    !(
+      url.hostname === "api.dicebear.com" &&
+      /^\/9\.x\/[a-z0-9-]+\/png$/.test(url.pathname)
+    ) &&
+    !isNintendoImage(url.href) &&
+    !isPlayStationImage(url.href)
   )
     return null;
   if (!sameOrigin && url.port && url.port !== "443") return null;
 
   return url;
-}
-
-function hasRasterSignature(bytes: Uint8Array, contentType: string): boolean {
-  if (contentType === "image/jpeg") {
-    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  }
-
-  if (contentType === "image/png") {
-    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-    return signature.every((byte, index) => bytes[index] === byte);
-  }
-
-  if (contentType === "image/gif") {
-    const signature = String.fromCharCode(...bytes.subarray(0, 6));
-    return signature === "GIF87a" || signature === "GIF89a";
-  }
-
-  if (contentType === "image/webp") {
-    return (
-      String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
-      String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
-    );
-  }
-
-  return false;
 }
 
 async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
@@ -286,7 +281,7 @@ export function publishedStoreFromResponse(
     !isNullableString(candidate.description) ||
     !isNullableString(candidate.logo_url) ||
     !presentation ||
-    presentation.version !== 1 ||
+    ![1, 2, 3].includes(Number(presentation.version)) ||
     !isNullableString(presentation.theme_key) ||
     !isNullableString(presentation.layout_preset) ||
     !isNullableString(presentation.tagline) ||
@@ -302,41 +297,99 @@ export function publishedStoreFromResponse(
   return value as PublishedStoreApi;
 }
 
-export function outletArtworkCandidates(
-  store: PublishedStoreApi,
+export function outletAvatarCandidates(
+  store: Pick<StoreApi, "slug" | "logo_url" | "theme_key" | "presentation">,
 ): ImageCandidate[] {
-  const presentation = storeContextFromApi(store);
-  const bespokeArtwork = isBespokeThemeKey(presentation.theme_key)
-    ? BESPOKE_OG_ARTWORK[presentation.theme_key]
+  const themeKey =
+    store.theme_key !== undefined
+      ? store.theme_key
+      : store.presentation?.theme_key;
+  const bespokeArtwork = isBespokeThemeKey(themeKey)
+    ? BESPOKE_OG_ARTWORK[themeKey]
     : null;
 
   return [
+    ...(store.logo_url
+      ? [
+          {
+            url: `/api/outlet-logo/${encodeURIComponent(store.slug)}?source=${encodeURIComponent(store.logo_url)}`,
+            trustedInternalAsset: true,
+          },
+        ]
+      : []),
     ...(bespokeArtwork
       ? [{ url: bespokeArtwork, trustedInternalAsset: true }]
       : []),
-    { url: presentation.cover_url },
-    { url: store.logo_url },
   ];
 }
 
-function publishedImageHeaders(
-  url: URL,
-  store: PublishedStoreApi,
+/** Read identity and editorial picks from the same published revision. */
+export async function loadOutletPreview(
+  origin: string,
+  slug: string,
   locale: AppLocale,
-): Record<string, string> {
-  const publishedAt = new Date(store.published_at);
-  const version = store.published_at;
-  const requestedVersion = url.searchParams.get("v");
+) {
+  const storeUrl = new URL(
+    `/api/v1/stores/${encodeURIComponent(slug)}`,
+    origin,
+  );
+  let store = publishedStoreFromResponse(
+    await fetchPublicJson<unknown>(storeUrl),
+  );
+  if (!store) return null;
+  const featuredUrl = new URL(
+    `/api/v1/stores/${encodeURIComponent(slug)}/featured`,
+    origin,
+  );
+  featuredUrl.searchParams.set("locale", locale);
+  featuredUrl.searchParams.set("social_preview", "1");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let featured: unknown = null;
+    try {
+      const response = await fetch(featuredUrl, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      });
+      if (response.ok) featured = await response.json();
+    } catch {
+      /* An unavailable picks feed still permits a public identity card. */
+    }
+    const games = publishedFeaturedGames(featured, store);
+    if (games !== null) return { store, games };
+    // Recheck publication as well as the revision before using any fallback.
+    store = publishedStoreFromResponse(
+      await fetchPublicJson<unknown>(storeUrl),
+    );
+    if (!store) return null;
+  }
+  return { store, games: [] as PreviewGame[] };
+}
 
-  return {
-    "Cache-Control":
-      requestedVersion === version
-        ? VERSIONED_CACHE_CONTROL
-        : SHARED_CACHE_CONTROL,
-    "Content-Disposition": "inline",
-    ETag: `W/"og-outlet-${locale}-${publishedAt.getTime()}"`,
-    "Last-Modified": publishedAt.toUTCString(),
-  };
+export function publishedSelectionFromResponse(
+  value: unknown,
+): SelectionPageApi | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as SelectionPageApi;
+  const selection = data.selection;
+  if (
+    !selection ||
+    selection.status !== "PUBLISHED" ||
+    !Number.isInteger(selection.published_revision) ||
+    selection.published_revision < 1 ||
+    typeof selection.published_at !== "string" ||
+    !Number.isFinite(Date.parse(selection.published_at)) ||
+    "draft_revision" in selection ||
+    typeof selection.title !== "string" ||
+    typeof selection.description !== "string" ||
+    !selectionSlugSchema.safeParse(selection.slug).success ||
+    !data.outlet ||
+    typeof data.outlet.name !== "string" ||
+    typeof data.outlet.slug !== "string" ||
+    !Array.isArray(data.games)
+  )
+    return null;
+  return data;
 }
 
 function BrandLockup({ logo }: { logo: string | null }) {
@@ -541,135 +594,6 @@ function HomeCard({
   );
 }
 
-function OutletCard({
-  store,
-  locale,
-  logo,
-  artwork,
-}: {
-  store: StoreApi;
-  locale: AppLocale;
-  logo: string | null;
-  artwork: string | null;
-}) {
-  const metadata = outletMetadata(store, locale);
-
-  return (
-    <Frame>
-      {artwork && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt=""
-          src={artwork}
-          width={1200}
-          height={630}
-          style={{
-            position: "absolute",
-            inset: 0,
-            objectFit: "cover",
-            opacity: 0.22,
-            filter: "blur(22px)",
-          }}
-        />
-      )}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          background:
-            "linear-gradient(110deg, rgba(16,7,28,0.98) 20%, rgba(38,14,68,0.9) 67%, rgba(88,37,135,0.8))",
-        }}
-      />
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: "70px 82px",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", width: 700 }}>
-          <div
-            style={{
-              display: "flex",
-              marginBottom: 25,
-              color: "#c8a7ff",
-              fontSize: 22,
-              fontWeight: 800,
-              letterSpacing: "0.18em",
-            }}
-          >
-            {locale === "pt-BR" ? "OUTLET INDEPENDENTE" : "INDEPENDENT OUTLET"}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 63,
-              lineHeight: 1.03,
-              fontWeight: 900,
-            }}
-          >
-            {cleanMetadataText(store.name, 55)}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              marginTop: 22,
-              color: "rgba(255,255,255,0.72)",
-              fontSize: 25,
-              lineHeight: 1.35,
-            }}
-          >
-            {cleanMetadataText(metadata.description, 135)}
-          </div>
-          <div style={{ display: "flex", marginTop: 58 }}>
-            <BrandLockup logo={logo} />
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 320,
-            height: 320,
-            borderRadius: 54,
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            boxShadow: "0 35px 90px rgba(0,0,0,0.45)",
-            overflow: "hidden",
-          }}
-        >
-          {artwork ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt=""
-              src={artwork}
-              width={320}
-              height={320}
-              style={{ objectFit: "cover" }}
-            />
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                fontSize: 138,
-                fontWeight: 900,
-                color: "#c8a7ff",
-              }}
-            >
-              {store.name.slice(0, 1).toUpperCase()}
-            </div>
-          )}
-        </div>
-      </div>
-    </Frame>
-  );
-}
-
 function GameCard({
   game,
   locale,
@@ -821,33 +745,72 @@ export default async function handler(request: NextRequest) {
       />
     );
   } else if (kind === "outlet" && slug && segments.length === 2) {
-    // This deliberately uses the anonymous public endpoint and never forwards
-    // the OG request's cookies or `preview=1`. That endpoint projects only the
-    // immutable published revision; the runtime marker below makes us fail
-    // closed if that contract ever regresses.
-    const storeResponse = await fetchPublicJson<unknown>(
-      new URL(`/api/v1/stores/${encodeURIComponent(slug)}`, url.origin),
-    );
-    const store = publishedStoreFromResponse(storeResponse);
-    if (!store) return new Response("Outlet not found", { status: 404 });
-
-    imageHeaders = publishedImageHeaders(url, store, locale);
-    if (request.headers.get("if-none-match") === imageHeaders.ETag) {
-      return new Response(null, { status: 304, headers: imageHeaders });
-    }
-
-    const [brandLogo, artwork] = await Promise.all([
+    const data = await loadOutletPreview(url.origin, slug, locale);
+    if (!data)
+      return new Response("Outlet not found", {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      });
+    const { store, games } = data;
+    const [brandLogo, avatar, banners] = await Promise.all([
       loadImageData("/images/brand/manifold-logo.png", url.origin, true),
-      loadFirstImageData(outletArtworkCandidates(store), url.origin),
+      loadFirstImageData(outletAvatarCandidates(store), url.origin),
+      loadPreviewBanners(games, (candidate) =>
+        loadImageData(candidate, url.origin),
+      ),
     ]);
-    card = (
-      <OutletCard
-        store={store}
-        locale={locale}
-        logo={brandLogo}
-        artwork={artwork}
-      />
+    const props = { store, locale, logo: brandLogo, avatar, banners };
+    imageHeaders = await composedPreviewHeaders("outlet", locale, props);
+    imageHeaders["Last-Modified"] = new Date(store.published_at).toUTCString();
+    if (request.headers.get("if-none-match") === imageHeaders.ETag)
+      return new Response(null, { status: 304, headers: imageHeaders });
+    card = <OutletPreviewCard {...props} />;
+  } else if (kind === "selection" && slug && segments.length === 3) {
+    let selectionSlug: string;
+    try {
+      selectionSlug = decodeURIComponent(segments[2]);
+    } catch {
+      return new Response("Selection not found", { status: 404 });
+    }
+    if (!selectionSlugSchema.safeParse(selectionSlug).success)
+      return new Response("Selection not found", { status: 404 });
+    const apiUrl = new URL(
+      `/api/v1/stores/${encodeURIComponent(slug)}/selections/${encodeURIComponent(selectionSlug)}`,
+      url.origin,
     );
+    apiUrl.searchParams.set("locale", locale);
+    apiUrl.searchParams.set("social_preview", "1");
+    // Never forward cookies, preview flags, or arbitrary query parameters.
+    const data = publishedSelectionFromResponse(
+      await fetchPublicJson<unknown>(apiUrl),
+    );
+    if (!data)
+      return new Response("Selection not found", {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      });
+    const games = previewGames(data.games);
+    const [avatar, banners] = await Promise.all([
+      loadFirstImageData(outletAvatarCandidates(data.outlet), url.origin),
+      loadPreviewBanners(games, (candidate) =>
+        loadImageData(candidate, url.origin),
+      ),
+    ]);
+    const props = {
+      title: data.selection.title,
+      outlet: data.outlet,
+      count: games.length,
+      banners,
+      avatar,
+      locale,
+    };
+    imageHeaders = await composedPreviewHeaders("selection", locale, {
+      ...props,
+      revision: data.selection.published_revision,
+    });
+    if (request.headers.get("if-none-match") === imageHeaders.ETag)
+      return new Response(null, { status: 304, headers: imageHeaders });
+    card = <SelectionPreviewCard {...props} />;
   } else if (kind === "game" && slug && segments.length === 2) {
     const gameUrl = new URL(
       `/api/v1/items/games/${encodeURIComponent(slug)}`,

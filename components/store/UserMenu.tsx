@@ -15,6 +15,11 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useI18n } from "lib/i18n";
 import { usePurchaseAvailability } from "./usePurchaseAvailability";
+import { fetchJson } from "lib/api-client";
+import {
+  acceptProductEventContext,
+  resetProductEventsClient,
+} from "lib/product-events-client";
 
 export function UserMenu({
   variant = "default",
@@ -32,17 +37,9 @@ export function UserMenu({
     error,
     isLoading,
     mutate,
-  } = useSWR(
-    "/api/v1/user",
-    (url) =>
-      fetch(url).then(async (res) => {
-        if (!res.ok) {
-          throw new Error("Not logged in");
-        }
-        return res.json();
-      }),
-    { shouldRetryOnError: false },
-  );
+  } = useSWR<{ username: string }>("/api/v1/user", fetchJson, {
+    shouldRetryOnError: false,
+  });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -55,7 +52,9 @@ export function UserMenu({
   }, []);
 
   const handleSignOut = async () => {
-    await fetch("/api/v1/sessions", { method: "DELETE" });
+    resetProductEventsClient();
+    const response = await fetch("/api/v1/sessions", { method: "DELETE" });
+    acceptProductEventContext(response);
     await mutate();
     router.push("/store");
     setIsOpen(false);
@@ -77,7 +76,7 @@ export function UserMenu({
   if (isLoggedOut) {
     return (
       <Link
-        href="/login"
+        href={`/login?callbackUrl=${encodeURIComponent(router.asPath)}`}
         className={
           isStoreHome
             ? "flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/70 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
@@ -140,6 +139,14 @@ export function UserMenu({
               {t("Import from Steam")}
             </Link>
 
+            <Link
+              href="/games/playstation-import"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:bg-white/5"
+            >
+              <Download size={16} className="text-cyan-400" />
+              {t("Import from PlayStation Store")}
+            </Link>
             <Link
               href="/games/nintendo-import"
               onClick={() => setIsOpen(false)}

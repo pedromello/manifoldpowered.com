@@ -15,20 +15,27 @@ import { GameFeatures } from "components/store/GameFeatures";
 import { SocialLink } from "components/store/SocialLink";
 import { discountBadgeColor } from "components/store/constants";
 import {
-  catalogDiscountLabel,
   formatCatalogBasePrice,
   formatCatalogPrice,
   isCatalogFree,
 } from "lib/price";
+import { catalogOffer } from "lib/catalog-offer";
 import type { GameDetailApi } from "components/store/types";
 import type { ItemWishlist } from "components/storefront/useItemController";
 import { useI18n } from "lib/i18n";
 import { NintendoRefreshButton } from "components/store/NintendoRefreshButton";
 import { ExternalGameRefreshButton } from "components/store/ExternalGameRefreshButton";
 import { extractSteamAppId } from "lib/steam";
+import { trackExternalStore } from "lib/product-events-client";
+import type { AffiliateLink } from "contracts/outlet-affiliates";
+import { AffiliatePurchaseOptions } from "components/store/OutletAffiliateLinks";
 
 export function PurchaseCard({
   game,
+  storeSlug,
+  storeName,
+  affiliateLinks,
+  affiliateRevisionId,
   isFreeGame,
   isInLibrary,
   isCheckingLibrary,
@@ -39,6 +46,10 @@ export function PurchaseCard({
   isPreview,
 }: {
   game: GameDetailApi;
+  storeSlug?: string;
+  storeName?: string;
+  affiliateLinks?: AffiliateLink[];
+  affiliateRevisionId?: string | null;
   isFreeGame: boolean;
   isInLibrary: boolean;
   isCheckingLibrary: boolean;
@@ -52,18 +63,25 @@ export function PurchaseCard({
   const { locale, t } = useI18n();
   const isPlatformPurchase = game.purchase_mode === "PLATFORM";
   const free = isCatalogFree(game);
-  const basePrice = formatCatalogBasePrice(game);
-  const discountLabel = catalogDiscountLabel(game);
+  const offer = catalogOffer(game);
+  const basePrice = offer.discount_percent
+    ? formatCatalogBasePrice(game)
+    : null;
+  const discountLabel = offer.discount_percent
+    ? "-" + offer.discount_percent + "%"
+    : null;
   const hasDisplayedPrice =
     isPlatformPurchase || game.external_offer?.amount != null;
+  const isPlayStation = game.purchase_mode === "PLAYSTATION_ONLY";
   const isNintendo = game.purchase_mode === "NINTENDO_ONLY";
   const refreshSteamId =
     game.purchase_mode === "STEAM_ONLY" && game.ownership_status === "UNCLAIMED"
       ? extractSteamAppId(game.social_links.steam_page ?? "")
       : null;
-  const externalUrl = isNintendo
-    ? game.external_offer?.url
-    : game.social_links.steam_page;
+  const externalUrl =
+    isNintendo || isPlayStation
+      ? game.external_offer?.url
+      : game.social_links.steam_page;
 
   const hasSocialLinks = Boolean(
     game.social_links.twitter ||
@@ -71,6 +89,26 @@ export function PurchaseCard({
     game.social_links.website ||
     (!isPreview && game.social_links.steam_page),
   );
+
+  const trackOfficial = (
+    provider: "steam" | "nintendo" | "playstation",
+    placement: "purchase_card" | "social_store_link",
+  ) => {
+    if (isPreview) return;
+    trackExternalStore({
+      name: "external_store_clicked",
+      target: {
+        game_slug: game.slug,
+        ...(storeSlug ? { store_slug: storeSlug } : {}),
+      },
+      properties: { locale, entry_surface: "game_page", provider, placement },
+    });
+  };
+  const externalProvider = isNintendo
+    ? "nintendo"
+    : isPlayStation
+      ? "playstation"
+      : "steam";
 
   return (
     <div className="sticky top-24 rounded-xl border border-white/10 bg-[#14101c] p-6">
@@ -80,6 +118,17 @@ export function PurchaseCard({
             <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">
               {game.title}
             </h2>
+            {!isPlatformPurchase && externalUrl && (
+              <p className="text-xs font-semibold text-white/55">
+                {t("Price on {store}", {
+                  store: isNintendo
+                    ? "Nintendo eShop"
+                    : isPlayStation
+                      ? "PlayStation Store"
+                      : "Steam",
+                })}
+              </p>
+            )}
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col">
                 {!free && basePrice && (
@@ -91,7 +140,7 @@ export function PurchaseCard({
                   className="text-3xl font-black uppercase tracking-tight"
                   style={{ color: discountBadgeColor }}
                 >
-                  {free ? t("Free") : formatCatalogPrice(game)}
+                  {free ? t("Free") : t(formatCatalogPrice(game))}
                 </span>
               </div>
               {!free && discountLabel && (
@@ -156,46 +205,97 @@ export function PurchaseCard({
           </p>
         )}
 
-        {!isPreview &&
-          (externalUrl ? (
-            <a
-              href={externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-            >
-              {isNintendo ? (
-                <Gamepad2 size={24} />
-              ) : (
-                <IconBrandSteam size={24} className="text-white/65" />
+        {!isPreview && externalUrl && (
+          <a
+            href={externalUrl}
+            onClick={() => trackOfficial(externalProvider, "purchase_card")}
+            onAuxClick={(event) => {
+              if (event.button === 1)
+                trackOfficial(externalProvider, "purchase_card");
+            }}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition-colors hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+          >
+            {isNintendo || isPlayStation ? (
+              <Gamepad2 size={24} />
+            ) : (
+              <IconBrandSteam size={24} className="text-white/65" />
+            )}
+            <span>
+              {t(
+                isNintendo
+                  ? "View on Nintendo eShop"
+                  : isPlayStation
+                    ? "View on PlayStation Store"
+                    : "View on Steam",
               )}
-              <span>
-                {t(isNintendo ? "View on Nintendo eShop" : "View on Steam")}
-              </span>
-              <ExternalLink
-                size={16}
-                className="opacity-60 transition-opacity group-hover:opacity-100"
-              />
-            </a>
-          ) : (
-            <button
-              onClick={wishlist.toggle}
-              disabled={wishlist.isToggling}
-              className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
-                wishlist.isWishlisted
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
-                  : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-              }`}
-            >
-              <Heart
-                size={20}
-                fill={wishlist.isWishlisted ? "currentColor" : "none"}
-                className={wishlist.isToggling ? "opacity-50" : ""}
-              />
-              {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
-            </button>
-          ))}
+            </span>
+            <ExternalLink
+              size={16}
+              className="opacity-60 transition-opacity group-hover:opacity-100"
+            />
+          </a>
+        )}
 
+        {storeSlug && storeName && (
+          <AffiliatePurchaseOptions
+            links={affiliateLinks}
+            storeSlug={storeSlug}
+            storeName={storeName}
+            gameSlug={game.slug}
+            publishedRevisionId={affiliateRevisionId}
+            isPreview={isPreview}
+          />
+        )}
+
+        {!isPreview && (
+          <button
+            type="button"
+            onClick={wishlist.toggle}
+            disabled={wishlist.isToggling}
+            aria-pressed={wishlist.isWishlisted}
+            className={`flex w-full items-center justify-center gap-3 rounded-lg border px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed ${
+              wishlist.isWishlisted
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15"
+                : "border-white/10 bg-white/[0.035] text-white/75 hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+            }`}
+          >
+            <Heart
+              size={20}
+              fill={wishlist.isWishlisted ? "currentColor" : "none"}
+              className={wishlist.isToggling ? "opacity-50" : ""}
+            />
+            {wishlist.isWishlisted ? t("On Wishlist") : t("Add to Wishlist")}
+          </button>
+        )}
+
+        {isPlayStation && (
+          <div className="text-xs leading-5 text-white/60">
+            <p>
+              {t(
+                game.external_offer?.country === "BR"
+                  ? "PlayStation Store Brazil"
+                  : "PlayStation Store United States",
+              )}
+            </p>
+            {game.external_offer?.captured_at && (
+              <p>
+                {t("Reference price · checked {date}", {
+                  date: new Date(
+                    game.external_offer.captured_at,
+                  ).toLocaleString(locale),
+                })}
+              </p>
+            )}
+            {!isPreview && externalUrl && (
+              <ExternalGameRefreshButton
+                provider="playstation"
+                value={externalUrl}
+              />
+            )}
+          </div>
+        )}
         {isNintendo && (
           <div className="text-xs leading-5 text-white/60">
             <p>
@@ -241,6 +341,7 @@ export function PurchaseCard({
         )}
 
         {!isNintendo &&
+          !isPlayStation &&
           game.claimable !== false &&
           game.ownership_status === "UNCLAIMED" && (
             <Link
@@ -273,6 +374,7 @@ export function PurchaseCard({
                     month: "short",
                     day: "numeric",
                     year: "numeric",
+                    timeZone: "UTC",
                   })
                 : t("To be announced")}
             </span>
@@ -297,6 +399,11 @@ export function PurchaseCard({
                   icon={IconBrandSteam}
                   href={game.social_links.steam_page}
                   label="Steam"
+                  onClick={() => trackOfficial("steam", "social_store_link")}
+                  onAuxClick={(event) => {
+                    if (event.button === 1)
+                      trackOfficial("steam", "social_store_link");
+                  }}
                 />
               )}
               <SocialLink

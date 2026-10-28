@@ -1,4 +1,7 @@
+import type { FeaturedVideo } from "contracts/featured-video";
 import type { DisplayPrice } from "lib/price";
+import type { CatalogOffer } from "lib/catalog-offer";
+import type { OutletRating, OutletRatingScale } from "contracts/outlet-rating";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
   STORE_LAYOUT_PRESETS,
@@ -18,7 +21,8 @@ export {
 } from "contracts/store-presentation";
 
 export type ExternalOffer = {
-  provider: "STEAM" | "NINTENDO";
+  expires_at?: string | null;
+  provider: "STEAM" | "NINTENDO" | "PLAYSTATION";
   country?: string;
   amount: string | null;
   original_amount: string | null;
@@ -38,6 +42,7 @@ export type ExternalOffer = {
  * than inside a presentational component.
  */
 export type GameApi = {
+  catalog_offer?: CatalogOffer;
   id: string;
   slug: string;
   title: string;
@@ -59,19 +64,26 @@ export type GameApi = {
   };
   status?: "ACTIVE" | "ONLY_DISPLAY" | "INACTIVE" | "PRIVATE";
   ownership_status?: "UNCLAIMED" | "CLAIMED";
-  purchase_mode: "STEAM_ONLY" | "NINTENDO_ONLY" | "UNAVAILABLE" | "PLATFORM";
+  purchase_mode:
+    | "STEAM_ONLY"
+    | "NINTENDO_ONLY"
+    | "PLAYSTATION_ONLY"
+    | "UNAVAILABLE"
+    | "PLATFORM";
   nintendo_nsuid?: string | null;
+  playstation_product_id?: string | null;
   claimable?: boolean;
   external_offer: ExternalOffer | null;
   positive_reviews?: number;
   negative_reviews?: number;
   review_score?: string | null;
-  /** Outlet-authored editorial copy; present only in editorial Featured feeds. */
+  /** Outlet-authored game recommendation or review text; never selection copy. */
   recommendation_reason?: string | null;
   /** Independent Outlet × game review, available in an Outlet context. */
   outlet_review?: {
     headline: string | null;
     body: string;
+    rating?: OutletRating | null;
   } | null;
   /** Distinguishes Outlet picks from automatic carousel fillers. */
   featured_source?: "EDITORIAL" | "AUTOMATIC";
@@ -96,6 +108,7 @@ export type GameDetailApi = GameApi & {
     twitter?: string;
     discord?: string;
     steam_page?: string;
+    playstation_page?: string;
   };
 };
 
@@ -117,9 +130,13 @@ export type StorePresentation = StorePresentationSnapshot;
  * admin branch and must never reach a storefront.
  */
 export type StoreApi = {
+  affiliate_links?: import("contracts/outlet-affiliates").AffiliateLink[];
+  affiliate_revision_id?: string | null;
+  featured_video?: FeaturedVideo | null;
   id: string;
   slug: string;
   name: string;
+  rating_scale?: OutletRatingScale | null;
   description: string | null;
   logo_url: string | null;
   /** Registry-controlled and never accepted by the owner-facing write schema. */
@@ -187,6 +204,13 @@ export function storeContextFromApi(store: StoreApi) {
     id: store.id,
     slug: store.slug,
     name: store.name,
+    ...(store.affiliate_links
+      ? { affiliate_links: store.affiliate_links }
+      : {}),
+    ...(store.affiliate_revision_id !== undefined
+      ? { affiliate_revision_id: store.affiliate_revision_id }
+      : {}),
+    rating_scale: store.rating_scale ?? null,
     description: store.description,
     logo_url: store.logo_url,
     theme_key:
@@ -211,6 +235,10 @@ export function storeContextFromApi(store: StoreApi) {
       typography: typography ?? DEFAULT_STORE_BRAND_TOKENS.typography,
       shape: shape ?? DEFAULT_STORE_BRAND_TOKENS.shape,
     },
+    featured_video:
+      store.featured_video !== undefined
+        ? store.featured_video
+        : (presentation?.featured_video ?? null),
     presentation,
   };
 }

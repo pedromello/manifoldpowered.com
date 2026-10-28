@@ -1,6 +1,7 @@
 import { prisma } from "infra/database";
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
+import { ratingFixture } from "tests/integration/api/v1/_support/outlet-ratings";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -31,6 +32,131 @@ function putReview(
 }
 
 describe("PUT /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
+  test("accepts zero without text, preserves an omitted rating and explicitly removes it", async () => {
+    const fixture = await ratingFixture("STARS");
+    const game = await orchestrator.createGame(fixture.owner.id);
+    const first = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      {
+        rating: { scale: "STARS", value: 0 },
+        expected_draft_revision: 1,
+      },
+      fixture.session.token,
+    );
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({
+      review: {
+        headline: null,
+        body: "",
+        rating: { scale: "STARS", value: 0 },
+      },
+      draft_revision: 2,
+    });
+    const oldClient = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      { body: "Text from an older client", expected_draft_revision: 2 },
+      fixture.session.token,
+    );
+    expect(oldClient.status).toBe(200);
+    expect((await oldClient.json()).review.rating).toEqual({
+      scale: "STARS",
+      value: 0,
+    });
+    const cleared = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      {
+        body: "Text from an older client",
+        rating: null,
+        expected_draft_revision: 3,
+      },
+      fixture.session.token,
+    );
+    expect(cleared.status).toBe(200);
+    expect((await cleared.json()).review).toEqual({
+      headline: null,
+      body: "Text from an older client",
+      rating: null,
+    });
+  });
+
+  test("rejects empty final content and a rating outside the configured system atomically", async () => {
+    const fixture = await ratingFixture("NUMERIC_10");
+    const game = await orchestrator.createGame(fixture.owner.id);
+    const empty = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      { body: "", expected_draft_revision: 1 },
+      fixture.session.token,
+    );
+    expect(empty.status).toBe(400);
+    const mismatch = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      {
+        body: "Text",
+        rating: { scale: "STARS", value: 4.5 },
+        expected_draft_revision: 1,
+      },
+      fixture.session.token,
+    );
+    expect(mismatch.status).toBe(400);
+    expect(await mismatch.json()).toEqual({
+      message: "The rating must use the Outlet's configured scale.",
+      action:
+        "Configure the Outlet rating system or select a rating in its current scale.",
+      name: "ValidationError",
+      status_code: 400,
+    });
+    expect(await prisma.storeGameEditorial.count()).toBe(0);
+    expect(
+      (
+        await prisma.store.findUniqueOrThrow({
+          where: { id: fixture.outlet.id },
+        })
+      ).draft_revision,
+    ).toBe(1);
+  });
+
+  test("accepts half points and rejects removing the only content of a note-only review", async () => {
+    const fixture = await ratingFixture("NUMERIC_10");
+    const game = await orchestrator.createGame(fixture.owner.id);
+    const first = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      {
+        body: "",
+        rating: { scale: "NUMERIC_10", value: 8.5 },
+        expected_draft_revision: 1,
+      },
+      fixture.session.token,
+    );
+    expect(first.status).toBe(200);
+    const preserved = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      { body: "", expected_draft_revision: 2 },
+      fixture.session.token,
+    );
+    expect(preserved.status).toBe(200);
+    expect((await preserved.json()).review.rating).toEqual({
+      scale: "NUMERIC_10",
+      value: 8.5,
+    });
+    const removed = await putReview(
+      fixture.outlet.slug,
+      game.slug,
+      { body: "", rating: null, expected_draft_revision: 3 },
+      fixture.session.token,
+    );
+    expect(removed.status).toBe(400);
+    expect(
+      (await prisma.storeGameEditorial.findFirstOrThrow()).rating_value,
+    ).toBe(17);
+  });
+
   test("an owner can create and update one trimmed draft review", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
@@ -51,7 +177,7 @@ describe("PUT /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
 
     expect(createResponse.status).toBe(200);
     await expect(createResponse.json()).resolves.toEqual({
-      review: { headline: null, body: "A concise first review." },
+      review: { headline: null, body: "A concise first review.", rating: null },
       draft_revision: 2,
     });
 
@@ -71,6 +197,7 @@ describe("PUT /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
       review: {
         headline: "Editor's choice",
         body: "The revised review.",
+        rating: null,
       },
       draft_revision: 3,
     });
@@ -112,6 +239,7 @@ describe("PUT /api/v1/stores/[slug]/game-editorials/[gameSlug]", () => {
       review: {
         headline: "Member review",
         body: "Written by an authorized Outlet member.",
+        rating: null,
       },
       draft_revision: 2,
     });

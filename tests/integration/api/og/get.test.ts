@@ -25,6 +25,10 @@ async function expectPng(
   const bytes = new Uint8Array(await response.arrayBuffer());
   expect(Array.from(bytes.slice(0, 8))).toEqual(PNG_SIGNATURE);
   expect(bytes.byteLength).toBeGreaterThan(10_000);
+  // PNG IHDR stores the actual dimensions, independently of meta tag values.
+  const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  expect(header.getUint32(16)).toBe(1200);
+  expect(header.getUint32(20)).toBe(630);
 
   return { response, bytes };
 }
@@ -67,7 +71,7 @@ describe("GET /api/og/[...segments]", () => {
         published.published_at,
       )}`,
     );
-    expect(versioned.response.headers.get("cache-control")).toContain(
+    expect(versioned.response.headers.get("cache-control")).not.toContain(
       "immutable",
     );
   });

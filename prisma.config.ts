@@ -4,6 +4,7 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
+import { prismaMigrationHost } from "./infra/prisma-host";
 
 dotenvExpand.expand(
   dotenv.config({
@@ -11,7 +12,11 @@ dotenvExpand.expand(
   }),
 );
 
-let baseString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${process.env["POSTGRES_HOST"]}`;
+const migrationHost = prismaMigrationHost(
+  process.env.POSTGRES_HOST,
+  process.env.POSTGRES_MIGRATION_HOST,
+);
+let baseString = `postgresql://${process.env["POSTGRES_USER"]}:${process.env["POSTGRES_PASSWORD"]}@${migrationHost}`;
 
 if (process.env["POSTGRES_PORT"]) {
   baseString += `:${process.env["POSTGRES_PORT"]}`;

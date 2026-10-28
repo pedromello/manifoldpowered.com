@@ -1,5 +1,8 @@
+import { featuredVideoFields } from "contracts/featured-video";
 import { prisma } from "infra/database";
+import { ratingFromStorage } from "contracts/outlet-rating";
 import { z } from "zod";
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
 import {
   ConflictError,
   ForbiddenError,
@@ -19,7 +22,6 @@ import {
   getCurationWhereClause,
   getDraftCatalogSnapshot,
   getSnapshotCurationWhereClause,
-  storeDraftCatalogModeSchema,
   type StoreCatalogSnapshot,
 } from "models/store_catalog";
 import {
@@ -33,61 +35,26 @@ import {
 } from "models/store_revision";
 import {
   DEFAULT_STORE_BRAND_TOKENS,
-  STORE_LAYOUT_PRESETS,
-  STORE_PALETTES,
-  STORE_SHAPES,
-  STORE_TYPOGRAPHIES,
   resolveDraftPresentation,
   storeSocialLinksSchema,
   type StorePresentation,
 } from "models/store_presentation";
 
-const httpsUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2048)
-  .refine(
-    (value) => {
-      try {
-        return new URL(value).protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "URL must use https",
-    },
-  );
-
-export { storeSocialLinksSchema };
-
-export const storeBrandTokensSchema = z
-  .object({
-    palette: z.enum(STORE_PALETTES),
-    typography: z.enum(STORE_TYPOGRAPHIES),
-    shape: z.enum(STORE_SHAPES),
-  })
-  .strict();
-
-export const storeSchema = z
-  .object({
-    name: z.string().trim().min(1).max(255),
-    description: z.string().trim().max(2000).nullable().optional(),
-    logo_url: httpsUrlSchema.nullable().optional(),
-    catalog_mode: z.enum(["UNDECIDED", "ALL", "SELECTED"]).optional(),
-    layout_preset: z.enum(STORE_LAYOUT_PRESETS).nullable().optional(),
-    tagline: z.string().trim().max(160).nullable().optional(),
-    cover_url: httpsUrlSchema.nullable().optional(),
-    social_links: storeSocialLinksSchema.nullable().optional(),
-    brand_tokens: storeBrandTokensSchema.nullable().optional(),
-  })
-  .strict();
-
-export const storeUpdateSchema = storeSchema
-  .partial()
-  .extend({ catalog_mode: storeDraftCatalogModeSchema.optional() })
-  .strict();
+import {
+  storeSchema,
+  storeUpdateSchema,
+  storeBrandTokensSchema,
+  STORE_PUBLICATION_ACTIONS,
+  storePublicationActionSchema,
+} from "contracts/creator-requests";
+export {
+  storeSchema,
+  storeUpdateSchema,
+  storeBrandTokensSchema,
+  storeSocialLinksSchema,
+  STORE_PUBLICATION_ACTIONS,
+  storePublicationActionSchema,
+};
 
 export type StoreCreateDto = z.infer<typeof storeSchema> & {
   owner_id: string;
@@ -113,15 +80,6 @@ export function parseStoreDraftIfMatch(
   }
   return parsed;
 }
-
-export const STORE_PUBLICATION_ACTIONS = ["publish", "unpublish"] as const;
-
-export const storePublicationActionSchema = z
-  .object({
-    action: z.enum(STORE_PUBLICATION_ACTIONS),
-    expected_draft_revision: z.number().int().min(1),
-  })
-  .strict();
 
 export type StorePublicationAction = (typeof STORE_PUBLICATION_ACTIONS)[number];
 
@@ -159,6 +117,7 @@ export type StorefrontStore = Pick<
   | "cover_url"
   | "social_links"
   | "brand_tokens"
+  | "rating_scale"
   | "created_at"
   | "updated_at"
 > & {
@@ -188,6 +147,7 @@ export const MEMBER_PERMISSIONS = [
   "manage:store_featured_games",
   "manage:store_members",
   "read:store_statement",
+  "read:store_analytics",
   "read:payout_account",
   "manage:payout_account",
 ];
@@ -247,6 +207,7 @@ async function create(storeData: StoreCreateDto) {
       layout_preset: storeData.layout_preset ?? null,
       tagline: storeData.tagline,
       cover_url: storeData.cover_url,
+      ...featuredVideoFields(storeData.featured_video_url),
       social_links: storeData.social_links ?? {},
       brand_tokens: storeData.brand_tokens ?? DEFAULT_STORE_BRAND_TOKENS,
     },
@@ -462,7 +423,7 @@ async function findOnePublishedBySlug(slug: string) {
   }
 }
 
-function projectPublishedStore(
+export function projectPublishedStore(
   storeRow: Store,
   revisionRow: StoreRevision,
 ): StorefrontStore {
@@ -480,6 +441,7 @@ function projectPublishedStore(
     slug: storeRow.slug,
     name: revision.name,
     description: revision.description,
+    rating_scale: revision.rating_scale,
     logo_url: revision.logo_url,
     owner_id: storeRow.owner_id,
     status: storeRow.status,
@@ -524,7 +486,13 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
       prisma.storeGameEditorial.findMany({
         where: { store_id: storeRow.id },
         orderBy: [{ game_id: "asc" }],
-        select: { game_id: true, headline: true, body: true },
+        select: {
+          game_id: true,
+          headline: true,
+          body: true,
+          rating_scale: true,
+          rating_value: true,
+        },
       }),
       storeRow.published_revision_id
         ? prisma.storeRevision.findFirst({
@@ -550,6 +518,7 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
     slug: storeRow.slug,
     name: storeRow.name,
     description: storeRow.description,
+    rating_scale: storeRow.rating_scale,
     logo_url: storeRow.logo_url,
     owner_id: storeRow.owner_id,
     status: storeRow.status,
@@ -570,6 +539,8 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
       layout_preset: storeRow.layout_preset,
       tagline: storeRow.tagline,
       cover_url: storeRow.cover_url,
+      featured_video_id: storeRow.featured_video_id,
+      featured_video_start_seconds: storeRow.featured_video_start_seconds,
       social_links: storeRow.social_links,
       brand_tokens: storeRow.brand_tokens,
     }),
@@ -583,7 +554,12 @@ async function projectDraftStore(storeRow: Store): Promise<StorefrontStore> {
             catalog_mode: catalog.catalog_mode,
           },
     featured_games_snapshot: featuredGames,
-    game_editorials_snapshot: gameEditorials,
+    game_editorials_snapshot: gameEditorials.map((review) => ({
+      game_id: review.game_id,
+      headline: review.headline,
+      body: review.body,
+      rating: ratingFromStorage(review),
+    })),
   };
 }
 
@@ -659,8 +635,12 @@ async function update(
     });
   }
 
+  const { featured_video_url, ...draftFields } = result.data;
   const normalizedData = {
-    ...result.data,
+    ...draftFields,
+    ...(featured_video_url !== undefined
+      ? featuredVideoFields(featured_video_url)
+      : {}),
     ...(result.data.social_links === null ? { social_links: {} } : {}),
     ...(result.data.brand_tokens === null
       ? { brand_tokens: DEFAULT_STORE_BRAND_TOKENS }
@@ -718,7 +698,7 @@ async function update(
       typeof error.code === "string"
         ? error.code
         : null;
-    if (prismaCode === "P2002" || prismaCode === "P2034") {
+    if (prismaCode === "P2002" || isTransactionWriteConflict(error)) {
       const latest = await prisma.store.findUnique({
         where: { id },
         select: { draft_revision: true },
@@ -1006,7 +986,7 @@ async function changePublication(
     const prismaMessage =
       typeof prismaError?.message === "string" ? prismaError.message : "";
     if (
-      prismaCode === "P2034" ||
+      isTransactionWriteConflict(error) ||
       databaseCode === "40001" ||
       prismaMessage.includes("could not serialize access") ||
       (prismaCode === "P2002" &&

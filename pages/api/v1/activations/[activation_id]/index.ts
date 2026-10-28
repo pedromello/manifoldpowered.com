@@ -4,6 +4,7 @@ import controller from "infra/controller";
 import activation from "models/activation";
 import authorization from "models/authorization";
 import session from "models/session";
+import { loginEventContext } from "infra/product_event_context";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -18,6 +19,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const newSession = await session.create(validatedUser.id);
   controller.setSessionCookie(res, newSession.token);
+  await loginEventContext(req, res, validatedUser.id);
 
   const secureOutputValues = authorization.filterOutput(
     validatedUser,

@@ -1,3 +1,4 @@
+import { GameArtwork } from "components/store/GameArtwork";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -24,8 +25,14 @@ import {
 } from "lucide-react";
 import { CreatorWorkspaceLayout } from "components/creator/CreatorWorkspaceLayout";
 import { OutletCustomizationForm } from "components/store/OutletCustomizationForm";
+import {
+  OutletAffiliateWorkspace,
+  type AffiliateEditState,
+} from "components/creator/OutletAffiliateWorkspace";
+import { OutletOutboundAnalytics } from "components/creator/OutletOutboundAnalytics";
 import { CreatorOutletOverview } from "components/creator/CreatorOutletOverview";
 import { CatalogCurationWorkspace } from "components/creator/CatalogCurationWorkspace";
+import { SelectionWorkspace } from "components/creator/SelectionWorkspace";
 import { GameAutocomplete } from "components/store/GameAutocomplete";
 import {
   type GameApi,
@@ -224,7 +231,10 @@ type Tab =
   | "overview"
   | "featured"
   | "curation"
+  | "selections"
   | "settings"
+  | "affiliates"
+  | "analytics"
   | "sales"
   | "earnings";
 
@@ -232,7 +242,10 @@ const manageTabs: [Tab, string][] = [
   ["overview", "Overview"],
   ["featured", "Featured"],
   ["curation", "Your games"],
+  ["selections", "Selections"],
   ["settings", "Identity"],
+  ["affiliates", "Affiliates"],
+  ["analytics", "Store clicks"],
   ["sales", "Sales"],
   ["earnings", "Earnings"],
 ];
@@ -249,6 +262,10 @@ function isManageTab(value: string): value is Tab {
 
 export default function StoreManagePage() {
   const router = useRouter();
+  const [affiliateEditState, setAffiliateEditState] =
+    useState<AffiliateEditState>({ dirty: false, pending: false });
+  const [affiliateNavigationBlocked, setAffiliateNavigationBlocked] =
+    useState(false);
   const { t } = useI18n();
   const slug = router.query.slug as string | undefined;
   const requestedTab =
@@ -307,7 +324,10 @@ export default function StoreManagePage() {
     if (value === "overview") return canAccessDraft;
     if (value === "featured") return capabilities.featured;
     if (value === "curation") return capabilities.curation;
+    if (value === "selections") return canAccessDraft;
     if (value === "settings") return capabilities.identity;
+    if (value === "affiliates") return capabilities.edit;
+    if (value === "analytics") return capabilities.analytics;
     if (value === "sales") return capabilities.sales;
     if (value === "earnings") return capabilities.earnings;
     return true;
@@ -318,6 +338,9 @@ export default function StoreManagePage() {
   const tab = tabIsAvailable
     ? requestedManageTab
     : (availableTabs[0]?.[0] ?? "overview");
+  const affiliateEditorBusy =
+    tab === "affiliates" &&
+    (affiliateEditState.dirty || affiliateEditState.pending);
 
   useEffect(() => {
     const error = managementShellError ?? storeError ?? publicationError;
@@ -350,6 +373,11 @@ export default function StoreManagePage() {
   }, [availableTabs.length, managementShell, router, tab, tabIsAvailable]);
 
   function selectTab(nextTab: Tab) {
+    if (nextTab !== tab && affiliateEditorBusy) {
+      setAffiliateNavigationBlocked(true);
+      return false;
+    }
+    setAffiliateNavigationBlocked(false);
     void router.replace(
       {
         pathname: router.pathname,
@@ -358,6 +386,7 @@ export default function StoreManagePage() {
       undefined,
       { shallow: true, scroll: false },
     );
+    return true;
   }
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: Tab) {
@@ -376,8 +405,8 @@ export default function StoreManagePage() {
     if (nextIndex === null) return;
     event.preventDefault();
     const nextTab = tabs[nextIndex];
-    selectTab(nextTab);
-    document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
+    if (selectTab(nextTab))
+      document.getElementById(`outlet-manage-tab-${nextTab}`)?.focus();
   }
 
   const {
@@ -481,6 +510,12 @@ export default function StoreManagePage() {
               href={`/store/${storeData.slug}${
                 storeData.status === "PUBLISHED" ? "" : "?preview=1"
               }`}
+              onClick={(event) => {
+                if (affiliateEditorBusy) {
+                  event.preventDefault();
+                  setAffiliateNavigationBlocked(true);
+                }
+              }}
               className="flex w-fit items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white/80 hover:bg-white/10 transition-colors shrink-0"
             >
               {t("View my Outlet")}
@@ -492,8 +527,21 @@ export default function StoreManagePage() {
         {tab === "overview" && storeData ? (
           <CreatorOverviewPanel store={storeData} />
         ) : canAccessDraft && storeData ? (
-          <LifecyclePanel store={storeData} />
+          <LifecyclePanel store={storeData} editorBusy={affiliateEditorBusy} />
         ) : null}
+
+        {affiliateNavigationBlocked && affiliateEditorBusy && (
+          <p
+            role="alert"
+            className="rounded-xl border border-amber-300/25 bg-amber-300/5 p-4 text-sm text-amber-100"
+          >
+            {t(
+              affiliateEditState.pending
+                ? "Wait for the current action to finish before leaving this section."
+                : "Save or cancel your changes before switching sections or publishing.",
+            )}
+          </p>
+        )}
 
         {/* Scrollable and shrink-proof, the same idiom BackofficeTopNav uses.
             Four tabs do not fit a 390px viewport: without this the row pushes
@@ -537,6 +585,13 @@ export default function StoreManagePage() {
               storeName={shellStore.name}
             />
           )}
+          {tab === "selections" && (
+            <SelectionWorkspace
+              storeSlug={shellStore.slug}
+              canEdit={capabilities.edit}
+              canPublish={capabilities.publish}
+            />
+          )}
           {tab === "curation" &&
             (tagFiltersError ? (
               <p className="text-sm font-bold text-rose-300">
@@ -552,6 +607,16 @@ export default function StoreManagePage() {
               />
             ))}
           {tab === "settings" && storeData && <SettingsTab store={storeData} />}
+          {tab === "affiliates" && (
+            <OutletAffiliateWorkspace
+              storeSlug={shellStore.slug}
+              canPublish={capabilities.publish}
+              onEditStateChange={setAffiliateEditState}
+            />
+          )}
+          {tab === "analytics" && (
+            <OutletOutboundAnalytics storeSlug={shellStore.slug} />
+          )}
           {tab === "sales" && <SalesTab storeSlug={shellStore.slug} />}
           {tab === "earnings" && <EarningsTab storeSlug={shellStore.slug} />}
         </div>
@@ -586,6 +651,7 @@ function CreatorOverviewPanel({ store }: { store: StoreApi }) {
   useEffect(() => {
     const localDraft = loadCreatorOutletDraft(localStorage, store.owner_id);
     if (localDraft?.storeSlug === store.slug) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate the browser-only preview receipt after mount.
       setPreviewedAt(localDraft.previewedAt);
     }
   }, [store.owner_id, store.slug]);
@@ -741,7 +807,13 @@ function currentConflictRevision(body: unknown): number | null {
   return typeof revision === "number" ? revision : null;
 }
 
-function LifecyclePanel({ store }: { store: StoreApi }) {
+function LifecyclePanel({
+  store,
+  editorBusy = false,
+}: {
+  store: StoreApi;
+  editorBusy?: boolean;
+}) {
   const { t, locale, translateError } = useI18n();
   const { mutate: mutateGlobal } = useSWRConfig();
   const endpoint = publicationEndpoint(store.slug);
@@ -759,6 +831,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
   const [justPublished, setJustPublished] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear the existing publication feedback when another server draft is loaded.
     setJustPublished(false);
   }, [data?.draft_revision]);
 
@@ -775,6 +848,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
     typeof data?.published_revision?.source_draft_revision === "number" &&
     data.draft_revision > data.published_revision.source_draft_revision;
   const canPublish =
+    !editorBusy &&
     data?.capabilities.publish === true &&
     (!isPublished || hasPendingChanges) &&
     readinessVersionIsValid &&
@@ -782,7 +856,7 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
     revisionIsValid;
 
   async function transition(action: "publish" | "unpublish") {
-    if (!data || pendingAction) return;
+    if (!data || pendingAction || editorBusy) return;
     if (
       (action === "publish" && !data.capabilities.publish) ||
       (action === "unpublish" && !data.capabilities.unpublish)
@@ -1053,7 +1127,9 @@ function LifecyclePanel({ store }: { store: StoreApi }) {
               <button
                 type="button"
                 onClick={() => void transition("unpublish")}
-                disabled={pendingAction !== null || !revisionIsValid}
+                disabled={
+                  pendingAction !== null || !revisionIsValid || editorBusy
+                }
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-400/10 px-5 py-2.5 text-sm font-black uppercase tracking-wider text-rose-200 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {pendingAction === "unpublish" ? (
@@ -1193,12 +1269,14 @@ function FeaturedTab({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset the existing editor when its outlet endpoint changes.
     setIsInitialized(false);
     setRecommendations([]);
   }, [featuredKey]);
 
   useEffect(() => {
     if (!data || isInitialized) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initialize the editable snapshot once; later SWR refreshes must preserve local edits.
     setRecommendations(
       data.mode === "EDITORIAL"
         ? data.games.map((featuredGame) => ({
@@ -1490,13 +1568,9 @@ function FeaturedTab({
               className="overflow-hidden rounded-2xl border border-white/10 bg-[#14101c]"
             >
               <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-                <div
+                <GameArtwork
+                  src={entry.game.media?.banner}
                   className="aspect-video w-full shrink-0 rounded-xl border border-white/10 bg-[#21152f] sm:w-48"
-                  style={{
-                    background: entry.game.media?.banner
-                      ? `url(${entry.game.media.banner}) center/cover no-repeat`
-                      : undefined,
-                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
@@ -2187,13 +2261,9 @@ function GameOverridesPanel({
       <form onSubmit={handleAddOverride} className="flex flex-wrap gap-2">
         {selectedGame ? (
           <div className="flex-1 min-w-[160px] flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <div
+            <GameArtwork
+              src={selectedGame.media.banner}
               className="h-8 aspect-[16/9] rounded-md shrink-0 border border-white/5"
-              style={{
-                background: selectedGame.media.banner
-                  ? `url(${selectedGame.media.banner}) center/cover no-repeat`
-                  : "linear-gradient(135deg, var(--color-purple-dark) 0%, rgba(53,34,89,0.7) 100%)",
-              }}
             />
             <span className="flex-1 font-bold text-white text-sm truncate">
               {selectedGame.title}
@@ -2283,11 +2353,9 @@ function OverrideChip({
       }`}
     >
       {game?.media.banner && (
-        <div
+        <GameArtwork
+          src={game.media.banner}
           className="h-6 aspect-[16/9] rounded shrink-0 border border-white/10"
-          style={{
-            background: `url(${game.media.banner}) center/cover no-repeat`,
-          }}
         />
       )}
       <span>

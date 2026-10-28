@@ -89,6 +89,23 @@ describe("OutletCustomizationForm", () => {
     });
   });
 
+  test.each([
+    ["channel", "5:1", "2000 × 400"],
+    ["community", "5:1", "2000 × 400"],
+    ["editorial", "16:5", "1600 × 500"],
+  ] as const)(
+    "recommends a cover format for the %s layout",
+    (layout_preset, ratio, dimensions) => {
+      const markup = renderToStaticMarkup(
+        <OutletCustomizationForm store={store({ layout_preset })} />,
+      );
+      expect(markup).toContain(
+        `Use a wide image (${ratio}), ideally ${dimensions} px.`,
+      );
+      expect(markup).toContain('aria-describedby="outlet-cover-guidance"');
+    },
+  );
+
   test("keeps a legacy null preset classic without silently selecting Channel", () => {
     const markup = renderToStaticMarkup(
       <OutletCustomizationForm store={store()} />,

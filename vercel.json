@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run vercel:build"
+  "buildCommand": "npm run vercel:build",
+  "crons": [
+    { "path": "/api/internal/product-events/prune", "schedule": "0 8 * * *" }
+  ]
 }

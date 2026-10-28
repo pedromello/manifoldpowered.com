@@ -51,16 +51,24 @@ describe("StorefrontRouteLayout", () => {
 
   test("keeps an explicitly registered Outlet inside the custom shell", () => {
     const markup = renderToStaticMarkup(
-      <StorefrontRouteLayout
-        store={store("renamed-strategos", "strategos-void")}
-      >
+      <StorefrontRouteLayout store={store("renamed-neon", "neon-alley")}>
         <span>custom Outlet</span>
       </StorefrontRouteLayout>,
     );
 
     expect(markup).toContain('data-testid="custom-layout"');
-    expect(markup).toContain('data-store-slug="renamed-strategos"');
+    expect(markup).toContain('data-store-slug="renamed-neon"');
     expect(markup).not.toContain('data-testid="platform-layout"');
+  });
+
+  test("uses the shared shell for a published legacy Strategos theme", () => {
+    const markup = renderToStaticMarkup(
+      <StorefrontRouteLayout store={store("strategos-void", "strategos-void")}>
+        <span>standard Outlet</span>
+      </StorefrontRouteLayout>,
+    );
+    expect(markup).toContain('data-testid="platform-layout"');
+    expect(markup).not.toContain('data-testid="custom-layout"');
   });
 
   test("keeps a forged bespoke slug in the platform shell", () => {

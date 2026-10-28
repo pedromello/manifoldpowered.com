@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { FeaturedVideoField } from "components/creator/FeaturedVideoField";
+import { featuredVideoUrl as videoWatchUrl } from "contracts/featured-video";
 import {
   Check,
   ExternalLink,
@@ -21,6 +23,7 @@ import {
 import { useI18n } from "lib/i18n";
 import { revalidateOutletDraftCaches } from "lib/outlet-draft-cache";
 import { isBespokeThemeKey } from "storefronts/bespoke";
+import { OutletRatingSystemSettings } from "components/store/OutletRatingSystemSettings";
 
 const PRESET_OPTIONS: Array<{
   value: OutletLayoutPreset;
@@ -66,6 +69,16 @@ const PALETTE_OPTIONS: Array<{
     value: "ocean",
     label: "Deep Ocean",
     swatches: ["#071014", "#22d3ee", "#f7fcfd"],
+  },
+  {
+    value: "crimson",
+    label: "Crimson Red",
+    swatches: ["#110b0d", "#ff6678", "#ffffff"],
+  },
+  {
+    value: "burgundy",
+    label: "Dark Burgundy",
+    swatches: ["#0f0a14", "#ff8a75", "#ffffff"],
   },
 ];
 
@@ -341,6 +354,7 @@ export function OutletCustomizationForm({
 }) {
   const { t, translateError, locale } = useI18n();
   const { mutate } = useSWRConfig();
+  const [sourceStore, setSourceStore] = useState(store);
   const [savedStore, setSavedStore] = useState<StoreApi>(store);
   const savedPresentation = useMemo(
     () => storeContextFromApi(savedStore),
@@ -351,6 +365,9 @@ export function OutletCustomizationForm({
   const [description, setDescription] = useState(store.description ?? "");
   const [logoUrl, setLogoUrl] = useState(store.logo_url ?? "");
   const [coverUrl, setCoverUrl] = useState(savedPresentation.cover_url ?? "");
+  const [videoUrl, setVideoUrl] = useState(
+    videoWatchUrl(savedPresentation.featured_video) ?? "",
+  );
   const [socialLinks, setSocialLinks] = useState<OutletSocialLinks>(
     savedPresentation.social_links,
   );
@@ -393,7 +410,8 @@ export function OutletCustomizationForm({
     draftRevision > publication.published_revision.source_draft_revision,
   );
 
-  useEffect(() => {
+  if (sourceStore !== store) {
+    setSourceStore(store);
     const presentation = storeContextFromApi(store);
     setSavedStore(store);
     setName(presentation.name);
@@ -401,13 +419,14 @@ export function OutletCustomizationForm({
     setDescription(store.description ?? "");
     setLogoUrl(store.logo_url ?? "");
     setCoverUrl(presentation.cover_url ?? "");
+    setVideoUrl(videoWatchUrl(presentation.featured_video) ?? "");
     setSocialLinks(presentation.social_links);
     setLayoutPreset(presentation.layout_preset ?? "channel");
     setHasSelectedPreset(presentation.layout_preset !== null);
     setBrandTokens(presentation.brand_tokens);
     setDraftRevision(store.draft_revision);
     setPreviewRevision((current) => current + 1);
-  }, [store]);
+  }
 
   const cleanedSocialLinks = useMemo(
     () =>
@@ -426,6 +445,7 @@ export function OutletCustomizationForm({
       description: description.trim() || null,
       logo_url: logoUrl.trim() || null,
       cover_url: coverUrl.trim() || null,
+      featured_video_url: videoUrl.trim() || null,
       social_links: cleanedSocialLinks,
       ...(hasSelectedPreset ? { layout_preset: layoutPreset } : {}),
       brand_tokens: brandTokens,
@@ -434,6 +454,7 @@ export function OutletCustomizationForm({
       brandTokens,
       cleanedSocialLinks,
       coverUrl,
+      videoUrl,
       description,
       hasSelectedPreset,
       layoutPreset,
@@ -450,6 +471,7 @@ export function OutletCustomizationForm({
       description: savedPresentation.description?.trim() || null,
       logo_url: savedPresentation.logo_url?.trim() || null,
       cover_url: savedPresentation.cover_url?.trim() || null,
+      featured_video_url: videoWatchUrl(savedPresentation.featured_video),
       social_links: savedPresentation.social_links,
       layout_preset: savedPresentation.layout_preset,
       brand_tokens: savedPresentation.brand_tokens,
@@ -463,6 +485,7 @@ export function OutletCustomizationForm({
     description: draftPayload.description,
     logo_url: draftPayload.logo_url,
     cover_url: draftPayload.cover_url,
+    featured_video_url: draftPayload.featured_video_url,
     social_links: draftPayload.social_links,
     layout_preset: hasSelectedPreset ? layoutPreset : null,
     brand_tokens: draftPayload.brand_tokens,
@@ -473,6 +496,7 @@ export function OutletCustomizationForm({
 
   function applyManagementResponse(body: StoreManagementApi) {
     setSavedStore(body);
+    setVideoUrl(videoWatchUrl(storeContextFromApi(body).featured_video) ?? "");
     setDraftRevision(body.draft_revision);
     setPreviewRevision((current) => current + 1);
     void mutate(managementKey, body, { revalidate: false });
@@ -751,6 +775,33 @@ export function OutletCustomizationForm({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(540px,1.2fr)]">
         <div className="flex min-w-0 flex-col gap-8">
+          <OutletRatingSystemSettings
+            slug={store.slug}
+            scale={savedStore.rating_scale ?? null}
+            draftRevision={draftRevision}
+            disabled={isDirty || isSubmitting || isPublishing}
+            onApplied={async (result) => {
+              setSavedStore((current) => ({
+                ...current,
+                rating_scale: result.rating_scale,
+                draft_revision: result.draft_revision,
+              }));
+              setDraftRevision(result.draft_revision);
+              setPreviewRevision((current) => current + 1);
+              await Promise.all([
+                mutate(managementKey),
+                mutatePublication(),
+                revalidateOutletDraftCaches(mutate, store.slug),
+              ]);
+            }}
+            onReload={async () => {
+              await Promise.all([
+                mutate(managementKey),
+                mutatePublication(),
+                revalidateOutletDraftCaches(mutate, store.slug),
+              ]);
+            }}
+          />
           <section aria-labelledby="identity-heading">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-300">
               {t("Identity")}
@@ -817,11 +868,27 @@ export function OutletCustomizationForm({
                   />
                 </Field>
                 <Field label={t("Cover URL")}>
+                  <p
+                    id="outlet-cover-guidance"
+                    className="text-xs leading-5 text-white/50"
+                  >
+                    {t(
+                      "Use a wide image ({ratio}), ideally {dimensions} px. Other proportions are shown in full with a soft background.",
+                      {
+                        ratio: layoutPreset === "editorial" ? "16:5" : "5:1",
+                        dimensions:
+                          layoutPreset === "editorial"
+                            ? "1600 × 500"
+                            : "2000 × 400",
+                      },
+                    )}
+                  </p>
                   <input
                     type="url"
                     pattern="https://.*"
                     title={t("Use an HTTPS URL.")}
                     disabled={bespoke}
+                    aria-describedby="outlet-cover-guidance"
                     value={coverUrl}
                     onChange={(event) => setCoverUrl(event.target.value)}
                     placeholder="https://example.com/cover.jpg"
@@ -831,6 +898,12 @@ export function OutletCustomizationForm({
               </div>
             </div>
           </section>
+
+          <FeaturedVideoField
+            value={videoUrl}
+            onChange={setVideoUrl}
+            disabled={bespoke || isSubmitting || isPublishing}
+          />
 
           <fieldset
             aria-labelledby="social-heading"

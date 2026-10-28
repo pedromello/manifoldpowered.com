@@ -32,11 +32,13 @@ describe("GET /api/v1/stores/[slug]", () => {
         layout_preset: createdStore.layout_preset,
         tagline: createdStore.tagline,
         cover_url: createdStore.cover_url,
+        featured_video: null,
         social_links: createdStore.social_links,
         brand_tokens: createdStore.brand_tokens,
         owner_id: owner.id,
         presentation: {
-          version: 1,
+          version: 3,
+          featured_video: null,
           layout_preset: createdStore.layout_preset,
           tagline: null,
           cover_image_url: null,
@@ -47,6 +49,7 @@ describe("GET /api/v1/stores/[slug]", () => {
         status: "PUBLISHED",
         published_at: createdStore.published_at?.toISOString(),
         storefront_source: "REVISION",
+        rating_scale: null,
         published_revision: {
           id: createdStore.published_revision_id,
           revision: 1,

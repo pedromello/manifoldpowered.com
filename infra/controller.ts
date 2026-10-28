@@ -12,6 +12,7 @@ import {
 } from "./errors";
 import session from "models/session";
 import * as cookie from "cookie";
+import { appendResponseCookie } from "infra/response_cookies";
 import { NextHandler } from "next-connect";
 import user from "models/user";
 import authorization from "models/authorization";
@@ -101,7 +102,7 @@ function setSessionCookie(res: NextApiResponse, token: string) {
     sameSite: "lax",
   });
 
-  res.setHeader("Set-Cookie", setCookie);
+  appendResponseCookie(res, setCookie);
 }
 
 function clearSessionCookie(res: NextApiResponse) {
@@ -112,7 +113,7 @@ function clearSessionCookie(res: NextApiResponse) {
     httpOnly: true,
   });
 
-  res.setHeader("Set-Cookie", setCookie);
+  appendResponseCookie(res, setCookie);
 }
 
 async function injectAnonymousOrUser(

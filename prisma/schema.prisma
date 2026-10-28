@@ -125,6 +125,7 @@ enum SteamImportAttemptOutcome {
 enum GameLocalizationSource {
   STEAM
   NINTENDO
+  PLAYSTATION
   FALLBACK
 }
 
@@ -170,8 +171,9 @@ model Game {
   // Source Steam app id, set only for games imported via the Steam import
   // flow. Nullable + unique: multiple NULLs are allowed (manual games), but
   // the same Steam app can't be imported twice.
-  steam_app_id   String? @unique @db.VarChar(20)
-  nintendo_nsuid String? @unique @db.VarChar(14)
+  steam_app_id           String? @unique @db.VarChar(20)
+  nintendo_nsuid         String? @unique @db.VarChar(14)
+  playstation_product_id String? @unique @db.VarChar(64)
 
   // Informational Steam offer captured during import. These fields are kept
   // separate from price/base_price because they never make the game
@@ -229,18 +231,19 @@ model GameOwnershipClaim {
 }
 
 model GameExternalOffer {
-  id               String   @id @default(uuid())
+  expires_at       DateTime? @db.Timestamptz(3)
+  id               String    @id @default(uuid())
   game_id          String
-  provider         String   @db.VarChar(20)
-  country          String   @db.VarChar(2)
-  currency         String   @db.VarChar(3)
-  amount           Decimal? @db.Decimal(19, 4)
-  original_amount  Decimal? @db.Decimal(19, 4)
+  provider         String    @db.VarChar(20)
+  country          String    @db.VarChar(2)
+  currency         String    @db.VarChar(3)
+  amount           Decimal?  @db.Decimal(19, 4)
+  original_amount  Decimal?  @db.Decimal(19, 4)
   discount_percent Int?
   captured_at      DateTime
-  url              String   @db.Text
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  url              String    @db.Text
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   game Game @relation(fields: [game_id], references: [id], onDelete: Cascade)
 
@@ -269,6 +272,39 @@ model GameLocalization {
 
 // Stateful record used both for abuse prevention and for content-policy audit.
 // There are no foreign keys by design; user_id is a logical reference to User.id.
+model PlayStationRefresh {
+  id                String    @id @default(uuid())
+  product_id        String    @unique @db.VarChar(64)
+  game_id           String?
+  state             String    @default("IDLE")
+  last_completed_at DateTime?
+  next_allowed_at   DateTime?
+  lease_token       String?
+  lease_expires_at  DateTime?
+  error_name        String?
+  error_message     String?
+  regional_outcomes Json      @default("{}")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  @@index([game_id])
+  @@index([lease_expires_at])
+  @@map("playstation_refreshes")
+}
+
+model PlayStationImportAttempt {
+  id                String   @id @default(uuid())
+  user_id           String
+  product_id        String   @db.VarChar(64)
+  outcome           String   @default("PENDING") @db.VarChar(32)
+  regional_outcomes Json     @default("{}")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([user_id, created_at])
+  @@map("playstation_import_attempts")
+}
+
 model NintendoRefresh {
   id                String    @id @default(uuid())
   identity          String    @unique
@@ -349,6 +385,43 @@ model Review {
   @@index([user_id])
   @@index([game_id])
   @@map("reviews")
+}
+
+// Product observations and confirmed facts. Logical domain references preserve history.
+model ProductEvent {
+  id                 BigInt   @id @default(autoincrement())
+  event_key          String   @unique @db.VarChar(160)
+  name               String   @db.VarChar(64)
+  schema_version     Int      @db.SmallInt
+  source             String   @db.VarChar(6)
+  occurred_at        DateTime @db.Timestamptz(3)
+  received_at        DateTime @default(now()) @db.Timestamptz(3)
+  client_occurred_at DateTime? @db.Timestamptz(3)
+  user_id            String?
+  anonymous_id       String?  @db.Uuid
+  visit_id           String?  @db.Uuid
+  store_id           String?
+  selection_id       String?
+  game_id            String?
+  properties         Json     @default("{}")
+
+  @@index([name, occurred_at])
+  @@index([user_id, occurred_at])
+  @@index([visit_id, occurred_at])
+  @@index([store_id, occurred_at])
+  @@index([received_at])
+  @@map("product_events")
+}
+
+model ProductEventIngestBucket {
+  bucket_key   String   @db.VarChar(100)
+  window_start DateTime @db.Timestamptz(3)
+  event_count  Int
+  expires_at   DateTime @db.Timestamptz(3)
+
+  @@id([bucket_key, window_start])
+  @@index([expires_at])
+  @@map("product_event_ingest_buckets")
 }
 
 model WishlistItem {
@@ -677,6 +750,12 @@ enum StoreStatus {
   PUBLISHED
 }
 
+enum OutletRatingScale {
+  STARS
+  NUMERIC_10
+  TIER
+}
+
 enum StoreLifecycleAction {
   PUBLISH
   UNPUBLISH
@@ -698,15 +777,16 @@ enum StoreRevisionCatalogMode {
 }
 
 model Store {
-  id                         String           @id @default(uuid())
-  name                       String           @db.VarChar(255)
-  slug                       String           @unique @db.VarChar(255)
-  description                String?          @db.Text
-  logo_url                   String?          @db.VarChar(2048)
+  id                         String             @id @default(uuid())
+  name                       String             @db.VarChar(255)
+  slug                       String             @unique @db.VarChar(255)
+  description                String?            @db.Text
+  logo_url                   String?            @db.VarChar(2048)
   owner_id                   String // Logical reference to User.id (creator/owner)
-  status                     StoreStatus      @default(DRAFT)
-  catalog_mode               StoreCatalogMode @default(UNDECIDED)
-  draft_revision             Int              @default(1)
+  status                     StoreStatus        @default(DRAFT)
+  catalog_mode               StoreCatalogMode   @default(UNDECIDED)
+  rating_scale               OutletRatingScale?
+  draft_revision             Int                @default(1)
   published_revision_id      String? // Logical reference to StoreRevision.id
   last_published_revision_id String? // Preserved after unpublish
   published_at               DateTime?
@@ -719,7 +799,10 @@ model Store {
   layout_preset String? @db.VarChar(32)
   tagline       String? @db.VarChar(160)
   cover_url     String? @db.VarChar(2048)
+  featured_video_id String? @db.VarChar(11)
+  featured_video_start_seconds Int @default(0)
   social_links  Json    @default("{}")
+  affiliate_settings Json @default("{\"version\":1,\"links\":[]}")
   brand_tokens  Json    @default("{\"palette\":\"manifold\",\"typography\":\"modern\",\"shape\":\"soft\"}")
 
   // What this outlet earns on a sale it referred, as a fraction of the gross.
@@ -759,6 +842,8 @@ model StoreRevision {
   game_overrides        Json
   featured_games        Json
   game_editorials       Json                     @default("[]")
+  affiliate_links       Json                     @default("{\"version\":1,\"links\":[]}")
+  rating_scale          OutletRatingScale?
   presentation          Json
   // No updated_at: a published snapshot is immutable.
   created_at            DateTime                 @default(now())
@@ -766,6 +851,66 @@ model StoreRevision {
   @@unique([store_id, revision])
   @@index([store_id, created_at])
   @@map("store_revisions")
+}
+
+model StoreGameAffiliateLink {
+  id         String   @id @default(uuid())
+  store_id   String
+  game_id    String
+  merchant   String   @db.VarChar(20)
+  platform   String   @db.VarChar(20)
+  media_type String   @db.VarChar(10)
+  country    String   @default("BR") @db.VarChar(2)
+  url        String   @db.VarChar(4096)
+  label      String?  @db.VarChar(120)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([store_id, game_id, merchant, platform, media_type, country], map: "store_game_affiliate_link_target_key")
+  @@index([store_id])
+  @@map("store_game_affiliate_links")
+}
+
+model StoreSelection {
+  id                    String      @id @default(uuid())
+  store_id              String
+  slug                  String      @db.VarChar(120)
+  title                 String      @db.VarChar(120)
+  description           String      @default("") @db.Text
+  cover_url             String?     @db.VarChar(2048)
+  featured_video_id     String?     @db.VarChar(11)
+  featured_video_start_seconds Int @default(0)
+  image_urls            String[]    @default([])
+  game_ids              String[]    @default([])
+  draft_revision        Int         @default(1)
+  status                StoreStatus @default(DRAFT)
+  published_revision    Int         @default(0)
+  published_revision_id String?
+  published_at          DateTime?
+  created_at            DateTime    @default(now())
+  updated_at            DateTime    @updatedAt
+
+  @@unique([store_id, slug])
+  @@index([store_id, status, created_at])
+  @@index([status, published_at])
+  @@index([published_revision_id])
+  @@map("store_selections")
+}
+
+// Publication snapshots use logical references, like StoreRevision. Draft
+// edits never change the content returned by a published selection page.
+model StoreSelectionRevision {
+  id                    String   @id @default(uuid())
+  selection_id          String
+  revision              Int
+  source_draft_revision Int
+  actor_user_id         String
+  snapshot              Json
+  created_at            DateTime @default(now())
+
+  @@unique([selection_id, revision])
+  @@index([selection_id, created_at])
+  @@map("store_selection_revisions")
 }
 
 // Append-only lifecycle audit history. Store/revision/user ids are logical
@@ -925,18 +1070,37 @@ model StoreFeaturedGame {
 // relationship, not to a Featured slot, so rearranging or removing highlights
 // never destroys the creator's long-form opinion.
 model StoreGameEditorial {
-  id         String   @id @default(uuid())
-  store_id   String // Logical reference to Store.id
-  game_id    String // Logical reference to Game.id
-  headline   String?  @db.VarChar(120)
-  body       String   @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id           String             @id @default(uuid())
+  store_id     String // Logical reference to Store.id
+  game_id      String // Logical reference to Game.id
+  headline     String?            @db.VarChar(120)
+  body         String             @db.Text
+  rating_scale OutletRatingScale?
+  // Numeric scales use half-point units; tiers use ascending rank (F=0).
+  rating_value Int?
+  created_at   DateTime           @default(now())
+  updated_at   DateTime           @updatedAt
 
   @@unique([store_id, game_id])
   @@index([store_id])
   @@index([game_id])
   @@map("store_game_editorials")
+}
+
+// Immutable, queryable rating projection written with its StoreRevision.
+// Logical references only; public reads require the published revision id.
+model StoreRevisionGameRating {
+  id           String            @id @default(uuid())
+  revision_id  String
+  game_id      String
+  rating_scale OutletRatingScale
+  rating_value Int
+  // No updated_at: published rating projections are immutable.
+  created_at   DateTime          @default(now())
+
+  @@unique([revision_id, game_id])
+  @@index([revision_id, rating_scale, rating_value, game_id], map: "store_revision_game_ratings_filter_idx")
+  @@map("store_revision_game_ratings")
 }
 
 model AdminActionLog {
@@ -1322,4 +1486,13 @@ model GamePriceOverride {
   @@index([game_id])
   @@index([currency])
   @@map("game_price_overrides")
+}
+model HomeEditorial {
+  id            String   @id @default("home")
+  selection_ids String[] @default([])
+  revision      Int      @default(0)
+  updated_by    String?
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("home_editorial")
 }

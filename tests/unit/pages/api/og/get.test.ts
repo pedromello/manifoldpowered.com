@@ -3,9 +3,25 @@ import { NextRequest } from "next/server";
 import handler, {
   loadFirstImageData,
   loadImageData,
-  outletArtworkCandidates,
+  outletAvatarCandidates,
   publishedStoreFromResponse,
+  publishedSelectionFromResponse,
+  loadOutletPreview,
 } from "pages/api/og/[...segments]";
+import { selectionFixture } from "tests/unit/_fixtures/selection";
+// Keep Jest's unit layer independent of next/og's dynamic WASM import.
+// The visual fixture runner separately exercises the real PNG renderer.
+jest.mock("next/og", () => ({
+  ImageResponse: jest.fn(
+    (card, options) =>
+      new Response(
+        jest.requireActual("react-dom/server").renderToStaticMarkup(card),
+        {
+          headers: options.headers,
+        },
+      ),
+  ),
+}));
 
 const ORIGIN = "https://www.manifoldpowered.com";
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
@@ -14,6 +30,10 @@ function imageResponse(contentType: string, bytes: Uint8Array): Response {
   const body = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(body).set(bytes);
   return new Response(body, { headers: { "content-type": contentType } });
+}
+
+function logoRequest(outlet: { slug: string; logo_url: string | null }) {
+  return `${ORIGIN}/api/outlet-logo/${outlet.slug}?source=${encodeURIComponent(outlet.logo_url!)}`;
 }
 
 function publishedStore(overrides: Record<string, unknown> = {}) {
@@ -53,7 +73,200 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe("selection social preview privacy", () => {
+  test.each(
+    ["outlet", "selection"].flatMap((kind) =>
+      [
+        "https://yt3.googleusercontent.com/public-avatar=s900-c-k",
+        "https://pbs.twimg.com/profile_images/example/avatar.png",
+        "https://community.example/logo.png",
+      ].map((logo) => [kind, logo]),
+    ),
+  )(
+    "renders the published community logo in the %s preview from %s",
+    async (kind, logo) => {
+      const data = selectionFixture();
+      data.outlet.name = "Comunidade Exemplo";
+      data.outlet.logo_url = logo;
+      const store = publishedStore({
+        slug: data.outlet.slug,
+        name: data.outlet.name,
+        logo_url: data.outlet.logo_url,
+      });
+      const fetchMock = jest
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async (input) => {
+          const url = String(input);
+          if (url.includes("/selections/")) return Response.json(data);
+          if (url.endsWith("/api/v1/stores/example-outlet"))
+            return Response.json(store);
+          if (url === logoRequest(data.outlet))
+            return imageResponse("image/png", PNG_BYTES);
+          return new Response(null, { status: 404 });
+        });
+      const path =
+        kind === "outlet"
+          ? "outlet/example-outlet"
+          : "selection/example-outlet/weekend-coop";
+      const response = await handler(
+        new NextRequest(`${ORIGIN}/api/og/${path}?locale=pt-BR`),
+      );
+      expect(response.status).toBe(200);
+      const markup = await response.text();
+      if (kind === "selection")
+        expect(markup).toContain('alt="Comunidade Exemplo"');
+      expect(markup).toContain("data:image/png;base64,");
+      expect(markup).not.toContain(">CE</div>");
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) => String(url) === logoRequest(data.outlet),
+        ),
+      ).toBe(true);
+      for (const [, init] of fetchMock.mock.calls)
+        expect(init?.headers ?? {}).not.toHaveProperty("cookie");
+    },
+  );
+  test("composes the published Outlet palette and avatar, and revalidates identity changes", async () => {
+    const data = selectionFixture();
+    data.outlet.name = "Comunidade Nintendo";
+    data.selection.title = "Lançamentos da semana (19/10/2026)";
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) => {
+        if (String(url).includes("/selections/"))
+          return new Response(JSON.stringify(data));
+        if (String(url) === logoRequest(data.outlet))
+          return imageResponse("image/png", PNG_BYTES);
+        return new Response(null, { status: 404 });
+      });
+    const request = new NextRequest(
+      `${ORIGIN}/api/og/selection/example-outlet/weekend-coop?preview=1&locale=pt-BR`,
+      { headers: { cookie: "session_id=private-session" } },
+    );
+    const response = await handler(request);
+    expect(response.status).toBe(200);
+    const markup = await response.text();
+    expect(markup).toContain("background:#E60013");
+    expect(markup).toContain('alt="Comunidade Nintendo"');
+    expect(markup).toContain("via Manifold");
+    expect(markup).not.toContain("MANIFOLD");
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => String(url) === logoRequest(data.outlet),
+      ),
+    ).toBe(true);
+    for (const [, init] of fetchMock.mock.calls)
+      expect(init?.headers ?? {}).not.toHaveProperty("cookie");
+
+    const etag = response.headers.get("etag")!;
+    const cachedRequest = new NextRequest(request.url, {
+      headers: { "if-none-match": etag },
+    });
+    expect((await handler(cachedRequest)).status).toBe(304);
+    data.outlet.brand_tokens = {
+      palette: "ocean",
+      typography: "modern",
+      shape: "soft",
+    };
+    const recolored = await handler(cachedRequest);
+    expect(recolored.status).toBe(200);
+    expect(recolored.headers.get("etag")).not.toBe(etag);
+    data.outlet.logo_url = null;
+    const withoutAvatar = await handler(new NextRequest(request.url));
+    expect(withoutAvatar.headers.get("etag")).not.toBe(
+      recolored.headers.get("etag"),
+    );
+    expect(await withoutAvatar.text()).toContain(">CN</div>");
+  });
+
+  test("accepts a published snapshot but refuses draft content or unpublished state", () => {
+    const data = selectionFixture();
+    expect(publishedSelectionFromResponse(data)).toEqual(data);
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, draft_revision: 7 },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, status: "DRAFT" },
+      }),
+    ).toBeNull();
+    expect(
+      publishedSelectionFromResponse({
+        ...data,
+        selection: { ...data.selection, published_at: null },
+      }),
+    ).toBeNull();
+  });
+  test("does not forward preview flags or the request's session to the content API", async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 404 }));
+    const result = await handler(
+      new NextRequest(
+        `${ORIGIN}/api/og/selection/example-outlet/weekend-coop?preview=1&locale=pt-BR`,
+        { headers: { cookie: "session_id=private-session" } },
+      ),
+    );
+    expect(result.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toEqual(
+      new URL(
+        `${ORIGIN}/api/v1/stores/example-outlet/selections/weekend-coop?locale=pt-BR&social_preview=1`,
+      ),
+    );
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      headers: { accept: "application/json" },
+    });
+  });
+});
+
 describe("OG image loading", () => {
+  test.each(["yt3.googleusercontent.com", "yt3.ggpht.com"])(
+    "loads public channel avatars from %s",
+    async (host) => {
+      jest
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+      await expect(
+        loadImageData(`https://${host}/public-avatar=s900-c-k`, ORIGIN),
+      ).resolves.toMatch(/^data:image\/png/);
+    },
+  );
+  test.each([
+    "https://yt3.googleusercontent.com.attacker.example/avatar.png",
+    "https://yt3.googleusercontent.com@127.0.0.1/avatar.png",
+    "http://yt3.googleusercontent.com/avatar.png",
+    "https://yt3.googleusercontent.com:8443/avatar.png",
+  ])("rejects unsafe avatar origins: %s", async (url) => {
+    const fetchMock = jest.spyOn(globalThis, "fetch");
+    await expect(loadImageData(url, ORIGIN)).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  test("accepts the public PNG avatar service but not its SVG or other routes", async () => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => imageResponse("image/png", PNG_BYTES));
+    await expect(
+      loadImageData(
+        "https://api.dicebear.com/9.x/bottts-neutral/png?seed=PublicClub&size=256",
+        ORIGIN,
+      ),
+    ).resolves.toMatch(/^data:image\/png/);
+    await expect(
+      loadImageData(
+        "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=PublicClub",
+        ORIGIN,
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      loadImageData("https://api.dicebear.com/private", ORIGIN),
+    ).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   test.each([
     ["image/jpeg", new Uint8Array([0xff, 0xd8, 0xff, 0xe0])],
     ["image/png", PNG_BYTES],
@@ -91,6 +304,53 @@ describe("OG image loading", () => {
 
     await expect(loadImageData(url, ORIGIN)).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    "/api/og/selection/reviewer/self-reference",
+    "/api/og/outlet/reviewer",
+    "/api/outlet-logo/reviewer?source=https://internal.example/image.png",
+    "/api/v1/stores/reviewer/selections/private?preview=1",
+    "/_next/image?url=%2Fapi%2Fog%2Fselection%2Freviewer%2Fself-reference&w=1200&q=75",
+    "/store/reviewer/selections/weekend",
+    "/%61pi/og/selection/reviewer/self-reference",
+    "/api%2Fog%2Fselection%2Freviewer%2Fself-reference",
+    "/images/../api/og/selection/reviewer/self-reference",
+    "/images/%2e%2e/api/og/selection/reviewer/self-reference",
+    "/images/%2e%2e%2fapi%2fog%2fselection%2freviewer%2fself-reference",
+    "/images/%252e%252e%252fapi%252fog%252fselection%252freviewer%252fself-reference",
+    "/images/%2e%2e%5capi/og/selection/reviewer/self-reference",
+    "/storefronts/%2e%2e%2fapi%2fog%2fselection%2freviewer%2fself-reference",
+    "/images/brand/manifold-logo.png?url=/api/og/selection/reviewer/self-reference",
+  ])(
+    "rejects same-origin dynamic and encoded image routes before fetching: %s",
+    async (path) => {
+      const fetchMock = jest
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+      await expect(
+        loadImageData(`${ORIGIN}${path}`, ORIGIN),
+      ).resolves.toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each([
+    "/images/brand/manifold-logo.png",
+    "/images/social/home-catalog/twisted-tower.jpg",
+    "/storefronts/strategos-void/logo.jpg",
+  ])("retains absolute HTTPS public static artwork: %s", async (path) => {
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(imageResponse("image/png", PNG_BYTES));
+    await expect(loadImageData(`${ORIGIN}${path}`, ORIGIN)).resolves.toMatch(
+      /^data:image\/png;base64,/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(`${ORIGIN}${path}`),
+      expect.objectContaining({ redirect: "manual" }),
+    );
   });
 
   test("allows only explicitly trusted root-relative assets on the HTTP dev origin", async () => {
@@ -185,6 +445,63 @@ describe("OG image loading", () => {
 });
 
 describe("published Outlet OG presentation", () => {
+  test("retries a publication race without mixing identity and draft or automatic games", async () => {
+    const first = publishedStore({ published_revision: { revision: 1 } });
+    const second = publishedStore({
+      name: "New Published Name",
+      published_revision: { revision: 2 },
+    });
+    const featured = {
+      publication: {
+        slug: first.slug,
+        revision: 2,
+        published_at: first.published_at,
+      },
+      games: [
+        {
+          slug: "picked",
+          title: "Picked",
+          media: { banner: "https://images.unsplash.com/game.jpg" },
+          featured_source: "EDITORIAL",
+        },
+        {
+          slug: "auto",
+          title: "Auto",
+          media: { banner: "https://images.unsplash.com/auto.jpg" },
+          featured_source: "AUTOMATIC",
+        },
+      ],
+    };
+    const fetchMock = jest.spyOn(globalThis, "fetch");
+    for (const body of [first, featured, second, featured])
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(body)));
+    const result = await loadOutletPreview(ORIGIN, first.slug, "pt-BR");
+    expect(result?.store.name).toBe("New Published Name");
+    expect(result?.games.map((g) => g.slug)).toEqual(["picked"]);
+    const requests = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requests.filter((url) => url.includes("/featured"))).toEqual([
+      `${ORIGIN}/api/v1/stores/${first.slug}/featured?locale=pt-BR&social_preview=1`,
+      `${ORIGIN}/api/v1/stores/${first.slug}/featured?locale=pt-BR&social_preview=1`,
+    ]);
+    for (const [, init] of fetchMock.mock.calls)
+      expect(init.headers).toEqual({ accept: "application/json" });
+  });
+
+  test("falls back to identity on an inconsistent feed and stops if the Outlet is unpublished", async () => {
+    const store = publishedStore({ published_revision: { revision: 1 } });
+    const fetchMock = jest.spyOn(globalThis, "fetch");
+    for (const body of [store, {}, store, {}, store])
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(body)));
+    expect((await loadOutletPreview(ORIGIN, store.slug, "en"))?.games).toEqual(
+      [],
+    );
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify(store)))
+      .mockResolvedValueOnce(new Response("{}", { status: 404 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    expect(await loadOutletPreview(ORIGIN, store.slug, "en")).toBeNull();
+  });
   test("does not forward an authenticated OG preview request to the draft API", async () => {
     const fetchMock = jest.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -245,9 +562,9 @@ describe("published Outlet OG presentation", () => {
     ).toBeNull();
   });
 
-  test("selects bespoke artwork only from a published registered theme key", () => {
+  test("uses the published logo for a retired theme, never an Outlet cover", () => {
     expect(
-      outletArtworkCandidates(
+      outletAvatarCandidates(
         publishedStore({
           presentation: {
             ...publishedStore().presentation,
@@ -257,16 +574,14 @@ describe("published Outlet OG presentation", () => {
       ),
     ).toEqual([
       {
-        url: "/storefronts/strategos-void/logo.jpg",
+        url: "/api/outlet-logo/published-outlet?source=https%3A%2F%2Fimages.unsplash.com%2Flogo.png",
         trustedInternalAsset: true,
       },
-      { url: "https://images.unsplash.com/cover.png" },
-      { url: "https://images.unsplash.com/logo.png" },
     ]);
 
     // A creator cannot obtain bespoke presentation by choosing its public slug.
     expect(
-      outletArtworkCandidates(
+      outletAvatarCandidates(
         publishedStore({
           slug: "strategos-void",
           presentation: {
@@ -276,8 +591,10 @@ describe("published Outlet OG presentation", () => {
         }),
       ),
     ).toEqual([
-      { url: "https://images.unsplash.com/cover.png" },
-      { url: "https://images.unsplash.com/logo.png" },
+      {
+        url: "/api/outlet-logo/strategos-void?source=https%3A%2F%2Fimages.unsplash.com%2Flogo.png",
+        trustedInternalAsset: true,
+      },
     ]);
   });
 });

@@ -875,6 +875,7 @@ async function findAllPaginated({
   if (ownership_status === "UNCLAIMED") {
     where.studio_id = null;
     where.nintendo_nsuid = null;
+    where.playstation_product_id = null;
   }
   if (ownership_status === "CLAIMED") where.studio_id = { not: null };
 
@@ -1329,9 +1330,11 @@ async function findCurationCatalogPage({
 async function setStatus(id: string, status: GameStatus) {
   if (status === "ACTIVE") {
     const existing = await prisma.game.findUnique({ where: { id } });
-    if (existing?.nintendo_nsuid)
+    if (existing?.nintendo_nsuid || existing?.playstation_product_id)
       throw new ValidationError({
-        message: "Nintendo games are catalog-only.",
+        message: existing?.playstation_product_id
+          ? "PlayStation games are catalog-only."
+          : "Nintendo games are catalog-only.",
         action: "Keep this game as display-only or hide it.",
       });
   }
@@ -1352,8 +1355,13 @@ async function makePublic(id: string) {
 function ensurePurchasable(gameResource: {
   status: GameStatus;
   nintendo_nsuid?: string | null;
+  playstation_product_id?: string | null;
 }) {
-  if (gameResource.nintendo_nsuid || gameResource.status === "ONLY_DISPLAY") {
+  if (
+    gameResource.nintendo_nsuid ||
+    gameResource.playstation_product_id ||
+    gameResource.status === "ONLY_DISPLAY"
+  ) {
     throw new ValidationError({
       message: "This game is not available for purchase on the platform.",
       action: "Open the external store page when one is available.",

@@ -148,3 +148,55 @@ describe("PurchaseCard draft preview", () => {
     },
   );
 });
+
+test.each([false, true])(
+  "PlayStation uses its regional store and hides expired promotions (expired=%s)",
+  (expired) => {
+    const markup = renderToStaticMarkup(
+      <PurchaseCard
+        game={{
+          ...game,
+          price: null,
+          purchase_mode: "PLAYSTATION_ONLY",
+          claimable: false,
+          ownership_status: "UNCLAIMED",
+          social_links: {},
+          external_offer: {
+            provider: "PLAYSTATION",
+            country: "BR",
+            currency: "BRL",
+            amount: "30.00",
+            original_amount: "60.00",
+            discount_percent: 50,
+            captured_at: new Date().toISOString(),
+            expires_at: new Date(
+              Date.now() + (expired ? -60000 : 60000),
+            ).toISOString(),
+            url: "https://store.playstation.com/pt-br/product/UP0000-PPSA00001_00-0000000000000001",
+          },
+        }}
+        isFreeGame={false}
+        isInLibrary={false}
+        isCheckingLibrary={false}
+        isRedeeming={false}
+        acquisitionError={null}
+        onRedeem={jest.fn()}
+        isPreview={false}
+        wishlist={{
+          count: 0,
+          isWishlisted: false,
+          isToggling: false,
+          toggle: jest.fn(),
+        }}
+      />,
+    );
+    expect(markup).toContain("PlayStation Store Brazil");
+    expect(markup).toContain("View on PlayStation Store");
+    expect(markup).toContain("Reference price");
+    expect(markup).not.toContain("Claim ownership");
+    expect(markup).not.toContain("Buy now");
+    expect(markup).not.toContain("Add to Library");
+    expect(markup.includes("-50%")).toBe(!expired);
+    expect(markup.includes("line-through")).toBe(!expired);
+  },
+);

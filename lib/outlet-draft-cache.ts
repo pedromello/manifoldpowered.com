@@ -1,10 +1,17 @@
+export type OutletDraftCacheKey = string | readonly [string, "publication-raw"];
 export type OutletDraftCacheMutator = (
-  key: string,
+  key: OutletDraftCacheKey,
 ) => unknown | Promise<unknown>;
 
-export function outletDraftCacheKeys(storeSlug: string): string[] {
+export function outletDraftCacheKeys(storeSlug: string): OutletDraftCacheKey[] {
   const base = `/api/v1/stores/${storeSlug}`;
-  return [base, `${base}?preview=1`, `${base}/publication`];
+  return [
+    base,
+    `${base}?preview=1`,
+    `${base}/publication`,
+    `${base}/affiliate-links?draft=1`,
+    [`${base}/publication`, "publication-raw"],
+  ];
 }
 
 /**

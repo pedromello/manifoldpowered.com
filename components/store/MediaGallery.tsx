@@ -6,6 +6,8 @@ import {
   IconChevronRight,
 } from "@tabler/icons-react";
 import { useI18n } from "lib/i18n";
+import { nintendoVideoPoster } from "lib/nintendo";
+import { GameArtwork } from "components/store/GameArtwork";
 
 interface MediaGalleryProps {
   videos: string[];
@@ -15,7 +17,7 @@ interface MediaGalleryProps {
 
 type MediaItem = {
   type: "video" | "image";
-  videoType?: "youtube" | "steam";
+  videoType?: "youtube" | "direct";
   url: string;
   id?: string;
 };
@@ -23,12 +25,14 @@ type MediaItem = {
 // Steam serves newer trailers only as HLS (.m3u8) manifests, which play
 // natively in Safari/iOS but need hls.js everywhere else. Older mp4/webm
 // URLs (also passed through here) play fine as a direct <video src>.
-function SteamVideoPlayer({
+function DirectVideoPlayer({
   url,
   className,
+  title,
 }: {
   url: string;
   className: string;
+  title: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -61,6 +65,8 @@ function SteamVideoPlayer({
       autoPlay
       muted
       playsInline
+      aria-label={title}
+      poster={nintendoVideoPoster(url)}
       className={className}
     />
   );
@@ -155,7 +161,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
       const ytId = getYouTubeID(url);
       return {
         type: "video",
-        videoType: ytId ? "youtube" : "steam",
+        videoType: ytId ? "youtube" : "direct",
         url,
         id: ytId || "",
       };
@@ -194,7 +200,7 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
   return (
     <section className="flex flex-col gap-4">
       {/* Stage: Main Display */}
-      <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+      <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-[#100d15]">
         {/* Stage Content */}
         {activeMedia.type === "video" ? (
           activeMedia.videoType === "youtube" ? (
@@ -206,23 +212,22 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
               allowFullScreen
             />
           ) : (
-            <SteamVideoPlayer
+            <DirectVideoPlayer
               url={activeMedia.url}
-              className="absolute inset-0 w-full h-full object-cover"
+              title={t("{title} trailer", { title: gameTitle })}
+              className="absolute inset-0 w-full h-full object-contain"
             />
           )
         ) : (
-          // Gallery media is supplied by game developers and may be hosted on
-          // domains outside Next's image allowlist. Loading it directly also
-          // avoids making the local preview server proxy third-party assets.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <GameArtwork
             src={activeMedia.url}
             alt={t("{title} screenshot {number}", {
               title: gameTitle,
               number: activeIndex + 1,
             })}
-            className="absolute inset-0 h-full w-full animate-in object-cover fade-in duration-500"
+            background="neutral"
+            loading="eager"
+            fill
           />
         )}
 
@@ -273,7 +278,9 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                 item.type === "video"
                   ? item.videoType === "youtube"
                     ? `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`
-                    : images[0] || "/placeholder-game.png"
+                    : nintendoVideoPoster(item.url) ||
+                      images[0] ||
+                      "/placeholder-game.png"
                   : item.url;
 
               return (
@@ -286,16 +293,14 @@ export function MediaGallery({ videos, images, gameTitle }: MediaGalleryProps) {
                       : "border-white/10 opacity-55 hover:border-white/25 hover:opacity-100"
                   }`}
                 >
-                  {/* See the main stage above: these URLs are dynamic game
-                      media and should not depend on the Next image proxy. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <GameArtwork
                     src={thumbUrl}
                     alt={t("{title} thumbnail {number}", {
                       title: gameTitle,
                       number: idx + 1,
                     })}
-                    className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                    className="pointer-events-none"
+                    fill
                   />
 
                   {item.type === "video" && (

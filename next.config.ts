@@ -2,6 +2,8 @@ import { defaultLocale, locales } from "./lib/locale";
 
 module.exports = {
   logging: { incomingRequests: { ignore: [/\/api\/v1\/webhooks\/appmax\//] } },
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   async redirects() {
     return [
       {
@@ -21,6 +23,12 @@ module.exports = {
   },
   images: {
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "image.api.playstation.com",
+        port: "",
+        pathname: "/vulcan/**",
+      },
       {
         protocol: "https",
         hostname: "assets.nintendo.com",

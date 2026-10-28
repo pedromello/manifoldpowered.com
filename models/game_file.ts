@@ -18,12 +18,16 @@ export type GameFileCreateDto = z.infer<typeof gameFileSchema>;
 async function create(data: GameFileCreateDto) {
   const game = await prisma.game.findUnique({
     where: { id: data.game_id },
-    select: { nintendo_nsuid: true },
+    select: { nintendo_nsuid: true, playstation_product_id: true },
   });
-  if (game?.nintendo_nsuid)
+  if (game?.nintendo_nsuid || game?.playstation_product_id)
     throw new ValidationError({
-      message: "Nintendo games are catalog-only.",
-      action: "Open Nintendo eShop to access this game.",
+      message: game?.playstation_product_id
+        ? "PlayStation games are catalog-only."
+        : "Nintendo games are catalog-only.",
+      action: game?.playstation_product_id
+        ? "Open PlayStation Store to access this game."
+        : "Open Nintendo eShop to access this game.",
     });
   const result = await prisma.gameFile.create({
     data: {

@@ -280,8 +280,57 @@ async function reconcileAll(): Promise<BackfillReport> {
   };
 }
 
+// Deployment-scoped grant: only these two homepage capabilities, only active
+// users who already held an administrative capability before this feature.
+// Do not run baseline, owner or membership reconciliation in this mode.
+async function reconcileHomeAdmins(): Promise<BackfillReport> {
+  const homeFeatures = ["read:home:any", "update:home:any"];
+  const existingAdminFeatures = authorization.ADMIN_ONLY_FEATURES.filter(
+    (feature) => !homeFeatures.includes(feature),
+  );
+  const eligibleUsers = await loadEligibleUsers();
+  const admins = newPassResult();
+  const touchedIds = new Set<string>();
+  for (const [userId, features] of eligibleUsers) {
+    if (!features.some((feature) => existingAdminFeatures.includes(feature)))
+      continue;
+    admins.scanned++;
+    if (homeFeatures.every((feature) => features.includes(feature))) continue;
+
+    // Compare against the observed permissions atomically. A concurrent
+    // disable, revocation or unrelated grant must never be overwritten.
+    const result = await prisma.user.updateMany({
+      where: {
+        id: userId,
+        features: { equals: features },
+        AND: [
+          { features: { has: "update:user" } },
+          { features: { hasSome: existingAdminFeatures } },
+        ],
+      },
+      data: { features: [...new Set([...features, ...homeFeatures])] },
+    });
+    if (result.count === 0) {
+      admins.skipped_ineligible++;
+      continue;
+    }
+    admins.updated++;
+    touchedIds.add(userId);
+  }
+  return {
+    baseline: newPassResult(),
+    admins,
+    studio_owners: newPassResult(),
+    studio_members: newPassResult(),
+    store_owners: newPassResult(),
+    store_members: newPassResult(),
+    total_unique_users_updated: touchedIds.size,
+  };
+}
+
 const featureBackfill = {
   reconcileAll,
+  reconcileHomeAdmins,
 };
 
 export default featureBackfill;

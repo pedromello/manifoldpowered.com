@@ -1,6 +1,24 @@
+import { FeaturedVideo } from "components/store/FeaturedVideo";
+import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
 import Form from "next/form";
+import { GamePriceBlock } from "components/store/GamePriceBlock";
+import { OutletPromotions } from "components/storefront/OutletPromotions";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
+import { GameArtwork as SharedGameArtwork } from "components/store/GameArtwork";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import {
+  IconBrandBluesky,
+  IconBrandDiscord,
+  IconBrandInstagram,
+  IconBrandTiktok,
+  IconBrandTwitch,
+  IconBrandX,
+  IconBrandYoutubeFilled,
+  IconWorld,
+} from "@tabler/icons-react";
 import {
   ArrowRight,
   ChevronDown,
@@ -27,15 +45,12 @@ import type {
   StoreContext,
   StorefrontViewProps,
 } from "components/storefront/types";
-import {
-  formatCatalogBasePrice,
-  formatCatalogPrice,
-  isCatalogFree,
-} from "lib/price";
+
 import { useI18n } from "lib/i18n";
 
 type PresetLayoutProps = StorefrontViewProps & {
   design: ResolvedOutletDesign;
+  selectionShowcase?: ReactNode;
 };
 
 type VisualTokens = {
@@ -75,20 +90,33 @@ const SOCIAL_LABELS: Record<StoreSocialPlatform, string> = {
   bluesky: "Bluesky",
 };
 
+const SOCIAL_ICONS = {
+  website: IconWorld,
+  youtube: IconBrandYoutubeFilled,
+  twitch: IconBrandTwitch,
+  instagram: IconBrandInstagram,
+  tiktok: IconBrandTiktok,
+  x: IconBrandX,
+  discord: IconBrandDiscord,
+  bluesky: IconBrandBluesky,
+};
+
 function SocialLinks({
   store,
   tokens,
   align = "start",
+  masthead = false,
 }: {
   store: StoreContext;
   tokens: VisualTokens;
   align?: "start" | "center";
+  masthead?: boolean;
 }) {
   const { t } = useI18n();
   const links = STORE_SOCIAL_PLATFORMS.flatMap((platform) => {
     const label = SOCIAL_LABELS[platform];
     const href = safeExternalUrl(store.social_links?.[platform]);
-    return href ? [{ href, label }] : [];
+    return href ? [{ href, label, Icon: SOCIAL_ICONS[platform] }] : [];
   });
 
   if (links.length === 0) return null;
@@ -96,9 +124,9 @@ function SocialLinks({
   return (
     <nav
       aria-label={t("Outlet links")}
-      className={`flex flex-wrap gap-2 ${align === "center" ? "justify-center" : "justify-start"}`}
+      className={`${masthead ? "grid grid-cols-2 gap-x-2 gap-y-1 border-t border-sf-border pt-3 sm:flex sm:flex-wrap" : "flex flex-wrap gap-2"} ${align === "center" ? "justify-center" : "justify-start"}`}
     >
-      {links.map(({ href, label }) => (
+      {links.map(({ href, label, Icon }) => (
         <a
           key={label}
           href={href}
@@ -107,8 +135,9 @@ function SocialLinks({
           aria-label={t("{label} (opens in a new tab)", {
             label: t(label),
           })}
-          className={`${tokens.control} border border-sf-border bg-sf-surface px-3 py-1.5 text-xs font-bold text-sf-muted transition hover:border-sf-accent hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none`}
+          className={`${tokens.control} inline-flex items-center gap-2 px-3 text-xs font-bold text-sf-muted transition hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none ${masthead ? "min-h-11 hover:bg-sf-fg/5" : "border border-sf-border bg-sf-surface py-1.5 hover:border-sf-accent"}`}
         >
+          {masthead && <Icon size={20} stroke={1.7} aria-hidden="true" />}
           {t(label)}
         </a>
       ))}
@@ -123,11 +152,15 @@ function OutletLogo({
 }: {
   store: StoreContext;
   tokens: VisualTokens;
-  size?: "small" | "large";
+  size?: "small" | "large" | "masthead";
 }) {
   const { t } = useI18n();
   const dimension =
-    size === "large" ? "h-24 w-24 sm:h-28 sm:w-28" : "h-16 w-16";
+    size === "masthead"
+      ? "h-24 w-24 sm:h-32 sm:w-32 lg:h-36 lg:w-36"
+      : size === "large"
+        ? "h-24 w-24 sm:h-28 sm:w-28"
+        : "h-16 w-16";
   const logoUrl = safeExternalUrl(store.logo_url ?? undefined);
   if (logoUrl) {
     return (
@@ -138,7 +171,7 @@ function OutletLogo({
         alt={t("{name} logo", { name: store.name })}
         referrerPolicy="no-referrer"
         decoding="async"
-        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-cover shadow-2xl`}
+        className={`${dimension} ${tokens.media} shrink-0 border-4 border-sf-bg bg-sf-surface object-contain p-2 shadow-2xl`}
       />
     );
   }
@@ -156,27 +189,48 @@ function OutletLogo({
 function OutletCover({
   store,
   className,
+  panorama = false,
 }: {
   store: StoreContext;
   className: string;
+  panorama?: boolean;
 }) {
   const coverUrl = safeExternalUrl(store.cover_url ?? undefined);
   return (
     <div className={`relative overflow-hidden bg-sf-surface ${className}`}>
       {coverUrl ? (
-        // Outlet covers share the same URL validation as logos.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <SharedGameArtwork
           src={coverUrl}
-          alt=""
-          referrerPolicy="no-referrer"
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          loading="eager"
+          fetchPriority={panorama ? "high" : "auto"}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg" />
+        <div
+          className={`absolute inset-0 ${store.brand_tokens?.palette === "crimson" ? "bg-gradient-to-br from-[#E60013] via-[#AE0011] to-[#410916]" : store.brand_tokens?.palette === "burgundy" ? "bg-gradient-to-br from-[#850012] via-[#62051E] to-[#0F0A14]" : "bg-gradient-to-br from-sf-accent/35 via-sf-surface to-sf-bg"}`}
+        />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      {!panorama && (
+        <div className="absolute inset-0 bg-gradient-to-t from-sf-bg/85 via-transparent to-black/10" />
+      )}
+      {!coverUrl &&
+        !panorama &&
+        (store.brand_tokens?.palette === "crimson" ||
+          store.brand_tokens?.palette === "burgundy") && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-hidden px-6 pb-8 text-center text-white"
+          >
+            <div className="absolute -right-12 -top-28 h-96 w-96 rounded-full border-[32px] border-white/5" />
+            <Gamepad2 size={36} strokeWidth={1.5} />
+            <span className="relative text-3xl font-black tracking-tight sm:text-6xl">
+              {store.name}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] sm:text-xs">
+              {store.tagline}
+            </span>
+          </div>
+        )}
     </div>
   );
 }
@@ -189,45 +243,59 @@ function GameArtwork({
   className?: string;
 }) {
   const artworkUrl = safeExternalUrl(game.media?.banner);
-  return (
-    <div
-      className={`relative overflow-hidden bg-sf-surface ${className ?? ""}`}
-    >
-      {artworkUrl ? (
-        // Game media can be served by developer-controlled CDNs.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={artworkUrl}
-          alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:transform-none"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sf-accent/25 to-sf-bg text-sf-muted">
-          <Gamepad2 size={32} aria-hidden="true" />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-    </div>
+  return <SharedGameArtwork src={artworkUrl} className={className} />;
+}
+
+function CatalogCurrencyLabel({ props }: { props: StorefrontViewProps }) {
+  const { t } = useI18n();
+  const currencies = new Set(
+    [...props.featured, ...props.games]
+      .map((game) =>
+        ["STEAM_ONLY", "NINTENDO_ONLY", "PLAYSTATION_ONLY"].includes(
+          game.purchase_mode,
+        )
+          ? game.external_offer?.currency
+          : (game.display_price?.currency ?? props.currency),
+      )
+      .filter(Boolean),
   );
+  return currencies.size > 1
+    ? t("Prices shown in each store's currency")
+    : t("Prices shown in {currency}", {
+        currency: currencies.values().next().value ?? props.currency,
+      });
 }
 
 function GamePrice({ game }: { game: GameApi }) {
-  const { t } = useI18n();
-  const basePrice = formatCatalogBasePrice(game);
+  return <GamePriceBlock game={game} compact />;
+}
+
+function GameTitleAndRating({
+  game,
+  titleClassName = "text-base font-black text-sf-fg",
+  className = "",
+  as: Title = "h3",
+}: {
+  game: GameApi;
+  titleClassName?: string;
+  className?: string;
+  as?: "h3" | "p";
+}) {
   return (
-    <span className="flex shrink-0 flex-col items-end text-right">
-      {basePrice && (
-        <span className="text-[10px] font-bold text-sf-muted line-through">
-          {basePrice}
-        </span>
-      )}
-      <span className="text-sm font-black text-sf-fg">
-        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
-      </span>
-    </span>
+    <div
+      className={`flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${className}`}
+    >
+      <Title
+        className={`min-w-0 flex-1 basis-32 [overflow-wrap:anywhere] ${titleClassName}`}
+      >
+        {game.title}
+      </Title>
+      <OutletRatingBadge
+        rating={game.outlet_review?.rating}
+        variant="inline"
+        className="ml-auto"
+      />
+    </div>
   );
 }
 
@@ -238,6 +306,15 @@ function featuredLabel(
   if (mode === "EDITORIAL") return t("Selected by this Outlet");
   if (mode === "HYBRID") return t("Curated and trending");
   return t("Trending in this Outlet");
+}
+
+function editorialExcerpt(game: GameApi): string {
+  return (
+    game.recommendation_reason?.trim() ||
+    game.outlet_review?.headline?.trim() ||
+    game.outlet_review?.body?.trim().split(/\r?\n\s*\r?\n/, 1)[0] ||
+    game.description
+  );
 }
 
 function SearchAndFilters({
@@ -305,9 +382,11 @@ function SearchAndFilters({
         {order !== "newest" && (
           <input type="hidden" name="order" value={order} />
         )}
-        {Object.entries(searchHiddenFields).map(([name, value]) => (
-          <input key={name} type="hidden" name={name} value={value} />
-        ))}
+        {Object.entries(searchHiddenFields)
+          .filter(([name]) => !["category", "tags", "order"].includes(name))
+          .map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
       </Form>
 
       <div className={`flex flex-wrap gap-2 ${row ? "lg:pb-0" : ""}`}>
@@ -366,6 +445,13 @@ function SearchAndFilters({
         />
       </div>
 
+      <div className={row ? "lg:col-span-3" : ""}>
+        <OutletRatingFilter
+          scale={props.store.rating_scale ?? null}
+          filter={props.ratingFilter}
+          onChange={props.setRatingFilter}
+        />
+      </div>
       {tags.length > 0 && (
         <div className={`flex flex-wrap gap-2 ${row ? "lg:col-span-3" : ""}`}>
           {tags.map((tag) => (
@@ -403,6 +489,7 @@ function CatalogPagination({
     >
       <button
         type="button"
+        aria-label={t("Previous")}
         disabled={page <= 1}
         onClick={() => setPage((current) => Math.max(1, current - 1))}
         className={`${tokens.control} inline-flex h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 text-sm font-bold text-sf-fg disabled:opacity-35`}
@@ -418,6 +505,7 @@ function CatalogPagination({
       </span>
       <button
         type="button"
+        aria-label={t("Next")}
         disabled={page >= pagination.pages}
         onClick={() => setPage((current) => current + 1)}
         className={`${tokens.control} inline-flex h-10 items-center gap-2 border border-sf-border bg-sf-surface px-4 text-sm font-bold text-sf-fg disabled:opacity-35`}
@@ -447,20 +535,16 @@ function ChannelGameCard({
     >
       <GameArtwork game={game} className="aspect-[16/9]" />
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-black text-sf-fg">
-              {game.title}
-            </h3>
-            <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-              {t("By {studio}", { studio: game.developer_name })}
-            </p>
-          </div>
+        <div className="mb-2 flex justify-end">
           <GamePrice game={game} />
         </div>
+        <GameTitleAndRating game={game} />
+        <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+          {t("By {studio}", { studio: game.developer_name })}
+        </p>
         {game.outlet_review?.body && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-sf-muted">
-            {game.outlet_review.body}
+            {game.outlet_review.body.split("\n\n")[0]}
           </p>
         )}
         {game.tags?.length > 0 && (
@@ -496,22 +580,20 @@ function EditorialGameRow({
       </span>
       <GameArtwork game={game} className={`${tokens.media} aspect-[16/10]`} />
       <div className="min-w-0">
-        <p
-          className={`${tokens.heading} truncate text-lg text-sf-fg sm:text-2xl`}
-        >
-          {game.title}
-        </p>
+        <GameTitleAndRating
+          game={game}
+          as="p"
+          titleClassName={`${tokens.heading} text-lg text-sf-fg sm:text-2xl`}
+        />
         <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
           {t("By {studio}", { studio: game.developer_name })}
           {game.tags?.[0] ? ` · ${game.tags[0]}` : ""}
         </p>
-        <p className="mt-2 hidden line-clamp-1 text-sm leading-6 text-sf-muted sm:block">
-          {game.outlet_review?.body ||
-            game.recommendation_reason ||
-            game.description}
+        <p className="mt-2 hidden text-sm leading-6 text-sf-muted sm:line-clamp-1">
+          {editorialExcerpt(game)}
         </p>
       </div>
-      <span className="hidden sm:block">
+      <span className="col-span-3 justify-self-end sm:col-span-1">
         <GamePrice game={game} />
       </span>
     </Link>
@@ -538,22 +620,16 @@ function CommunityGameCard({
     >
       <div className="relative">
         <GameArtwork game={game} className={`${tokens.media} aspect-[4/3]`} />
-        <span
-          className={`${tokens.control} absolute left-2 top-2 bg-sf-accent px-2.5 py-1 text-[10px] font-black text-sf-accent-fg`}
-        >
-          #{index + 1}
-        </span>
       </div>
-      <div className="flex items-start justify-between gap-3 px-1 pb-1 pt-4">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-black text-sf-fg">
-            {game.title}
-          </h3>
-          <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
-            {t("By {studio}", { studio: game.developer_name })}
-          </p>
+      <div className="px-1 pb-1 pt-4">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <span className="text-xs font-bold text-sf-muted">#{index + 1}</span>
+          <GamePrice game={game} />
         </div>
-        <GamePrice game={game} />
+        <GameTitleAndRating game={game} />
+        <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+          {t("By {studio}", { studio: game.developer_name })}
+        </p>
       </div>
     </Link>
   );
@@ -660,7 +736,13 @@ function CatalogResults({
             {t("Try another search or clear the active filters.")}
           </p>
           <Link
-            href={browseHref({ q: "", category: null, tags: [], page: 1 })}
+            href={browseHref({
+              q: "",
+              category: null,
+              tags: [],
+              page: 1,
+              ...EMPTY_OUTLET_RATING_FILTER,
+            })}
             className="mt-5 inline-flex text-sm font-black text-sf-accent hover:underline"
           >
             {t("Clear filters")}
@@ -753,9 +835,20 @@ function ChannelLayout(props: PresetLayoutProps) {
             {store.description ||
               t("Browse games from {name}.", { name: store.name })}
           </p>
-          <SocialLinks store={store} tokens={tokens} />
+          <div>
+            <SocialLinks store={store} tokens={tokens} />
+            <OutletAffiliateLinks store={store} isPreview={props.isPreview} />
+          </div>
         </div>
       </header>
+      {props.selectionShowcase}
+      {store.layout_preset !== "community" && store.featured_video && (
+        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
+          <div className="max-w-sm">
+            <FeaturedVideo video={store.featured_video} teaser />
+          </div>
+        </section>
+      )}
 
       <section className="border-y border-sf-border bg-sf-surface/45">
         <div className="mx-auto max-w-[1500px] px-4 py-9 sm:px-6 lg:px-10 lg:py-12">
@@ -784,23 +877,25 @@ function ChannelLayout(props: PresetLayoutProps) {
               <Link
                 href={itemHref(lead.slug)}
                 data-storefront="game-link"
-                className={`${tokens.card} group relative min-h-[360px] overflow-hidden border border-sf-border bg-sf-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
+                className={`${tokens.card} group flex min-h-[360px] flex-col overflow-hidden border border-sf-border bg-sf-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
               >
-                <GameArtwork game={lead} className="absolute inset-0 h-full" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sf-bg via-sf-bg/85 to-transparent p-6 pt-24 sm:p-8 sm:pt-28">
+                <GameArtwork game={lead} className="aspect-[16/9] w-full" />
+                <div className="flex-1 bg-sf-bg p-6 sm:p-8">
                   <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
                     {t("Channel spotlight")}
                   </p>
+                  <div className="mt-4">
+                    <GamePriceBlock game={lead} />
+                  </div>
                   <div className="mt-2 flex items-end justify-between gap-5">
                     <div className="min-w-0">
-                      <h3
-                        className={`${tokens.heading} text-3xl text-sf-fg sm:text-4xl`}
-                      >
-                        {lead.title}
-                      </h3>
+                      <GameTitleAndRating
+                        game={lead}
+                        titleClassName={`${tokens.heading} text-3xl text-sf-fg sm:text-4xl`}
+                      />
                       <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-sf-muted">
-                        {lead.outlet_review?.body ||
-                          lead.recommendation_reason ||
+                        {lead.recommendation_reason ||
+                          lead.outlet_review?.body ||
                           lead.description}
                       </p>
                     </div>
@@ -825,9 +920,12 @@ function ChannelLayout(props: PresetLayoutProps) {
                       className={`${tokens.media} aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]`}
                     />
                     <div className="min-w-0 p-1 sm:p-3 lg:p-1">
-                      <p className="truncate text-sm font-black text-sf-fg">
-                        {game.title}
-                      </p>
+                      <GamePriceBlock game={game} compact />
+                      <GameTitleAndRating
+                        game={game}
+                        as="p"
+                        titleClassName="text-sm font-black text-sf-fg"
+                      />
                       <p className="mt-1 truncate text-xs text-sf-muted">
                         {t("By {studio}", {
                           studio: game.developer_name,
@@ -865,7 +963,7 @@ function ChannelLayout(props: PresetLayoutProps) {
                 {t("Browse all games")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <span className="text-xs font-bold text-sf-muted">
@@ -945,8 +1043,20 @@ function EditorialLayout(props: PresetLayoutProps) {
             {followControl}
             <SocialLinks store={store} tokens={tokens} align="center" />
           </div>
+          <OutletAffiliateLinks
+            store={store}
+            isPreview={props.isPreview}
+            align="center"
+          />
         </div>
       </header>
+      {store.layout_preset !== "community" && store.featured_video && (
+        <section className="mx-auto max-w-[1380px] px-4 pt-5 sm:px-8">
+          <div className="max-w-sm">
+            <FeaturedVideo video={store.featured_video} teaser />
+          </div>
+        </section>
+      )}
 
       {store.cover_url && (
         <div className="mx-auto max-w-[1440px] px-4 pt-8 sm:px-8">
@@ -957,8 +1067,9 @@ function EditorialLayout(props: PresetLayoutProps) {
         </div>
       )}
 
+      {props.selectionShowcase}
       <section className="mx-auto max-w-[1320px] px-4 py-10 sm:px-8 lg:py-16">
-        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="mb-7 grid gap-5 border-b border-sf-border pb-6 md:grid-cols-2 md:items-center">
           <div>
             <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
               {featuredLabel(props.featuredMode, t)}
@@ -967,10 +1078,30 @@ function EditorialLayout(props: PresetLayoutProps) {
               {t("The front page")}
             </h2>
           </div>
-          <p className="max-w-xl text-sm leading-6 text-sf-muted md:text-right">
-            {store.description ||
-              t("A considered selection from {name}.", { name: store.name })}
-          </p>
+          <div className="min-w-0 text-sm leading-6 text-sf-muted">
+            <p
+              aria-hidden={store.description ? true : undefined}
+              className="line-clamp-3 [overflow-wrap:anywhere]"
+            >
+              {store.description ||
+                t("A considered selection from {name}.", { name: store.name })}
+            </p>
+            {store.description && (
+              <details className="group mt-3">
+                <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 font-semibold underline underline-offset-4 hover:text-sf-fg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent">
+                  <ChevronRight
+                    size={14}
+                    aria-hidden="true"
+                    className="shrink-0 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                  />
+                  {t("About this Outlet and credits")}
+                </summary>
+                <p className="mt-3 whitespace-pre-line [overflow-wrap:anywhere]">
+                  {store.description}
+                </p>
+              </details>
+            )}
+          </div>
         </div>
 
         {!lead ? (
@@ -981,72 +1112,81 @@ function EditorialLayout(props: PresetLayoutProps) {
             tokens={tokens}
           />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.65fr)]">
+          <div className="space-y-6">
             <Link
               href={itemHref(lead.slug)}
               data-storefront="game-link"
-              className="group grid gap-5 border-b border-sf-border pb-7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(0,1.2fr)_minmax(250px,0.8fr)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
+              className={`${tokens.card} group grid min-w-0 items-center overflow-hidden border border-sf-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]`}
             >
               <GameArtwork
                 game={lead}
-                className={`${tokens.media} aspect-[4/3]`}
+                className="aspect-video w-full self-start"
               />
-              <div className="flex flex-col justify-between py-1">
-                <div>
-                  <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
-                    {t("Cover story")}
-                  </p>
-                  <h3
-                    className={`${tokens.heading} mt-3 text-3xl leading-tight text-sf-fg sm:text-4xl`}
-                  >
-                    {lead.title}
-                  </h3>
-                  <p className="mt-4 line-clamp-5 text-sm leading-7 text-sf-muted">
-                    {lead.outlet_review?.body ||
-                      lead.recommendation_reason ||
-                      lead.description}
-                  </p>
-                </div>
-                <div className="mt-6 flex items-center justify-between border-t border-sf-border pt-4">
-                  <span className="text-xs font-bold text-sf-muted">
+              <div className="min-w-0 p-6">
+                <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
+                  {t("Cover story")}
+                </p>
+                <GameTitleAndRating
+                  game={lead}
+                  className="mt-3"
+                  titleClassName={`${tokens.heading} text-[1.75rem] leading-tight text-sf-fg sm:text-3xl`}
+                />
+                <p className="mt-4 line-clamp-3 text-[15px] leading-6 text-sf-muted [overflow-wrap:anywhere]">
+                  {editorialExcerpt(lead)}
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-sf-border pt-4">
+                  <span className="min-w-0 flex-1 text-xs font-bold text-sf-muted [overflow-wrap:anywhere]">
                     {t("By {studio}", { studio: lead.developer_name })}
                   </span>
                   <GamePrice game={lead} />
                 </div>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                  {t("View game")}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </span>
               </div>
             </Link>
-            <div className="divide-y divide-sf-border border-y border-sf-border lg:border-y-0">
-              {picks.slice(1).map((game, index) => (
-                <Link
-                  key={game.id}
-                  href={itemHref(game.slug)}
-                  data-storefront="game-link"
-                  className="group grid grid-cols-[100px_minmax(0,1fr)] gap-4 py-5 first:pt-0 last:pb-0 lg:grid-cols-1"
-                >
-                  <GameArtwork
-                    game={game}
-                    className={`${tokens.media} aspect-[16/10]`}
-                  />
-                  <div className="min-w-0">
-                    <p
-                      className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
-                    >
-                      {t("Dispatch {number}", { number: index + 1 })}
-                    </p>
-                    <h3
-                      className={`${tokens.heading} mt-1 line-clamp-2 text-xl text-sf-fg`}
-                    >
-                      {game.title}
-                    </h3>
-                    <p className="mt-2 hidden line-clamp-2 text-xs leading-5 text-sf-muted lg:block">
-                      {game.outlet_review?.body ||
-                        game.recommendation_reason ||
-                        game.description}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            {picks.length > 1 && (
+              <div
+                className={`grid gap-4 sm:gap-6 ${picks.length > 2 ? "md:grid-cols-2" : ""}`}
+              >
+                {picks.slice(1).map((game, index) => (
+                  <Link
+                    key={game.id}
+                    href={itemHref(game.slug)}
+                    data-storefront="game-link"
+                    className={`${tokens.card} group grid min-w-0 grid-cols-[104px_minmax(0,1fr)] items-start gap-4 border border-sf-border p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent sm:grid-cols-[minmax(100px,0.8fr)_minmax(0,1.2fr)]`}
+                  >
+                    <GameArtwork
+                      game={game}
+                      className={`${tokens.media} aspect-video w-full`}
+                    />
+                    <div className="min-w-0">
+                      <p
+                        className={`${tokens.eyebrow} text-[9px] text-sf-accent`}
+                      >
+                        {t("Dispatch {number}", { number: index + 1 })}
+                      </p>
+                      <GameTitleAndRating
+                        game={game}
+                        className="mt-1"
+                        titleClassName={`${tokens.heading} text-lg leading-6 text-sf-fg sm:text-xl sm:leading-7`}
+                      />
+                      <p className="mt-2 line-clamp-2 text-sm leading-[22px] text-sf-muted [overflow-wrap:anywhere]">
+                        {editorialExcerpt(game)}
+                      </p>
+                      <div className="mt-3">
+                        <GamePriceBlock game={game} />
+                      </div>
+                      <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sf-accent group-hover:underline">
+                        {t("View game")}
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -1068,7 +1208,8 @@ function EditorialLayout(props: PresetLayoutProps) {
             </h2>
           </div>
           <p className="hidden text-xs font-bold uppercase tracking-wider text-sf-muted sm:block">
-            {props.currency} · {t("Page {page}", { page: props.page })}
+            <CatalogCurrencyLabel props={props} /> ·{" "}
+            {t("Page {page}", { page: props.page })}
           </p>
         </div>
         <CatalogResults props={props} tokens={tokens} preset="editorial" />
@@ -1089,41 +1230,61 @@ function CommunityLayout(props: PresetLayoutProps) {
       data-preset-layout="community"
       className={`${tokens.body} min-h-screen bg-sf-bg pb-20 text-sf-fg`}
     >
-      <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-10">
-        <OutletCover
-          store={store}
-          className={`${tokens.card} h-52 border border-sf-border sm:h-72`}
-        />
+      <header className="mx-auto max-w-[1380px] px-4 pt-6 sm:px-8 lg:pt-8">
         <div
-          className={`${tokens.card} relative mx-3 -mt-10 grid gap-6 border border-sf-border bg-sf-surface p-5 shadow-2xl sm:mx-8 sm:-mt-14 sm:p-7 lg:grid-cols-[auto_minmax(0,1fr)_minmax(260px,0.55fr)_auto] lg:items-center`}
+          className={`${tokens.card} overflow-hidden border border-sf-border bg-sf-surface`}
         >
-          <OutletLogo store={store} tokens={tokens} />
-          <div className="min-w-0">
-            <p className={`${tokens.eyebrow} text-[10px] text-sf-accent`}>
-              {t("Community club")}
-            </p>
-            <h1
-              className={`${tokens.heading} mt-1 break-words text-4xl text-sf-fg`}
-            >
-              {store.name}
-            </h1>
-            {store.tagline && (
-              <p className="mt-2 text-base font-bold text-sf-fg/80">
-                {store.tagline}
-              </p>
-            )}
+          <OutletCover
+            store={store}
+            panorama
+            className="h-44 sm:h-56 lg:h-64 xl:h-72"
+          />
+          <div className="relative grid gap-x-6 gap-y-4 px-5 pb-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:px-7 sm:pb-6 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+            <div className="-mt-8 self-start sm:-mt-10 sm:row-span-2">
+              <OutletLogo store={store} tokens={tokens} size="masthead" />
+            </div>
+            <div className="min-w-0 sm:pt-6">
+              <h1
+                className={`${tokens.heading} break-words text-3xl leading-tight text-sf-fg sm:text-4xl`}
+              >
+                {store.name}
+              </h1>
+              {store.tagline && (
+                <p className="mt-2 text-sm font-semibold text-sf-fg/80">
+                  {store.tagline}
+                </p>
+              )}
+              {store.description && (
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-sf-muted sm:text-base sm:leading-7">
+                  {store.description}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 sm:col-start-2 lg:col-start-3 lg:row-start-1 lg:self-center lg:pt-6 [&>[data-storefront=follow-outlet]]:min-h-11">
+              {followControl}
+              <a
+                href="#outlet-selections"
+                className={`${tokens.control} inline-flex min-h-11 items-center justify-center border border-sf-border px-4 text-sm font-bold transition hover:border-sf-accent hover:bg-sf-fg/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent motion-reduce:transition-none`}
+              >
+                {t("View selections")}
+              </a>
+            </div>
+            <div className="min-w-0 empty:hidden sm:col-start-2 lg:col-span-2">
+              <SocialLinks store={store} tokens={tokens} masthead />
+              <OutletAffiliateLinks store={store} isPreview={props.isPreview} />
+            </div>
           </div>
-          <p className="text-sm leading-6 text-sf-muted">
-            {store.description ||
-              t("A place to discover and celebrate games together.")}
-          </p>
-          <div>{followControl}</div>
-          <div className="lg:col-start-2 lg:col-span-3">
-            <SocialLinks store={store} tokens={tokens} />
-          </div>
+          {store.featured_video && (
+            <div className="border-t border-sf-border p-5 sm:px-7">
+              <div className="max-w-sm">
+                <FeaturedVideo video={store.featured_video} teaser />
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
+      {props.selectionShowcase}
       <section className="mx-auto max-w-[1380px] px-4 py-12 sm:px-8 lg:py-16">
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -1152,33 +1313,37 @@ function CommunityLayout(props: PresetLayoutProps) {
                 key={game.id}
                 href={itemHref(game.slug)}
                 data-storefront="game-link"
-                className={`${tokens.card} group relative min-h-72 overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent ${
-                  index === 0
-                    ? "md:-rotate-1"
-                    : index === 2
-                      ? "md:rotate-1"
-                      : ""
-                }`}
+                className={`${tokens.card} group flex min-h-72 flex-col overflow-hidden border border-sf-border bg-sf-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent`}
               >
-                <GameArtwork game={game} className="absolute inset-0 h-full" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sf-bg via-sf-bg/90 to-transparent p-5 pt-20">
+                <GameArtwork game={game} className="aspect-[16/9] w-full" />
+                <div className="flex flex-1 flex-col bg-sf-bg p-5">
                   <span
-                    className={`${tokens.control} inline-flex bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
+                    className={`${tokens.control} inline-flex self-start bg-sf-accent px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sf-accent-fg`}
                   >
                     {t("Pick #{number}", { number: index + 1 })}
                   </span>
-                  <h3 className={`${tokens.heading} mt-3 text-2xl text-sf-fg`}>
-                    {game.title}
-                  </h3>
-                  <p className="mt-1 truncate text-xs font-semibold text-sf-muted">
+                  <GameTitleAndRating
+                    game={game}
+                    className="mt-3"
+                    titleClassName={`${tokens.heading} text-2xl text-sf-fg`}
+                  />
+                  <p className="mt-1 text-xs font-semibold text-sf-muted">
                     {t("By {studio}", { studio: game.developer_name })}
                   </p>
+                  <div className="mt-auto pt-4">
+                    <GamePriceBlock game={game} />
+                  </div>
+                  <span className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-sf-accent px-4 text-sm font-bold text-sf-accent-fg">
+                    {t("Discover the game")}
+                  </span>
                 </div>
               </Link>
             ))}
           </div>
         )}
       </section>
+
+      <OutletPromotions props={props} />
 
       <section className="mx-auto max-w-[1380px] px-4 sm:px-8">
         <div
@@ -1193,7 +1358,7 @@ function CommunityLayout(props: PresetLayoutProps) {
                 {t("Community shelf")}
               </h2>
               <p className="mt-2 text-sm text-sf-muted">
-                {t("Prices shown in {currency}", { currency: props.currency })}
+                <CatalogCurrencyLabel props={props} />
               </p>
             </div>
             <SearchAndFilters
@@ -1215,7 +1380,9 @@ function CommunityLayout(props: PresetLayoutProps) {
  * resolver: the registry selects those before rendering this component, which
  * keeps their private theme keys isolated from owner-writable preset tokens.
  */
-export function CreatorPresetStorefront(props: StorefrontViewProps) {
+export function CreatorPresetStorefront(
+  props: StorefrontViewProps & { selectionShowcase?: ReactNode },
+) {
   const design = resolveOutletDesign(props.store);
   if (design.preset === "editorial") {
     return <EditorialLayout {...props} design={design} />;

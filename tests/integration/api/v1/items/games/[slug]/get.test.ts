@@ -267,6 +267,7 @@ describe("GET /api/v1/items/games/[slug]", () => {
             discount_percent: expectedCountry === "BR" ? 50 : null,
             url: nintendoProductUrl("test-knight-switch", expectedCountry),
             captured_at: expect.any(String),
+            expires_at: null,
           },
         };
         expect(detail).toMatchObject(expected);

@@ -14,6 +14,8 @@ import storeFeaturedGame, {
 } from "models/store_featured_game";
 import { prepareStorefrontPreview } from "lib/storefront-preview";
 import storeGameEditorial from "models/store_game_editorial";
+import { filterStorefrontEditorial } from "models/storefront_editorial";
+import { socialPreviewRequest } from "lib/social-preview-request";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -49,11 +51,20 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     preview,
     user: req.context.user,
   });
+  const publication =
+    foundStore.storefront_source === "REVISION"
+      ? {
+          slug: foundStore.slug,
+          revision: foundStore.published_revision?.revision,
+          published_at: foundStore.published_at,
+        }
+      : null;
+  const pricingRequest = socialPreviewRequest(req);
   const curationWhere =
     await store.getStorefrontCurationWhereClause(foundStore);
 
   const { currency, gameIds, locale } =
-    await storefrontPricing.idConstraintForRequest(req);
+    await storefrontPricing.idConstraintForRequest(pricingRequest);
 
   const editorialResult =
     foundStore.storefront_source === "REVISION"
@@ -115,7 +126,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     const context = await storefrontPricing.contextFor(
       currency,
       combinedGames,
-      req,
+      pricingRequest,
     );
     const reasonByGameId = new Map(
       editorialResult.games.map((editorialGame) => [
@@ -133,15 +144,14 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
         ...(editorialIds.has(featuredGame.id) && {
           recommendation_reason: reasonByGameId.get(featuredGame.id) ?? null,
         }),
-        outlet_review: reviews.get(featuredGame.id)
-          ? {
-              headline: reviews.get(featuredGame.id)!.headline,
-              body: reviews.get(featuredGame.id)!.body,
-            }
-          : null,
+        outlet_review: filterStorefrontEditorial(
+          req.context.user,
+          reviews.get(featuredGame.id),
+        ),
       }));
 
     return res.status(200).json({
+      publication,
       games: pricedGames,
       pagination: {
         page: 1,
@@ -162,7 +172,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     curationWhere,
   });
 
-  const context = await storefrontPricing.contextFor(currency, games, req);
+  const context = await storefrontPricing.contextFor(
+    currency,
+    games,
+    pricingRequest,
+  );
   const reviews = storeGameEditorial.mapForStorefront(
     foundStore.storefront_source === "REVISION"
       ? foundStore.game_editorials_snapshot.filter((review) =>
@@ -175,17 +189,16 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   );
 
   return res.status(200).json({
+    publication,
     games: storefrontPricing
       .filterAndPrice(req.context.user, games, context)
       .map((featuredGame) => ({
         ...featuredGame,
         featured_source: "AUTOMATIC",
-        outlet_review: reviews.get(featuredGame.id)
-          ? {
-              headline: reviews.get(featuredGame.id)!.headline,
-              body: reviews.get(featuredGame.id)!.body,
-            }
-          : null,
+        outlet_review: filterStorefrontEditorial(
+          req.context.user,
+          reviews.get(featuredGame.id),
+        ),
       })),
     pagination,
     currency,

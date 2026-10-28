@@ -7,6 +7,9 @@ import {
 } from "components/store/types";
 import type { ItemControllerResult } from "components/storefront/useItemController";
 import type { ReactNode } from "react";
+import type { OutletRatingFilter } from "lib/outlet-rating-filter";
+import type { SelectionPageApi } from "lib/selection-client";
+import type { HomeCommunity } from "lib/home-client";
 
 export type { GameApi, GameDetailApi, PaginationApi };
 
@@ -17,9 +20,11 @@ export type { GameApi, GameDetailApi, PaginationApi };
  */
 export type StoreContext = Omit<
   ReturnType<typeof storeContextFromApi>,
-  "presentation"
+  "presentation" | "rating_scale" | "featured_video"
 > & {
   presentation?: StoreApi["presentation"];
+  rating_scale?: StoreApi["rating_scale"];
+  featured_video?: StoreApi["featured_video"];
 };
 
 /**
@@ -38,7 +43,7 @@ export const STOREFRONT_ORDERS = [
 export type StorefrontOrder = (typeof STOREFRONT_ORDERS)[number];
 
 /** The URL-backed query state a storefront browse page carries. */
-export type StorefrontQuery = {
+export type StorefrontQuery = Partial<OutletRatingFilter> & {
   q: string;
   category: string | null;
   tags: string[];
@@ -107,6 +112,8 @@ export type StorefrontViewProps = {
   page: number;
   setPage: (updater: (page: number) => number) => void;
   categories: readonly string[];
+  ratingFilter?: OutletRatingFilter;
+  setRatingFilter?: (filter: OutletRatingFilter) => void;
 
   /** Always use these — they carry the `?store=` sale attribution. */
   itemHref: (gameSlug: string) => string;
@@ -137,6 +144,8 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
   followControl: ReactNode;
   showDiscover?: boolean;
   showGiftCards?: boolean;
+  editorialSelections?: SelectionPageApi[];
+  homeCommunities?: HomeCommunity[];
 };
 
 /**
@@ -150,5 +159,7 @@ export type DefaultStorefrontProps = StorefrontControllerResult & {
 export type ItemViewProps = ItemControllerResult & {
   game: GameDetailApi;
   store: StoreContext | null;
+  affiliateLinks?: import("contracts/outlet-affiliates").AffiliateLink[];
+  affiliateRevisionId?: string | null;
   outletReview?: GameApi["outlet_review"];
 };

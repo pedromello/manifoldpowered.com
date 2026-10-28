@@ -19,7 +19,14 @@ import {
   type StorePresentation,
 } from "models/store_presentation";
 import { isBespokeThemeKey } from "storefronts/bespoke";
+import { getDraftAffiliateSnapshot } from "models/store_affiliate";
 import { z } from "zod";
+import {
+  outletRatingSchema,
+  ratingFromStorage,
+  ratingToStorage,
+  type OutletRatingScale,
+} from "contracts/outlet-rating";
 
 export const STORE_READINESS_VERSION = 2 as const;
 export const STORE_MINIMUM_CATALOG_GAMES = 5 as const;
@@ -82,7 +89,9 @@ type StoreRevisionClient = Pick<
   | "storeGameOverride"
   | "storeFeaturedGame"
   | "storeGameEditorial"
+  | "storeGameAffiliateLink"
   | "storeRevision"
+  | "storeRevisionGameRating"
   | "game"
   | "$queryRaw"
 >;
@@ -105,6 +114,7 @@ export interface ParsedStoreRevision {
   catalog: StoreCatalogSnapshot;
   name: string;
   description: string | null;
+  rating_scale: OutletRatingScale | null;
   logo_url: string | null;
   featured_games: StoreFeaturedSnapshotEntry[];
   game_editorials: StoreGameEditorialSnapshotEntry[];
@@ -116,9 +126,13 @@ export const storeGameEditorialSnapshotEntrySchema = z
   .object({
     game_id: z.string().min(1),
     headline: z.string().max(120).nullable(),
-    body: z.string().min(1).max(2000),
+    body: z.string().max(2000),
+    rating: outletRatingSchema.nullable().optional().default(null),
   })
-  .strict();
+  .strict()
+  .refine((review) => Boolean(review.body.trim()) || review.rating !== null, {
+    message: "An editorial requires review text or a rating.",
+  });
 
 export type StoreGameEditorialSnapshotEntry = z.infer<
   typeof storeGameEditorialSnapshotEntrySchema
@@ -141,6 +155,7 @@ export function parseStoreRevision(
     }),
     name: revision.name,
     description: revision.description,
+    rating_scale: revision.rating_scale ?? null,
     logo_url: revision.logo_url,
     featured_games: z
       .array(storeFeaturedSnapshotEntrySchema)
@@ -193,7 +208,13 @@ async function assessDraft(
     client.storeGameEditorial.findMany({
       where: { store_id: storeId },
       orderBy: [{ game_id: "asc" }],
-      select: { game_id: true, headline: true, body: true },
+      select: {
+        game_id: true,
+        headline: true,
+        body: true,
+        rating_scale: true,
+        rating_value: true,
+      },
     }),
   ]);
 
@@ -356,12 +377,21 @@ async function assessDraft(
             featured_games: featuredGames,
             game_editorials: z
               .array(storeGameEditorialSnapshotEntrySchema)
-              .parse(editorialRows),
+              .parse(
+                editorialRows.map((review) => ({
+                  game_id: review.game_id,
+                  headline: review.headline,
+                  body: review.body,
+                  rating: ratingFromStorage(review),
+                })),
+              ),
             presentation: resolveDraftPresentation({
               theme_key: store.theme_key,
               layout_preset: store.layout_preset,
               tagline: store.tagline,
               cover_url: store.cover_url,
+              featured_video_id: store.featured_video_id,
+              featured_video_start_seconds: store.featured_video_start_seconds,
               social_links: store.social_links,
               brand_tokens: store.brand_tokens,
             }),
@@ -401,8 +431,12 @@ export async function createStoreRevision({
     _max: { revision: true },
   });
   const revision = (latest._max.revision ?? 0) + 1;
+  const affiliateLinks = await getDraftAffiliateSnapshot(
+    draft.store.id,
+    client,
+  );
 
-  return client.storeRevision.create({
+  const createdRevision = await client.storeRevision.create({
     data: {
       store_id: draft.store.id,
       revision,
@@ -411,12 +445,29 @@ export async function createStoreRevision({
       catalog_mode: draft.catalog_mode,
       name: draft.store.name,
       description: draft.store.description,
+      rating_scale: draft.store.rating_scale,
       logo_url: draft.store.logo_url,
       tag_filters: draft.catalog.tag_filters as Prisma.InputJsonValue,
       game_overrides: draft.catalog.game_overrides as Prisma.InputJsonValue,
       featured_games: draft.featured_games as Prisma.InputJsonValue,
       game_editorials: draft.game_editorials as Prisma.InputJsonValue,
+      affiliate_links: affiliateLinks as Prisma.InputJsonValue,
       presentation: draft.presentation as Prisma.InputJsonValue,
     },
   });
+  const ratings = draft.game_editorials.flatMap((review) =>
+    review.rating
+      ? [
+          {
+            revision_id: createdRevision.id,
+            game_id: review.game_id,
+            ...ratingToStorage(review.rating),
+          },
+        ]
+      : [],
+  );
+  if (ratings.length > 0) {
+    await client.storeRevisionGameRating.createMany({ data: ratings });
+  }
+  return createdRevision;
 }

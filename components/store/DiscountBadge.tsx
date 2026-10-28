@@ -4,10 +4,12 @@ export function DiscountBadge({
   label,
   color = discountBadgeColor,
   size = "normal",
+  flat = false,
 }: {
   label: string;
   color?: string;
   size?: "normal" | "small";
+  flat?: boolean;
 }) {
   return (
     <span
@@ -16,7 +18,7 @@ export function DiscountBadge({
       }`}
       style={{
         backgroundColor: color,
-        boxShadow: `0 0 20px ${color}66`,
+        boxShadow: flat ? "none" : `0 0 20px ${color}66`,
       }}
     >
       {label}

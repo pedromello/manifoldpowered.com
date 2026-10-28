@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 
 import { MediaGallery } from "components/store/MediaGallery";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
 import type { GameDetailApi, GameApi } from "components/store/types";
 import type { StoreContext } from "components/storefront/types";
 import { useI18n } from "lib/i18n";
@@ -78,15 +79,23 @@ export function ItemDescription({
 
       {store && outletReview && (
         <section className="rounded-xl border border-sf-accent/35 bg-sf-accent/[0.08] p-5 sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-sf-accent">
-            {t("Outlet review")}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-sf-accent">
+                {t("Outlet review")}
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">{store.name}</p>
+            </div>
+            <OutletRatingBadge rating={outletReview.rating} />
+          </div>
           {outletReview.headline && (
             <h2 className="mt-3 text-2xl font-black text-white">
               {outletReview.headline}
             </h2>
           )}
-          <OutletReviewContent body={outletReview.body} />
+          {outletReview.body && (
+            <OutletReviewContent body={outletReview.body} />
+          )}
         </section>
       )}
 

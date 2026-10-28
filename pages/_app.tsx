@@ -7,6 +7,7 @@ import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { PullToRefresh } from "components/PullToRefresh";
+import { GoogleAnalytics } from "components/GoogleAnalytics";
 import { I18nProvider } from "lib/i18n";
 import { isNoIndexRoute } from "lib/seo";
 
@@ -40,6 +41,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
       {getLayout(<Component {...pageProps} />)}
       <PullToRefresh />
       <Analytics />
+      <GoogleAnalytics />
     </I18nProvider>
   );
 }

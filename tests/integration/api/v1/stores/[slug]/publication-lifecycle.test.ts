@@ -345,7 +345,8 @@ describe("Outlet publication lifecycle", () => {
           }),
         ],
         presentation: {
-          version: 1,
+          version: 3,
+          featured_video: null,
           layout_preset: "channel",
           tagline: null,
           cover_image_url: null,

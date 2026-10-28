@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import AuthLayout from "../../../components/AuthLayout";
+import { acceptProductEventContext } from "lib/product-events-client";
 import { useI18n } from "lib/i18n";
 
 type ActivationState = "loading" | "success" | "error";
@@ -36,6 +37,7 @@ export default function ActivateSignup() {
           );
         }
 
+        acceptProductEventContext(response);
         setActivationState("success");
       } catch (error) {
         setActivationState("error");

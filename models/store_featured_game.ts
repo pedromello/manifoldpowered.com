@@ -3,66 +3,19 @@ import { prisma } from "infra/database";
 import { ConflictError, ValidationError } from "infra/errors";
 import { getCurationWhereClause } from "models/store_catalog";
 import { z } from "zod";
+import { isTransactionWriteConflict } from "lib/transaction-conflict";
 
-export const MAX_FEATURED_GAMES = 3;
-export const MAX_RECOMMENDATION_REASON_LENGTH = 240;
-
-const recommendationSchema = z.object({
-  game_slug: z.string().trim().min(1).max(255),
-  recommendation_reason: z
-    .string()
-    .trim()
-    .max(MAX_RECOMMENDATION_REASON_LENGTH)
-    .nullish()
-    .transform((reason) => reason || null),
-});
-
-const recommendationsSchema = z
-  .array(recommendationSchema)
-  .min(1)
-  .max(MAX_FEATURED_GAMES)
-  .superRefine((recommendations, context) => {
-    const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
-    if (new Set(gameSlugs).size !== gameSlugs.length) {
-      context.addIssue({
-        code: "custom",
-        path: [],
-        message: "Featured games must be unique.",
-      });
-    }
-  });
-
-export const featuredGameSelectionSchema = z.union([
-  z.object({
-    recommendations: recommendationsSchema,
-    expected_draft_revision: z.number().int().min(1),
-  }),
-  z
-    .object({
-      game_slugs: z
-        .array(z.string().trim().min(1).max(255))
-        .min(1)
-        .max(MAX_FEATURED_GAMES),
-      expected_draft_revision: z.number().int().min(1),
-    })
-    .transform(({ game_slugs, expected_draft_revision }) => ({
-      recommendations: game_slugs.map((game_slug) => ({
-        game_slug,
-        recommendation_reason: null,
-      })),
-      expected_draft_revision,
-    }))
-    .superRefine(({ recommendations }, context) => {
-      const gameSlugs = recommendations.map(({ game_slug }) => game_slug);
-      if (new Set(gameSlugs).size !== gameSlugs.length) {
-        context.addIssue({
-          code: "custom",
-          path: ["game_slugs"],
-          message: "Featured games must be unique.",
-        });
-      }
-    }),
-]);
+import {
+  MAX_FEATURED_GAMES,
+  MAX_RECOMMENDATION_REASON_LENGTH,
+  recommendationSchema,
+  featuredGameSelectionSchema,
+} from "contracts/creator-requests";
+export {
+  MAX_FEATURED_GAMES,
+  MAX_RECOMMENDATION_REASON_LENGTH,
+  featuredGameSelectionSchema,
+};
 
 export const featuredGameResetSchema = z
   .object({ expected_draft_revision: z.number().int().min(1) })
@@ -114,8 +67,9 @@ async function mapFeaturedConflict(
   expectedDraftRevision?: number,
 ): Promise<never> {
   if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2002" || error.code === "P2034")
+    isTransactionWriteConflict(error) ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034"))
   ) {
     const latest = await prisma.store.findUnique({
       where: { id: storeId },

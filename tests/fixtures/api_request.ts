@@ -49,6 +49,9 @@ export async function apiRequest<T>(
       result.headers[key.toLowerCase()] = value;
       return res;
     },
+    getHeader(key: string) {
+      return result.headers[key.toLowerCase()];
+    },
     end() {
       return res;
     },

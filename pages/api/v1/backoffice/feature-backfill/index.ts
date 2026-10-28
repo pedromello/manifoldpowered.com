@@ -8,7 +8,11 @@ import authorization from "models/authorization";
 import auditLog from "models/audit_log";
 import { ValidationError } from "infra/errors";
 
-const backfillRequestSchema = z.object({}).strict();
+const backfillRequestSchema = z
+  .object({
+    scope: z.enum(["all", "home_admins"]).default("all"),
+  })
+  .strict();
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -20,21 +24,27 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
 
   if (!result.success) {
     throw new ValidationError({
-      message: "This endpoint does not accept a request body",
-      action: "Send an empty body and try again",
+      message: "Invalid feature reconciliation scope.",
+      action: "Use an empty body or scope home_admins.",
       context: result.error.issues,
     });
   }
 
   const adminUser = req.context.user;
-  const report = await featureBackfill.reconcileAll();
+  const homeOnly = result.data.scope === "home_admins";
+  const report = homeOnly
+    ? await featureBackfill.reconcileHomeAdmins()
+    : await featureBackfill.reconcileAll();
 
   await auditLog.record({
     admin_user_id: adminUser.id as string,
-    action: "feature_backfill:run",
+    action: homeOnly ? "feature_backfill:home_admins" : "feature_backfill:run",
     target_type: "system",
     target_id: "feature_backfill",
-    metadata: report as unknown as Prisma.InputJsonValue,
+    metadata: {
+      ...report,
+      scope: result.data.scope,
+    } as unknown as Prisma.InputJsonValue,
   });
 
   const secureOutputValues = authorization.filterOutput(

@@ -22,6 +22,7 @@ import {
   GameOwnershipClaim,
 } from "generated/prisma/client";
 import { createHash } from "node:crypto";
+import { purchaseModeForGame, steamPageForGame } from "lib/game-purchase-mode";
 import { InternalServerError } from "infra/errors";
 import {
   downloadAuthorizationSchema,
@@ -33,6 +34,11 @@ import {
 } from "contracts/desktop/v1";
 import type { StorefrontStore, StorePublicationView } from "models/store";
 import { resolveDraftPresentation } from "models/store_presentation";
+import {
+  outletEditorialResponseSchema,
+  ratingSystemPreviewSchema,
+  ratingSystemResultSchema,
+} from "contracts/outlet-rating";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -67,6 +73,7 @@ export interface StoreManagementCapabilities {
   featured: boolean;
   sales: boolean;
   earnings: boolean;
+  analytics: boolean;
   edit: boolean;
   publish: boolean;
   unpublish: boolean;
@@ -105,6 +112,7 @@ const AVAILABLE_FEATURES = [
   "create:game:any",
   "import:steam_game",
   "import:nintendo_game",
+  "import:playstation_game",
   "read:public_game",
   "update:game",
   "update:game:any",
@@ -166,6 +174,8 @@ const AVAILABLE_FEATURES = [
   // because the outlet is the payee — see the comment on the statement endpoint.
   "read:store_statement",
   "read:store_statement:any",
+  "read:store_analytics",
+  "read:store_analytics:any",
   // Where an outlet's money goes. Read has an admin escape hatch for support;
   // the write side deliberately does not — see the note above the can() branch.
   "read:payout_account",
@@ -185,6 +195,8 @@ const AVAILABLE_FEATURES = [
   "read:studio_sale:any",
 
   // Backoffice (admin)
+  "read:home:any",
+  "update:home:any",
   "read:user:any",
   "update:user:status:any",
   "update:user:features:any",
@@ -235,6 +247,7 @@ const ACTIVATED_USER_FEATURES = [
   "read:public_game",
   "import:steam_game",
   "import:nintendo_game",
+  "import:playstation_game",
   "create:wishlist",
   "read:wishlist",
   "delete:wishlist",
@@ -255,6 +268,7 @@ const ACTIVATED_USER_FEATURES = [
   "manage:store_members",
   "read:store_statement",
   "read:payout_account",
+  "read:store_analytics",
   "manage:payout_account",
   "read:own_sale",
   "create:studio",
@@ -268,6 +282,8 @@ const ACTIVATED_USER_FEATURES = [
 // tests/orchestrator.js `createAdminUser` helper — there are no partial admin
 // tiers today.
 const ADMIN_ONLY_FEATURES = [
+  "read:home:any",
+  "update:home:any",
   "read:user:any",
   "update:user:status:any",
   "update:user:features:any",
@@ -291,6 +307,7 @@ const ADMIN_ONLY_FEATURES = [
   "update:supplier_terms:any",
   "read:store_statement:any",
   "read:studio_sale:any",
+  "read:store_analytics:any",
   "read:platform_ledger:any",
   "read:payout_account:any",
   "update:payout_account:status:any",
@@ -364,7 +381,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
     const gameResource = resource as GameWithStudio;
     const studioResource = gameResource.studio;
 
-    if (gameResource.nintendo_nsuid) return false;
+    if (gameResource.nintendo_nsuid || gameResource.playstation_product_id)
+      return false;
 
     const isOwner = Boolean(
       studioResource && user.id === studioResource.owner_id,
@@ -416,7 +434,8 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       feature === "publish:store" ||
       feature === "manage:store_featured_games" ||
       feature === "manage:store_members" ||
-      feature === "read:store_statement") &&
+      feature === "read:store_statement" ||
+      feature === "read:store_analytics") &&
     resource
   ) {
     authorized = false;
@@ -427,6 +446,7 @@ function can(user: Partial<User>, feature: string, resource?: unknown) {
       "update:store": "update:store:any",
       "manage:store_members": "manage:store_members:any",
       "read:store_statement": "read:store_statement:any",
+      "read:store_analytics": "read:store_analytics:any",
     }[feature] as string | undefined;
 
     const isOwner = user.id === storeResource.owner_id;
@@ -560,6 +580,7 @@ function storeManagementCapabilities(
     // it here would silently broaden who can inspect per-sale information.
     sales: canEdit,
     earnings: can(user, "read:store_statement", resource),
+    analytics: can(user, "read:store_analytics", resource),
     edit: canEdit,
     publish: canPublish,
     unpublish: canPublish,
@@ -569,6 +590,25 @@ function storeManagementCapabilities(
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
+
+  if (typeof resource === "object" && resource !== null) {
+    if (
+      (feature === "read:public_game" || feature === "update:store") &&
+      "review" in resource
+    ) {
+      return outletEditorialResponseSchema.parse(resource);
+    }
+    if (
+      feature === "update:store" &&
+      "target_scale" in resource &&
+      "rated_count" in resource
+    ) {
+      return ratingSystemPreviewSchema.parse(resource);
+    }
+    if (feature === "update:store" && "converted_count" in resource) {
+      return ratingSystemResultSchema.parse(resource);
+    }
+  }
 
   if (
     feature === "create:game_ownership_claim" ||
@@ -711,6 +751,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     feature === "create:game" ||
     feature === "import:steam_game" ||
     feature === "import:nintendo_game" ||
+    feature === "import:playstation_game" ||
     feature === "read:public_game" ||
     feature === "update:game" ||
     feature === "read:game:any" ||
@@ -719,24 +760,12 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
     const gameOutput = resource as Game & {
       external_offer_row?: GameExternalOffer;
     };
-    const nintendoOffer = gameOutput.nintendo_nsuid
-      ? gameOutput.external_offer_row
-      : undefined;
-    const steamPage =
-      gameOutput.social_links &&
-      typeof gameOutput.social_links === "object" &&
-      !Array.isArray(gameOutput.social_links) &&
-      "steam_page" in gameOutput.social_links &&
-      typeof gameOutput.social_links.steam_page === "string"
-        ? gameOutput.social_links.steam_page
-        : null;
-    const purchaseMode = gameOutput.nintendo_nsuid
-      ? "NINTENDO_ONLY"
-      : gameOutput.status === "ACTIVE"
-        ? "PLATFORM"
-        : steamPage
-          ? "STEAM_ONLY"
-          : "UNAVAILABLE";
+    const consoleOffer =
+      gameOutput.nintendo_nsuid || gameOutput.playstation_product_id
+        ? gameOutput.external_offer_row
+        : undefined;
+    const steamPage = steamPageForGame(gameOutput.social_links);
+    const purchaseMode = purchaseModeForGame(gameOutput);
 
     return {
       id: gameOutput.id,
@@ -747,7 +776,9 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       launch_date: gameOutput.launch_date,
       // Display-only catalogue entries deliberately expose no local price.
       price:
-        gameOutput.nintendo_nsuid || gameOutput.status === "ONLY_DISPLAY"
+        gameOutput.nintendo_nsuid ||
+        gameOutput.playstation_product_id ||
+        gameOutput.status === "ONLY_DISPLAY"
           ? null
           : gameOutput.price.toFixed(2),
       developer_name: gameOutput.developer_name,
@@ -761,29 +792,35 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       publisher_id: gameOutput.publisher_id,
       steam_app_id: gameOutput.steam_app_id,
       nintendo_nsuid: gameOutput.nintendo_nsuid,
+      playstation_product_id: gameOutput.playstation_product_id,
       claimable:
         !gameOutput.nintendo_nsuid &&
+        !gameOutput.playstation_product_id &&
         gameOutput.status === "ONLY_DISPLAY" &&
         !gameOutput.studio_id,
       status: gameOutput.status,
       positive_reviews: gameOutput.positive_reviews,
       negative_reviews: gameOutput.negative_reviews,
       review_score: gameOutput.review_score,
-      base_price: gameOutput.nintendo_nsuid
-        ? null
-        : (gameOutput.base_price?.toFixed(2) ?? null),
+      base_price:
+        gameOutput.nintendo_nsuid || gameOutput.playstation_product_id
+          ? null
+          : (gameOutput.base_price?.toFixed(2) ?? null),
       ownership_status: gameOutput.studio_id ? "CLAIMED" : "UNCLAIMED",
       purchase_mode: purchaseMode,
-      external_offer: nintendoOffer
+      external_offer: consoleOffer
         ? {
-            provider: "NINTENDO",
-            country: nintendoOffer.country,
-            amount: nintendoOffer.amount?.toFixed(2) ?? null,
-            original_amount: nintendoOffer.original_amount?.toFixed(2) ?? null,
-            discount_percent: nintendoOffer.discount_percent,
-            currency: nintendoOffer.currency,
-            url: nintendoOffer.url,
-            captured_at: nintendoOffer.captured_at.toISOString(),
+            provider: gameOutput.playstation_product_id
+              ? "PLAYSTATION"
+              : "NINTENDO",
+            country: consoleOffer.country,
+            amount: consoleOffer.amount?.toFixed(2) ?? null,
+            original_amount: consoleOffer.original_amount?.toFixed(2) ?? null,
+            discount_percent: consoleOffer.discount_percent,
+            currency: consoleOffer.currency,
+            url: consoleOffer.url,
+            captured_at: consoleOffer.captured_at.toISOString(),
+            expires_at: consoleOffer.expires_at?.toISOString() ?? null,
           }
         : purchaseMode === "STEAM_ONLY" && steamPage
           ? {
@@ -1030,6 +1067,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         layout_preset: storeOutput.layout_preset,
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
+        featured_video_id: storeOutput.featured_video_id,
+        featured_video_start_seconds: storeOutput.featured_video_start_seconds,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });
@@ -1044,12 +1083,14 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       layout_preset: presentation.layout_preset,
       tagline: presentation.tagline,
       cover_url: presentation.cover_image_url,
+      featured_video: presentation.featured_video ?? null,
       social_links: presentation.social_links,
       brand_tokens: presentation.brand_tokens,
       presentation,
       status: storeOutput.status,
       published_at: storeOutput.published_at,
       storefront_source: storeOutput.storefront_source,
+      rating_scale: storeOutput.rating_scale ?? null,
       published_revision: storeOutput.published_revision,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
@@ -1098,6 +1139,8 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         layout_preset: storeOutput.layout_preset,
         tagline: storeOutput.tagline,
         cover_url: storeOutput.cover_url,
+        featured_video_id: storeOutput.featured_video_id,
+        featured_video_start_seconds: storeOutput.featured_video_start_seconds,
         social_links: storeOutput.social_links,
         brand_tokens: storeOutput.brand_tokens,
       });
@@ -1118,10 +1161,12 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       layout_preset: presentation.layout_preset,
       tagline: presentation.tagline,
       cover_url: presentation.cover_image_url,
+      featured_video: presentation.featured_video ?? null,
       social_links: presentation.social_links,
       brand_tokens: presentation.brand_tokens,
       presentation,
       storefront_source: storeOutput.storefront_source ?? "DRAFT",
+      rating_scale: storeOutput.rating_scale ?? null,
       created_at: storeOutput.created_at,
       updated_at: storeOutput.updated_at,
     };

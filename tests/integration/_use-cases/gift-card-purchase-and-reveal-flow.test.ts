@@ -197,8 +197,13 @@ describe("Use case: register, buy a gift card, pay and reveal its code", () => {
         query: { activation_id: activationId },
       });
       expect(activated.status).toBe(200);
-      expect(activated.headers["set-cookie"]).toEqual(
-        expect.stringContaining("session_id="),
+      const activationCookies = activated.headers["set-cookie"];
+      expect(
+        Array.isArray(activationCookies)
+          ? activationCookies
+          : [activationCookies],
+      ).toEqual(
+        expect.arrayContaining([expect.stringContaining("session_id=")]),
       );
       expect(
         (

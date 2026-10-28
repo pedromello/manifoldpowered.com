@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import {
   ArrowLeft,
   ArrowLeftRight,
+  BarChart3,
   Banknote,
   Building2,
   Coins,
@@ -19,11 +20,17 @@ import {
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
 import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
+import {
+  acceptProductEventContext,
+  resetProductEventsClient,
+} from "lib/product-events-client";
 
 const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/backoffice/home", label: "Homepage", icon: Store },
   { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
   { href: "/backoffice/gift-cards", label: "Gift cards", icon: Gift },
+  { href: "/backoffice/analytics", label: "Store clicks", icon: BarChart3 },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
   {
     href: "/backoffice/ownership-claims",
@@ -43,7 +50,9 @@ export function BackofficeTopNav({ username }: { username: string }) {
   const { giftCardsEnabled } = usePurchaseAvailability();
 
   async function handleSignOut() {
-    await fetch("/api/v1/sessions", { method: "DELETE" });
+    resetProductEventsClient();
+    const response = await fetch("/api/v1/sessions", { method: "DELETE" });
+    acceptProductEventContext(response);
     router.push("/store");
   }
 

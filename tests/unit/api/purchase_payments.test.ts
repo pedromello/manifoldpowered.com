@@ -68,8 +68,12 @@ async function call(
         : { features: [] },
     },
   } as unknown as NextApiRequest;
+  const responseHeaders: Record<string, string | string[]> = {};
   const res = {
-    setHeader: jest.fn(),
+    setHeader: jest.fn((key: string, value: string | string[]) => {
+      responseHeaders[key.toLowerCase()] = value;
+    }),
+    getHeader: jest.fn((key: string) => responseHeaders[key.toLowerCase()]),
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
     end: jest.fn().mockReturnThis(),

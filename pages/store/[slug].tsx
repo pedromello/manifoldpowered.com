@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ProductPageEvent } from "components/analytics/ProductPageEvent";
 import useSWR from "swr";
 import { GetServerSideProps } from "next";
 import { Settings } from "lucide-react";
@@ -70,6 +71,30 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       return { notFound: true };
     }
 
+    // Affiliate configuration follows the same publication boundary as the
+    // identity. Failure of this optional section never hides the whole Outlet.
+    try {
+      const affiliateUrl = new URL(
+        `/api/v1/stores/${encodeURIComponent(slug)}/affiliate-links`,
+        webserver.getOrigin(),
+      );
+      if (isPreview) affiliateUrl.searchParams.set("preview", "1");
+      const response = await fetch(affiliateUrl, { headers });
+      if (response.ok) {
+        const payload = await response.json();
+        if (
+          !store.published_revision?.id ||
+          isPreview ||
+          payload.published_revision_id === store.published_revision.id
+        ) {
+          store.affiliate_links = payload.links ?? [];
+          store.affiliate_revision_id = payload.published_revision_id ?? null;
+        }
+      }
+    } catch {
+      // Official catalog and creator identity remain available without affiliates.
+    }
+
     return { props: { store, isPreview } };
   } catch (error) {
     console.error("Error fetching outlet via API:", error);
@@ -112,6 +137,14 @@ export default function StorePage({
 
   return (
     <StorefrontRouteLayout store={viewStore} visitorPreview={isPreview}>
+      <ProductPageEvent
+        preview={isPreview}
+        event={{
+          name: "outlet_viewed",
+          target: { store_slug: store.slug },
+          properties: { locale, entry_surface: "outlet_page" },
+        }}
+      />
       <Storefront
         featuredEndpoint={`/api/v1/stores/${store.slug}/featured`}
         listEndpoint={`/api/v1/stores/${store.slug}/search`}

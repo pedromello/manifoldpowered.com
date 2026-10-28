@@ -1,4 +1,11 @@
 import { prisma } from "infra/database";
+import playstation from "infra/playstation";
+import * as playstationRefresh from "models/playstation_refresh";
+import {
+  createPlayStationStrategy,
+  type PlayStationGateway,
+  type PlayStationReference,
+} from "./playstation_strategy";
 import steam from "infra/steam";
 import nintendo from "infra/nintendo";
 import type {
@@ -103,6 +110,7 @@ const steamPersistence = createStorePersistence({
 });
 const nintendoPersistence = createStorePersistence({
   source: "NINTENDO",
+  preserveVideosWhenMissing: true,
   identity: (nintendo_nsuid) => ({ nintendo_nsuid }),
   lock: (tx, nsuid) =>
     tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`nintendo-game:${nsuid}`}))) AS game_lock`,
@@ -112,8 +120,63 @@ const nintendoPersistence = createStorePersistence({
   createUnknownOffersOnRefresh: true,
 });
 
+const playstationAttempts = createImportAttempts<PlayStationReference>({
+  label: "PlayStation",
+  userLock: (userId) => `playstation-user:${userId}`,
+  count: (tx, userId, since) =>
+    tx.playStationImportAttempt.count({
+      where: { user_id: userId, created_at: { gte: since } },
+    }),
+  create: (tx, userId, input) =>
+    tx.playStationImportAttempt.create({
+      data: { user_id: userId, product_id: input.productId },
+    }),
+  async finish(id, outcome, audit) {
+    await prisma.playStationImportAttempt.update({
+      where: { id },
+      data: {
+        outcome,
+        ...(audit ? { regional_outcomes: audit.regionalOutcomes } : {}),
+      },
+    });
+  },
+});
+const playstationPersistence = createStorePersistence({
+  source: "PLAYSTATION",
+  identity: (playstation_product_id) => ({ playstation_product_id }),
+  lock: (tx, id) =>
+    tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`playstation-game:${id}`}))) AS game_lock`,
+  canRefresh: (game) =>
+    game.status === "ONLY_DISPLAY" && game.studio_id === null,
+  updateCondition: { status: "ONLY_DISPLAY", studio_id: null },
+  fallbackLocales: ["en", "pt-BR"],
+  fallbackOnRefresh: true,
+  createUnknownOffersOnRefresh: true,
+  preserveVideosWhenMissing: true,
+});
+
 /** Composition root: register a source strategy and its existing storage adapters here. */
 export const storeImporters = {
+  playstation(gateway: PlayStationGateway = playstation) {
+    return createStoreImportService<
+      PlayStationReference,
+      import("generated/prisma/client").PlayStationRefresh,
+      Prisma.TransactionClient
+    >({
+      label: "PlayStation",
+      strategy: createPlayStationStrategy(gateway),
+      attempts: playstationAttempts,
+      managedGame: async () => null,
+      coordination: {
+        ...playstationRefresh,
+        reserve: (input) => playstationRefresh.reserve(input.productId),
+        complete: (tx, row, game, outcomes) =>
+          playstationRefresh.complete(tx, row, game.id, outcomes),
+      },
+      transaction,
+      persist: playstationPersistence,
+    });
+  },
   steam(gateway: SteamDetailsGateway = steam) {
     return createStoreImportService<
       string,

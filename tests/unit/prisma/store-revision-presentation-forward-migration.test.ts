@@ -100,7 +100,12 @@ describe("StoreRevision presentation forward migration", () => {
       },
       theme_key: null,
     };
-    expect(storePresentationSchema.parse(normalized)).toEqual(normalized);
+    expect(storePresentationSchema.parse(normalized)).toEqual({
+      ...normalized,
+      version: 3,
+      featured_video: null,
+    });
+    expect(normalized.version).toBe(1);
   });
 
   test("the parser accepts the sanitized target and rejects contaminated input", () => {
@@ -139,7 +144,11 @@ describe("StoreRevision presentation forward migration", () => {
       },
       theme_key: null,
     };
-    expect(storePresentationSchema.parse(sanitized)).toEqual(sanitized);
+    expect(storePresentationSchema.parse(sanitized)).toEqual({
+      ...sanitized,
+      version: 3,
+      featured_video: null,
+    });
   });
 
   test("a canonical strict payload is already a fixed point", () => {

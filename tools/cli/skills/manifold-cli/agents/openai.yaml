@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manifold CLI"
+  short_description: "Curadoria de jogos e outlets pela CLI Manifold"
+  default_prompt: "Use $manifold-cli para operar a plataforma no ambiente e na conta do pedido."

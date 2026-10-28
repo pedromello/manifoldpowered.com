@@ -17,6 +17,10 @@ import {
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
 import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
+import { OutletSelections } from "components/store/SelectionCards";
+import { OutletSelectionShowcase } from "components/store/OutletSelectionShowcase";
+import type { SelectionPageApi } from "lib/selection-client";
+import type { HomeCommunity } from "lib/home-client";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -40,6 +44,8 @@ export type StorefrontProps = {
   /** A private, authenticated rendering of the working draft. */
   isPreview?: boolean;
   onPreviewStatusChange?: (status: { ready: boolean; error?: string }) => void;
+  editorialSelections?: SelectionPageApi[];
+  homeCommunities?: HomeCommunity[];
 };
 
 /**
@@ -66,6 +72,8 @@ export function Storefront({
   showDiscover = false,
   isPreview = false,
   onPreviewStatusChange,
+  editorialSelections = [],
+  homeCommunities = [],
 }: StorefrontProps) {
   const { t } = useI18n();
   const { giftCardsEnabled } = usePurchaseAvailability();
@@ -75,6 +83,7 @@ export function Storefront({
     browsePath,
     searchPagePath,
     storeSlug: store?.slug,
+    ratingScale: store?.rating_scale,
     isPreview,
   });
 
@@ -147,6 +156,9 @@ export function Storefront({
           {...controller}
           store={store}
           followControl={followControl}
+          selectionShowcase={
+            <OutletSelectionShowcase slug={store.slug} preview={isPreview} />
+          }
         />
       ) : (
         <DefaultStorefront
@@ -155,7 +167,12 @@ export function Storefront({
           followControl={followControl}
           showDiscover={showDiscover}
           showGiftCards={!store && giftCardsEnabled}
+          editorialSelections={editorialSelections}
+          homeCommunities={homeCommunities}
         />
+      )}
+      {store && (custom || !outletDesign) && (
+        <OutletSelections slug={store.slug} preview={isPreview} />
       )}
     </StorefrontShell>
   );

@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
 import controller from "infra/controller";
+import { eventContextForAction } from "infra/product_event_context";
 import wishlist from "models/wishlist";
 import { ValidationError } from "infra/errors";
 import { z } from "zod";
@@ -53,7 +54,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { slug } = parsedBody.data;
 
-  await wishlist.add(userTryingToWishlist.id, slug);
+  await wishlist.add(userTryingToWishlist.id, slug, eventContextForAction(req));
 
   return res.status(201).json({ message: "Game added to wishlist" });
 }
@@ -73,7 +74,11 @@ async function deleteHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { slug } = parsedBody.data;
 
-  await wishlist.remove(userTryingToWishlist.id, slug);
+  await wishlist.remove(
+    userTryingToWishlist.id,
+    slug,
+    eventContextForAction(req),
+  );
 
   return res.status(200).json({ message: "Game removed from wishlist" });
 }

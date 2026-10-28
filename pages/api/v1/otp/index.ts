@@ -4,11 +4,7 @@ import controller from "infra/controller";
 import otp from "models/otp";
 import user from "models/user";
 import { ValidationError } from "infra/errors";
-import { z } from "zod";
-
-const requestOtpSchema = z.object({
-  login: z.string().trim().min(1),
-});
+import { requestOtpSchema } from "contracts/creator-requests";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)

@@ -13,7 +13,14 @@ import {
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
 import { GiftCardCatalog } from "components/store/GiftCardCatalog";
+import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
+import { SelectionCarousel } from "components/storefront/default/SelectionCarousel";
 import { DiscountBadge } from "components/store/DiscountBadge";
+import { GameArtwork } from "components/store/GameArtwork";
+import { OutletRatingBadge } from "components/store/OutletRatingBadge";
+import { OutletRatingFilter } from "components/storefront/OutletRatingFilter";
+import { EMPTY_OUTLET_RATING_FILTER } from "lib/outlet-rating-filter";
+import { Pagination } from "components/Pagination";
 import type { GameApi } from "components/store/types";
 import type { DefaultStorefrontProps } from "components/storefront/types";
 import {
@@ -38,7 +45,7 @@ function Price({ game, large = false }: { game: GameApi; large?: boolean }) {
       <span
         className={`${large ? "text-xl" : "text-sm"} font-black text-white`}
       >
-        {isCatalogFree(game) ? t("Free") : formatCatalogPrice(game)}
+        {isCatalogFree(game) ? t("Free") : t(formatCatalogPrice(game))}
       </span>
     </div>
   );
@@ -52,7 +59,7 @@ function commercialLabel(game: GameApi, t: (message: string) => string) {
   if (discountLabel && formatCatalogBasePrice(game)) {
     return discountLabel;
   }
-  return formatCatalogPrice(game);
+  return t(formatCatalogPrice(game));
 }
 
 function HeroSkeleton() {
@@ -86,18 +93,12 @@ function Spotlight({
         data-storefront="game-link"
         className="group relative min-h-[240px] overflow-hidden bg-[#21182f] md:min-h-full"
       >
-        {game.media?.banner ? (
-          // Game banners may be hosted outside Next's image allowlist.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={game.media.banner}
-            alt={t("{title} banner", { title: game.title })}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.015]"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#28183b,#15101d)]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/5 md:bg-gradient-to-r md:from-transparent md:to-black/20" />
+        <GameArtwork
+          src={game.media?.banner}
+          alt={t("{title} banner", { title: game.title })}
+          loading="eager"
+          fill
+        />
       </Link>
 
       <div className="flex flex-col justify-center p-6 sm:p-8">
@@ -109,6 +110,11 @@ function Spotlight({
         <h2 className="mt-3 text-3xl font-black leading-tight tracking-[-0.025em] text-white sm:text-4xl">
           {game.title}
         </h2>
+        {storeName && (
+          <div className="mt-3">
+            <OutletRatingBadge rating={game.outlet_review?.rating} />
+          </div>
+        )}
         <p className="mt-2 text-sm font-semibold text-white/45">
           {t("by {name}", { name: game.developer_name })}
         </p>
@@ -307,7 +313,15 @@ function SpotlightCarousel({
   );
 }
 
-function GameCard({ game, href }: { game: GameApi; href: string }) {
+function GameCard({
+  game,
+  href,
+  outlet,
+}: {
+  game: GameApi;
+  href: string;
+  outlet: boolean;
+}) {
   const discountLabel = catalogDiscountLabel(game);
   return (
     <Link
@@ -315,27 +329,14 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
       data-storefront="game-link"
       className="group min-w-0 overflow-hidden rounded-xl border border-white/[0.09] bg-[#14101c] transition-colors hover:border-white/20 hover:bg-[#181320]"
     >
-      <div className="relative aspect-[920/430] overflow-hidden bg-[#21182f]">
-        {game.media?.banner ? (
-          // Game banners may be hosted outside Next's image allowlist.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={game.media.banner}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="h-full w-full bg-[linear-gradient(135deg,#28183b,#15101d)]" />
-        )}
-        {discountLabel && formatCatalogBasePrice(game) && (
-          <span className="absolute bottom-2 left-2">
-            <DiscountBadge label={discountLabel} size="small" />
-          </span>
-        )}
-      </div>
+      <GameArtwork src={game.media?.banner} className="aspect-[920/430]" />
 
       <div className="p-4">
+        {discountLabel && formatCatalogBasePrice(game) && (
+          <div className="mb-3">
+            <DiscountBadge label={discountLabel} size="small" />
+          </div>
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-base font-bold text-white transition-colors group-hover:text-violet-200">
@@ -347,6 +348,11 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
           </div>
           <Price game={game} />
         </div>
+        {outlet && (
+          <div className="mt-3">
+            <OutletRatingBadge rating={game.outlet_review?.rating} />
+          </div>
+        )}
         {game.tags?.length > 0 && (
           <p className="mt-4 truncate text-xs text-white/35">
             {game.tags.slice(0, 3).join(" · ")}
@@ -359,6 +365,7 @@ function GameCard({ game, href }: { game: GameApi; href: string }) {
 
 export function PlatformStorefrontHome({
   store,
+  isPreview,
   followControl,
   featured,
   isFeaturedLoading,
@@ -373,11 +380,17 @@ export function PlatformStorefrontHome({
   browseHref,
   searchAction,
   searchHiddenFields,
+  ratingFilter,
+  setRatingFilter,
+  pagination,
+  setPage,
   showDiscover,
   showGiftCards,
+  editorialSelections = [],
+  homeCommunities = [],
 }: DefaultStorefrontProps) {
   const { t } = useI18n();
-  const spotlightGames = (featured.length > 0 ? featured : games).slice(0, 3);
+  const spotlightGames = featured.slice(0, 3);
   const categoryLinks = useMemo(
     () =>
       categories.map((label) => ({
@@ -389,7 +402,9 @@ export function PlatformStorefrontHome({
 
   return (
     <main className="min-h-screen bg-[#0b0812] pb-16 text-white lg:pb-0">
-      <section className="mx-auto max-w-[1500px] px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9">
+      <section
+        className={`mx-auto px-4 pb-8 pt-7 sm:px-6 lg:px-10 lg:pt-9 ${store ? "max-w-[1500px]" : "max-w-[1280px]"}`}
+      >
         {store?.presentation?.cover_image_url && (
           <div className="mb-6 aspect-[3/1] min-h-36 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
             {/* Presentation URLs are selected by the server's versioned read
@@ -433,27 +448,18 @@ export function PlatformStorefrontHome({
             </div>
           ) : (
             <div>
-              <h1 className="max-w-2xl text-2xl font-black tracking-[-0.02em] sm:text-3xl">
-                {t(
-                  showGiftCards
-                    ? "Discover games and gift cards"
-                    : "Discover games",
-                )}
+              <h1 className="max-w-5xl text-3xl font-black tracking-[-0.02em] sm:text-4xl">
+                {t("Your next game starts with a good recommendation.")}
               </h1>
+              <p className="mt-3 text-sm leading-6 text-white/55 sm:text-base">
+                {t(
+                  "Discover the game. Understand the recommendation. Keep exploring.",
+                )}
+              </p>
             </div>
           )}
 
-          {store ? (
-            <div className="shrink-0">{followControl}</div>
-          ) : (
-            <p className="max-w-md text-sm leading-6 text-white/45 sm:text-right">
-              {t(
-                showGiftCards
-                  ? "Games, gift cards, and independent stores in one place."
-                  : "Games and independent stores in one place.",
-              )}
-            </p>
-          )}
+          {store ? <div className="shrink-0">{followControl}</div> : null}
         </div>
 
         {showGiftCards && !store && (
@@ -462,7 +468,15 @@ export function PlatformStorefrontHome({
           </div>
         )}
 
-        {isFeaturedLoading && spotlightGames.length === 0 ? (
+        {store && (
+          <div className="mb-6">
+            <OutletAffiliateLinks store={store} isPreview={isPreview} />
+          </div>
+        )}
+
+        {!store && editorialSelections.length > 0 ? (
+          <SelectionCarousel selections={editorialSelections} />
+        ) : isFeaturedLoading && spotlightGames.length === 0 ? (
           <HeroSkeleton />
         ) : spotlightGames.length > 0 ? (
           <SpotlightCarousel
@@ -474,6 +488,34 @@ export function PlatformStorefrontHome({
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
             {t("No featured games right now.")}
           </div>
+        )}
+        {!store && showDiscover && (
+          <div id="outlets" className="scroll-mt-20">
+            <DiscoverOutlets outlets={homeCommunities} />
+          </div>
+        )}
+        {!store && (
+          <nav aria-label={t("Explore by your mood")} className="mt-7">
+            <h2 className="mb-3 text-lg font-black">
+              {t("Explore by your mood")}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ["Play with friends", "Co-op"],
+                ["Unravel a mystery", "Mystery"],
+                ["Build and manage", "Simulation"],
+                ["On the track", "Racing"],
+              ].map(([label, tag]) => (
+                <Link
+                  key={tag}
+                  href={browseHref({ category: null, tags: [tag], page: 1 })}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-white/15 px-4 text-sm font-semibold text-white/70 hover:border-violet-400/60 hover:text-white"
+                >
+                  {t(label)}
+                </Link>
+              ))}
+            </div>
+          </nav>
         )}
       </section>
 
@@ -516,12 +558,6 @@ export function PlatformStorefrontHome({
                 }
                 className="h-11 w-full rounded-lg border border-white/[0.1] bg-white/[0.035] pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
-              {activeCategory && (
-                <input type="hidden" name="category" value={activeCategory} />
-              )}
-              {Object.entries(searchHiddenFields).map(([name, value]) => (
-                <input key={name} type="hidden" name={name} value={value} />
-              ))}
             </Form>
 
             <div className="relative sm:w-44">
@@ -574,6 +610,14 @@ export function PlatformStorefrontHome({
           })}
         </div>
 
+        {store && (
+          <OutletRatingFilter
+            scale={store.rating_scale ?? null}
+            filter={ratingFilter}
+            onChange={setRatingFilter}
+          />
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
@@ -586,7 +630,12 @@ export function PlatformStorefrontHome({
         ) : games.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {games.map((game) => (
-              <GameCard key={game.id} game={game} href={itemHref(game.slug)} />
+              <GameCard
+                key={game.id}
+                game={game}
+                href={itemHref(game.slug)}
+                outlet={store !== null}
+              />
             ))}
           </div>
         ) : (
@@ -595,20 +644,23 @@ export function PlatformStorefrontHome({
               {t("No games found.")}
             </p>
             <Link
-              href={browseHref({ q: "", category: null, tags: [], page: 1 })}
+              href={browseHref({
+                q: "",
+                category: null,
+                tags: [],
+                page: 1,
+                ...EMPTY_OUTLET_RATING_FILTER,
+              })}
               className="mt-2 inline-flex text-sm font-bold text-violet-300 hover:text-violet-200"
             >
               {t("Clear filters")}
             </Link>
           </div>
         )}
-      </section>
-
-      {showDiscover && (
-        <div id="outlets" className="scroll-mt-20 bg-[#0d0a13]">
-          <DiscoverOutlets />
+        <div className="mt-6">
+          <Pagination pagination={pagination} onPageChange={setPage} />
         </div>
-      )}
+      </section>
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar {

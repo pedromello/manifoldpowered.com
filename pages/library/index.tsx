@@ -1,5 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 import useSWR from "swr";
 import { BookMarked, Gift, PackageX, Receipt } from "lucide-react";
 
@@ -8,6 +10,7 @@ import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
 import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
+import { fetchJson, isAuthenticationError } from "lib/api-client";
 
 type LibraryItem = {
   id: string;
@@ -16,23 +19,26 @@ type LibraryItem = {
 };
 
 export default function LibraryPage() {
+  const router = useRouter();
   const { locale, t } = useI18n();
   const { purchasesEnabled, giftCardsEnabled } = usePurchaseAvailability();
   const {
     data: libraryData,
     error,
     isLoading,
-  } = useSWR<{ games: LibraryItem[] }>(
-    "/api/v1/library",
-    (url) =>
-      fetch(url).then(async (response) => {
-        if (!response.ok) throw new Error("Not logged in");
-        return response.json();
-      }),
-    { shouldRetryOnError: false },
-  );
+    mutate,
+  } = useSWR<{ games: LibraryItem[] }>("/api/v1/library", fetchJson, {
+    shouldRetryOnError: false,
+  });
 
-  const isLoggedOut = !!error;
+  const isLoggedOut = isAuthenticationError(error);
+  useEffect(() => {
+    if (isLoggedOut && router.isReady) {
+      void router.replace(
+        `/login?callbackUrl=${encodeURIComponent(router.asPath)}`,
+      );
+    }
+  }, [isLoggedOut, router]);
   const games = libraryData?.games ?? [];
 
   return (
@@ -95,11 +101,25 @@ export default function LibraryPage() {
               )}
             </p>
             <Link
-              href="/login?callbackUrl=/library"
+              href={`/login?callbackUrl=${encodeURIComponent(router.asPath)}`}
               className="mt-6 inline-flex h-11 items-center rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-bold hover:from-fuchsia-500 hover:to-violet-500"
             >
               {t("Log in to Manifold")}
             </Link>
+          </section>
+        ) : error ? (
+          <section
+            role="alert"
+            className="mt-8 rounded-xl border border-rose-500/25 bg-[#14101c] px-6 py-14 text-center"
+          >
+            <p>{t("We could not load your library right now.")}</p>
+            <button
+              type="button"
+              onClick={() => void mutate()}
+              className="mt-4 rounded-lg border border-white/15 px-4 py-2 font-semibold"
+            >
+              {t("Try again")}
+            </button>
           </section>
         ) : isLoading ? (
           <div

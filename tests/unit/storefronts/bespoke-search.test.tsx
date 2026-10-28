@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { StorefrontViewProps } from "components/storefront/types";
 import { NeonAlleyStorefront } from "storefronts/neon-alley/Storefront";
-import { StrategosVoidStorefront } from "storefronts/strategos-void/Storefront";
 
 jest.mock("next/form", () => ({
   __esModule: true,
@@ -98,16 +97,44 @@ function previewSubmission(markup: string) {
   return { action: form?.[1], hiddenPreviewFields, query };
 }
 
-describe.each([
-  ["Neon Alley", NeonAlleyStorefront],
-  ["Strategos Void", StrategosVoidStorefront],
-] as const)("%s bespoke search", (_name, Storefront) => {
-  test("submits exactly one preview field and preserves preview=1", () => {
-    const markup = renderToStaticMarkup(<Storefront {...props()} />);
-    const submission = previewSubmission(markup);
+describe.each([["Neon Alley", NeonAlleyStorefront]] as const)(
+  "%s bespoke search",
+  (_name, Storefront) => {
+    test.each([false, true])(
+      "keeps affiliate links available in the bespoke theme (preview=%s)",
+      (isPreview) => {
+        const input = props();
+        input.isPreview = isPreview;
+        input.store.affiliate_links = [
+          {
+            id: "2e989738-6f24-4aa7-a16b-4ee3e8661bd6",
+            kind: "storefront",
+            merchant: "nuuvem",
+            platform: null,
+            media_type: null,
+            country: "BR",
+            game_id: null,
+            game_slug: null,
+            url: "https://www.nuuvem.com/br-pt/",
+            label: null,
+          },
+        ];
+        const markup = renderToStaticMarkup(<Storefront {...input} />);
+        expect(markup).toContain("Affiliate links");
+        expect(markup).toContain("Nuuvem");
+        expect(markup.includes('href="https://www.nuuvem.com/br-pt/"')).toBe(
+          !isPreview,
+        );
+      },
+    );
 
-    expect(submission.action).toBe("/store/preview-outlet");
-    expect(submission.hiddenPreviewFields).toHaveLength(1);
-    expect(submission.query.toString()).toBe("preview=1");
-  });
-});
+    test("submits exactly one preview field and preserves preview=1", () => {
+      const markup = renderToStaticMarkup(<Storefront {...props()} />);
+      const submission = previewSubmission(markup);
+
+      expect(submission.action).toBe("/store/preview-outlet");
+      expect(submission.hiddenPreviewFields).toHaveLength(1);
+      expect(submission.query.toString()).toBe("preview=1");
+    });
+  },
+);
