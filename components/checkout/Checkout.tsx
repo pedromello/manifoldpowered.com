@@ -21,6 +21,132 @@ import {
 import { GiftCardArtwork } from "components/store/GiftCardArtwork";
 import type { BuyerCheckout } from "contracts/purchase-orders";
 
+export function GiftCardRecipient({
+  delivery,
+  busy,
+  onConfirm,
+  orderId,
+}: {
+  delivery: NonNullable<BuyerCheckout["gift_card_delivery"]>;
+  busy: boolean;
+  onConfirm: (recipient: {
+    name: string;
+    document?: string;
+    confirmed: true;
+  }) => Promise<void>;
+  orderId: string;
+}) {
+  const { t } = useI18n();
+  if (delivery.verification_required || !delivery.email)
+    return (
+      <div role="status" className="space-y-4 text-sm text-white/70">
+        <p>{t("Verify your account email before confirming delivery.")}</p>
+        <p>
+          {t(
+            "If your account email has changed, cancel this order and start a new purchase.",
+          )}
+        </p>
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(`/checkout/${orderId}`)}`}
+          className="checkout-primary"
+        >
+          {t("Verify email")}
+        </Link>
+      </div>
+    );
+  return (
+    <form
+      className="space-y-5"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (busy || !event.currentTarget.reportValidity()) return;
+        const fields = new FormData(event.currentTarget);
+        if (fields.get("confirm_delivery") !== "on") return;
+        const document = String(fields.get("recipient_document") || "").replace(
+          /\D/g,
+          "",
+        );
+        await onConfirm({
+          name: String(fields.get("recipient_name") || "").trim(),
+          ...(document ? { document } : {}),
+          confirmed: true,
+        });
+      }}
+    >
+      <h2 className="text-lg font-bold">{t("Confirm gift card delivery")}</h2>
+      <p className="text-sm leading-6 text-white/60">
+        {t(
+          "Your gift card will be sent to your account email. Confirm the details before paying.",
+        )}
+      </p>
+      <label className="block text-sm text-white/70">
+        {t("Delivery email")}
+        <input
+          type="email"
+          value={delivery.email}
+          readOnly
+          className="checkout-input"
+        />
+      </label>
+      <label className="block text-sm text-white/70">
+        {t("Recipient full name")}
+        <input
+          name="recipient_name"
+          autoComplete="name"
+          required
+          minLength={2}
+          maxLength={120}
+          disabled={busy}
+          className="checkout-input"
+        />
+      </label>
+      <label className="block text-sm text-white/70">
+        {t(
+          delivery.document_required
+            ? "Recipient document"
+            : "Recipient document (if required)",
+        )}
+        <input
+          name="recipient_document"
+          inputMode="numeric"
+          autoComplete="off"
+          required={delivery.document_required}
+          pattern="[0-9./-]{11,18}"
+          maxLength={18}
+          disabled={busy}
+          className="checkout-input"
+        />
+      </label>
+      <label className="flex items-start gap-3 text-sm leading-6 text-white/70">
+        <input
+          type="checkbox"
+          name="confirm_delivery"
+          required
+          disabled={busy}
+          className="mt-1 size-4 shrink-0 accent-violet-500"
+        />
+        {t(
+          "I confirm that the gift card should be sent to the email shown above.",
+        )}
+      </label>
+      <button type="submit" disabled={busy} className="checkout-primary">
+        {t(busy ? "Please wait" : "Confirm delivery details")}
+      </button>
+    </form>
+  );
+}
+
+function recipientConfirmed(data: BuyerCheckout) {
+  const delivery = data.gift_card_delivery;
+  return (
+    delivery?.channel !== "EMAIL" ||
+    (Boolean(delivery.email) &&
+      delivery.confirmed &&
+      delivery.recipient_ready &&
+      !delivery.verification_required)
+  );
+}
+
 export async function checkoutRequest(
   url: string,
   body?: unknown,
@@ -359,7 +485,8 @@ export function Checkout({ orderId }: { orderId: string }) {
     async (token?: string) => {
       tokenizing.current = false;
       if (tokenTimer.current) clearTimeout(tokenTimer.current);
-      if (!data || !prepared || inFlight.current) return;
+      if (!data || !prepared || inFlight.current || !recipientConfirmed(data))
+        return;
       const buyer = data.checkout.hosted ? undefined : readBuyer();
       if (!data.checkout.hosted && (!buyer || !ip)) {
         setMessage(t("Please check your purchase details."));
@@ -407,7 +534,7 @@ export function Checkout({ orderId }: { orderId: string }) {
     [data, prepared, readBuyer, ip, t, orderId, mutate],
   );
   async function prepare() {
-    if (!data || busy) return;
+    if (!data || busy || !recipientConfirmed(data)) return;
     setBusy(true);
     setMessage("");
     try {
@@ -427,6 +554,34 @@ export function Checkout({ orderId }: { orderId: string }) {
     } catch {
       setMessage(t("We could not prepare the payment. Try again."));
     } finally {
+      setBusy(false);
+    }
+  }
+  async function confirmRecipient(recipient: {
+    name: string;
+    document?: string;
+    confirmed: true;
+  }) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await checkoutRequest(
+        `/api/v1/orders/${orderId}/recipient`,
+        recipient,
+      );
+      setPrepared(null);
+      await mutate(result, { revalidate: false });
+    } catch {
+      setMessage(
+        t(
+          "We could not confirm delivery details. Check your name and document and try again.",
+        ),
+      );
+      await mutate();
+    } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -468,6 +623,7 @@ export function Checkout({ orderId }: { orderId: string }) {
     );
   const payDisabled =
     busy ||
+    !recipientConfirmed(data) ||
     !data.checkout.available ||
     !prepared ||
     prepared.method !== method ||
@@ -496,6 +652,15 @@ export function Checkout({ orderId }: { orderId: string }) {
               {message}
             </p>
           )}
+          {data.gift_card_delivery?.channel === "EMAIL" &&
+            data.gift_card_delivery.email && (
+              <p className="mb-6 break-all rounded-lg border border-violet-400/20 bg-violet-400/5 p-4 text-sm leading-6 text-white/70">
+                {t("Delivery email")}: {data.gift_card_delivery.email}
+                <span className="mt-1 block text-xs text-white/50">
+                  {t("The gift card code will be delivered by email.")}
+                </span>
+              </p>
+            )}
           {order.payment_status === "PAID" ? (
             <>
               <CheckCircle2 className="text-emerald-300" size={32} />
@@ -508,6 +673,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                     order.item_type,
                     order.payment_status,
                     order.delivery_status,
+                    data.gift_card_delivery?.channel,
                   ),
                 )}
               </p>
@@ -543,7 +709,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                 )}
               </p>
               {attempt?.pix && <PixInstructions pix={attempt.pix} />}{" "}
-              {attempt?.checkout_url && (
+              {attempt?.checkout_url && recipientConfirmed(data) && (
                 <a
                   href={attempt.checkout_url}
                   className="checkout-primary mt-6"
@@ -589,6 +755,13 @@ export function Checkout({ orderId }: { orderId: string }) {
                 "New purchases are temporarily unavailable. Please try again later.",
               )}
             </p>
+          ) : !recipientConfirmed(data) && data.gift_card_delivery ? (
+            <GiftCardRecipient
+              delivery={data.gift_card_delivery}
+              busy={busy}
+              orderId={orderId}
+              onConfirm={confirmRecipient}
+            />
           ) : (
             <>
               {!data.checkout.hosted && (
@@ -746,7 +919,7 @@ export function Checkout({ orderId }: { orderId: string }) {
               {data.checkout.hosted ? (
                 <button
                   onClick={() => sendPayment()}
-                  disabled={busy || !prepared}
+                  disabled={busy || !prepared || !recipientConfirmed(data)}
                   className="checkout-primary mt-6"
                 >
                   {t("Confirm payment")}

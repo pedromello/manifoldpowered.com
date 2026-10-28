@@ -1,4 +1,5 @@
 import { NotFoundError, ServiceError } from "infra/errors";
+import { sandboxEnabled } from "infra/runtime";
 
 export interface GiftCardProduct {
   code: string;
@@ -39,7 +40,7 @@ export interface GiftCardProvider {
 }
 
 export function assertGiftCardSandbox() {
-  if (!["development", "test"].includes(process.env.NODE_ENV)) {
+  if (!sandboxEnabled()) {
     throw new ServiceError({
       message:
         "Gift card purchases are available only in development and tests.",
@@ -73,6 +74,7 @@ const products: GiftCardProduct[] = [
 export const simulatedGiftCardProvider: GiftCardProvider = {
   async products() {
     assertGiftCardSandbox();
+    assertSimulator();
     return products.map((product) => ({ ...product }));
   },
   async issue(request) {
@@ -88,6 +90,7 @@ function simulatedDelivery({
   product,
 }: GiftCardIssueRequest): GiftCardDelivery {
   assertGiftCardSandbox();
+  assertSimulator();
   const registered = products.find((item) => item.code === product.code);
   if (
     !registered ||
@@ -102,4 +105,9 @@ function simulatedDelivery({
     reference: `simulated:${request_id}`,
     code: `SIMULATED-NOT-REDEEMABLE-${request_id}`,
   };
+}
+
+function assertSimulator() {
+  if (!["development", "test"].includes(process.env.NODE_ENV))
+    throw new ServiceError({ message: "Demo gift cards are unavailable." });
 }

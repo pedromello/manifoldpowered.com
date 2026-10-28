@@ -1,9 +1,19 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createRouter } from "next-connect";
+import { z } from "zod";
 import controller from "infra/controller";
 import user from "models/user";
 import authorization from "models/authorization";
-import { ForbiddenError } from "infra/errors";
+import { ForbiddenError, ValidationError } from "infra/errors";
+
+const profileUpdate = z
+  .object({
+    username: z.string().min(1).max(30).optional(),
+    email: z.email().optional(),
+    password: z.string().min(1).optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0);
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -28,7 +38,6 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
   const { username } = req.query;
-  const userUpdateDto = req.body;
 
   const userTryingToPatch = req.context.user;
   const userToPatch = await user.findOneByUsername(username as string);
@@ -40,9 +49,17 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  // Permission grants and mailbox proof are exclusively server-managed. Never
+  // forward arbitrary profile JSON to Prisma, including internal identifiers.
+  const parsed = profileUpdate.safeParse(req.body);
+  if (!parsed.success)
+    throw new ValidationError({
+      message: "Please check your profile details.",
+    });
+
   const updatedUser = await user.updateByUsername(
     username as string,
-    userUpdateDto,
+    parsed.data,
   );
 
   const secureOutputValues = authorization.filterOutput(

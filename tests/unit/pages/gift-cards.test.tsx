@@ -37,6 +37,7 @@ function render(
   status?: string,
   available = true,
   firstRevealedAt: string | null = null,
+  delivery: Record<string, unknown> = {},
 ) {
   mockSWR.mockImplementation((key: string) => ({
     data:
@@ -53,6 +54,7 @@ function render(
                       status === "FULFILLED"
                         ? "SIMULATED-NOT-REDEEMABLE-fixture"
                         : null,
+                    ...delivery,
                   },
                 ]
               : [],
@@ -126,12 +128,106 @@ test("anonymous and unactivated users receive actionable states", () => {
   }
 });
 
+test.each([
+  ["PROCESSING", "PAID", "Payment confirmed · email delivery pending"],
+  ["DELIVERED", "FULFILLED", "Delivered by email"],
+  ["CANCELLED", "ISSUANCE_FAILED", "Delivery cancelled · support required"],
+  ["REVIEW", "ISSUANCE_FAILED", "Delivery needs review"],
+])(
+  "email %s presents delivery status without code or issuance controls",
+  (fulfillment, status, label) => {
+    const html = render(status, true, "2026-10-10T14:23:45Z", {
+      delivery_channel: "EMAIL",
+      recipient_email: "buyer@example.test",
+      fulfillment_status: fulfillment,
+      next_tracking_at:
+        fulfillment === "PROCESSING" ? "2026-10-11T10:00:00Z" : null,
+    });
+    expect(html).toContain(label);
+    expect(html).toContain("buyer@example.test");
+    expect(html).not.toContain("Reveal code");
+    expect(html).not.toContain("View code");
+    expect(html).not.toContain("Retry delivery");
+    expect(html).not.toContain("SIMULATED-NOT-REDEEMABLE-fixture");
+    if (fulfillment === "PROCESSING")
+      expect(html).toContain("Next delivery check");
+    if (["CANCELLED", "REVIEW"].includes(fulfillment))
+      expect(html).toContain("Do not pay again.");
+  },
+);
+
+test("pending email purchase goes through checkout for recipient confirmation", () => {
+  const html = render("CHECKOUT_PENDING", true, null, {
+    delivery_channel: "EMAIL",
+  });
+  expect(html).toContain('href="/checkout/synthetic-order"');
+  expect(html).toContain("Complete your payment to receive your gift card.");
+  expect(html).not.toContain("You do not need to pay again.");
+});
+
+test("unpaid cancelled email order does not promise a future delivery", () => {
+  const html = render("CANCELLED", true, null, {
+    delivery_channel: "EMAIL",
+    fulfillment_status: "QUEUED",
+    paid_at: null,
+  });
+  expect(html).toContain(
+    "This purchase was cancelled. No payment was completed.",
+  );
+  expect(html).not.toContain("Delivery updates appear here automatically.");
+  expect(html).not.toContain("You do not need to pay again.");
+  expect(html).not.toContain("Continue purchase");
+});
+
+test("failed email payment offers checkout recovery without claiming delivery is under way", () => {
+  const html = render("PAYMENT_FAILED", true, null, {
+    delivery_channel: "EMAIL",
+    fulfillment_status: "QUEUED",
+    paid_at: null,
+  });
+  expect(html).toContain("Your payment was unsuccessful. You can try again.");
+  expect(html).toContain('href="/checkout/synthetic-order"');
+  expect(html).toContain("Try again");
+  expect(html).not.toContain("Delivery updates appear here automatically.");
+  expect(html).not.toContain("You do not need to pay again.");
+  expect(html).not.toContain("Retry delivery");
+});
+
+test("cancelled email order with prior payment directs the buyer to support", () => {
+  const html = render("CANCELLED", true, null, {
+    delivery_channel: "EMAIL",
+    fulfillment_status: "PROCESSING",
+    paid_at: "2026-10-10T14:23:45Z",
+  });
+  expect(html).toContain("Purchase under review");
+  expect(html).toContain(
+    "Do not pay again. Contact support with your order number.",
+  );
+  expect(html).not.toContain("No payment was completed.");
+});
+
 test("production renders 404 rather than exposing a simulated gift card store", async () => {
-  const original = process.env.NODE_ENV;
-  Object.assign(process.env, { NODE_ENV: "production" });
+  const original = { ...process.env };
+  Object.assign(process.env, { NODE_ENV: "production", APP_ENV: "production" });
   try {
     expect(await getServerSideProps()).toEqual({ notFound: true });
   } finally {
-    Object.assign(process.env, { NODE_ENV: original });
+    process.env = original;
+  }
+});
+
+test("an enabled sandbox homologation build exposes purchase history", async () => {
+  const original = { ...process.env };
+  Object.assign(process.env, {
+    NODE_ENV: "production",
+    APP_ENV: "hml",
+    PURCHASES_ENABLED: "true",
+    PAYMENT_ENVIRONMENT: "sandbox",
+    GIFT_CARD_PROVIDER: "api",
+  });
+  try {
+    expect(await getServerSideProps()).toEqual({ props: {} });
+  } finally {
+    process.env = original;
   }
 });

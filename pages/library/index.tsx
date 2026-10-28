@@ -7,6 +7,7 @@ import { LibraryGameCard } from "components/library/LibraryGameCard";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
 
 type LibraryItem = {
   id: string;
@@ -16,6 +17,7 @@ type LibraryItem = {
 
 export default function LibraryPage() {
   const { locale, t } = useI18n();
+  const { purchasesEnabled, giftCardsEnabled } = usePurchaseAvailability();
   const {
     data: libraryData,
     error,
@@ -59,7 +61,7 @@ export default function LibraryPage() {
 
           {!isLoggedOut && (
             <div className="flex flex-wrap gap-3">
-              {process.env.NODE_ENV === "development" && (
+              {giftCardsEnabled && (
                 <Link
                   href="/library/gift-cards"
                   className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
@@ -70,18 +72,12 @@ export default function LibraryPage() {
               )}
               <Link
                 href={
-                  process.env.NODE_ENV !== "production"
-                    ? "/library/orders"
-                    : "/library/purchases"
+                  purchasesEnabled ? "/library/orders" : "/library/purchases"
                 }
                 className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
               >
                 <Receipt size={16} />
-                {t(
-                  process.env.NODE_ENV !== "production"
-                    ? "My orders"
-                    : "Purchase history",
-                )}
+                {t(purchasesEnabled ? "My orders" : "Purchase history")}
               </Link>
             </div>
           )}

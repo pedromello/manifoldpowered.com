@@ -13,12 +13,21 @@ export function purchaseAvailability(
   type: string,
   payment: string,
   delivery: string,
+  channel: "EMAIL" | "CODE" = "CODE",
 ) {
-  if (delivery === "READY")
-    return type === "GAME" ? "In your library" : "Code available";
   if (["REFUNDED", "DISPUTED"].includes(payment) || delivery === "REVIEW")
     return "Purchase under review";
+  if (delivery === "READY")
+    return type === "GAME"
+      ? "In your library"
+      : channel === "EMAIL"
+        ? "Delivered by email"
+        : "Code available";
   if (payment === "CANCELLED") return "Purchase cancelled";
   if (payment !== "PAID") return "Waiting for payment";
-  return type === "GAME" ? "Preparing your game" : "Preparing your code";
+  return type === "GAME"
+    ? "Preparing your game"
+    : channel === "EMAIL"
+      ? "Preparing email delivery"
+      : "Preparing your code";
 }

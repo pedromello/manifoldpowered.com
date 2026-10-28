@@ -55,13 +55,13 @@ test("configured buyers can start checkout while unconfigured buyers see a disab
   expect(guest).not.toContain("Checkout");
 });
 
-test("dedicated page has one clear heading and explains where to find the code", () => {
+test("dedicated page has one clear heading and explains email delivery", () => {
   render({ available: true });
   const html = renderToStaticMarkup(<GiftCardStorePage />);
   expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
   expect(html).toContain("Choose your gift card.");
   expect(html).toContain(
-    "Find your code in your library after payment confirmation.",
+    "Receive your gift card by email after payment confirmation.",
   );
   expect(html).toContain("My gift cards");
 });
@@ -71,11 +71,11 @@ test("home feature links to the dedicated public gift card store", () => {
 });
 
 test("public gift card page remains restricted to demo environments", async () => {
-  const original = process.env.NODE_ENV;
-  Object.assign(process.env, { NODE_ENV: "production" });
+  const original = { ...process.env };
+  Object.assign(process.env, { NODE_ENV: "production", APP_ENV: "production" });
   try {
     expect(await getServerSideProps()).toEqual({ notFound: true });
   } finally {
-    Object.assign(process.env, { NODE_ENV: original });
+    process.env = original;
   }
 });

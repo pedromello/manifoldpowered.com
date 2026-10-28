@@ -1,9 +1,10 @@
 import { ServiceError } from "infra/errors";
 import type { PaymentProviderName } from "./types";
+import { sandboxEnabled } from "infra/runtime";
 
 export function assertPaymentSandbox() {
   if (
-    !["development", "test"].includes(process.env.NODE_ENV) ||
+    !sandboxEnabled() ||
     (process.env.PAYMENT_ENVIRONMENT || "sandbox") !== "sandbox"
   )
     throw new ServiceError({ message: "Purchases are unavailable." });

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { OrdersList } from "components/orders/OrdersList";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { useI18n } from "lib/i18n";
+import { sandboxEnabled } from "infra/runtime";
 
 export default function OrdersPage() {
   const { t } = useI18n();
@@ -38,8 +39,7 @@ export default function OrdersPage() {
 }
 
 export async function getServerSideProps() {
-  if (!["development", "test"].includes(process.env.NODE_ENV))
-    return { notFound: true };
+  if (!sandboxEnabled()) return { notFound: true };
   return { props: {} };
 }
 

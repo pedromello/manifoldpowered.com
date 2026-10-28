@@ -60,6 +60,7 @@ model UserActivationToken {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  email      String?   @db.VarChar(234)
   expires_at DateTime
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
@@ -74,6 +75,7 @@ model UserOtp {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  email      String?   @db.VarChar(234)
   code_hash  String    @db.VarChar(60)
   expires_at DateTime
   created_at DateTime  @default(now())
@@ -82,6 +84,15 @@ model UserOtp {
   @@index([user_id])
   @@index([expires_at])
   @@map("user_otps")
+}
+
+// Exact mailbox proof is separate from profile fields that buyers can update.
+model UserEmailVerification {
+  user_id     String   @id
+  email       String   @db.VarChar(234)
+  verified_at DateTime @default(now())
+
+  @@map("user_email_verifications")
 }
 
 enum GameStatus {
@@ -546,12 +557,64 @@ model GiftCardOrder {
   payment_reconcile_claim_token      String?
   payment_reconcile_claim_expires_at DateTime?
   last_error                         String?             @db.VarChar(50)
+  delivery_channel                   String              @default("CODE") @db.VarChar(20)
+  provider_environment               String              @default("sandbox") @db.VarChar(20)
+  provider_sku                       String?             @db.VarChar(200)
+  recipient_email                    String?             @db.VarChar(234)
+  recipient_data                     String?
+  recipient_confirmed_at             DateTime?
+  fulfillment_status                 String              @default("QUEUED") @db.VarChar(20)
+  submitted_at                       DateTime?
+  next_tracking_at                   DateTime?
+  last_tracking_at                   DateTime?
+  provider_status                    Int?
   created_at                         DateTime            @default(now())
   updated_at                         DateTime            @updatedAt
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, created_at])
   @@map("gift_card_orders")
+}
+
+model GiftCardProduct {
+  id                  String   @id @default(uuid())
+  code                String   @unique @db.VarChar(100)
+  provider_sku        String   @db.VarChar(200)
+  name                String   @db.VarChar(200)
+  amount_minor        Int
+  provider_cost_minor Int?
+  currency            String   @db.VarChar(3)
+  enabled             Boolean  @default(false)
+  available           Boolean  @default(true)
+  synced_at           DateTime
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@map("gift_card_products")
+}
+
+model GiftCardCatalogSync {
+  id              String    @id
+  last_success_at DateTime?
+  last_error      String?   @db.VarChar(50)
+  claim_token     String?
+  claim_until     DateTime?
+  updated_at      DateTime  @updatedAt
+
+  @@map("gift_card_catalog_syncs")
+}
+
+model GiftCardFulfillmentJob {
+  order_id    String    @id
+  run_after   DateTime  @default(now())
+  claim_token String?
+  claim_until DateTime?
+  attempts    Int       @default(0)
+  last_error  String?   @db.VarChar(50)
+  updated_at  DateTime  @updatedAt
+
+  @@index([run_after])
+  @@map("gift_card_fulfillment_jobs")
 }
 
 // Persist only receipt identifiers, never webhook bodies or payment details.

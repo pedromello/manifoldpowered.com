@@ -19,7 +19,15 @@ import type {
   PaymentProviderName,
   PaymentSnapshot,
 } from "infra/payments/types";
-import { simulatedGiftCardProvider } from "infra/gift_card_provider";
+import { giftCardProducts } from "models/gift_card_catalog";
+import {
+  emailGiftCardsSelected,
+  emailGiftPurchasesConfigured,
+  recipientDocumentRequired,
+} from "infra/gift_card_api";
+import { enqueueGiftFulfillment } from "models/gift_card_email_delivery";
+import { requireVerifiedAccountEmail } from "models/user_email_verification";
+import { decryptGiftRecipient } from "infra/gift_card_recipient";
 import type {
   PurchaseOrder,
   PurchasePaymentAttempt,
@@ -147,6 +155,26 @@ export function createPurchaseOrderService({
     },
   ) {
     assertPaymentSandbox();
+    if (input.item_type === "GIFT_CARD") {
+      const previous = await prisma.purchaseOrder.findUnique({
+        where: {
+          user_id_idempotency_key: {
+            user_id: userId,
+            idempotency_key: input.idempotency_key,
+          },
+        },
+      });
+      if (previous) {
+        if (
+          previous.item_type !== input.item_type ||
+          previous.item_id !== input.item_id
+        )
+          throw new ConflictError({
+            message: "This purchase request belongs to another product.",
+          });
+        return previous;
+      }
+    }
     const providerName = selectedPaymentProvider();
     // Resolve price and product on the server, never from the checkout payload.
     let title: string,
@@ -156,7 +184,12 @@ export function createPurchaseOrderService({
       exchange: Prisma.Decimal | null = null,
       cost: Prisma.Decimal | null = null;
     if (input.item_type === "GIFT_CARD") {
-      const product = (await simulatedGiftCardProvider.products()).find(
+      if (emailGiftCardsSelected() && !emailGiftPurchasesConfigured())
+        throw new ServiceError({
+          message:
+            "Gift card purchases are unavailable until configuration is verified.",
+        });
+      const product = (await giftCardProducts()).find(
         (item) => item.code === input.item_id,
       );
       if (!product || product.currency !== "BRL")
@@ -283,7 +316,27 @@ export function createPurchaseOrderService({
           )
         : null;
       const id = randomUUID();
-      if (input.item_type === "GIFT_CARD")
+      if (input.item_type === "GIFT_CARD") {
+        const catalog = emailGiftCardsSelected()
+          ? await tx.giftCardProduct.findUnique({
+              where: { code: input.item_id },
+            })
+          : null;
+        if (
+          emailGiftCardsSelected() &&
+          (!catalog?.enabled ||
+            !catalog.available ||
+            catalog.amount_minor !== amount)
+        )
+          throw new ConflictError({
+            message: "This product has changed. Please choose it again.",
+          });
+        const account = catalog
+          ? await tx.user.findUniqueOrThrow({
+              where: { id: userId },
+              select: { email: true },
+            })
+          : null;
         await tx.giftCardOrder.create({
           data: {
             id,
@@ -293,8 +346,17 @@ export function createPurchaseOrderService({
             product_name: title,
             amount_minor: amount,
             currency: "BRL",
+            ...(catalog
+              ? {
+                  delivery_channel: "EMAIL",
+                  provider_sku: catalog.provider_sku,
+                  recipient_email: account!.email.trim().toLowerCase(),
+                  provider_environment: "sandbox",
+                }
+              : {}),
           },
         });
+      }
       return tx.purchaseOrder.create({
         data: {
           id,
@@ -445,6 +507,34 @@ export function createPurchaseOrderService({
         });
       if (attempt.submission_started_at || attempt.uncertain)
         return { order, attempt, send: false };
+      if (order.gift_card_order_id) {
+        const gift = await tx.giftCardOrder.findUniqueOrThrow({
+          where: { id: order.gift_card_order_id },
+        });
+        if (gift.delivery_channel === "EMAIL") {
+          if (!emailGiftPurchasesConfigured())
+            throw new ServiceError({
+              message:
+                "Gift card purchases are unavailable until configuration is verified.",
+            });
+          const verifiedEmail = await requireVerifiedAccountEmail(tx, userId);
+          if (
+            !gift.recipient_confirmed_at ||
+            !gift.recipient_data ||
+            gift.recipient_email !== verifiedEmail
+          )
+            throw new ConflictError({
+              message:
+                "Confirm your gift card delivery details before payment.",
+            });
+          const recipient = decryptGiftRecipient(gift.recipient_data!, gift.id);
+          if (recipientDocumentRequired() && !recipient.document)
+            throw new ConflictError({
+              message:
+                "Please confirm the required recipient document before payment.",
+            });
+        }
+      }
       if (
         order.paid_at ||
         attempt.status !== "UNPAID" ||
@@ -695,6 +785,14 @@ export function createPurchaseOrderService({
             where: { id: gift.id },
             data: { status: "PAID", paid_at: paidAt, checkout_url: null },
           });
+        if (
+          snapshot.state === "PAID" &&
+          gift.delivery_channel === "EMAIL" &&
+          next.delivery_status !== "REVIEW" &&
+          gift.fulfillment_status !== "DELIVERED" &&
+          gift.fulfillment_status !== "CANCELLED"
+        )
+          await enqueueGiftFulfillment(gift.id, tx);
         if (["FAILED", "CANCELLED"].includes(snapshot.state) && !gift.paid_at)
           await tx.giftCardOrder.update({
             where: { id: gift.id },
@@ -755,6 +853,16 @@ export function createPurchaseOrderService({
             order.payment_provider as PaymentProviderName,
           ).retrieve(paymentContext(order, attempt)),
         );
+      return;
+    }
+    const gift = await prisma.giftCardOrder.findUniqueOrThrow({
+      where: { id: order.gift_card_order_id! },
+    });
+    if (gift.delivery_channel === "EMAIL") {
+      if (
+        !["DELIVERED", "CANCELLED", "REVIEW"].includes(gift.fulfillment_status)
+      )
+        await enqueueGiftFulfillment(gift.id);
       return;
     }
     try {
@@ -879,11 +987,69 @@ export function createPurchaseOrderService({
             },
           })
         : null;
+    const gift = order.gift_card_order_id
+      ? await prisma.giftCardOrder.findUnique({
+          where: { id: order.gift_card_order_id },
+        })
+      : null;
+    const account =
+      gift?.delivery_channel === "EMAIL"
+        ? await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true },
+          })
+        : null;
+    const proof = account
+      ? await prisma.userEmailVerification.findUnique({
+          where: { user_id: userId },
+        })
+      : null;
+    let recipientReady = Boolean(
+      gift?.recipient_confirmed_at && gift.recipient_data,
+    );
+    if (gift?.delivery_channel === "EMAIL" && gift.recipient_data) {
+      try {
+        const recipient = decryptGiftRecipient(gift.recipient_data, gift.id);
+        recipientReady =
+          recipientReady &&
+          (!recipientDocumentRequired() || Boolean(recipient.document));
+      } catch {
+        recipientReady = false;
+      }
+    }
     return {
-      order: orderOutput(order, attempt),
+      order: {
+        ...orderOutput(order, attempt),
+        ...(gift?.delivery_channel === "EMAIL"
+          ? {
+              gift_card_delivery: {
+                channel: "EMAIL",
+                email: gift.recipient_email,
+                status: gift.fulfillment_status,
+              },
+            }
+          : {}),
+      },
+      ...(gift?.delivery_channel === "EMAIL"
+        ? {
+            gift_card_delivery: {
+              channel: "EMAIL",
+              email: gift.recipient_email,
+              confirmed: Boolean(gift.recipient_confirmed_at),
+              recipient_ready: recipientReady,
+              verification_required:
+                !account ||
+                proof?.email !== account.email.trim().toLowerCase() ||
+                gift.recipient_email !== account.email.trim().toLowerCase(),
+              document_required: recipientDocumentRequired(),
+            },
+          }
+        : {}),
       checkout: {
         available:
           provider.configured() &&
+          (gift?.delivery_channel !== "EMAIL" ||
+            emailGiftPurchasesConfigured()) &&
           (provider.capabilities.hosted || Boolean(installation)),
         methods: provider.capabilities.methods,
         hosted: provider.capabilities.hosted,
@@ -943,8 +1109,24 @@ export function createPurchaseOrderService({
       where: { id: { in: legacy.map((sale) => sale.game_id) } },
       select: { id: true, title: true, slug: true, media: true },
     });
-    const output = orders.map((order) =>
-      orderOutput(
+    const gifts = await prisma.giftCardOrder.findMany({
+      where: {
+        id: {
+          in: orders.flatMap((order) =>
+            order.gift_card_order_id ? [order.gift_card_order_id] : [],
+          ),
+        },
+        user_id: userId,
+      },
+      select: {
+        id: true,
+        delivery_channel: true,
+        recipient_email: true,
+        fulfillment_status: true,
+      },
+    });
+    const output = orders.map((order) => ({
+      ...orderOutput(
         order,
         (order.paid_at
           ? attempts.find(
@@ -954,7 +1136,19 @@ export function createPurchaseOrderService({
             )
           : null) ?? attempts.find((attempt) => attempt.order_id === order.id),
       ),
-    );
+      ...(() => {
+        const gift = gifts.find((item) => item.id === order.gift_card_order_id);
+        return gift?.delivery_channel === "EMAIL"
+          ? {
+              gift_card_delivery: {
+                channel: "EMAIL",
+                email: gift.recipient_email,
+                status: gift.fulfillment_status,
+              },
+            }
+          : {};
+      })(),
+    }));
     for (const sale of legacy) {
       const target = games.find((game) => game.id === sale.game_id);
       output.push({

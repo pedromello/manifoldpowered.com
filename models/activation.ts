@@ -5,13 +5,20 @@ import { ForbiddenError, NotFoundError } from "infra/errors";
 import webserver from "infra/webserver";
 import user from "models/user";
 import authorization from "./authorization";
+import {
+  lockAccountEmail,
+  normalizeAccountEmail,
+  recordVerifiedAccountEmail,
+} from "models/user_email_verification";
 
 const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 60 * 24; // 24 hours
 
 async function create(userId: string) {
+  const account = await user.findOneById(userId);
   return prisma.userActivationToken.create({
     data: {
       user_id: userId,
+      email: normalizeAccountEmail(account.email),
       expires_at: new Date(Date.now() + EXPIRATION_IN_MILLISECONDS),
     },
   });
@@ -19,7 +26,7 @@ async function create(userId: string) {
 
 async function sendEmailToUser(user: User, activation: UserActivationToken) {
   await email.send({
-    to: user.email,
+    to: activation.email ?? user.email,
     subject: "One step away — activate your Manifold account",
     text: `Hey ${user.username},
 
@@ -72,6 +79,60 @@ async function markAsUsed(activationId: string) {
   });
 }
 
+async function consume(activationId: string) {
+  return prisma.$transaction(async (tx) => {
+    const token = await tx.userActivationToken.findUnique({
+      where: {
+        id: activationId,
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
+    });
+    if (!token) throw activationNotFound();
+    const account = await lockAccountEmail(tx, token.user_id);
+    if (token.email && token.email !== normalizeAccountEmail(account.email))
+      throw activationNotFound();
+    const currentUser = await tx.user.findUniqueOrThrow({
+      where: { id: token.user_id },
+    });
+    if (!authorization.can(currentUser, "read:activation_token")) {
+      // A concurrent replay is a used token rather than a second activation.
+      const currentToken = await tx.userActivationToken.findUniqueOrThrow({
+        where: { id: token.id },
+      });
+      if (currentToken.used_at) throw activationNotFound();
+      throw new ForbiddenError({
+        message: "You cannot use activation tokens anymore",
+        action: "Contact support if you believe this is an error",
+      });
+    }
+    const consumed = await tx.userActivationToken.updateMany({
+      where: { id: token.id, used_at: null, expires_at: { gt: new Date() } },
+      data: { used_at: new Date() },
+    });
+    if (consumed.count !== 1) throw activationNotFound();
+    const activatedUser = await tx.user.update({
+      where: { id: token.user_id },
+      data: { features: authorization.ACTIVATED_USER_FEATURES },
+    });
+    if (token.email)
+      await recordVerifiedAccountEmail(tx, token.user_id, token.email);
+    return {
+      user: activatedUser,
+      activation: await tx.userActivationToken.findUniqueOrThrow({
+        where: { id: token.id },
+      }),
+    };
+  });
+}
+
+function activationNotFound() {
+  return new NotFoundError({
+    message: "Activation not found",
+    action: "Do the signup again",
+  });
+}
+
 async function activateUserByUserId(userId: string) {
   const userToActivate = await user.findOneById(userId);
 
@@ -90,6 +151,7 @@ const activation = {
   sendEmailToUser,
   findOneValidById,
   markAsUsed,
+  consume,
   activateUserByUserId,
   EXPIRATION_IN_MILLISECONDS,
 };

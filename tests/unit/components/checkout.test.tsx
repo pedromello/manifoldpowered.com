@@ -59,6 +59,64 @@ test("the first Pix paint already mounts the card and IP forms required by the S
   expect(html).toContain('name="cvv"');
   expect(html).toContain("Cancel order");
 });
+
+const emailDelivery = {
+  channel: "EMAIL" as const,
+  email: "buyer@example.test",
+  confirmed: false,
+  recipient_ready: false,
+  verification_required: false,
+};
+
+test.each([true, false])(
+  "email recipient confirmation precedes payment (hosted=%s)",
+  (hosted) => {
+    const html = render({
+      ...checkout,
+      gift_card_delivery: emailDelivery,
+      checkout: { ...checkout.checkout, hosted },
+    });
+    expect(html).toContain("Confirm gift card delivery");
+    expect(html).toContain('value="buyer@example.test"');
+    expect(html).toContain('readOnly=""');
+    expect(html).toContain('name="confirm_delivery"');
+    expect(html).not.toContain("Review payment");
+    expect(html).not.toContain("Confirm payment");
+    expect(html).not.toContain("Generate Pix code");
+    expect(html).not.toContain('name="card-number"');
+  },
+);
+
+test("unverified delivery email requires a fresh login before recipient details or payment", () => {
+  const html = render({
+    ...checkout,
+    gift_card_delivery: { ...emailDelivery, verification_required: true },
+  });
+  expect(html).toContain("Verify email");
+  expect(html).toContain("callbackUrl=%2Fcheckout%2Fsynthetic-order");
+  expect(html).not.toContain('name="recipient_name"');
+  expect(html).not.toContain("Review payment");
+});
+
+test("saved recipient enables payment while receipt continues to show email delivery", () => {
+  const delivery = { ...emailDelivery, confirmed: true, recipient_ready: true };
+  const html = render({ ...checkout, gift_card_delivery: delivery });
+  expect(html).toContain("Review payment");
+  expect(html).not.toContain("Confirm delivery details");
+  expect(html).toContain("buyer@example.test");
+  const receipt = render({
+    ...checkout,
+    gift_card_delivery: delivery,
+    order: {
+      ...checkout.order,
+      payment_status: "PAID",
+      delivery_status: "READY",
+    },
+  });
+  expect(receipt).toContain("Delivered by email");
+  expect(receipt).not.toContain("Code available");
+  expect(receipt).not.toContain("View code");
+});
 test("a submitted uncertain payment offers status checks without another payment or local cancellation", () => {
   const html = render({
     ...checkout,

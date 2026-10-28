@@ -3,8 +3,10 @@
 Buyer orders use a neutral `PaymentProvider` interface. Appmax is the default;
 Stripe remains selectable by `PAYMENT_PROVIDER=stripe`. Selection is server-side
 and fixed on each order. There is no automatic provider failover after an error.
-Gift-card issuance is a separate integration and continues to return explicitly
-nonredeemable demo codes. Payment support does not enable real gift-card inventory.
+Gift-card delivery is a separate integration. `GIFT_CARD_PROVIDER=api` selects
+asynchronous delivery directly to the buyer's verified email; synthetic `CODE`
+orders retain their nonredeemable demo flow in development/tests. Payment
+configuration alone does not import inventory or establish supplier access.
 
 ## Local setup
 
@@ -95,6 +97,8 @@ has been reconciled. Retry delivery does not charge again. Observe job age,
 - `GET/POST /api/v1/orders/:id`: private detail / reconcile or safe cancellation.
 - `GET/POST /api/v1/orders/:id/quote`: installment options / expiring quote reservation.
 - `POST /api/v1/orders/:id/payment`: one submission of the accepted quote.
+- `POST /api/v1/orders/:id/recipient`: confirmed recipient name/document for email
+  gift cards; the server derives the verified email and requires this before payment.
 - `/checkout/:id`: buyer details, Pix instructions or card tokenization.
 - `/library/orders`: payment state and delivery availability for games/gift cards.
 
@@ -113,9 +117,24 @@ this checkout. Historical acquisitions are not migrated into invented payment pr
 
 Card `autorizado` means processing, not completed payment. Refund/dispute state
 does not erase the original confirmation timestamp, and stops pending delivery.
-Already delivered products and refunds require operational review. Gift-card first
-revelation remains in its existing server transaction and is never displayed as
-an implementation detail to buyers.
+Already delivered products and refunds require operational review. First revelation
+remains available only for legacy `CODE` gift cards. Email deliveries never expose
+a code or delivery link through the buyer API or UI.
+
+For email gift cards, authenticated payment confirmation queues durable fulfillment;
+it does not mark the product delivered. Backoffice operations submit the stable
+gift card order reference once and track accepted/uncertain requests. Tracking
+status `3` confirms delivery; `7` stops tracking and requires review. Pending
+lookups run no earlier than their stored six-hour deadline, except for the
+restricted homologation early-lookup action. Do not reset or repost an uncertain
+submission. See [Gift card checkout](gift-card-checkout.md) and the private
+configuration guidance in the [email delivery runbook](gift-card-email-delivery.md).
+
+Homologation exposes purchases through explicit sandbox/runtime flags while live
+production payments remain blocked. Gift card operations are manual through
+`/backoffice/gift-cards`; no automatic gift card schedule is activated. The existing
+standalone payment worker can reconcile payments locally but does not run catalog
+sync or email delivery jobs.
 
 ## Verification boundaries
 
@@ -125,11 +144,16 @@ Run `npm run test:use-cases:gift-cards` for Appmax Pix/card journeys and the
 existing Stripe regression cases. Keep the standalone payment worker stopped
 during these fixtures; each test processes only its own persisted jobs.
 
-Contract tests use synthetic responses matching the official OpenAPI. Integration
+Payment contract tests use synthetic responses matching the payment OpenAPI. Integration
 tests use real local PostgreSQL transactions and a payment fixture that cannot be
 selected at runtime; they remove only rows they created. They cover concurrency,
 lost responses, wrong amounts, authorization-only cards, price snapshots, balanced
 ledger, repeated disclosure, refunds and durable worker claims.
+
+Email gift card tests use synthetic responses and local transactions; actual
+authentication, catalog mapping, accepted submission, tracking and inbox delivery
+must still be verified privately with authorized homologation credentials. No
+external gift card round trip is established by these tests.
 
 Real Appmax sandbox validation requires configured merchant credentials, installation
 and panel webhook. No claim of an external payment is made by fixture tests. Test

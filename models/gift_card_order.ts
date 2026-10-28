@@ -406,6 +406,12 @@ export function giftCardOrderOutput(order: GiftCardOrder) {
     amount_minor: order.amount_minor,
     currency: order.currency,
     status: order.status,
+    delivery_channel: order.delivery_channel,
+    recipient_email:
+      order.delivery_channel === "EMAIL" ? order.recipient_email : null,
+    fulfillment_status:
+      order.delivery_channel === "EMAIL" ? order.fulfillment_status : null,
+    next_tracking_at: order.next_tracking_at?.toISOString() ?? null,
     checkout_url:
       order.status === "AWAITING_PAYMENT" ? order.checkout_url : null,
     first_revealed_at: order.first_revealed_at?.toISOString() ?? null,

@@ -16,9 +16,22 @@ export type BuyerOrder = {
   gift_card_order_id: string | null;
   can_pay: boolean;
   can_cancel: boolean;
+  gift_card_delivery?: {
+    channel: "EMAIL" | "CODE";
+    email: string | null;
+    status: string;
+  };
 };
 export type BuyerCheckout = {
   order: BuyerOrder;
+  gift_card_delivery?: {
+    channel: "EMAIL" | "CODE";
+    email: string | null;
+    confirmed: boolean;
+    recipient_ready: boolean;
+    verification_required: boolean;
+    document_required?: boolean;
+  };
   checkout: {
     available: boolean;
     methods: ("pix" | "card")[];

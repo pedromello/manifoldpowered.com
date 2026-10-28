@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { GiftCardCatalog } from "components/store/GiftCardCatalog";
 import { useI18n } from "lib/i18n";
+import { giftCardsEnabled } from "infra/runtime";
 
 export default function GiftCardStorePage() {
   const { t } = useI18n();
@@ -31,8 +32,7 @@ export default function GiftCardStorePage() {
 }
 
 export async function getServerSideProps() {
-  if (!["development", "test"].includes(process.env.NODE_ENV))
-    return { notFound: true };
+  if (!giftCardsEnabled()) return { notFound: true };
   return { props: {} };
 }
 

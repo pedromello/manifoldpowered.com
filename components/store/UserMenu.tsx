@@ -14,6 +14,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "./usePurchaseAvailability";
 
 export function UserMenu({
   variant = "default",
@@ -22,6 +23,7 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const { t } = useI18n();
+  const { purchasesEnabled } = usePurchaseAvailability();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -118,7 +120,7 @@ export function UserMenu({
               {t("My Library")}
             </Link>
 
-            {process.env.NODE_ENV !== "production" && (
+            {purchasesEnabled && (
               <Link
                 href="/library/orders"
                 onClick={() => setIsOpen(false)}

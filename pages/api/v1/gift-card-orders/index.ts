@@ -4,9 +4,13 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import controller from "infra/controller";
 import { ValidationError } from "infra/errors";
 import giftCardOrder, { giftCardOrderOutput } from "models/gift_card_order";
-import { simulatedGiftCardProvider } from "infra/gift_card_provider";
+import { giftCardProducts } from "models/gift_card_catalog";
 import { paymentsConfigured } from "infra/payments";
 import purchases from "models/purchase_order";
+import {
+  emailGiftCardsSelected,
+  emailGiftPurchasesConfigured,
+} from "infra/gift_card_api";
 
 const bodySchema = z
   .object({
@@ -24,13 +28,15 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   })
   .get(controller.canRequest("read:library"), async (req, res) => {
     const [products, orders] = await Promise.all([
-      simulatedGiftCardProvider.products(),
+      giftCardProducts(),
       giftCardOrder.listOwn(req.context.user.id!),
     ]);
     res.status(200).json({
       products,
       orders: orders.map(giftCardOrderOutput),
-      checkout_available: paymentsConfigured(),
+      checkout_available:
+        paymentsConfigured() &&
+        (!emailGiftCardsSelected() || emailGiftPurchasesConfigured()),
     });
   })
   .post(controller.canRequest("create:library"), async (req, res) => {

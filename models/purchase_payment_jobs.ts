@@ -46,13 +46,20 @@ export function createPurchasePaymentWorker({
       const order = await tx.purchaseOrder.findUnique({
         where: { id: claim.order_id },
       });
+      const emailGift = order?.gift_card_order_id
+        ? await tx.giftCardOrder.findUnique({
+            where: { id: order.gift_card_order_id },
+            select: { delivery_channel: true },
+          })
+        : null;
       if (
         !order ||
         ((["CANCELLED", "FAILED", "REFUNDED", "DISPUTED"].includes(
           order.payment_status,
         ) ||
           (order.payment_status === "PAID" &&
-            order.delivery_status === "READY")) &&
+            (order.delivery_status === "READY" ||
+              emailGift?.delivery_channel === "EMAIL"))) &&
           !failure)
       ) {
         // A signal received during the claim gets one more trusted query.

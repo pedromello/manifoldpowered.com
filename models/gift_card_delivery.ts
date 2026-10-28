@@ -36,6 +36,10 @@ export function createGiftCardDeliveryService({
   ): Promise<Claim | GiftCardOrder> {
     return prisma.$transaction(async (tx) => {
       const order = await lockGiftCardOrder(tx, id, userId);
+      if (order.delivery_channel === "EMAIL")
+        throw new ConflictError({
+          message: "Email delivery is processed separately.",
+        });
       if (order.status === "FULFILLED") return order;
       if (!order.paid_at || !["PAID", "ISSUANCE_FAILED"].includes(order.status))
         throw new ConflictError({ message: "Payment has not been confirmed." });

@@ -3,6 +3,20 @@
 Esta pasta reúne jornadas do usuário. Para gift cards, o cenário completo parte
 de um cadastro novo; não depende de uma conta pronta nem de credenciais externas.
 
+## Entrega por e-mail
+
+`gift-card-email-checkout-flow.test.ts` cobre o fluxo atual: cadastro, ativação,
+login OTP, catálogo persistido e selecionado, confirmação do destinatário,
+Stripe test com resposta externa simulada, webhook assinado, conciliação,
+submissão separada e tracking até entrega. A aceitação inicial permanece pendente;
+nenhum código ou link de resgate é retornado pela aplicação.
+
+O teste usa SMTP e PostgreSQL locais e adaptadores externos controlados. Também
+cobre ausência de confirmação/verificação, documento obrigatório, acesso de
+outro comprador e mudança de e-mail sem redirecionar o pedido existente. Não
+comprova autenticação ou entrega reais no fornecedor. Os cenários de revelação
+abaixo permanecem como regressões dos pedidos demonstrativos legados.
+
 ## Cobertura de pagamentos
 
 ```mermaid

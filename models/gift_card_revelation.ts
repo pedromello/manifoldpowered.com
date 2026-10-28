@@ -11,7 +11,10 @@ import type { GiftCardOrder } from "generated/prisma/client";
 // and change the order's eligibility before releasing that lock. Checking
 // outside a transaction cannot prevent a concurrent disclosure.
 export function assertGiftCardNotRevealed(order: GiftCardOrder) {
-  if (order.first_revealed_at)
+  if (
+    order.first_revealed_at ||
+    (order.delivery_channel === "EMAIL" && order.issuance_started_at)
+  )
     throw new ConflictError({
       message: "The gift card has already been disclosed.",
     });
@@ -26,6 +29,7 @@ async function revealOwn(userId: string, id: string) {
       async (tx) => {
         const order = await lockGiftCardOrder(tx, id, userId);
         if (
+          order.delivery_channel === "EMAIL" ||
           order.status !== "FULFILLED" ||
           !order.paid_at ||
           !order.gift_card_code

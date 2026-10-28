@@ -1,4 +1,101 @@
 export const ptBR: Record<string, string> = {
+  Refresh: "Atualizar",
+  Product: "Produto",
+  Price: "Preço",
+  Available: "Disponível",
+  Operations: "Operações",
+  "Run now": "Executar agora",
+  Processed: "Processados",
+  Succeeded: "Concluídos",
+  Failed: "Falhas",
+  Remaining: "Restantes",
+  Catalog: "Catálogo",
+  Never: "Nunca",
+  Availability: "Disponibilidade",
+  "Sync catalog": "Sincronizar catálogo",
+  "Import the current gift card catalog.":
+    "Importar o catálogo atual de gift cards.",
+  "Reconcile payments": "Conciliar pagamentos",
+  "Verify pending payments with the payment service.":
+    "Verificar pagamentos pendentes com o serviço de pagamentos.",
+  "Send paid orders": "Enviar pedidos pagos",
+  "Submit paid gift cards for delivery by email.":
+    "Enviar os pedidos de gift cards pagos para entrega por e-mail.",
+  "Track deliveries": "Consultar entregas",
+  "Check deliveries that are due for an update.":
+    "Consultar entregas que precisam de atualização.",
+  "Manage the catalog and email delivery of gift card orders.":
+    "Gerencie o catálogo e a entrega por e-mail dos pedidos de gift cards.",
+  "Gift card operations are unavailable.":
+    "As operações de gift cards estão indisponíveis.",
+  "The operation could not be completed.":
+    "Não foi possível concluir a operação.",
+  "Pending payments": "Pagamentos pendentes",
+  "Orders to send": "Pedidos para enviar",
+  "Deliveries to track": "Entregas para consultar",
+  "Orders requiring review": "Pedidos que precisam de análise",
+  "Each action processes a limited batch. Run it again if work remains. Deliveries are checked every six hours.":
+    "Cada ação processa um lote limitado. Execute novamente se ainda houver trabalho. As entregas são consultadas a cada seis horas.",
+  "Check one delivery now": "Consultar uma entrega agora",
+  "Homologation only. Enter the Manifold order ID. A one-minute cooldown applies.":
+    "Somente em homologação. Informe o ID do pedido no Manifold. Aguarde um minuto entre as consultas.",
+  "Order ID": "ID do pedido",
+  "Check now": "Consultar agora",
+  "Last successful sync": "Última sincronização concluída",
+  "Enable sales": "Habilitar vendas",
+  "Sync the catalog to import products. New products are disabled until reviewed.":
+    "Sincronize o catálogo para importar produtos. Novos produtos ficam desabilitados até serem revisados.",
+  "This request is not permitted.": "Esta solicitação não é permitida.",
+  "Please check the operation details.": "Confira os dados da operação.",
+  "This operation accepts an empty body.":
+    "Esta operação aceita um corpo vazio.",
+  "Unknown operation.": "Operação desconhecida.",
+  "Please check the product details.": "Confira os dados do produto.",
+  "Receive your gift card by email after payment confirmation.":
+    "Receba seu gift card por e-mail após a confirmação do pagamento.",
+  "Delivered by email": "Entregue por e-mail",
+  "Preparing email delivery": "Preparando entrega por e-mail",
+  "View delivery": "Ver entrega",
+  "Delivery email": "E-mail de entrega",
+  "Verify your account email before confirming delivery.":
+    "Verifique o e-mail da sua conta antes de confirmar a entrega.",
+  "If your account email has changed, cancel this order and start a new purchase.":
+    "Se o e-mail da sua conta mudou, cancele este pedido e inicie uma nova compra.",
+  "Verify email": "Verificar e-mail",
+  "Confirm gift card delivery": "Confirme a entrega do gift card",
+  "Your gift card will be sent to your account email. Confirm the details before paying.":
+    "Seu gift card será enviado para o e-mail da sua conta. Confirme os dados antes de pagar.",
+  "Recipient full name": "Nome completo do destinatário",
+  "Recipient document": "CPF / CNPJ do destinatário",
+  "Recipient document (if required)":
+    "CPF / CNPJ do destinatário (se necessário)",
+  "I confirm that the gift card should be sent to the email shown above.":
+    "Confirmo que o gift card deve ser enviado para o e-mail acima.",
+  "Confirm delivery details": "Confirmar dados de entrega",
+  "We could not confirm delivery details. Check your name and document and try again.":
+    "Não foi possível confirmar os dados de entrega. Confira o nome e o documento e tente novamente.",
+  "The gift card code will be delivered by email.":
+    "O código do gift card será entregue por e-mail.",
+  "Track your gift card purchases and delivery here.":
+    "Acompanhe suas compras de gift cards e a entrega por aqui.",
+  "New purchases are currently unavailable. You can still track your gift cards here.":
+    "Novas compras estão indisponíveis no momento. Você ainda pode acompanhar seus gift cards aqui.",
+  "We are confirming your payment. Delivery starts after payment confirmation.":
+    "Estamos confirmando seu pagamento. A entrega começa após a confirmação do pagamento.",
+  "Choose a gift card in the store and track its delivery here.":
+    "Escolha um gift card na loja e acompanhe a entrega por aqui.",
+  "Delivery needs review": "Entrega em análise",
+  "Delivery cancelled · support required":
+    "Entrega cancelada · fale com o suporte",
+  "Payment confirmed · email delivery pending":
+    "Pagamento confirmado · entrega por e-mail pendente",
+  "Check your inbox and spam folder for your gift card email.":
+    "Confira a caixa de entrada e a pasta de spam para encontrar o e-mail do seu gift card.",
+  "Do not pay again. Contact support with your order number.":
+    "Não pague novamente. Entre em contato com o suporte e informe o número do pedido.",
+  "Delivery updates appear here automatically. You do not need to pay again.":
+    "As atualizações da entrega aparecem aqui automaticamente. Você não precisa pagar novamente.",
+  "Next delivery check": "Próxima consulta da entrega",
   "View payment": "Ver pagamento",
   "Cancel order": "Cancelar pedido",
   "We could not cancel this order. Check your payment status.":
@@ -2044,6 +2141,8 @@ export const ptBR: Record<string, string> = {
   "Invalid Steam update request.":
     "Solicitação de atualização da Steam inválida.",
   "Invalid Steam app ID.": "App ID da Steam inválido.",
+  "Recent gift card orders": "Pedidos recentes de gift cards",
+  "Last error": "Último erro",
   "Page not found": "Página não encontrada",
   "Page not found | Manifold": "Página não encontrada | Manifold",
   "This page may have moved or no longer exists.":

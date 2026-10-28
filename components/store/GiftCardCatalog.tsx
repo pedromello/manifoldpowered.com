@@ -216,7 +216,7 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
                   )}
                   <p className="mt-3 text-center text-[11px] text-white/40">
                     {t(
-                      "Find your code in your library after payment confirmation.",
+                      "Receive your gift card by email after payment confirmation.",
                     )}
                   </p>
                 </div>

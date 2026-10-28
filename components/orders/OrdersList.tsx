@@ -182,7 +182,9 @@ export function OrdersList() {
               : order.delivery_status === "READY"
                 ? order.item_type === "GAME"
                   ? "Go to library"
-                  : "View code"
+                  : order.gift_card_delivery?.channel === "EMAIL"
+                    ? "View delivery"
+                    : "View code"
                 : "View order";
             return (
               <li
@@ -246,6 +248,7 @@ export function OrdersList() {
                             order.item_type,
                             order.payment_status,
                             order.delivery_status,
+                            order.gift_card_delivery?.channel,
                           ),
                         )}
                       </p>
@@ -315,6 +318,7 @@ export function OrdersList() {
                             order.item_type,
                             order.payment_status,
                             order.delivery_status,
+                            order.gift_card_delivery?.channel,
                           ),
                         )}
                       </dd>
@@ -339,6 +343,12 @@ export function OrdersList() {
                       </dd>
                     </div>
                   </dl>
+                  {order.gift_card_delivery?.channel === "EMAIL" &&
+                    order.gift_card_delivery.email && (
+                      <p className="mt-4 break-all text-sm text-white/60">
+                        {t("Delivery email")}: {order.gift_card_delivery.email}
+                      </p>
+                    )}
                   {order.interest_minor > 0 && (
                     <p className="mt-4 text-xs text-white/50">
                       {t("Installment interest")}:{" "}

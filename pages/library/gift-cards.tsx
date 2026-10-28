@@ -14,6 +14,7 @@ import {
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import { useI18n } from "lib/i18n";
 import { formatMoney } from "lib/price";
+import { giftCardsEnabled } from "infra/runtime";
 import type { giftCardOrderOutput } from "models/gift_card_order";
 import { GiftCardReveal } from "components/GiftCardReveal";
 import { useGiftCardEntry } from "lib/useGiftCardEntry";
@@ -22,7 +23,12 @@ import {
   giftCardArtwork,
 } from "components/store/GiftCardArtwork";
 
-type Order = ReturnType<typeof giftCardOrderOutput>;
+type Order = ReturnType<typeof giftCardOrderOutput> & {
+  delivery_channel?: "EMAIL" | "CODE";
+  recipient_email?: string | null;
+  fulfillment_status?: string | null;
+  next_tracking_at?: string | null;
+};
 type Catalogue = {
   orders: Order[];
   checkout_available: boolean;
@@ -44,11 +50,40 @@ const statusLabels = {
   PAYMENT_FAILED: "Payment failed",
 };
 
+function deliveryLabel(order: Order) {
+  if (order.delivery_channel !== "EMAIL") return statusLabels[order.status];
+  if (order.status === "CANCELLED" && order.paid_at)
+    return "Purchase under review";
+  if (order.fulfillment_status === "REVIEW") return "Delivery needs review";
+  if (order.fulfillment_status === "CANCELLED")
+    return "Delivery cancelled · support required";
+  if (order.fulfillment_status === "DELIVERED") return "Delivered by email";
+  if (["PAID", "ISSUANCE_FAILED"].includes(order.status))
+    return "Payment confirmed · email delivery pending";
+  return statusLabels[order.status];
+}
+
+function emailDeliveryDescription(order: Order) {
+  if (order.status === "CANCELLED")
+    return order.paid_at
+      ? "Do not pay again. Contact support with your order number."
+      : "This purchase was cancelled. No payment was completed.";
+  if (order.status === "PAYMENT_FAILED")
+    return "Your payment was unsuccessful. You can try again.";
+  if (order.fulfillment_status === "DELIVERED")
+    return "Check your inbox and spam folder for your gift card email.";
+  if (["CANCELLED", "REVIEW"].includes(order.fulfillment_status ?? ""))
+    return "Do not pay again. Contact support with your order number.";
+  return awaitingPayment.includes(order.status)
+    ? "Complete your payment to receive your gift card."
+    : "Delivery updates appear here automatically. You do not need to pay again.";
+}
+
 async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(
     url,
     body === undefined
-      ? undefined
+      ? { cache: "no-store" }
       : {
           method: "POST",
           cache: "no-store",
@@ -77,6 +112,7 @@ function GiftCardsContent() {
   >("/api/v1/gift-card-orders", request, {
     shouldRetryOnError: false,
     revalidateOnFocus: false,
+    refreshInterval: 15000,
   });
   const selectedId =
     typeof router.query.order === "string" ? router.query.order : null;
@@ -88,12 +124,17 @@ function GiftCardsContent() {
     {
       shouldRetryOnError: false,
       revalidateOnFocus: false,
+      refreshInterval: 15000,
     },
   );
   useGiftCardEntry(
     selectedId,
     selectedOrder?.id,
-    Boolean(selectedOrder && pending.includes(selectedOrder.status)),
+    Boolean(
+      selectedOrder &&
+      selectedOrder.delivery_channel !== "EMAIL" &&
+      pending.includes(selectedOrder.status),
+    ),
     async (id) => {
       try {
         await request<Order>(`/api/v1/gift-card-orders/${id}`, {
@@ -169,9 +210,7 @@ function GiftCardsContent() {
                 {t("Gift cards")}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
-                {t(
-                  "Track your purchases and access your gift card codes here.",
-                )}
+                {t("Track your gift card purchases and delivery here.")}
               </p>
             </div>
             <Link
@@ -215,7 +254,7 @@ function GiftCardsContent() {
                   role="status"
                 >
                   {t(
-                    "New purchases are currently unavailable. You can still access your gift cards here.",
+                    "New purchases are currently unavailable. You can still track your gift cards here.",
                   )}
                 </p>
               )}
@@ -227,7 +266,7 @@ function GiftCardsContent() {
                     )) && (
                   <p className="mt-6 text-sm text-violet-200" role="status">
                     {t(
-                      "We are confirming your payment. Your code will appear here when it is ready.",
+                      "We are confirming your payment. Delivery starts after payment confirmation.",
                     )}
                   </p>
                 )}
@@ -265,7 +304,7 @@ function GiftCardsContent() {
                     </h3>
                     <p className="mt-2 max-w-sm text-sm leading-6 text-white/50">
                       {t(
-                        "Choose a gift card in the store. It will be waiting for you here.",
+                        "Choose a gift card in the store and track its delivery here.",
                       )}
                     </p>
                     <Link
@@ -329,7 +368,7 @@ function GiftCardsContent() {
                             ) : (
                               <Clock3 size={13} aria-hidden="true" />
                             )}
-                            {t(statusLabels[order.status])}
+                            {t(deliveryLabel(order))}
                           </p>
                           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/50">
                             <p>
@@ -353,37 +392,77 @@ function GiftCardsContent() {
                               )}
                             </p>
                           )}
-                          {order.status === "ISSUANCE_FAILED" && (
-                            <p className="mt-3 text-sm text-amber-200">
-                              {t(
-                                "You do not need to pay again. Retry delivery for this purchase.",
-                              )}
-                            </p>
-                          )}
+                          {order.status === "ISSUANCE_FAILED" &&
+                            order.delivery_channel !== "EMAIL" && (
+                              <p className="mt-3 text-sm text-amber-200">
+                                {t(
+                                  "You do not need to pay again. Retry delivery for this purchase.",
+                                )}
+                              </p>
+                            )}
                           <div className="mt-5 border-t border-white/10 pt-5">
-                            {order.status === "FULFILLED" && (
-                              <GiftCardReveal
-                                key={order.id}
-                                orderId={order.id}
-                                firstRevealedAt={order.first_revealed_at}
-                                onRevealed={() =>
-                                  Promise.all([mutate(), mutateSelected()])
-                                }
-                              />
+                            {order.status === "FULFILLED" &&
+                              order.delivery_channel !== "EMAIL" && (
+                                <GiftCardReveal
+                                  key={order.id}
+                                  orderId={order.id}
+                                  firstRevealedAt={order.first_revealed_at}
+                                  onRevealed={() =>
+                                    Promise.all([mutate(), mutateSelected()])
+                                  }
+                                />
+                              )}
+                            {order.delivery_channel === "EMAIL" && (
+                              <div className="mb-4 space-y-2 text-sm leading-6 text-white/65">
+                                {order.recipient_email && (
+                                  <p className="break-all">
+                                    {t("Delivery email")}:{" "}
+                                    {order.recipient_email}
+                                  </p>
+                                )}
+                                <p>{t(emailDeliveryDescription(order))}</p>
+                                {order.next_tracking_at &&
+                                  !["DELIVERED", "CANCELLED"].includes(
+                                    order.fulfillment_status ?? "",
+                                  ) && (
+                                    <p className="text-xs text-white/45">
+                                      {t("Next delivery check")}:{" "}
+                                      <time dateTime={order.next_tracking_at}>
+                                        {new Date(
+                                          order.next_tracking_at,
+                                        ).toLocaleString(locale)}
+                                      </time>
+                                    </p>
+                                  )}
+                              </div>
                             )}
                             <div className="flex flex-wrap gap-3">
-                              {[
-                                "CHECKOUT_PENDING",
-                                "AWAITING_PAYMENT",
-                              ].includes(order.status) && (
+                              {(awaitingPayment.includes(order.status) ||
+                                (order.delivery_channel === "EMAIL" &&
+                                  order.status === "PAYMENT_FAILED")) && (
                                 <>
-                                  <button
-                                    disabled={busy || !data?.checkout_available}
-                                    onClick={() => act(order, "checkout")}
-                                    className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    {t("Continue purchase")}
-                                  </button>
+                                  {order.delivery_channel === "EMAIL" ? (
+                                    <Link
+                                      href={`/checkout/${order.id}`}
+                                      className="inline-flex min-h-11 items-center rounded-lg bg-violet-600 px-4 text-sm font-semibold hover:bg-violet-500"
+                                    >
+                                      {t(
+                                        order.status === "PAYMENT_FAILED"
+                                          ? "Try again"
+                                          : "Continue purchase",
+                                      )}
+                                    </Link>
+                                  ) : (
+                                    <button
+                                      disabled={
+                                        busy || !data?.checkout_available
+                                      }
+                                      onClick={() => act(order, "checkout")}
+                                      className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      {t("Continue purchase")}
+                                    </button>
+                                  )}
                                   <button
                                     disabled={busy || !data?.checkout_available}
                                     onClick={() => act(order, "cancel")}
@@ -393,17 +472,18 @@ function GiftCardsContent() {
                                   </button>
                                 </>
                               )}
-                              {["PAID", "ISSUANCE_FAILED"].includes(
-                                order.status,
-                              ) && (
-                                <button
-                                  disabled={busy}
-                                  onClick={() => act(order, "retry_issuance")}
-                                  className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  {t("Retry delivery")}
-                                </button>
-                              )}
+                              {order.delivery_channel !== "EMAIL" &&
+                                ["PAID", "ISSUANCE_FAILED"].includes(
+                                  order.status,
+                                ) && (
+                                  <button
+                                    disabled={busy}
+                                    onClick={() => act(order, "retry_issuance")}
+                                    className="min-h-11 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    {t("Retry delivery")}
+                                  </button>
+                                )}
                             </div>
                             <details className="mt-4 text-xs text-white/45">
                               <summary className="w-fit cursor-pointer rounded transition-colors hover:text-white/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300">
@@ -447,8 +527,7 @@ export default function GiftCardsPage() {
 }
 
 export async function getServerSideProps() {
-  if (!["development", "test"].includes(process.env.NODE_ENV))
-    return { notFound: true };
+  if (!giftCardsEnabled()) return { notFound: true };
   return { props: {} };
 }
 

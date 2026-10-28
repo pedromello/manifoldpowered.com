@@ -16,6 +16,7 @@ import {
 } from "components/storefront/presets/config";
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
 
 export type StorefrontProps = {
   /** Endpoint used to fetch the hero's featured games (no query params appended). */
@@ -67,6 +68,7 @@ export function Storefront({
   onPreviewStatusChange,
 }: StorefrontProps) {
   const { t } = useI18n();
+  const { giftCardsEnabled } = usePurchaseAvailability();
   const controller = useStorefrontController({
     featuredEndpoint,
     listEndpoint,
@@ -152,7 +154,7 @@ export function Storefront({
           store={store}
           followControl={followControl}
           showDiscover={showDiscover}
-          showGiftCards={!store && process.env.NODE_ENV !== "production"}
+          showGiftCards={!store && giftCardsEnabled}
         />
       )}
     </StorefrontShell>
