@@ -66,6 +66,8 @@ migration makes existing encrypted recipient details unreadable. Recipient name
 and optional document use authenticated encryption bound to the order ID;
 the verified email is snapshotted separately for delivery. Set document-required
 according to the verified contract, not the example default.
+A nullable field in a schema does not establish that runtime validation accepts
+an absent document. Confirm that requirement before allowing payment.
 
 ## Response mapping
 
@@ -87,6 +89,8 @@ The example above does not assert the actual response shape.
 | `cost`                         | Optional acquisition-cost field path; uses the same value unit. Omit when absent. |
 | `reference`, `status`          | Tracking reference and numeric status paths.                                      |
 | `submit_reference`             | Optional accepted-reference path for submit responses; defaults to `reference`.   |
+| `submit_success`               | Optional acceptance flag path; when configured, its value must be boolean `true`. |
+| `tracking_request_id`          | Optional tracking request-identifier path; must exactly match the requested ID.   |
 
 For example, a synthetic catalog with parent `id`/`label` and an `options` array
 can map `variants_path` to `options`, `face_value` to `credit`, and `cost` to
@@ -100,9 +104,13 @@ The adapter accepts BRL products with positive denominations, rejects malformed
 or duplicate entries, and strips raw response data. A failed sync preserves the
 previous catalog. A successful sync marks missing products unavailable; newly
 imported products remain disabled until reviewed and explicitly enabled.
-Tracking maps `3` to delivered, `7` to cancelled, other numeric codes to pending,
+Tracking maps `3` to delivered, `7` to cancelled, other nonnegative safe integer codes to pending,
 and missing/unparseable status to unknown. A submit response only establishes
 acceptance; tracking establishes delivery. No code or delivery link is retained.
+Configure an explicit acceptance flag and tracking identity check when the
+verified contract exposes them. For example, synthetic response paths could be
+`receipt.accepted` and `progress.request_id`. The first stored provider reference
+is retained when subsequent tracking returns a different identifier.
 
 ## Manual homologation operations
 

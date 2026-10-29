@@ -226,7 +226,7 @@ export function createEmailGiftDelivery({
                 ? "PROCESSING"
                 : "REVIEW",
           provider_reference:
-            result?.reference ?? claim.gift.provider_reference,
+            claim.gift.provider_reference ?? result?.reference ?? null,
           provider_status:
             result?.provider_status ?? claim.gift.provider_status,
           next_tracking_at: delivered || cancelled ? null : next,

@@ -215,6 +215,39 @@ test("tracking status 3 completes once without storing or revealing a code", asy
   expect(provider.track).toHaveBeenCalledTimes(1);
 });
 
+test("tracking preserves the first accepted reference when responses use another reference", async () => {
+  const id = await order(),
+    { provider, service } = fixtureProvider();
+  provider.submit.mockResolvedValue({
+    ...pending(id),
+    reference: "synthetic-submission-reference",
+  });
+  await service.runOne("submit", { order_id: id });
+  await makeDue(id);
+  provider.track.mockResolvedValue({
+    ...pending(id),
+    reference: "synthetic-tracking-reference",
+  });
+  expect(await service.runOne("track", { order_id: id })).toBe(true);
+  expect(await gift(id)).toMatchObject({
+    fulfillment_status: "PROCESSING",
+    provider_reference: "synthetic-submission-reference",
+  });
+  await makeDue(id);
+  provider.track.mockResolvedValue({
+    ...delivered(id),
+    reference: "synthetic-tracking-reference",
+  });
+  expect(await service.runOne("track", { order_id: id })).toBe(true);
+  expect(await gift(id)).toMatchObject({
+    fulfillment_status: "DELIVERED",
+    provider_reference: "synthetic-submission-reference",
+    provider_status: 3,
+  });
+  expect(provider.submit).toHaveBeenCalledTimes(1);
+  expect(provider.track).toHaveBeenCalledTimes(2);
+});
+
 test("tracking status 7 stops processing while preserving confirmed payment for review", async () => {
   const id = await order(),
     { provider, service } = fixtureProvider();
@@ -254,6 +287,7 @@ test("a lost submission response is reconciled after restart without another POS
   expect(await gift(id)).toMatchObject({
     issuance_started_at: expect.any(Date),
     submitted_at: expect.any(Date),
+    provider_reference: null,
     last_error: "SUBMISSION_UNCERTAIN",
   });
   await makeDue(id);
@@ -265,6 +299,7 @@ test("a lost submission response is reconciled after restart without another POS
   expect(provider.track).toHaveBeenCalledWith(id);
   expect(await gift(id)).toMatchObject({
     fulfillment_status: "DELIVERED",
+    provider_reference: `synthetic:${id}`,
     gift_card_code: null,
   });
 });

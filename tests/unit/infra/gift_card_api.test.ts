@@ -309,3 +309,192 @@ test("unknown tracking and rate limits do not imply cancellation", async () => {
     retry_after_ms: 36000000,
   });
 });
+
+test("configured acceptance checks use a strict boolean and a separate submission reference", async () => {
+  process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING = JSON.stringify({
+    ...JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
+    submit_success: "ack.allowed",
+    submit_reference: "ack.handle",
+    tracking_request_id: "lookup.key",
+  });
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(
+      json({
+        ack: { allowed: true, handle: "synthetic-acceptance" },
+        state: 3,
+      }),
+    );
+  const result = await createEmailGiftProvider({ transport }).submit({
+    request_id: "synthetic-order",
+    sku: "synthetic-sku",
+    amount_minor: 2500,
+    recipient: { name: "Sample Buyer", email: "buyer@example.test" },
+  });
+  expect(result).toEqual({
+    status: "pending",
+    reference: "synthetic-acceptance",
+    provider_status: 3,
+  });
+  expect(transport).toHaveBeenCalledTimes(2);
+});
+
+test.each([false, undefined, null, 0, 1, "true"])(
+  "does not accept or replay a submission with a non-true configured success value: %j",
+  async (allowed) => {
+    process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING = JSON.stringify({
+      ...JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
+      submit_success: "ack.allowed",
+    });
+    const transport = jest
+      .fn()
+      .mockResolvedValueOnce(login())
+      .mockResolvedValueOnce(
+        json({ ack: { allowed }, reference: "synthetic-reference", state: 3 }),
+      );
+    await expect(
+      createEmailGiftProvider({ transport }).submit({
+        request_id: "synthetic-order",
+        sku: "synthetic-sku",
+        amount_minor: 2500,
+        recipient: { name: "Sample Buyer", email: "buyer@example.test" },
+      }),
+    ).rejects.toMatchObject({ category: "INVALID_CONTRACT" });
+    expect(transport).toHaveBeenCalledTimes(2);
+  },
+);
+
+test.each(["synthetic-other-order", undefined, null, 123])(
+  "discards tracking for an uncorrelated configured request ID: %j",
+  async (key) => {
+    process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING = JSON.stringify({
+      ...JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
+      tracking_request_id: "lookup.key",
+    });
+    const transport = jest
+      .fn()
+      .mockResolvedValueOnce(login())
+      .mockResolvedValueOnce(
+        json({
+          lookup: { key },
+          reference: "synthetic-foreign-reference",
+          state: 3,
+        }),
+      );
+    const result = await createEmailGiftProvider({ transport }).track(
+      "synthetic-order",
+    );
+    expect(result).toEqual({
+      status: "unknown",
+      reference: null,
+      provider_status: null,
+    });
+    expect(transport).toHaveBeenCalledTimes(2);
+  },
+);
+
+test("interprets a configured tracking response only after exact request correlation", async () => {
+  process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING = JSON.stringify({
+    ...JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
+    tracking_request_id: "lookup.key",
+  });
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(
+      json({
+        lookup: { key: "synthetic-order" },
+        reference: "synthetic-tracking-reference",
+        state: "3",
+      }),
+    );
+  expect(
+    await createEmailGiftProvider({ transport }).track("synthetic-order"),
+  ).toEqual({
+    status: "delivered",
+    reference: "synthetic-tracking-reference",
+    provider_status: 3,
+  });
+});
+
+test.each([
+  -1,
+  3.5,
+  Number.MAX_SAFE_INTEGER + 1,
+  "-1",
+  "3.0",
+  "3e0",
+  "9007199254740992",
+  null,
+  undefined,
+])("keeps malformed tracking status unknown: %j", async (state) => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(json({ state, reference: "synthetic-reference" }));
+  const result = await createEmailGiftProvider({ transport }).track(
+    "synthetic-order",
+  );
+  expect(result.status).toBe("unknown");
+  expect(result.provider_status).toBeNull();
+});
+
+test("keeps a JSON number outside the finite range unknown", async () => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(
+      new Response('{"state":1e1000,"reference":"synthetic-reference"}'),
+    );
+  const result = await createEmailGiftProvider({ transport }).track(
+    "synthetic-order",
+  );
+  expect(result.status).toBe("unknown");
+  expect(result.provider_status).toBeNull();
+});
+
+test.each([
+  ["0", "pending", 0],
+  ["3", "delivered", 3],
+  ["7", "cancelled", 7],
+  ["42", "pending", 42],
+])("accepts safe integer tracking status %s", async (state, status, code) => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(json({ state, reference: "synthetic-reference" }));
+  expect(
+    await createEmailGiftProvider({ transport }).track("synthetic-order"),
+  ).toEqual({
+    status,
+    provider_status: code,
+    reference: "synthetic-reference",
+  });
+});
+
+test("rejects a blank accepted reference without repeating the submission", async () => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(json({ reference: " \t\n", state: 1 }));
+  await expect(
+    createEmailGiftProvider({ transport }).submit({
+      request_id: "synthetic-order",
+      sku: "synthetic-sku",
+      amount_minor: 2500,
+      recipient: { name: "Sample Buyer", email: "buyer@example.test" },
+    }),
+  ).rejects.toMatchObject({ category: "INVALID_CONTRACT" });
+  expect(transport).toHaveBeenCalledTimes(2);
+});
+
+test("discards a whitespace-only tracking reference", async () => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(json({ reference: " \t\n", state: 1 }));
+  expect(
+    await createEmailGiftProvider({ transport }).track("synthetic-order"),
+  ).toEqual({ status: "pending", provider_status: 1, reference: null });
+});

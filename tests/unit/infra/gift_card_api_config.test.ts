@@ -58,6 +58,14 @@ test.each([
     "GIFT_CARD_PROVIDER_RESPONSE_MAPPING",
     JSON.stringify({ ...mapping, value_unit: "synthetic-private-unit" }),
   ],
+  [
+    "GIFT_CARD_PROVIDER_RESPONSE_MAPPING",
+    JSON.stringify({ ...mapping, submit_success: "" }),
+  ],
+  [
+    "GIFT_CARD_PROVIDER_RESPONSE_MAPPING",
+    JSON.stringify({ ...mapping, tracking_request_id: "" }),
+  ],
   ["GIFT_CARD_PROVIDER_CONTRACT_VERIFIED", "TRUE"],
   ["GIFT_CARD_PROVIDER_ENVIRONMENT", "production"],
   ["GIFT_CARD_PROVIDER_USERNAME", ""],

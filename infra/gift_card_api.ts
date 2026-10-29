@@ -17,6 +17,8 @@ const catalogMappingFields = {
   reference: z.string().min(1).optional(),
   status: z.string().min(1).optional(),
   submit_reference: z.string().min(1).optional(),
+  submit_success: z.string().min(1).optional(),
+  tracking_request_id: z.string().min(1).optional(),
 };
 const catalogMappingSchema = z
   .object(catalogMappingFields)
@@ -298,15 +300,25 @@ function createEmailGiftClient({
       return request(path(businessToken(bearer)), undefined, bearer);
     }
   }
-  function tracking(data: unknown): EmailGiftTracking {
+  function tracking(data: unknown, requestId?: string): EmailGiftTracking {
+    if (
+      requestId !== undefined &&
+      mapping.tracking_request_id &&
+      fieldAt(data, mapping.tracking_request_id) !== requestId
+    )
+      return { status: "unknown", reference: null, provider_status: null };
     const status = fieldAt(data, mapping.status);
     const reference = fieldAt(data, mapping.reference);
-    const code =
+    const candidate =
       typeof status === "number"
         ? status
         : typeof status === "string" && /^\d+$/.test(status)
           ? Number(status)
           : null;
+    const code =
+      candidate !== null && Number.isSafeInteger(candidate) && candidate >= 0
+        ? candidate
+        : null;
     return {
       status:
         code === 3
@@ -318,7 +330,7 @@ function createEmailGiftClient({
               : "unknown",
       reference:
         typeof reference === "string" &&
-        reference.length > 0 &&
+        reference.trim().length > 0 &&
         reference.length <= 200
           ? reference
           : null,
@@ -413,6 +425,11 @@ function createEmailGiftClient({
         },
         bearer,
       );
+      if (
+        mapping.submit_success &&
+        fieldAt(response, mapping.submit_success) !== true
+      )
+        throw new GiftCardApiError("INVALID_CONTRACT");
       const result = tracking(response);
       const acceptedReference = fieldAt(
         response,
@@ -420,7 +437,7 @@ function createEmailGiftClient({
       );
       if (
         typeof acceptedReference !== "string" ||
-        !acceptedReference.length ||
+        !acceptedReference.trim().length ||
         acceptedReference.length > 200
       )
         throw new GiftCardApiError("INVALID_CONTRACT");
@@ -433,6 +450,7 @@ function createEmailGiftClient({
           (apiToken) =>
             `/api/orders/tracking/codrequest?${new URLSearchParams({ token: apiToken, codRequest: requestId })}`,
         ),
+        requestId,
       );
     },
   };
