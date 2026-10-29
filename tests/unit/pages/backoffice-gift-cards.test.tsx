@@ -168,13 +168,11 @@ test("a successful sync keeps its pending and completion feedback beside the cli
 
 test("the real configuration failure remains visible at sync even if refreshing the summary also fails", async () => {
   const message = "Gift card sandbox configuration requires verification.";
-  jest
-    .mocked(global.fetch)
-    .mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: async () => ({ message }),
-    } as Response);
+  jest.mocked(global.fetch).mockResolvedValue({
+    ok: false,
+    status: 503,
+    json: async () => ({ message }),
+  } as Response);
   mutate.mockRejectedValue(new Error("Summary unavailable"));
   run(render());
   await settle();
@@ -190,16 +188,14 @@ test("the real configuration failure remains visible at sync even if refreshing 
 });
 
 test("a failed sync refreshes persisted error state without claiming success", async () => {
-  jest
-    .mocked(global.fetch)
-    .mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({
-        message:
-          "Gift card catalog could not be validated. The previous catalog was preserved.",
-      }),
-    } as Response);
+  jest.mocked(global.fetch).mockResolvedValue({
+    ok: false,
+    status: 400,
+    json: async () => ({
+      message:
+        "Gift card catalog could not be validated. The previous catalog was preserved.",
+    }),
+  } as Response);
   mutate.mockImplementation(async () => {
     summary = { ...summary, last_error: "CATALOG_SYNC_FAILED" };
   });
