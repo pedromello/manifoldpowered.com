@@ -3,8 +3,8 @@ import { prisma } from "infra/database";
 import { ConflictError, ValidationError } from "infra/errors";
 import {
   emailGiftCardsSelected,
-  emailGiftProvider,
-  type EmailGiftProvider,
+  emailGiftCatalogProvider,
+  type EmailGiftCatalogProvider,
 } from "infra/gift_card_api";
 import {
   assertGiftCardSandbox,
@@ -26,7 +26,7 @@ export async function giftCardProducts() {
   }));
 }
 export async function syncGiftCardCatalog(
-  provider: EmailGiftProvider = emailGiftProvider(),
+  provider: EmailGiftCatalogProvider = emailGiftCatalogProvider(),
 ) {
   assertGiftCardSandbox();
   const token = randomUUID();

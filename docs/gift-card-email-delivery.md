@@ -3,7 +3,7 @@
 Use private runtime configuration for the generic `gift_card_provider` adapter.
 Do not commit real hostnames, credentials, raw API responses or recipient data.
 The configuration below is synthetic and deliberately cannot authenticate.
-Real homologation authentication and delivery checks remain pending credentials.
+Catalog access can be checked separately from permission to issue gift cards.
 
 ## Private configuration
 
@@ -33,7 +33,11 @@ GIFT_CARD_PROVIDER_RESPONSE_MAPPING='{"products_path":"data.products","sku":"sku
 ```
 
 `GIFT_CARD_PROVIDER_CONTRACT_VERIFIED=true` is an operator attestation, not a
-test result. Set it only after privately checking the actual sandbox contract:
+test result. Catalog synchronization uses a separate read-only client and can
+authenticate, validate and import catalog entries while this flag is false.
+That client exposes no order-submission or tracking methods. Checkout and
+fulfillment remain blocked until the flag is true, including cached clients
+after the flag is revoked. Set it only after privately checking the actual sandbox contract:
 login fields/response, product denomination versus acquisition cost, recipient
 requirements, order request fields, accepted response, tracking reference and
 status mapping. If the actual request contract differs from the adapter, update
@@ -42,7 +46,9 @@ not customize request bodies. The base URL must be an HTTPS origin with no
 credentials, query, fragment or path prefix.
 
 The login returns the bearer access token (`accessToken`, with an `expires`
-timestamp). Confirm privately which token the business endpoints require.
+timestamp), either at the root or inside `data`. An explicit invalid `data`
+envelope is rejected rather than falling back to root fields. Confirm privately
+which token the business endpoints require.
 `GIFT_CARD_PROVIDER_TOKEN_SOURCE=configured` uses a separate private
 `GIFT_CARD_PROVIDER_API_TOKEN` for catalog/order/tracking calls. Set the source
 to `login` if the verified contract instead uses the current login token in those
@@ -64,13 +70,16 @@ according to the verified contract, not the example default.
 ## Response mapping
 
 `GIFT_CARD_PROVIDER_RESPONSE_MAPPING` is strict JSON with these fields. Paths use
-dot notation; product field paths are relative to each product, while tracking
-paths are relative to the full response. An empty `products_path` selects a root
-array. The example above does not assert the actual response shape.
+dot notation. Identifier, name and currency paths are relative to each parent
+product. With `variants_path`, denomination and cost paths are relative to each
+variant object; otherwise they are relative to the product. Tracking paths are
+relative to the full response. An empty `products_path` selects a root array.
+The example above does not assert the actual response shape.
 
 | Field                          | Meaning                                                                           |
 | ------------------------------ | --------------------------------------------------------------------------------- |
 | `products_path`                | Product array in the catalog response.                                            |
+| `variants_path`                | Optional array of denomination records inside each product.                       |
 | `sku`, `name`                  | Product identifier and display name.                                              |
 | `face_value`                   | Gift card denomination; must not map acquisition cost here.                       |
 | `currency` or `fixed_currency` | Currency field path, or fixed `BRL`; configure one.                               |
@@ -78,6 +87,14 @@ array. The example above does not assert the actual response shape.
 | `cost`                         | Optional acquisition-cost field path; uses the same value unit. Omit when absent. |
 | `reference`, `status`          | Tracking reference and numeric status paths.                                      |
 | `submit_reference`             | Optional accepted-reference path for submit responses; defaults to `reference`.   |
+
+For example, a synthetic catalog with parent `id`/`label` and an `options` array
+can map `variants_path` to `options`, `face_value` to `credit`, and `cost` to
+`charged`. Each option produces one SKU-and-denomination entry. Empty option
+arrays contribute no entries; malformed arrays or duplicate denominations reject
+the sync. Separate arrays are never paired by position. Use the verified private
+mapping for the actual service. Catalog-only configuration does not require
+`reference` or `status`; the full fulfillment client still requires both.
 
 The adapter accepts BRL products with positive denominations, rejects malformed
 or duplicate entries, and strips raw response data. A failed sync preserves the
@@ -97,8 +114,10 @@ privately in the runtime environment, use `npm run features:backfill:ci` (the lo
 existing admin roles; it does not turn a buyer account into an administrator.
 The four buttons call the same bounded operations intended for future cron use:
 
-1. **Sync catalog**: authenticate, import and validate products. Review denominations
-   and use **Enable sales** on the products approved for the test.
+1. **Sync catalog**: authenticate, import and validate products using the read-only
+   catalog client. New entries remain disabled even while contract verification
+   is pending. Review denominations and use **Enable sales** on the products
+   approved for the test; enabling an entry does not bypass the checkout gate.
 2. **Reconcile payments**: retrieve and validate pending payments. After a buyer
    confirms recipient details and completes Stripe test checkout, run this until
    the local order reports paid.
@@ -142,5 +161,5 @@ validate the contract/mapping, sync and enable one approved product, verify an
 account email, confirm recipient details, complete Stripe test payment, reconcile,
 submit once, observe tracking through a terminal status, and inspect the intended
 inbox. Also check pending/unknown responses, cancellation and duplicate operations.
-Record only redacted outcomes. Local synthetic tests do not establish that this
-external sequence has happened; an actual provider round trip is still pending.
+Record only redacted outcomes. Local synthetic tests or a successful catalog
+read do not establish that this complete external delivery sequence has happened.

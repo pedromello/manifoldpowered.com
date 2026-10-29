@@ -2,21 +2,31 @@ import { z } from "zod";
 import { ServiceError } from "infra/errors";
 import { assertGiftCardSandbox } from "infra/gift_card_provider";
 
-// Response field locations are private configuration until the sandbox contract
-// has been verified. Never guess whether a supplier's price is cost or face value.
+// Response field locations are private configuration. Never guess whether a
+// supplier's price is cost or face value; fulfillment requires its own attestation.
+const catalogMappingFields = {
+  products_path: z.string(),
+  variants_path: z.string().min(1).optional(),
+  sku: z.string().min(1),
+  name: z.string().min(1),
+  face_value: z.string().min(1),
+  currency: z.string().optional(),
+  fixed_currency: z.literal("BRL").optional(),
+  value_unit: z.enum(["major", "minor"]),
+  cost: z.string().optional(),
+  reference: z.string().min(1).optional(),
+  status: z.string().min(1).optional(),
+  submit_reference: z.string().min(1).optional(),
+};
+const catalogMappingSchema = z
+  .object(catalogMappingFields)
+  .strict()
+  .refine((value) => Boolean(value.currency || value.fixed_currency));
 const mappingSchema = z
   .object({
-    products_path: z.string(),
-    sku: z.string().min(1),
-    name: z.string().min(1),
-    face_value: z.string().min(1),
-    currency: z.string().optional(),
-    fixed_currency: z.literal("BRL").optional(),
-    value_unit: z.enum(["major", "minor"]),
-    cost: z.string().optional(),
+    ...catalogMappingFields,
     reference: z.string().min(1),
     status: z.string().min(1),
-    submit_reference: z.string().min(1).optional(),
   })
   .strict()
   .refine((value) => Boolean(value.currency || value.fixed_currency));
@@ -44,6 +54,7 @@ export interface EmailGiftProvider {
   submit(request: EmailGiftRequest): Promise<EmailGiftTracking>;
   track(requestId: string): Promise<EmailGiftTracking>;
 }
+export type EmailGiftCatalogProvider = Pick<EmailGiftProvider, "products">;
 
 export class GiftCardApiError extends Error {
   constructor(
@@ -112,12 +123,24 @@ class GiftCardConfigurationError extends ServiceError {
   }
 }
 
-export function createEmailGiftProvider({
+function assertFulfillmentContract() {
+  assertGiftCardSandbox();
+  if (process.env.GIFT_CARD_PROVIDER_CONTRACT_VERIFIED !== "true")
+    throw new GiftCardConfigurationError([
+      "GIFT_CARD_PROVIDER_CONTRACT_VERIFIED",
+    ]);
+}
+
+function createEmailGiftClient({
   transport = fetch,
-}: { transport?: typeof fetch } = {}): EmailGiftProvider {
+  catalogOnly = false,
+}: {
+  transport?: typeof fetch;
+  catalogOnly?: boolean;
+} = {}): EmailGiftProvider {
   assertGiftCardSandbox();
   let base: URL;
-  let mapping: z.infer<typeof mappingSchema>;
+  let mapping: z.infer<typeof catalogMappingSchema>;
   const tokenSource =
     process.env.GIFT_CARD_PROVIDER_TOKEN_SOURCE || "configured";
   const invalid: ConfigurationKey[] = [];
@@ -136,13 +159,16 @@ export function createEmailGiftProvider({
     invalid.push("GIFT_CARD_PROVIDER_BASE_URL");
   }
   try {
-    mapping = mappingSchema.parse(
+    mapping = (catalogOnly ? catalogMappingSchema : mappingSchema).parse(
       JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
     );
   } catch {
     invalid.push("GIFT_CARD_PROVIDER_RESPONSE_MAPPING");
   }
-  if (process.env.GIFT_CARD_PROVIDER_CONTRACT_VERIFIED !== "true")
+  if (
+    !catalogOnly &&
+    process.env.GIFT_CARD_PROVIDER_CONTRACT_VERIFIED !== "true"
+  )
     invalid.push("GIFT_CARD_PROVIDER_CONTRACT_VERIFIED");
   if (process.env.GIFT_CARD_PROVIDER_ENVIRONMENT !== "sandbox")
     invalid.push("GIFT_CARD_PROVIDER_ENVIRONMENT");
@@ -162,8 +188,22 @@ export function createEmailGiftProvider({
     body?: unknown,
     bearer?: string,
   ): Promise<unknown> {
+    assertGiftCardSandbox();
+    if (!catalogOnly) assertFulfillmentContract();
+    if (process.env.GIFT_CARD_PROVIDER_ENVIRONMENT !== "sandbox")
+      throw new GiftCardConfigurationError(["GIFT_CARD_PROVIDER_ENVIRONMENT"]);
+    const target = new URL(path, base);
+    if (
+      catalogOnly &&
+      !(
+        (target.pathname === "/api/authentication/login" &&
+          body !== undefined) ||
+        (target.pathname.startsWith("/api/products/") && body === undefined)
+      )
+    )
+      throw new GiftCardApiError("CATALOG_ONLY");
     try {
-      const response = await transport(new URL(path, base), {
+      const response = await transport(target, {
         method: body === undefined ? "GET" : "POST",
         redirect: "error",
         cache: "no-store",
@@ -210,12 +250,21 @@ export function createEmailGiftProvider({
         username: process.env.GIFT_CARD_PROVIDER_USERNAME,
         password: process.env.GIFT_CARD_PROVIDER_PASSWORD,
       });
+      // The sandbox may wrap the authentication model in a data envelope.
+      // A malformed envelope must not fall back to unrelated top-level fields.
+      const authentication =
+        data !== null && typeof data === "object" && Object.hasOwn(data, "data")
+          ? (data as Record<string, unknown>).data
+          : data;
       const parsed = z
         .object({
-          accessToken: z.string().min(1),
+          accessToken: z
+            .string()
+            .min(1)
+            .refine((value) => value.trim().length > 0),
           expires: z.iso.datetime({ offset: true }),
         })
-        .safeParse(data);
+        .safeParse(authentication);
       if (!parsed.success || Date.parse(parsed.data.expires) <= Date.now())
         throw new GiftCardApiError("AUTHENTICATION_FAILED");
       token = {
@@ -278,15 +327,19 @@ export function createEmailGiftProvider({
   }
   return {
     async products() {
+      assertGiftCardSandbox();
+      if (!catalogOnly) assertFulfillmentContract();
       const data = fieldAt(
         await read(
           (apiToken) => `/api/products/${encodeURIComponent(apiToken)}`,
         ),
         mapping.products_path,
       );
-      if (!Array.isArray(data) || data.length > 10000 || !data.length)
+      const limit = 10000;
+      if (!Array.isArray(data) || data.length > limit || !data.length)
         throw new GiftCardApiError("INVALID_CONTRACT");
-      const products = data.map((item): EmailGiftProduct => {
+      const products: EmailGiftProduct[] = [];
+      for (const item of data) {
         const sku = fieldAt(item, mapping.sku),
           name = fieldAt(item, mapping.name);
         const currency = mapping.currency
@@ -302,29 +355,48 @@ export function createEmailGiftProvider({
           currency !== "BRL"
         )
           throw new GiftCardApiError("INVALID_CONTRACT");
-        const amount = minorValue(
-          fieldAt(item, mapping.face_value),
-          mapping.value_unit,
-        );
-        if (!amount) throw new GiftCardApiError("INVALID_CONTRACT");
-        return {
-          sku,
-          name: name.trim(),
-          amount_minor: amount,
-          currency,
-          provider_cost_minor: mapping.cost
-            ? minorValue(fieldAt(item, mapping.cost), mapping.value_unit)
-            : null,
-        };
-      });
+        const variants = mapping.variants_path
+          ? fieldAt(item, mapping.variants_path)
+          : [item];
+        if (
+          !Array.isArray(variants) ||
+          variants.length > limit ||
+          products.length + variants.length > limit
+        )
+          throw new GiftCardApiError("INVALID_CONTRACT");
+        for (const variant of variants) {
+          if (
+            variant === null ||
+            typeof variant !== "object" ||
+            Array.isArray(variant)
+          )
+            throw new GiftCardApiError("INVALID_CONTRACT");
+          const amount = minorValue(
+            fieldAt(variant, mapping.face_value),
+            mapping.value_unit,
+          );
+          if (!amount) throw new GiftCardApiError("INVALID_CONTRACT");
+          products.push({
+            sku,
+            name: name.trim(),
+            amount_minor: amount,
+            currency,
+            provider_cost_minor: mapping.cost
+              ? minorValue(fieldAt(variant, mapping.cost), mapping.value_unit)
+              : null,
+          });
+        }
+      }
       if (
+        !products.length ||
         new Set(products.map((p) => `${p.sku}:${p.amount_minor}`)).size !==
-        products.length
+          products.length
       )
         throw new GiftCardApiError("INVALID_CONTRACT");
       return products;
     },
     async submit(input) {
+      assertFulfillmentContract();
       // A financial fulfillment POST is never automatically repeated, even on
       // authentication errors. The durable worker reconciles its stable ID.
       const bearer = await authenticate();
@@ -355,6 +427,7 @@ export function createEmailGiftProvider({
       return { ...result, reference: acceptedReference, status: "pending" }; // Tracking is delivery proof.
     },
     async track(requestId) {
+      assertFulfillmentContract();
       return tracking(
         await read(
           (apiToken) =>
@@ -365,9 +438,37 @@ export function createEmailGiftProvider({
   };
 }
 
+export function createEmailGiftProvider(
+  options: { transport?: typeof fetch } = {},
+): EmailGiftProvider {
+  return createEmailGiftClient({
+    transport: options.transport,
+    catalogOnly: false,
+  });
+}
+
+export function createEmailGiftCatalogProvider(
+  options: { transport?: typeof fetch } = {},
+): EmailGiftCatalogProvider {
+  const client = createEmailGiftClient({
+    transport: options.transport,
+    catalogOnly: true,
+  });
+  // This is a separate runtime capability, not a narrowed type over the full
+  // provider. Even an unsafe cast cannot find submission or tracking methods.
+  return Object.freeze({ products: client.products });
+}
+
 let configuredProvider: EmailGiftProvider | undefined;
 export function emailGiftProvider() {
+  assertFulfillmentContract();
   return (configuredProvider ??= createEmailGiftProvider());
+}
+
+let configuredCatalogProvider: EmailGiftCatalogProvider | undefined;
+export function emailGiftCatalogProvider() {
+  assertGiftCardSandbox();
+  return (configuredCatalogProvider ??= createEmailGiftCatalogProvider());
 }
 
 export function emailGiftPurchasesConfigured() {

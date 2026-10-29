@@ -30,12 +30,102 @@ beforeEach(() => {
 });
 afterEach(() => {
   process.env = { ...original };
+  jest.restoreAllMocks();
 });
 const login = () =>
   json({
     accessToken: "synthetic-login-token",
     expires: new Date(Date.now() + 3600000).toISOString(),
   });
+
+test("accepts an authentication data envelope without requiring optional notification metadata to be empty", async () => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(
+      json({
+        data: {
+          accessToken: "synthetic-login-token",
+          expires: new Date(Date.now() + 3600000).toISOString(),
+          authenticationError: null,
+          showMessage: true,
+          message: null,
+        },
+        invalidFields: [],
+        notifications: [{ kind: "information" }],
+      }),
+    )
+    .mockResolvedValueOnce(
+      json({ state: 3, reference: "synthetic-reference" }),
+    );
+  expect(
+    (await createEmailGiftProvider({ transport }).track("synthetic-order"))
+      .status,
+  ).toBe("delivered");
+  expect(transport).toHaveBeenCalledTimes(2);
+  expect(transport.mock.calls[1][1].headers.Authorization).toBe(
+    "Bearer synthetic-login-token",
+  );
+});
+
+test.each([
+  { accessToken: null, expires: new Date(Date.now() + 3600000).toISOString() },
+  { accessToken: "", expires: new Date(Date.now() + 3600000).toISOString() },
+  { accessToken: "   ", expires: new Date(Date.now() + 3600000).toISOString() },
+  { accessToken: 123, expires: new Date(Date.now() + 3600000).toISOString() },
+  { accessToken: "synthetic-login-token", expires: "invalid-expiration" },
+  { accessToken: "synthetic-login-token", expires: "2000-01-01T00:00:00.000Z" },
+])(
+  "rejects an invalid authentication envelope before reading products: %j",
+  async (authentication) => {
+    const log = jest.spyOn(console, "error").mockImplementation(() => {});
+    const transport = jest.fn().mockImplementation(async () =>
+      json({
+        data: {
+          ...authentication,
+          authenticationError: 3,
+          showMessage: false,
+          message: "synthetic-private-business-detail",
+        },
+        invalidFields: [],
+        notifications: [],
+      }),
+    );
+    const error = await createEmailGiftProvider({ transport })
+      .products()
+      .catch((value) => value);
+    expect(error).toMatchObject({ category: "AUTHENTICATION_FAILED" });
+    expect(error.cause).toBeUndefined();
+    expect(
+      transport.mock.calls.every(
+        ([url]) =>
+          new URL(String(url)).pathname === "/api/authentication/login",
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(error)).not.toContain(
+      "synthetic-private-business-detail",
+    );
+    expect(String(error)).not.toContain("synthetic-login-token");
+    expect(log).not.toHaveBeenCalled();
+  },
+);
+
+test("a malformed data envelope cannot use valid top-level fields as a fallback", async () => {
+  const transport = jest.fn().mockImplementation(async () =>
+    json({
+      data: null,
+      accessToken: "synthetic-unrelated-token",
+      expires: new Date(Date.now() + 3600000).toISOString(),
+    }),
+  );
+  await expect(
+    createEmailGiftProvider({ transport }).products(),
+  ).rejects.toMatchObject({ category: "AUTHENTICATION_FAILED" });
+  expect(
+    transport.mock.calls.every(
+      ([url]) => new URL(String(url)).pathname === "/api/authentication/login",
+    ),
+  ).toBe(true);
+});
 
 test("normalizes exact nominal money independently from supplier cost", async () => {
   const transport = jest

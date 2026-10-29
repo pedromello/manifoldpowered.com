@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "infra/database";
 import type { EmailGiftProduct, EmailGiftProvider } from "infra/gift_card_api";
 import {
+  emailGiftProvider,
+  emailGiftPurchasesConfigured,
+} from "infra/gift_card_api";
+import {
   giftCardProducts,
   syncGiftCardCatalog,
 } from "models/gift_card_catalog";
@@ -61,6 +65,86 @@ afterEach(async () => {
 });
 afterAll(async () => {
   await prisma.$disconnect();
+});
+
+test("the default catalog client imports disabled denominations while fulfillment remains unverified", async () => {
+  Object.assign(process.env, {
+    GIFT_CARD_PROVIDER_BASE_URL: "https://supplier.example.test",
+    GIFT_CARD_PROVIDER_USERNAME: "synthetic-user",
+    GIFT_CARD_PROVIDER_PASSWORD: "synthetic-password",
+    GIFT_CARD_PROVIDER_TOKEN_SOURCE: "configured",
+    GIFT_CARD_PROVIDER_API_TOKEN: "synthetic-campaign",
+    GIFT_CARD_PROVIDER_ENVIRONMENT: "sandbox",
+    GIFT_CARD_PROVIDER_CONTRACT_VERIFIED: "false",
+    GIFT_CARD_RECIPIENT_ENCRYPTION_KEY: "a".repeat(64),
+    GIFT_CARD_PROVIDER_RESPONSE_MAPPING: JSON.stringify({
+      products_path: "items",
+      variants_path: "options",
+      sku: "id",
+      name: "label",
+      face_value: "credit",
+      cost: "charged",
+      fixed_currency: "BRL",
+      value_unit: "major",
+    }),
+  });
+  const transport = jest
+    .spyOn(global, "fetch")
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            accessToken: "synthetic-login-token",
+            expires: new Date(Date.now() + 3600000).toISOString(),
+          },
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: `${prefix}-nested`,
+              label: "Synthetic nested product",
+              options: [
+                { credit: 25, charged: 23 },
+                { credit: 50, charged: 46 },
+              ],
+            },
+            { id: `${prefix}-empty`, label: "Synthetic empty", options: [] },
+          ],
+        }),
+      ),
+    );
+  try {
+    await expect(syncGiftCardCatalog()).resolves.toBe(2);
+    const rows = await prisma.giftCardProduct.findMany({
+      orderBy: { amount_minor: "asc" },
+    });
+    expect(rows).toMatchObject([
+      {
+        amount_minor: 2500,
+        provider_cost_minor: 2300,
+        enabled: false,
+        available: true,
+      },
+      {
+        amount_minor: 5000,
+        provider_cost_minor: 4600,
+        enabled: false,
+        available: true,
+      },
+    ]);
+    expect(await giftCardProducts()).toEqual([]);
+    expect(emailGiftPurchasesConfigured()).toBe(false);
+    expect(() => emailGiftProvider()).toThrow(
+      "configuration requires verification",
+    );
+    expect(transport).toHaveBeenCalledTimes(2);
+  } finally {
+    transport.mockRestore();
+  }
 });
 
 test("catalog refresh preserves publication selection and withdraws missing inventory", async () => {
