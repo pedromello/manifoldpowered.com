@@ -103,7 +103,13 @@ beforeEach(() => {
           : typeof url === "string" && url.endsWith("tag-filters")
             ? []
             : outlet;
-    return { data, isLoading: false, isValidating: false, mutate: jest.fn() };
+    return {
+      data,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: jest.fn(),
+    };
   }) as typeof useSWR);
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -169,6 +175,8 @@ test("the actual editor protects a dirty form from native unload and clears the 
       ? { links: [], draft_revision: 3 }
       : { ready: true, publishedRevision: { sourceDraftRevision: 3 } },
     isLoading: false,
+    error: undefined,
+    isValidating: false,
     mutate: jest.fn(),
   })) as typeof useSWR);
   await act(async () =>

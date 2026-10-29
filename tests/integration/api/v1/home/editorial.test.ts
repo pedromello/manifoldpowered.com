@@ -39,6 +39,8 @@ async function selection(f: ReadyDraftFixture, slug: string) {
     title: `Published ${slug}`,
     description: "A published selection for the home.",
     cover_url: "https://example.com/art.jpg",
+    featured_video_url: null,
+    image_urls: [],
     game_slugs: f.games.slice(0, 3).map(({ slug }) => slug),
   });
   await storeSelection.publish(

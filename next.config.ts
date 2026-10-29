@@ -1,6 +1,7 @@
 import { defaultLocale, locales } from "./lib/locale";
 
 module.exports = {
+  logging: { incomingRequests: { ignore: [/\/api\/v1\/webhooks\/appmax\//] } },
   distDir: process.env.NEXT_DIST_DIR || ".next",
   typescript: { tsconfigPath: "tsconfig.build.json" },
   async redirects() {

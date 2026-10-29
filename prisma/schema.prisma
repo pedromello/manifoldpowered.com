@@ -60,6 +60,7 @@ model UserActivationToken {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  email      String?   @db.VarChar(234)
   expires_at DateTime
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
@@ -74,6 +75,7 @@ model UserOtp {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  email      String?   @db.VarChar(234)
   code_hash  String    @db.VarChar(60)
   expires_at DateTime
   created_at DateTime  @default(now())
@@ -82,6 +84,15 @@ model UserOtp {
   @@index([user_id])
   @@index([expires_at])
   @@map("user_otps")
+}
+
+// Exact mailbox proof is separate from profile fields that buyers can update.
+model UserEmailVerification {
+  user_id     String   @id
+  email       String   @db.VarChar(234)
+  verified_at DateTime @default(now())
+
+  @@map("user_email_verifications")
 }
 
 enum GameStatus {
@@ -578,6 +589,116 @@ model GameReleasePatch {
 
 enum ItemType {
   GAME
+  GIFT_CARD
+}
+
+enum GiftCardOrderStatus {
+  CHECKOUT_PENDING
+  AWAITING_PAYMENT
+  PAID
+  ISSUANCE_FAILED
+  FULFILLED
+  CANCELLED
+  PAYMENT_FAILED
+}
+
+// Buyer checkout, separate from game acquisitions and affiliate payouts.
+// Amounts are an immutable server-side snapshot in minor currency units.
+model GiftCardOrder {
+  id                                 String              @id @default(uuid())
+  user_id                            String
+  idempotency_key                    String              @db.VarChar(64)
+  product_code                       String              @db.VarChar(100)
+  product_name                       String              @db.VarChar(200)
+  amount_minor                       Int
+  currency                           String              @db.VarChar(3)
+  status                             GiftCardOrderStatus @default(CHECKOUT_PENDING)
+  stripe_session_id                  String?             @unique
+  stripe_payment_intent_id           String?             @unique
+  checkout_url                       String?
+  checkout_expires_at                DateTime?
+  checkout_started_at                DateTime            @default(now())
+  paid_at                            DateTime?
+  fulfilled_at                       DateTime?
+  provider_reference                 String?             @unique
+  gift_card_code                     String?
+  first_revealed_at                  DateTime?
+  issuance_started_at                DateTime?
+  delivery_claim_token               String?
+  delivery_claim_expires_at          DateTime?
+  payment_reconcile_after            DateTime?
+  payment_reconcile_claim_token      String?
+  payment_reconcile_claim_expires_at DateTime?
+  last_error                         String?             @db.VarChar(50)
+  delivery_channel                   String              @default("CODE") @db.VarChar(20)
+  provider_environment               String              @default("sandbox") @db.VarChar(20)
+  provider_sku                       String?             @db.VarChar(200)
+  recipient_email                    String?             @db.VarChar(234)
+  recipient_data                     String?
+  recipient_confirmed_at             DateTime?
+  fulfillment_status                 String              @default("QUEUED") @db.VarChar(20)
+  submitted_at                       DateTime?
+  next_tracking_at                   DateTime?
+  last_tracking_at                   DateTime?
+  provider_status                    Int?
+  created_at                         DateTime            @default(now())
+  updated_at                         DateTime            @updatedAt
+
+  @@unique([user_id, idempotency_key])
+  @@index([user_id, created_at])
+  @@map("gift_card_orders")
+}
+
+model GiftCardProduct {
+  id                  String   @id @default(uuid())
+  code                String   @unique @db.VarChar(100)
+  provider_sku        String   @db.VarChar(200)
+  name                String   @db.VarChar(200)
+  amount_minor        Int
+  provider_cost_minor Int?
+  currency            String   @db.VarChar(3)
+  enabled             Boolean  @default(false)
+  available           Boolean  @default(true)
+  synced_at           DateTime
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@map("gift_card_products")
+}
+
+model GiftCardCatalogSync {
+  id              String    @id
+  last_success_at DateTime?
+  last_error      String?   @db.VarChar(50)
+  claim_token     String?
+  claim_until     DateTime?
+  updated_at      DateTime  @updatedAt
+
+  @@map("gift_card_catalog_syncs")
+}
+
+model GiftCardFulfillmentJob {
+  order_id    String    @id
+  run_after   DateTime  @default(now())
+  claim_token String?
+  claim_until DateTime?
+  attempts    Int       @default(0)
+  last_error  String?   @db.VarChar(50)
+  updated_at  DateTime  @updatedAt
+
+  @@index([run_after])
+  @@map("gift_card_fulfillment_jobs")
+}
+
+// Persist only receipt identifiers, never webhook bodies or payment details.
+model GiftCardPaymentEvent {
+  id         String   @id
+  order_id   String
+  event_type String   @db.VarChar(100)
+  created_at DateTime @default(now())
+
+  @@index([order_id])
+  @@map("gift_card_payment_events")
 }
 
 model LibraryItem {
@@ -602,6 +723,7 @@ model Sale {
   id                String  @id @default(uuid())
   user_id           String // Logical reference to User.id (who acquired)
   game_id           String // Logical reference to Game.id (what was acquired)
+  purchase_order_id String? @unique // Paid checkout; null for historical/free acquisitions.
   store_id          String? // Logical reference to Store.id; null = platform/global acquisition
   store_revision_id String? // Logical StoreRevision snapshot used for attribution
   price_at_sale     Decimal @db.Decimal(19, 4) // What the buyer was actually charged, in `currency`
@@ -1049,10 +1171,129 @@ model ExchangeRate {
 // whose values must be extensible without a migration at all, is not.
 enum LedgerAccountType {
   CONSUMER_PAYMENT // gross collected from a buyer; funds a sale
+  FINANCING_CLEARING // financing surcharge held separately from product revenue
   SUPPLIER_COST // what the delivered code cost us
   AFFILIATE_COMMISSION // owed to a storefront owner, held until matures_at
   PLATFORM_REVENUE // what is left for the platform
   PAYOUT // a commission balance actually sent to an affiliate
+}
+
+enum PurchasePaymentStatus {
+  UNPAID
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum PurchaseDeliveryStatus {
+  PENDING
+  READY
+  FAILED
+  REVIEW
+}
+
+model PurchaseOrder {
+  id                  String                 @id @default(uuid())
+  user_id             String
+  idempotency_key     String                 @db.VarChar(64)
+  item_type           ItemType
+  item_id             String
+  product_name        String                 @db.VarChar(200)
+  product_slug        String?
+  image_url           String?
+  amount_minor        Int
+  currency            String                 @db.VarChar(3)
+  exchange_rate       Decimal?               @db.Decimal(19, 8)
+  supplier_cost_rate  Decimal?               @db.Decimal(19, 8)
+  commission_rate     Decimal?               @db.Decimal(19, 8)
+  store_id            String?
+  store_revision_id   String?
+  gift_card_order_id  String?                @unique
+  payment_provider    String                 @db.VarChar(20)
+  payment_environment String                 @db.VarChar(20)
+  payment_status      PurchasePaymentStatus  @default(UNPAID)
+  delivery_status     PurchaseDeliveryStatus @default(PENDING)
+  paid_at             DateTime?
+  fulfilled_at        DateTime?
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+
+  @@unique([user_id, idempotency_key])
+  @@index([user_id, created_at])
+  @@map("purchase_orders")
+}
+
+model PurchasePaymentAttempt {
+  id                    String                @id @default(uuid())
+  order_id              String
+  payment_provider      String                @db.VarChar(20)
+  payment_environment   String                @db.VarChar(20)
+  idempotency_key       String                @db.VarChar(64)
+  method                String                @db.VarChar(20)
+  installments          Int                   @default(1)
+  total_minor           Int
+  interest_minor        Int                   @default(0)
+  quote_expires_at      DateTime
+  status                PurchasePaymentStatus @default(UNPAID)
+  submission_started_at DateTime?
+  remote_customer_id    String?
+  remote_order_id       String?
+  remote_payment_id     String?
+  checkout_url          String?
+  pix_emv               String?
+  pix_qrcode            String?
+  expires_at            DateTime?
+  uncertain             Boolean               @default(false)
+  last_error            String?               @db.VarChar(50)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+
+  @@unique([order_id, idempotency_key])
+  @@unique([payment_provider, payment_environment, remote_order_id], map: "purchase_payment_provider_remote_key")
+  @@index([remote_order_id])
+  @@index([order_id, created_at])
+  @@map("purchase_payment_attempts")
+}
+
+// Durable work only; no tokens, card data or raw webhook payloads.
+model PurchasePaymentJob {
+  order_id    String    @id
+  run_after   DateTime  @default(now())
+  claim_token String?
+  claim_until DateTime?
+  attempts    Int       @default(0)
+  last_error  String?   @db.VarChar(50)
+  updated_at  DateTime  @updatedAt
+
+  @@index([run_after])
+  @@map("purchase_payment_jobs")
+}
+
+model PurchasePaymentEvent {
+  id             String                @id @default(uuid())
+  order_id       String
+  attempt_id     String
+  payment_status PurchasePaymentStatus
+  observed_at    DateTime              @default(now())
+
+  @@unique([attempt_id, payment_status])
+  @@index([order_id, observed_at])
+  @@map("purchase_payment_events")
+}
+
+model PaymentInstallation {
+  id          String   @id @default(uuid())
+  provider    String   @db.VarChar(20)
+  environment String   @db.VarChar(20)
+  external_id String
+  updated_at  DateTime @updatedAt
+
+  @@unique([provider, environment])
+  @@map("payment_installations")
 }
 
 // Append-only double-entry ledger. Every money movement is written as a set of

@@ -1,6 +1,7 @@
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import gameModel from "models/game";
+import { purchaseGameWithVerifiedPayment } from "tests/fixtures/paid_game_purchase";
 
 beforeAll(async () => {
   await orchestrator.waitForAllServices();
@@ -28,8 +29,9 @@ async function seedStudioWithSale({ storeSlug = undefined } = {}) {
   });
   const game = await orchestrator.createGame(developer.id, {
     studio_id: studio.id,
+    price: "10.00",
   });
-  if (storeSlug) await gameModel.makePublic(game.id);
+  await gameModel.makePublic(game.id);
 
   const buyer = await orchestrator.createUser();
   await orchestrator.activateUser(buyer.id);
@@ -46,7 +48,8 @@ async function seedStudioWithSale({ storeSlug = undefined } = {}) {
       ...(storeSlug ? { store_slug: storeSlug } : {}),
     }),
   });
-  expect(acquisition.status).toBe(201);
+  expect(acquisition.status).toBe(409);
+  await purchaseGameWithVerifiedPayment(buyer.id, game.slug, storeSlug);
 
   return { developer, developerSession, studio, game, buyer };
 }

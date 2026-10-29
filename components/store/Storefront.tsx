@@ -16,6 +16,7 @@ import {
 } from "components/storefront/presets/config";
 import { OutletPreviewBanner } from "components/storefront/OutletPreviewBanner";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
 import { OutletSelections } from "components/store/SelectionCards";
 import { OutletSelectionShowcase } from "components/store/OutletSelectionShowcase";
 import type { SelectionPageApi } from "lib/selection-client";
@@ -75,6 +76,7 @@ export function Storefront({
   homeCommunities = [],
 }: StorefrontProps) {
   const { t } = useI18n();
+  const { giftCardsEnabled } = usePurchaseAvailability();
   const controller = useStorefrontController({
     featuredEndpoint,
     listEndpoint,
@@ -164,6 +166,7 @@ export function Storefront({
           store={store}
           followControl={followControl}
           showDiscover={showDiscover}
+          showGiftCards={!store && giftCardsEnabled}
           editorialSelections={editorialSelections}
           homeCommunities={homeCommunities}
         />

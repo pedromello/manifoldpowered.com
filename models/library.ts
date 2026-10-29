@@ -1,5 +1,5 @@
 import { prisma } from "infra/database";
-import { ItemType, Prisma } from "generated/prisma/client";
+import { ItemType, Prisma, type PurchaseOrder } from "generated/prisma/client";
 import { NotFoundError, ValidationError } from "infra/errors";
 import game from "models/game";
 import pricing, { BASE_CURRENCY } from "models/pricing";
@@ -119,6 +119,8 @@ interface SaleEntriesDto {
   exchange_rate: Prisma.Decimal | null;
   supplier_cost_rate: Prisma.Decimal;
   affiliate: Affiliate | null;
+  commission_rate?: Prisma.Decimal;
+  financing_amount?: Prisma.Decimal;
 }
 
 // The balanced set describing one sale.
@@ -139,12 +141,13 @@ async function recordSaleEntries(
   const commission = saleDto.affiliate
     ? saleDto.gross
         .mul(
-          commercialTerms.commissionRateFor(
-            await tx.store.findUniqueOrThrow({
-              where: { id: saleDto.affiliate.store_id },
-              select: { commission_rate: true },
-            }),
-          ),
+          saleDto.commission_rate ??
+            commercialTerms.commissionRateFor(
+              await tx.store.findUniqueOrThrow({
+                where: { id: saleDto.affiliate.store_id },
+                select: { commission_rate: true },
+              }),
+            ),
         )
         .toDecimalPlaces(MONEY_SCALE, Prisma.Decimal.ROUND_HALF_UP)
     : new Prisma.Decimal(0);
@@ -162,10 +165,17 @@ async function recordSaleEntries(
     {
       ...sharedFields,
       account_type: "CONSUMER_PAYMENT",
-      amount: saleDto.gross,
+      amount: saleDto.gross.plus(saleDto.financing_amount ?? 0),
       description: "Gross payment received",
     },
   ];
+  if (saleDto.financing_amount?.greaterThan(0))
+    entries.push({
+      ...sharedFields,
+      account_type: "FINANCING_CLEARING",
+      amount: saleDto.financing_amount.negated(),
+      description: "Financing surcharge clearing",
+    });
 
   // A zero share is simply not written. The ledger refuses zero amounts, and a
   // row saying nothing moved would be noise in a statement.
@@ -220,7 +230,7 @@ async function recordSaleEntries(
 // The outlet is the payee, so there is nothing else to resolve. Who owns it does
 // not enter into it: an outlet keeps earning across a change of ownership, and
 // the commission is owed to the outlet whether or not anyone currently holds it.
-async function resolveAffiliateLeniently(
+export async function resolveAffiliateLeniently(
   client: Prisma.TransactionClient,
   storeSlug?: string,
   gameId?: string,
@@ -442,5 +452,68 @@ const library = {
   findAllPaginatedGamesByUserId,
   acquireGame,
 };
+
+// Called only by the locked, confirmed-payment settlement transaction.
+export async function fulfillPaidPurchase(
+  tx: Prisma.TransactionClient,
+  order: PurchaseOrder,
+  interestMinor: number,
+) {
+  if (
+    !order.paid_at ||
+    order.payment_status !== "PAID" ||
+    order.item_type !== "GAME" ||
+    !order.supplier_cost_rate
+  )
+    throw new ValidationError({ message: "Payment has not been confirmed." });
+  const existing = await tx.sale.findUnique({
+    where: { purchase_order_id: order.id },
+  });
+  if (existing) return existing;
+  await tx.libraryItem.upsert({
+    where: {
+      user_id_item_id_item_type: {
+        user_id: order.user_id,
+        item_id: order.item_id,
+        item_type: "GAME",
+      },
+    },
+    update: {},
+    create: {
+      user_id: order.user_id,
+      item_id: order.item_id,
+      item_type: "GAME",
+    },
+  });
+  const gross = new Prisma.Decimal(order.amount_minor).div(100);
+  const sale = await tx.sale.create({
+    data: {
+      purchase_order_id: order.id,
+      user_id: order.user_id,
+      game_id: order.item_id,
+      store_id: order.store_id,
+      store_revision_id: order.store_revision_id,
+      price_at_sale: gross,
+      currency: order.currency,
+      exchange_rate: order.exchange_rate,
+    },
+  });
+  await recordSaleEntries(tx, {
+    sale_id: sale.id,
+    gross,
+    currency: order.currency,
+    exchange_rate: order.exchange_rate,
+    supplier_cost_rate: order.supplier_cost_rate,
+    commission_rate: order.commission_rate,
+    financing_amount: new Prisma.Decimal(interestMinor).div(100),
+    affiliate: order.store_id
+      ? {
+          store_id: order.store_id,
+          store_revision_id: order.store_revision_id!,
+        }
+      : null,
+  });
+  return sale;
+}
 
 export default library;

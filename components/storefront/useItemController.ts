@@ -204,6 +204,30 @@ export function useItemController({
       if (redirectIfAuthenticationRequired(res)) return;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        if (body?.checkout_required) {
+          const account = await fetch("/api/v1/user", {
+            cache: "no-store",
+          }).then(okJson);
+          const storageKey = `game-purchase:${account.id}:${gameSlug}`;
+          let key = sessionStorage.getItem(storageKey);
+          if (!key) {
+            key = crypto.randomUUID();
+            sessionStorage.setItem(storageKey, key);
+          }
+          const order = await fetch("/api/v1/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              item_type: "GAME",
+              item_id: gameSlug,
+              store_slug: attributionStoreSlug,
+              idempotency_key: key,
+            }),
+          }).then(okJson);
+          await router.push(`/checkout/${order.id}`);
+          sessionStorage.removeItem(storageKey);
+          return;
+        }
         throw new Error(
           body?.message || "We could not add this game to your library.",
         );

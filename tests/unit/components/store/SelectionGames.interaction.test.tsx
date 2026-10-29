@@ -33,6 +33,8 @@ test("sale filtering retains author order and excludes stale captures", async ()
       original_amount: "20.00",
       discount_percent: 50,
       currency: "BRL",
+      url: "https://example.test/offer",
+      captured_at: null,
     },
     catalog_offer: {
       state: slug === "stale" ? ("stale" as const) : ("current" as const),

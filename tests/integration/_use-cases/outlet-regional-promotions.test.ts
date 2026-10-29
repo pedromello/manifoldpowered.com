@@ -120,7 +120,9 @@ test("regional promotions preserve preferred-market suppression, Nintendo fallba
   });
   const find = (country: string, curation = {}) =>
     promotionGameIds(
-      { headers: { "x-vercel-ip-country": country } } as NextApiRequest,
+      {
+        headers: { "x-vercel-ip-country": country },
+      } as unknown as NextApiRequest,
       curation,
       "USD",
     );
