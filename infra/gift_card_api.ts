@@ -87,6 +87,31 @@ export function minorValue(value: unknown, unit: "major" | "minor"): number {
   return amount;
 }
 
+type ConfigurationKey =
+  | "GIFT_CARD_PROVIDER_BASE_URL"
+  | "GIFT_CARD_PROVIDER_RESPONSE_MAPPING"
+  | "GIFT_CARD_PROVIDER_CONTRACT_VERIFIED"
+  | "GIFT_CARD_PROVIDER_ENVIRONMENT"
+  | "GIFT_CARD_PROVIDER_USERNAME"
+  | "GIFT_CARD_PROVIDER_PASSWORD"
+  | "GIFT_CARD_PROVIDER_TOKEN_SOURCE"
+  | "GIFT_CARD_PROVIDER_API_TOKEN";
+
+class GiftCardConfigurationError extends ServiceError {
+  constructor(invalid: ConfigurationKey[]) {
+    super({
+      message: "Gift card sandbox configuration requires verification.",
+      // The controller logs only this fixed vocabulary, never input values or
+      // parser errors. Public error serialization deliberately excludes it.
+      context: { invalid_configuration: invalid },
+    });
+  }
+
+  toJSON() {
+    return { ...super.toJSON(), context: undefined };
+  }
+}
+
 export function createEmailGiftProvider({
   transport = fetch,
 }: { transport?: typeof fetch } = {}): EmailGiftProvider {
@@ -95,32 +120,41 @@ export function createEmailGiftProvider({
   let mapping: z.infer<typeof mappingSchema>;
   const tokenSource =
     process.env.GIFT_CARD_PROVIDER_TOKEN_SOURCE || "configured";
+  const invalid: ConfigurationKey[] = [];
   try {
     base = new URL(process.env.GIFT_CARD_PROVIDER_BASE_URL!);
-    mapping = mappingSchema.parse(
-      JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
-    );
     if (
       base.protocol !== "https:" ||
       base.username ||
       base.password ||
       base.search ||
       base.hash ||
-      base.pathname !== "/" ||
-      process.env.GIFT_CARD_PROVIDER_CONTRACT_VERIFIED !== "true" ||
-      process.env.GIFT_CARD_PROVIDER_ENVIRONMENT !== "sandbox" ||
-      !process.env.GIFT_CARD_PROVIDER_USERNAME ||
-      !process.env.GIFT_CARD_PROVIDER_PASSWORD ||
-      !["configured", "login"].includes(tokenSource) ||
-      (tokenSource === "configured" &&
-        !process.env.GIFT_CARD_PROVIDER_API_TOKEN)
+      base.pathname !== "/"
     )
-      throw new Error();
+      invalid.push("GIFT_CARD_PROVIDER_BASE_URL");
   } catch {
-    throw new ServiceError({
-      message: "Gift card sandbox configuration requires verification.",
-    });
+    invalid.push("GIFT_CARD_PROVIDER_BASE_URL");
   }
+  try {
+    mapping = mappingSchema.parse(
+      JSON.parse(process.env.GIFT_CARD_PROVIDER_RESPONSE_MAPPING!),
+    );
+  } catch {
+    invalid.push("GIFT_CARD_PROVIDER_RESPONSE_MAPPING");
+  }
+  if (process.env.GIFT_CARD_PROVIDER_CONTRACT_VERIFIED !== "true")
+    invalid.push("GIFT_CARD_PROVIDER_CONTRACT_VERIFIED");
+  if (process.env.GIFT_CARD_PROVIDER_ENVIRONMENT !== "sandbox")
+    invalid.push("GIFT_CARD_PROVIDER_ENVIRONMENT");
+  if (!process.env.GIFT_CARD_PROVIDER_USERNAME)
+    invalid.push("GIFT_CARD_PROVIDER_USERNAME");
+  if (!process.env.GIFT_CARD_PROVIDER_PASSWORD)
+    invalid.push("GIFT_CARD_PROVIDER_PASSWORD");
+  if (!["configured", "login"].includes(tokenSource))
+    invalid.push("GIFT_CARD_PROVIDER_TOKEN_SOURCE");
+  if (tokenSource === "configured" && !process.env.GIFT_CARD_PROVIDER_API_TOKEN)
+    invalid.push("GIFT_CARD_PROVIDER_API_TOKEN");
+  if (invalid.length) throw new GiftCardConfigurationError(invalid);
   let token: { value: string; expires: number } | undefined;
   let authenticating: Promise<string> | undefined;
   async function request(

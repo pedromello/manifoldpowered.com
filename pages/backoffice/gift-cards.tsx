@@ -13,6 +13,21 @@ type Report = {
   remaining: number;
   last_error: string | null;
 };
+type Feedback =
+  | { key: string; label: string; state: "pending" }
+  | { key: string; label: string; state: "complete"; report?: Report }
+  | { key: string; label: string; state: "error"; message: string };
+
+function isReport(value: unknown): value is Report {
+  if (!value || typeof value !== "object") return false;
+  const report = value as Record<string, unknown>;
+  return (
+    ["processed", "succeeded", "failed", "remaining"].every(
+      (key) => Number.isSafeInteger(report[key]) && Number(report[key]) >= 0,
+    ) &&
+    (report.last_error === null || typeof report.last_error === "string")
+  );
+}
 type Summary = {
   recent_orders?: {
     id: string;
@@ -76,22 +91,18 @@ export default function GiftCardOperationsPage({
     { shouldRetryOnError: false, revalidateOnFocus: false },
   );
   const [busy, setBusy] = useState<string | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
-  const [report, setReport] = useState<{
-    label: string;
-    result: Report;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [orderId, setOrderId] = useState("");
 
   async function run(
     action: string,
     body: Record<string, unknown> = {},
-    label = "Operation completed",
+    label = "Data updated recently",
+    feedbackKey = action,
   ) {
     if (busy) return;
-    setBusy(action);
-    setFailure(null);
-    setReport(null);
+    setBusy(feedbackKey);
+    setFeedback({ key: feedbackKey, label, state: "pending" });
     try {
       const response = await fetch(`/api/v1/backoffice/gift-cards/${action}`, {
         method: "POST",
@@ -103,18 +114,70 @@ export default function GiftCardOperationsPage({
         throw new Error(
           result?.message || "The operation could not be completed.",
         );
-      if (action !== "products") setReport({ label, result });
-      await mutate();
+      if (action !== "products" && !isReport(result))
+        throw new Error("The operation could not be completed.");
+      setFeedback({
+        key: feedbackKey,
+        label,
+        state: "complete",
+        ...(action !== "products" ? { report: result as Report } : {}),
+      });
     } catch (cause) {
-      setFailure(
-        translateError(
+      setFeedback({
+        key: feedbackKey,
+        label,
+        state: "error",
+        message: translateError(
           cause instanceof Error ? cause.message : undefined,
           "The operation could not be completed.",
         ),
-      );
+      });
     } finally {
+      try {
+        // A failed operation may still record useful summary state. A refresh
+        // failure must not replace its original result or error.
+        await mutate();
+      } catch {}
       setBusy(null);
     }
+  }
+
+  function feedbackFor(key: string) {
+    if (feedback?.key !== key) return null;
+    if (feedback.state === "pending")
+      return (
+        <p role="status" aria-atomic="true" className="text-sm text-violet-200">
+          {t("Please wait")}
+        </p>
+      );
+    if (feedback.state === "error")
+      return (
+        <p
+          role="alert"
+          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200"
+        >
+          {feedback.message}
+        </p>
+      );
+    const report = feedback.report;
+    const failed = Boolean(report?.failed || report?.last_error);
+    return (
+      <div
+        role={failed ? "alert" : "status"}
+        aria-atomic="true"
+        className={`rounded-lg border p-3 text-sm ${failed ? "border-amber-400/25 bg-amber-400/10 text-amber-200" : "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"}`}
+      >
+        <p className="font-bold">{t(feedback.label)}</p>
+        {report && (
+          <p className="mt-2">
+            {t("Processed")}: {report.processed} · {t("Succeeded")}:{" "}
+            {report.succeeded} · {t("Failed")}: {report.failed} ·{" "}
+            {t("Remaining")}: {report.remaining}
+          </p>
+        )}
+        {report?.last_error && <p className="mt-2">{report.last_error}</p>}
+      </div>
+    );
   }
 
   return (
@@ -147,14 +210,6 @@ export default function GiftCardOperationsPage({
             {t("Gift card operations are unavailable.")}
           </p>
         )}
-        {failure && (
-          <p
-            role="alert"
-            className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-rose-200"
-          >
-            {failure}
-          </p>
-        )}
         {data && (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -184,6 +239,7 @@ export default function GiftCardOperationsPage({
                 {actions.map(({ action, label, description }) => (
                   <div
                     key={action}
+                    aria-busy={busy === action}
                     className="flex flex-col items-start gap-3 rounded-xl border border-white/10 p-5"
                   >
                     <h3 className="font-bold">{t(label)}</h3>
@@ -201,28 +257,10 @@ export default function GiftCardOperationsPage({
                       )}
                       {t("Run now")}
                     </button>
+                    {feedbackFor(action)}
                   </div>
                 ))}
               </div>
-              {report && (
-                <div
-                  role="status"
-                  className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4"
-                >
-                  <p className="font-bold">{t(report.label)}</p>
-                  <p className="mt-2 text-sm">
-                    {t("Processed")}: {report.result.processed} ·{" "}
-                    {t("Succeeded")}: {report.result.succeeded} · {t("Failed")}:{" "}
-                    {report.result.failed} · {t("Remaining")}:{" "}
-                    {report.result.remaining}
-                  </p>
-                  {report.result.last_error && (
-                    <p className="mt-2 text-sm text-amber-200">
-                      {report.result.last_error}
-                    </p>
-                  )}
-                </div>
-              )}
             </section>
             {manualTracking && (
               <section className="space-y-3 rounded-xl border border-white/10 p-5">
@@ -240,6 +278,7 @@ export default function GiftCardOperationsPage({
                       "track-deliveries",
                       { order_id: orderId.trim(), force: true },
                       "Check one delivery now",
+                      "early-tracking",
                     );
                   }}
                 >
@@ -262,6 +301,7 @@ export default function GiftCardOperationsPage({
                     {t("Check now")}
                   </button>
                 </form>
+                {feedbackFor("early-tracking")}
               </section>
             )}
             <section className="space-y-3">
@@ -275,6 +315,7 @@ export default function GiftCardOperationsPage({
               {data.last_error && (
                 <p className="text-sm text-amber-200">{data.last_error}</p>
               )}
+              {feedbackFor("products")}
               <div className="overflow-x-auto rounded-xl border border-white/10">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-white/[0.04] text-white/50">
