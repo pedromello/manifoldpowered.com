@@ -224,6 +224,32 @@ test("does not replay a submission on authentication failure", async () => {
   expect(transport).toHaveBeenCalledTimes(2);
 });
 
+test("serializes an absent optional recipient document as null", async () => {
+  const transport = jest
+    .fn()
+    .mockResolvedValueOnce(login())
+    .mockResolvedValueOnce(
+      json({ state: 1, reference: "synthetic-reference" }),
+    );
+  const result = await createEmailGiftProvider({ transport }).submit({
+    request_id: "synthetic-order",
+    sku: "synthetic-sku",
+    amount_minor: 2500,
+    recipient: { name: "Sample Buyer", email: "buyer@example.test" },
+  });
+  expect(result.status).toBe("pending");
+  expect(transport).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(transport.mock.calls[1][1].body)).toEqual({
+    token: "synthetic-api-token",
+    codRequest: "synthetic-order",
+    sku: "synthetic-sku",
+    price: 25,
+    name: "Sample Buyer",
+    document: null,
+    email: "buyer@example.test",
+  });
+});
+
 test("submission acceptance cannot complete delivery and unexpected secrets are discarded", async () => {
   const transport = jest
     .fn()
@@ -251,6 +277,7 @@ test("submission acceptance cannot complete delivery and unexpected secrets are 
   expect(JSON.parse(transport.mock.calls[1][1].body)).toMatchObject({
     codRequest: "synthetic-order",
     price: 25,
+    document: "00000000000",
     email: "buyer@example.test",
   });
 });

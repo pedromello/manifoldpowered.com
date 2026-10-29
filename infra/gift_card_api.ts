@@ -408,7 +408,7 @@ function createEmailGiftClient({
           sku: input.sku,
           price: input.amount_minor / 100,
           name: input.recipient.name,
-          document: input.recipient.document ?? "",
+          document: input.recipient.document ?? null,
           email: input.recipient.email,
         },
         bearer,
