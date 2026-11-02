@@ -15,6 +15,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "prices:refresh": "tsx scripts/refresh-prices.ts",
     "cli": "tsx tools/cli/src/index.ts",
     "cli:build": "node tools/cli/build.mjs",
     "cli:test": "tsx --test tools/cli/tests/*.test.ts",

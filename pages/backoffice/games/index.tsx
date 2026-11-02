@@ -3,6 +3,7 @@ import Head from "next/head";
 import useSWR, { mutate } from "swr";
 import { CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import { BackofficeLayout } from "components/backoffice/BackofficeLayout";
+import { PriceRefreshPanel } from "components/backoffice/PriceRefreshPanel";
 import { useI18n } from "lib/i18n";
 
 interface BackofficeGame {
@@ -156,6 +157,8 @@ export default function BackofficeGamesPage() {
             </button>
           )}
         </div>
+
+        <PriceRefreshPanel />
 
         {actionError && (
           <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-bold">

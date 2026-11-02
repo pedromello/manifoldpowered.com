@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withRetryAfter } from "./provider_retry";
 import {
   NotFoundError,
   ServiceError,
@@ -250,7 +251,10 @@ export async function fetchProduct(
           action: "Check the product link.",
         });
       if (!response.ok)
-        throw invalidPlayStationData(undefined, `HTTP_${response.status}`);
+        throw withRetryAfter(
+          invalidPlayStationData(undefined, `HTTP_${response.status}`),
+          response,
+        );
       const reader = response.body?.getReader();
       if (!reader) throw invalidPlayStationData();
       const decoder = new TextDecoder();

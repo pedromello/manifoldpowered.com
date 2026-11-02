@@ -219,6 +219,48 @@ model GameOwnershipClaim {
   @@map("game_ownership_claims")
 }
 
+model PriceRefreshRun {
+  id           String             @id @default(uuid())
+  provider     String             @default("ALL")
+  status       String             @default("QUEUED")
+  requested_by String?
+  created_at   DateTime           @default(now())
+  updated_at   DateTime           @updatedAt
+  started_at   DateTime?
+  finished_at  DateTime?
+  heartbeat_at DateTime?
+  lease_token  String?
+  lease_until  DateTime?
+  error_code   String?
+  items        PriceRefreshItem[]
+
+  @@index([status, created_at])
+  @@map("price_refresh_runs")
+}
+
+model PriceRefreshItem {
+  id          String          @id @default(uuid())
+  run_id      String
+  game_id     String
+  title       String
+  provider    String
+  country     String
+  external_id String
+  url         String?
+  status      String          @default("PENDING")
+  attempts    Int             @default(0)
+  before      Json?
+  after       Json?
+  error_code  String?
+  checked_at  DateTime?
+  retry_at    DateTime?
+  run         PriceRefreshRun @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  @@unique([run_id, game_id, provider, country])
+  @@index([run_id, status, provider])
+  @@map("price_refresh_items")
+}
+
 model GameExternalOffer {
   expires_at       DateTime? @db.Timestamptz(3)
   id               String    @id @default(uuid())
