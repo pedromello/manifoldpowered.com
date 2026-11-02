@@ -1,0 +1,37 @@
+name: Catalog price refresh
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Existing price refresh run UUID from Backoffice
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: catalog-price-refresh-production
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run prices:refresh -- --run-id "$PRICE_RUN_ID"
+        env:
+          PRICE_RUN_ID: ${{ inputs.run_id }}
+          NODE_ENV: production
+          POSTGRES_HOST: ${{ secrets.PRODUCTION_POSTGRES_HOST }}
+          POSTGRES_PORT: ${{ secrets.PRODUCTION_POSTGRES_PORT }}
+          POSTGRES_USER: ${{ secrets.PRODUCTION_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.PRODUCTION_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.PRODUCTION_POSTGRES_DB }}

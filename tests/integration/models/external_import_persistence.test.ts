@@ -87,7 +87,7 @@ test.each([
             return Reflect.get(target, property, receiver);
           return async (args: Prisma.GameFindUniqueArgs) => {
             const observed = await target.findUnique(args);
-            if (!intervened && observed?.id === previous.id) {
+            if (!args.select && !intervened && observed?.id === previous.id) {
               // Deterministically reproduce an intervening decision while
               // returning the stale eligible row to the persistence service.
               await target.update({ where: { id: previous.id }, data: change });

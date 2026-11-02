@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { withRetryAfter } from "./provider_retry";
 import { playerCountSchema } from "lib/game_features";
 import {
   NotFoundError,
@@ -179,7 +180,10 @@ export async function fetchProduct(
           action: "Check the product link.",
         });
       if (!response.ok)
-        throw invalidNintendoData(undefined, `HTTP_${response.status}`);
+        throw withRetryAfter(
+          invalidNintendoData(undefined, `HTTP_${response.status}`),
+          response,
+        );
       // Bound the public HTML body as well as the request duration.
       const reader = response.body?.getReader();
       if (!reader) throw invalidNintendoData();

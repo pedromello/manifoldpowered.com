@@ -59,6 +59,12 @@ export function createStorePersistence(binding: StorePersistenceBinding) {
   ) {
     await binding.lock?.(tx, snapshot.externalId);
     const identity = binding.identity(snapshot.externalId);
+    const existing = await tx.game.findUnique({
+      where: identity,
+      select: { id: true },
+    });
+    if (existing)
+      await tx.$queryRaw`SELECT id FROM games WHERE id = ${existing.id} FOR UPDATE`;
     const previous = await tx.game.findUnique({ where: identity });
     // Recheck decisions made while the catalog HTTP requests were in flight.
     if (previous && !binding.canRefresh(previous))
@@ -77,7 +83,11 @@ export function createStorePersistence(binding: StorePersistenceBinding) {
           fields.meta_tags.features ?? {},
         ),
       },
-      ...binding.legacyPrices?.(snapshot, previous),
+      ...(!previous?.steam_price_captured_at ||
+      (snapshot.primaryPrice &&
+        snapshot.primaryPrice.captured_at > previous.steam_price_captured_at)
+        ? binding.legacyPrices?.(snapshot, previous)
+        : {}),
     };
     if (!previous) {
       const collision = await tx.game.findUnique({
@@ -112,6 +122,11 @@ export function createStorePersistence(binding: StorePersistenceBinding) {
         provider: binding.source,
         country: offer.country,
       };
+      const currentOffer = await tx.gameExternalOffer.findUnique({
+        where: { game_id_provider_country: key },
+      });
+      if (currentOffer && currentOffer.captured_at >= offer.captured_at)
+        continue;
       if (offer.amount === null) {
         if (previous && !binding.createUnknownOffersOnRefresh) continue;
         if (

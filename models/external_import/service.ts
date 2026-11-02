@@ -61,7 +61,14 @@ export function createStoreImportService<
     };
     try {
       // All HTTP work finishes before opening the short, fenced write transaction.
+      const collectedAt = new Date();
       const snapshot = await strategy.fetchSnapshot(reference, audit);
+      // Timestamp the beginning of collection, not the eventual response/write.
+      snapshot.offers.forEach((offer) => {
+        offer.captured_at = collectedAt;
+      });
+      if (snapshot.primaryPrice)
+        snapshot.primaryPrice.captured_at = collectedAt;
       audit.failureOutcome = "INVALID_DATA";
       const result = await dependencies.transaction(async (tx) => {
         await coordination.fence(tx, reservation.row);
