@@ -85,6 +85,7 @@ test("a worker that loses its lease cannot commit an in-flight price", async () 
 });
 test("duplicate starts converge; price-only refresh preserves editorial fields and local prices", async () => {
   const game = await seed();
+  const attemptsBefore = await prisma.steamImportAttempt.count();
   jest
     .mocked(collectPrice)
     .mockImplementation(async (ref) => offer(ref.country));
@@ -106,7 +107,7 @@ test("duplicate starts converge; price-only refresh preserves editorial fields a
   expect(saved.base_price.toString()).toBe("80");
   expect(saved.steam_price.toString()).toBe("10");
   expect(saved.steam_price_currency).toBe("USD");
-  expect(await prisma.steamImportAttempt.count()).toBe(0);
+  expect(await prisma.steamImportAttempt.count()).toBe(attemptsBefore);
 });
 test("partial failure preserves existing prices and retry only visits failed regions", async () => {
   const game = await seed();
