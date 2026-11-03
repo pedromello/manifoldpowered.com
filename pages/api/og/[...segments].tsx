@@ -33,8 +33,6 @@ export const config = { runtime: "edge" };
 
 const IMAGE_TIMEOUT_MS = 2500;
 const MAX_REMOTE_IMAGE_BYTES = 5 * 1024 * 1024;
-const SHARED_CACHE_CONTROL =
-  "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -733,7 +731,7 @@ export default async function handler(request: NextRequest) {
 
   let card: React.ReactElement;
   let imageHeaders: Record<string, string> = {
-    "Cache-Control": SHARED_CACHE_CONTROL,
+    "Cache-Control": "no-store",
     "Content-Disposition": "inline",
   };
 
@@ -821,7 +819,11 @@ export default async function handler(request: NextRequest) {
     );
     gameUrl.searchParams.set("locale", locale);
     const game = await fetchPublicJson<GameDetailApi>(gameUrl);
-    if (!game) return new Response("Game not found", { status: 404 });
+    if (!game)
+      return new Response("Game not found", {
+        status: 404,
+        headers: imageHeaders,
+      });
 
     const [brandLogo, artwork] = await Promise.all([
       loadImageData("/images/brand/manifold-logo.png", url.origin, true),

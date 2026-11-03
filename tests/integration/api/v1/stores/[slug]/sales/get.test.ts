@@ -65,6 +65,7 @@ describe("GET /api/v1/stores/[slug]/sales", () => {
 
       // Acquire another game with no store context (should NOT show up here).
       const otherGame = await orchestrator.createGame(creator.id);
+      await gameModel.makePublic(otherGame.id);
       const globalPurchase = await fetch(
         `${webserver.getOrigin()}/api/v1/library`,
         {

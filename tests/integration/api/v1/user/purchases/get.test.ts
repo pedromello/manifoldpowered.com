@@ -35,7 +35,8 @@ async function acquire(sessionToken, gameSlug, storeSlug = undefined) {
 async function createDeveloperWithGame() {
   const developer = await orchestrator.createUser();
   await orchestrator.activateUser(developer.id);
-  return await orchestrator.createGame(developer.id);
+  const game = await orchestrator.createGame(developer.id);
+  return gameModel.makePublic(game.id);
 }
 
 describe("GET /api/v1/user/purchases", () => {
@@ -105,7 +106,6 @@ describe("GET /api/v1/user/purchases", () => {
 
     test("Should record the outlet they bought through", async () => {
       const game = await createDeveloperWithGame();
-      await gameModel.makePublic(game.id);
 
       const referrer = await orchestrator.createUser();
       await orchestrator.activateUser(referrer.id);

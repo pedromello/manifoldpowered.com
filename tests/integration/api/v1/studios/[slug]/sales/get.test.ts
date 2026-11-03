@@ -29,7 +29,7 @@ async function seedStudioWithSale({ storeSlug = undefined } = {}) {
   const game = await orchestrator.createGame(developer.id, {
     studio_id: studio.id,
   });
-  if (storeSlug) await gameModel.makePublic(game.id);
+  await gameModel.makePublic(game.id);
 
   const buyer = await orchestrator.createUser();
   await orchestrator.activateUser(buyer.id);
