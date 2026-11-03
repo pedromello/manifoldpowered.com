@@ -124,7 +124,7 @@ The four buttons call the same bounded operations intended for future cron use:
 
 1. **Sync catalog**: authenticate, import and validate products using the read-only
    catalog client. New entries remain disabled even while contract verification
-   is pending. Review denominations and use **Enable sales** on the products
+   is pending. Review denominations and use **Enable** on the products
    approved for the test; enabling an entry does not bypass the checkout gate.
 2. **Reconcile payments**: retrieve and validate pending payments. After a buyer
    confirms recipient details and completes Stripe test checkout, run this until

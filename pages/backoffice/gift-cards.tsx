@@ -347,24 +347,28 @@ export default function GiftCardOperationsPage({
                             : t("Unavailable")}
                         </td>
                         <td className="p-4">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={product.enabled}
-                            aria-label={`${t("Enable sales")}: ${product.name}`}
-                            disabled={
-                              !!busy || (!product.available && !product.enabled)
-                            }
-                            onClick={() =>
-                              void run("products", {
-                                code: product.code,
-                                enabled: !product.enabled,
-                              })
-                            }
-                            className="rounded-lg border border-white/20 px-3 py-2 font-bold disabled:opacity-40"
-                          >
-                            {product.enabled ? t("Enabled") : t("Disabled")}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="whitespace-nowrap text-white/70">
+                              {product.enabled ? t("Enabled") : t("Disabled")}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`${t(product.enabled ? "Disable" : "Enable")}: ${product.name}`}
+                              disabled={
+                                !!busy ||
+                                (!product.available && !product.enabled)
+                              }
+                              onClick={() =>
+                                void run("products", {
+                                  code: product.code,
+                                  enabled: !product.enabled,
+                                })
+                              }
+                              className="rounded-lg border border-white/20 px-3 py-2 font-bold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:opacity-40"
+                            >
+                              {t(product.enabled ? "Disable" : "Enable")}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

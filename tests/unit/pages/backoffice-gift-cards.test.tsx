@@ -108,6 +108,41 @@ async function settle() {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+test.each([
+  [false, "Disabled", "Enable"],
+  [true, "Enabled", "Disable"],
+] as const)(
+  "sales enabled=%s displays %s beside the %s action",
+  (enabled, status, action) => {
+    const name = "Synthetic gift card";
+    summary.products = [
+      {
+        id: "synthetic-product",
+        code: "synthetic-product",
+        name,
+        amount_minor: 2500,
+        currency: "BRL",
+        enabled,
+        available: true,
+      },
+    ];
+
+    const row = elements(render()).find(
+      (element) => element.type === "tr" && text(element).includes(name),
+    );
+    const sales = elements(row)
+      .filter((element) => element.type === "td")
+      .at(-1);
+    const statusLabel = elements(sales).find(
+      (element) => element.type === "span",
+    );
+    const button = elements(sales).find((element) => element.type === "button");
+    expect(text(statusLabel)).toBe(status);
+    expect(text(button)).toBe(action);
+    expect(button?.props["aria-label"]).toBe(`${action}: ${name}`);
+  },
+);
+
 test("a successful sync keeps its pending and completion feedback beside the clicked button and refreshes products", async () => {
   let finish!: (value: Response) => void;
   jest.mocked(global.fetch).mockReturnValue(
