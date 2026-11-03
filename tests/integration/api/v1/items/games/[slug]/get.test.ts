@@ -19,6 +19,7 @@ describe("GET /api/v1/items/games/[slug]", () => {
       const user = await orchestrator.createUser();
       await orchestrator.activateUser(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       // Act
       const response = await fetch(
@@ -55,6 +56,21 @@ describe("GET /api/v1/items/games/[slug]", () => {
         status_code: 404,
       });
     });
+
+    test.each(["PRIVATE", "INACTIVE"] as const)(
+      "returns 404 for a game with status %s",
+      async (status) => {
+        const owner = await orchestrator.createUser();
+        const game = await orchestrator.createGame(owner.id, { price: 10 });
+        await gameModel.setStatus(game.id, status);
+
+        const response = await fetch(
+          `${webserver.getOrigin()}/api/v1/items/games/${game.slug}`,
+        );
+
+        expect(response.status).toBe(404);
+      },
+    );
   });
 
   describe("Authenticated user", () => {
@@ -64,6 +80,7 @@ describe("GET /api/v1/items/games/[slug]", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       // Act
       const response = await fetch(

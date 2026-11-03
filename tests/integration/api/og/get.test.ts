@@ -1,4 +1,5 @@
 import webserver from "infra/webserver";
+import gameModel from "models/game";
 import orchestrator from "tests/orchestrator";
 import {
   createReadyDraft,
@@ -142,7 +143,7 @@ describe("GET /api/og/[...segments]", () => {
     expect(response.headers.get("etag")).toBe(etag);
   });
 
-  test("renders a game preview without remote artwork", async () => {
+  test("only serves the game preview while the game is public", async () => {
     const owner = await orchestrator.createUser();
     await orchestrator.activateUser(owner.id);
     const game = await orchestrator.createGame(owner.id, {
@@ -152,7 +153,14 @@ describe("GET /api/og/[...segments]", () => {
       media: { screenshots: [], videos: [] },
     });
 
-    await expectPng(`/api/og/game/${game.slug}?locale=en`, "public");
+    const path = `/api/og/game/${game.slug}?locale=en`;
+    await gameModel.setStatus(game.id, "ONLY_DISPLAY");
+    await expectPng(path, "no-store");
+
+    await gameModel.setStatus(game.id, "PRIVATE");
+    const response = await fetch(`${webserver.getOrigin()}${path}`);
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
   });
 
   test("returns 404 for an unknown preview kind", async () => {

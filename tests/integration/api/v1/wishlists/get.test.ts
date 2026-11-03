@@ -1,3 +1,4 @@
+import gameModel from "models/game";
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import { prisma } from "infra/database";
@@ -26,6 +27,7 @@ describe("GET /api/v1/wishlists", () => {
     test("With anonymous user should return count and is_wishlisted false", async () => {
       const user = await orchestrator.createUser();
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       await prisma.wishlistItem.create({
         data: { user_id: user.id, game_id: game.id },
@@ -48,6 +50,7 @@ describe("GET /api/v1/wishlists", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       await prisma.wishlistItem.create({
         data: { user_id: user.id, game_id: game.id },

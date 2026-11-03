@@ -1,3 +1,4 @@
+import gameModel from "models/game";
 import { prisma } from "infra/database";
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
@@ -24,6 +25,7 @@ describe("Outlet publication attribution", () => {
       title: "Unknown Outlet Attribution",
       price: 0,
     });
+    await gameModel.makePublic(game.id);
     const buyer = await createLifecycleActor();
 
     const response = await libraryRequest(

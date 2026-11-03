@@ -1,3 +1,4 @@
+import gameModel from "models/game";
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import { prisma } from "infra/database";
@@ -37,6 +38,7 @@ describe("DELETE /api/v1/wishlists", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       await prisma.wishlistItem.create({
         data: {
