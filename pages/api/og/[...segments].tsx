@@ -25,6 +25,7 @@ import {
   loadPreviewBanners,
   previewGames,
   publishedFeaturedGames,
+  type PreviewBanner,
   type PreviewGame,
 } from "lib/social-preview";
 
@@ -61,37 +62,50 @@ type PublishedStoreApi = StoreApi & {
   published_at: string;
 };
 
-const HOME_CATALOG_ART = [
-  {
-    title: "Twisted Tower",
-    url: "/images/social/home-catalog/twisted-tower.jpg",
-  },
-  {
-    title: "MMO98",
-    url: "/images/social/home-catalog/mmo98.jpg",
-  },
-  {
-    title: "Capyvarias",
-    url: "/images/social/home-catalog/capyvarias.jpg",
-  },
-] as const;
-
 function requestLocale(request: NextRequest): AppLocale {
   return new URL(request.url).searchParams.get("locale") === "pt-BR"
     ? "pt-BR"
     : "en";
 }
 
-async function fetchPublicJson<T>(url: URL): Promise<T | null> {
+async function fetchPublicJson<T>(
+  url: URL,
+  signal?: AbortSignal,
+): Promise<T | null> {
   const response = await fetch(url, {
     headers: { accept: "application/json" },
     cache: "no-store",
+    ...(signal && { signal }),
   });
 
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Content API returned ${response.status}`);
 
   return response.json() as Promise<T>;
+}
+
+async function loadHomeCatalogArt(origin: string, locale: AppLocale) {
+  const url = new URL("/api/v1/games", origin);
+  url.searchParams.set("locale", locale);
+  url.searchParams.set("social_preview", "1");
+  url.searchParams.set("order", "newest");
+  url.searchParams.set("limit", "12");
+
+  try {
+    const data = await fetchPublicJson<{ games: GameDetailApi[] }>(
+      url,
+      AbortSignal.timeout(4000),
+    );
+    const games = Array.isArray(data?.games) ? data.games : [];
+    const publicGames = games.filter(
+      (game) => game?.status === "ACTIVE" || game?.status === "ONLY_DISPLAY",
+    );
+    return loadPreviewBanners(previewGames(publicGames), (candidate) =>
+      loadImageData(candidate, origin),
+    );
+  } catch {
+    return [];
+  }
 }
 
 function bytesToDataUrl(bytes: Uint8Array, contentType: string): string {
@@ -473,7 +487,7 @@ function HomeCard({
 }: {
   locale: AppLocale;
   logo: string | null;
-  catalogArt: Array<{ title: string; image: string }>;
+  catalogArt: PreviewBanner[];
 }) {
   const metadata = homeMetadata(locale);
 
@@ -500,7 +514,7 @@ function HomeCard({
       >
         {catalogArt.map((art, index) => (
           <div
-            key={art.title}
+            key={art.slug}
             style={{
               position: "absolute",
               top: index * 128,
@@ -518,7 +532,7 @@ function HomeCard({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              alt=""
+              alt={art.title}
               src={art.image}
               width={340}
               height={174}
@@ -724,26 +738,15 @@ export default async function handler(request: NextRequest) {
   };
 
   if (kind === "home" && !slug && segments.length === 1) {
-    const brandLogo = await loadImageData(
-      "/images/brand/manifold-logo.png",
-      url.origin,
-      true,
-    );
-    const catalogImages = await Promise.all(
-      HOME_CATALOG_ART.map(async (art) => ({
-        title: art.title,
-        image: await loadImageData(art.url, url.origin, true),
-      })),
-    );
-    card = (
-      <HomeCard
-        locale={locale}
-        logo={brandLogo}
-        catalogArt={catalogImages.flatMap((art) =>
-          art.image ? [{ title: art.title, image: art.image }] : [],
-        )}
-      />
-    );
+    const [logo, catalogArt] = await Promise.all([
+      loadImageData("/images/brand/manifold-logo.png", url.origin, true),
+      loadHomeCatalogArt(url.origin, locale),
+    ]);
+    const props = { locale, logo, catalogArt };
+    imageHeaders = await composedPreviewHeaders("home", locale, props);
+    if (request.headers.get("if-none-match") === imageHeaders.ETag)
+      return new Response(null, { status: 304, headers: imageHeaders });
+    card = <HomeCard {...props} />;
   } else if (kind === "outlet" && slug && segments.length === 2) {
     const data = await loadOutletPreview(url.origin, slug, locale);
     if (!data)

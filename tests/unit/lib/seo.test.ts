@@ -148,6 +148,12 @@ describe("SEO helpers", () => {
     );
   });
 
+  test("versions the home preview URL", () => {
+    expect(socialImageUrl("home", "pt-BR")).toBe(
+      "https://www.manifoldpowered.com/api/og/home?locale=pt-BR&design=2",
+    );
+  });
+
   test("versions published Outlet artwork without changing its canonical URL", () => {
     expect(
       socialImageUrl(
