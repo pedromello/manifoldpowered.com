@@ -58,14 +58,127 @@ export interface EmailGiftProvider {
 }
 export type EmailGiftCatalogProvider = Pick<EmailGiftProvider, "products">;
 
+const requestFields = [
+  "username",
+  "password",
+  "token",
+  "codRequest",
+  "sku",
+  "price",
+  "name",
+  "document",
+  "email",
+] as const;
+const apiOperations = ["authentication", "catalog", "submit", "track"] as const;
+export type GiftCardInvalidField = (typeof requestFields)[number];
+export type GiftCardApiOperation = (typeof apiOperations)[number];
+
 export class GiftCardApiError extends Error {
+  public readonly http_status: number | null;
+  public readonly invalid_fields: readonly GiftCardInvalidField[];
+  public readonly operation: GiftCardApiOperation | null;
   constructor(
     public readonly category: string,
     public readonly retry_after_ms = 0,
+    details: {
+      http_status?: number | null;
+      invalid_fields?: readonly GiftCardInvalidField[];
+      operation?: GiftCardApiOperation | null;
+    } = {},
   ) {
     super("Gift card service is temporarily unavailable.");
     this.name = "GiftCardApiError";
+    this.http_status =
+      Number.isInteger(details.http_status) &&
+      details.http_status >= 100 &&
+      details.http_status <= 599
+        ? details.http_status
+        : null;
+    const fields = Array.isArray(details.invalid_fields)
+      ? details.invalid_fields
+      : [];
+    this.invalid_fields = Object.freeze(
+      requestFields.filter((field) => fields.includes(field)),
+    );
+    this.operation = apiOperations.includes(details.operation)
+      ? details.operation
+      : null;
   }
+}
+
+async function failureBody(response: Response): Promise<unknown> {
+  if (!response.body) return undefined;
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder();
+  let text = "",
+    length = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      length += chunk.value.byteLength;
+      if (length > 16384) {
+        await reader.cancel();
+        return undefined;
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode());
+  } catch {
+    return undefined;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function failureDetails(body: unknown, operation: GiftCardApiOperation) {
+  const fields = fieldAt(body, "invalidFields");
+  const allowed: readonly GiftCardInvalidField[] =
+    operation === "authentication"
+      ? ["username", "password"]
+      : operation === "catalog"
+        ? ["token"]
+        : operation === "track"
+          ? ["token", "codRequest"]
+          : [
+              "token",
+              "codRequest",
+              "sku",
+              "price",
+              "name",
+              "document",
+              "email",
+            ];
+  const invalid = new Set<GiftCardInvalidField>();
+  if (Array.isArray(fields)) {
+    for (const item of fields.slice(0, 32)) {
+      const key = fieldAt(item, "key");
+      if (typeof key !== "string" || key.length > 64) continue;
+      const canonical = allowed.find(
+        (field) => field.toLowerCase() === key.trim().toLowerCase(),
+      );
+      if (canonical) invalid.add(canonical);
+    }
+  }
+  const notifications = fieldAt(body, "notifications");
+  const notFound =
+    Array.isArray(notifications) &&
+    notifications.slice(0, 32).some(
+      (value) =>
+        typeof value === "string" &&
+        value.length <= 1024 &&
+        /\b(?:not found|nao encontrad[oa])\b/.test(
+          value
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase(),
+        ),
+    );
+  return {
+    invalid_fields: [...invalid],
+    has_invalid_fields: Array.isArray(fields) && fields.length > 0,
+    not_found: notFound,
+  };
 }
 export const emailGiftCardsSelected = () =>
   process.env.GIFT_CARD_PROVIDER === "api";
@@ -186,6 +299,7 @@ function createEmailGiftClient({
   let token: { value: string; expires: number } | undefined;
   let authenticating: Promise<string> | undefined;
   async function request(
+    operation: GiftCardApiOperation,
     path: string,
     body?: unknown,
     bearer?: string,
@@ -198,12 +312,16 @@ function createEmailGiftClient({
     if (
       catalogOnly &&
       !(
-        (target.pathname === "/api/authentication/login" &&
+        (operation === "authentication" &&
+          target.pathname === "/api/authentication/login" &&
           body !== undefined) ||
-        (target.pathname.startsWith("/api/products/") && body === undefined)
+        (operation === "catalog" &&
+          target.pathname.startsWith("/api/products/") &&
+          body === undefined)
       )
     )
       throw new GiftCardApiError("CATALOG_ONLY");
+    let httpStatus: number | null = null;
     try {
       const response = await transport(target, {
         method: body === undefined ? "GET" : "POST",
@@ -217,7 +335,9 @@ function createEmailGiftClient({
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
+      httpStatus = response.status;
       if (!response.ok) {
+        const detail = failureDetails(await failureBody(response), operation);
         const raw = response.headers.get("retry-after");
         const retry = raw
           ? /^\d+$/.test(raw)
@@ -225,12 +345,24 @@ function createEmailGiftClient({
             : Date.parse(raw) - Date.now()
           : 0;
         throw new GiftCardApiError(
-          response.status === 401
+          response.status === 401 || response.status === 403
             ? "AUTHENTICATION_FAILED"
             : response.status === 429
               ? "RATE_LIMITED"
-              : "PROVIDER_UNAVAILABLE",
+              : operation === "track" &&
+                  response.status === 400 &&
+                  !detail.has_invalid_fields &&
+                  detail.not_found
+                ? "TRACKING_NOT_FOUND"
+                : response.status === 400 || response.status === 422
+                  ? "VALIDATION_FAILED"
+                  : "PROVIDER_UNAVAILABLE",
           Math.min(86400000, Math.max(0, Number.isFinite(retry) ? retry : 0)),
+          {
+            http_status: response.status,
+            invalid_fields: detail.invalid_fields,
+            operation,
+          },
         );
       }
       const content = await response.text();
@@ -241,17 +373,24 @@ function createEmailGiftClient({
       // Fetch errors contain URLs with credentials in path/query. Never retain
       // the original exception, its cause, or any response body.
       if (error instanceof GiftCardApiError) throw error;
-      throw new GiftCardApiError("PROVIDER_UNAVAILABLE");
+      throw new GiftCardApiError("PROVIDER_UNAVAILABLE", 0, {
+        http_status: httpStatus,
+        operation,
+      });
     }
   }
   async function authenticate(): Promise<string> {
     if (token && token.expires > Date.now() + 60000) return token.value;
     if (authenticating) return authenticating;
     authenticating = (async () => {
-      const data = await request("/api/authentication/login", {
-        username: process.env.GIFT_CARD_PROVIDER_USERNAME,
-        password: process.env.GIFT_CARD_PROVIDER_PASSWORD,
-      });
+      const data = await request(
+        "authentication",
+        "/api/authentication/login",
+        {
+          username: process.env.GIFT_CARD_PROVIDER_USERNAME,
+          password: process.env.GIFT_CARD_PROVIDER_PASSWORD,
+        },
+      );
       // The sandbox may wrap the authentication model in a data envelope.
       // A malformed envelope must not fall back to unrelated top-level fields.
       const authentication =
@@ -268,7 +407,9 @@ function createEmailGiftClient({
         })
         .safeParse(authentication);
       if (!parsed.success || Date.parse(parsed.data.expires) <= Date.now())
-        throw new GiftCardApiError("AUTHENTICATION_FAILED");
+        throw new GiftCardApiError("AUTHENTICATION_FAILED", 0, {
+          operation: "authentication",
+        });
       token = {
         value: parsed.data.accessToken,
         expires: Date.parse(parsed.data.expires),
@@ -285,19 +426,33 @@ function createEmailGiftClient({
     tokenSource === "login"
       ? bearer
       : process.env.GIFT_CARD_PROVIDER_API_TOKEN!;
-  async function read(path: (token: string) => string) {
+  async function read(
+    operation: "catalog" | "track",
+    path: (token: string) => string,
+  ) {
+    const bearer = await authenticate();
     try {
-      const bearer = await authenticate();
-      return await request(path(businessToken(bearer)), undefined, bearer);
+      return await request(
+        operation,
+        path(businessToken(bearer)),
+        undefined,
+        bearer,
+      );
     } catch (error) {
       if (
         !(error instanceof GiftCardApiError) ||
-        error.category !== "AUTHENTICATION_FAILED"
+        error.category !== "AUTHENTICATION_FAILED" ||
+        error.http_status !== 401
       )
         throw error;
       token = undefined;
-      const bearer = await authenticate();
-      return request(path(businessToken(bearer)), undefined, bearer);
+      const refreshed = await authenticate();
+      return request(
+        operation,
+        path(businessToken(refreshed)),
+        undefined,
+        refreshed,
+      );
     }
   }
   function tracking(data: unknown, requestId?: string): EmailGiftTracking {
@@ -343,6 +498,7 @@ function createEmailGiftClient({
       if (!catalogOnly) assertFulfillmentContract();
       const data = fieldAt(
         await read(
+          "catalog",
           (apiToken) => `/api/products/${encodeURIComponent(apiToken)}`,
         ),
         mapping.products_path,
@@ -413,6 +569,7 @@ function createEmailGiftClient({
       // authentication errors. The durable worker reconciles its stable ID.
       const bearer = await authenticate();
       const response = await request(
+        "submit",
         "/api/orders/virtual-card",
         {
           token: businessToken(bearer),
@@ -447,6 +604,7 @@ function createEmailGiftClient({
       assertFulfillmentContract();
       return tracking(
         await read(
+          "track",
           (apiToken) =>
             `/api/orders/tracking/codrequest?${new URLSearchParams({ token: apiToken, codRequest: requestId })}`,
         ),

@@ -12,6 +12,58 @@ import { assertGiftCardSandbox } from "infra/gift_card_provider";
 import type { Prisma } from "generated/prisma/client";
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
+const PROVIDER_ERROR_CATEGORIES = new Set([
+  "AUTHENTICATION_FAILED",
+  "VALIDATION_FAILED",
+  "TRACKING_NOT_FOUND",
+  "RATE_LIMITED",
+  "PROVIDER_UNAVAILABLE",
+  "INVALID_CONTRACT",
+  "CATALOG_ONLY",
+]);
+const PROVIDER_ERROR_FIELDS = new Set([
+  "username",
+  "password",
+  "token",
+  "codRequest",
+  "sku",
+  "price",
+  "name",
+  "document",
+  "email",
+]);
+export type GiftCardFulfillmentResult = {
+  processed: boolean;
+  error_code: string | null;
+  provider_error: string | null;
+};
+function safeProviderFailure(error: unknown) {
+  const known = error instanceof GiftCardApiError;
+  const category =
+    known && PROVIDER_ERROR_CATEGORIES.has(error.category)
+      ? error.category
+      : null;
+  return {
+    category,
+    http_status:
+      known &&
+      Number.isInteger(error.http_status) &&
+      error.http_status! >= 100 &&
+      error.http_status! <= 599
+        ? error.http_status
+        : null,
+    invalid_fields:
+      known && Array.isArray(error.invalid_fields)
+        ? [
+            ...new Set(
+              error.invalid_fields.filter((field) =>
+                PROVIDER_ERROR_FIELDS.has(field),
+              ),
+            ),
+          ]
+        : [],
+  };
+}
 export async function enqueueGiftFulfillment(
   id: string,
   tx: Prisma.TransactionClient = prisma,
@@ -25,10 +77,10 @@ export async function enqueueGiftFulfillment(
 export function createEmailGiftDelivery({
   getProvider = emailGiftProvider,
 }: { getProvider?: () => EmailGiftProvider } = {}) {
-  async function runOne(
+  async function runOneDetailed(
     phase: "submit" | "track",
     options: { order_id?: string; force?: boolean } = {},
-  ) {
+  ): Promise<GiftCardFulfillmentResult> {
     assertGiftCardSandbox();
     if (
       options.force &&
@@ -167,13 +219,16 @@ export function createEmailGiftDelivery({
       });
       return { gift, reconciling, recipient };
     });
-    if (!claim) return false;
+    if (!claim)
+      return { processed: false, error_code: null, provider_error: null };
+    const operation =
+      phase === "track" || claim.reconciling ? "track" : "submit";
     let result: EmailGiftTracking | undefined;
     let errorCode: string | null = null,
       retryAfter = 0;
+    let failure: ReturnType<typeof safeProviderFailure> | null = null;
     try {
-      if (phase === "track" || claim.reconciling)
-        result = await provider.track(claim.gift.id);
+      if (operation === "track") result = await provider.track(claim.gift.id);
       else {
         result = await provider.submit({
           request_id: claim.gift.id,
@@ -196,9 +251,24 @@ export function createEmailGiftDelivery({
       }
     } catch (error) {
       errorCode =
-        phase === "submit" ? "SUBMISSION_UNCERTAIN" : "TRACKING_UNAVAILABLE";
+        operation === "submit"
+          ? "SUBMISSION_UNCERTAIN"
+          : "TRACKING_UNAVAILABLE";
       retryAfter = error instanceof GiftCardApiError ? error.retry_after_ms : 0;
+      failure = safeProviderFailure(error);
     }
+    if (errorCode)
+      console.error(
+        JSON.stringify({
+          event: "gift_card_fulfillment_failed",
+          phase: operation,
+          category:
+            failure?.category ??
+            (failure ? "UNEXPECTED_ERROR" : "UNEXPECTED_RESPONSE"),
+          http_status: failure?.http_status ?? null,
+          invalid_fields: failure?.invalid_fields ?? [],
+        }),
+      );
     await prisma.$transaction(async (tx) => {
       const [purchase] = await tx.$queryRaw<
         { id: string; payment_status: string; delivery_status: string }[]
@@ -283,8 +353,18 @@ export function createEmailGiftDelivery({
           },
         });
     });
-    return true;
+    return {
+      processed: true,
+      error_code: errorCode,
+      provider_error: failure?.category ?? null,
+    };
   }
-  return { runOne };
+  async function runOne(
+    phase: "submit" | "track",
+    options: { order_id?: string; force?: boolean } = {},
+  ) {
+    return (await runOneDetailed(phase, options)).processed;
+  }
+  return { runOne, runOneDetailed };
 }
 export default createEmailGiftDelivery();

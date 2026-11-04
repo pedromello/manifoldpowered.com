@@ -3,7 +3,9 @@ import { assertGiftCardSandbox } from "infra/gift_card_provider";
 import { NotFoundError } from "infra/errors";
 import { syncGiftCardCatalog } from "models/gift_card_catalog";
 import paymentWorker from "models/purchase_payment_jobs";
-import emailDelivery from "models/gift_card_email_delivery";
+import emailDelivery, {
+  type GiftCardFulfillmentResult,
+} from "models/gift_card_email_delivery";
 
 export type OperationReport = {
   processed: number;
@@ -14,7 +16,7 @@ export type OperationReport = {
 };
 // Each invocation has bounded work and awaits all effects before responding.
 async function batch(
-  run: () => Promise<boolean>,
+  run: () => Promise<GiftCardFulfillmentResult>,
   remaining: () => Promise<number>,
 ): Promise<OperationReport> {
   const started = Date.now(),
@@ -27,9 +29,13 @@ async function batch(
     };
   while (report.processed < 5 && Date.now() - started < 20000) {
     try {
-      if (!(await run())) break;
+      const result = await run();
+      if (!result.processed) break;
       report.processed++;
-      report.succeeded++;
+      if (result.error_code) {
+        report.failed++;
+        report.last_error = result.provider_error ?? result.error_code;
+      } else report.succeeded++;
     } catch {
       report.failed++;
       report.last_error = "OPERATION_UNAVAILABLE";
@@ -118,14 +124,18 @@ async function syncCatalog(): Promise<OperationReport> {
 async function reconcilePayments() {
   assertGiftCardSandbox();
   return batch(
-    () => paymentWorker.runOne(),
+    async () => ({
+      processed: await paymentWorker.runOne(),
+      error_code: null,
+      provider_error: null,
+    }),
     () => prisma.purchasePaymentJob.count(),
   );
 }
 async function submitPaidOrders() {
   assertGiftCardSandbox();
   return batch(
-    () => emailDelivery.runOne("submit"),
+    () => emailDelivery.runOneDetailed("submit"),
     () => prisma.giftCardFulfillmentJob.count(),
   );
 }
@@ -136,9 +146,14 @@ async function trackDeliveries(
   let used = false;
   return batch(
     () => {
-      if (options.order_id && used) return Promise.resolve(false);
+      if (options.order_id && used)
+        return Promise.resolve({
+          processed: false,
+          error_code: null,
+          provider_error: null,
+        });
       used = true;
-      return emailDelivery.runOne("track", options);
+      return emailDelivery.runOneDetailed("track", options);
     },
     () => prisma.giftCardFulfillmentJob.count(),
   );

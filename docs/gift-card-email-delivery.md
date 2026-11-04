@@ -139,6 +139,10 @@ Payment/submission/tracking batches process at most five jobs or approximately
 20 seconds of work per invocation. Repeat when work remains. Report counts describe
 job processing, not proof of supplier delivery; inspect order state and generic
 errors. Browser refresh reads the database and does not run these operations.
+Captured fulfillment failures count as failed operations. Reports distinguish
+authentication, validation, missing tracking records and transient failures.
+Server diagnostics identify the operation, HTTP status and allowed field names;
+response messages and field values are discarded.
 
 **Check one delivery now** permits an early lookup for a specific order in
 development/homologation, with a one-minute cooldown. It requires an existing

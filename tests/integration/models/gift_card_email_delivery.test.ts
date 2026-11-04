@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "infra/database";
 import { encryptGiftRecipient } from "infra/gift_card_recipient";
-import type { EmailGiftProvider, EmailGiftTracking } from "infra/gift_card_api";
+import {
+  GiftCardApiError,
+  type EmailGiftProvider,
+  type EmailGiftTracking,
+} from "infra/gift_card_api";
 import {
   createEmailGiftDelivery,
   enqueueGiftFulfillment,
@@ -12,6 +16,7 @@ import {
 const ids: string[] = [];
 const originalEnvironment = { ...process.env };
 const SIX_HOURS = 6 * 60 * 60 * 1000;
+let errorLog: jest.SpyInstance;
 
 function pending(id: string): EmailGiftTracking {
   return {
@@ -145,7 +150,10 @@ async function entitlementCount(id: string) {
 beforeEach(() => {
   process.env.GIFT_CARD_RECIPIENT_ENCRYPTION_KEY = "11".repeat(32);
   process.env.PAYMENT_ENVIRONMENT = "sandbox";
+  errorLog = jest.spyOn(console, "error").mockImplementation(() => {});
 });
+
+afterEach(() => errorLog.mockRestore());
 afterAll(async () => {
   const where = { order_id: { in: ids } };
   await prisma.giftCardFulfillmentJob.deleteMany({ where });
@@ -182,6 +190,166 @@ test("accepted submission stays processing with a six-hour tracking reservation"
   expect(await service.runOne("track", { order_id: id })).toBe(false);
   expect(provider.submit).toHaveBeenCalledTimes(1);
   expect(provider.track).not.toHaveBeenCalled();
+});
+
+test("detailed results expose captured failures while the boolean worker remains compatible", async () => {
+  const id = await order(),
+    { provider, service } = fixtureProvider(),
+    before = Date.now();
+  provider.submit.mockRejectedValueOnce(
+    new GiftCardApiError("AUTHENTICATION_FAILED", 0, { http_status: 401 }),
+  );
+  expect(await service.runOneDetailed("submit", { order_id: id })).toEqual({
+    processed: true,
+    error_code: "SUBMISSION_UNCERTAIN",
+    provider_error: "AUTHENTICATION_FAILED",
+  });
+  const submitted = await gift(id);
+  expect(submitted).toMatchObject({
+    status: "PAID",
+    fulfillment_status: "PROCESSING",
+    issuance_started_at: expect.any(Date),
+    submitted_at: expect.any(Date),
+    last_error: "SUBMISSION_UNCERTAIN",
+  });
+  expect(submitted.next_tracking_at!.getTime()).toBeGreaterThanOrEqual(
+    before + SIX_HOURS,
+  );
+  expect(await service.runOne("submit", { order_id: id })).toBe(false);
+  await makeDue(id);
+  provider.track.mockRejectedValueOnce(
+    new GiftCardApiError("PROVIDER_UNAVAILABLE", 0, { http_status: 503 }),
+  );
+  expect(await service.runOne("track", { order_id: id })).toBe(true);
+  expect(await gift(id)).toMatchObject({
+    status: "PAID",
+    last_error: "TRACKING_UNAVAILABLE",
+  });
+  expect(provider.submit).toHaveBeenCalledTimes(1);
+  expect(provider.track).toHaveBeenCalledTimes(1);
+});
+
+test("a reconciling submit claim reports the actual tracking failure without another POST", async () => {
+  const id = await order(),
+    { provider, service } = fixtureProvider();
+  await prisma.giftCardOrder.update({
+    where: { id },
+    data: { issuance_started_at: new Date() },
+  });
+  provider.track.mockRejectedValueOnce(
+    new GiftCardApiError("RATE_LIMITED", 1000, { http_status: 429 }),
+  );
+  expect(await service.runOneDetailed("submit", { order_id: id })).toEqual({
+    processed: true,
+    error_code: "TRACKING_UNAVAILABLE",
+    provider_error: "RATE_LIMITED",
+  });
+  expect(provider.submit).not.toHaveBeenCalled();
+  expect(provider.track).toHaveBeenCalledWith(id);
+  expect(await gift(id)).toMatchObject({
+    status: "PAID",
+    last_error: "TRACKING_UNAVAILABLE",
+    submitted_at: expect.any(Date),
+  });
+  expect(JSON.parse(errorLog.mock.calls[0][0])).toEqual({
+    event: "gift_card_fulfillment_failed",
+    phase: "track",
+    category: "RATE_LIMITED",
+    http_status: 429,
+    invalid_fields: [],
+  });
+});
+
+test("failure logs retain only allowlisted diagnostics without identity or request details", async () => {
+  const id = await order(),
+    { provider, service } = fixtureProvider();
+  const error = new GiftCardApiError("VALIDATION_FAILED", 0, {
+    http_status: 400,
+    invalid_fields: ["document", "email"],
+  });
+  Object.assign(error, {
+    message: "synthetic-private-recipient@example.test",
+    cause: new Error("https://private.example.test/synthetic-private-token"),
+    response: { body: "synthetic-private-document" },
+    invalid_fields: [
+      "document",
+      "email",
+      "document",
+      "synthetic-private-field",
+    ],
+  });
+  provider.submit.mockRejectedValueOnce(error);
+  expect(await service.runOneDetailed("submit", { order_id: id })).toEqual({
+    processed: true,
+    error_code: "SUBMISSION_UNCERTAIN",
+    provider_error: "VALIDATION_FAILED",
+  });
+  expect(errorLog).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(errorLog.mock.calls[0][0])).toEqual({
+    event: "gift_card_fulfillment_failed",
+    phase: "submit",
+    category: "VALIDATION_FAILED",
+    http_status: 400,
+    invalid_fields: ["document", "email"],
+  });
+  const logged = JSON.stringify(errorLog.mock.calls);
+  expect(logged).not.toContain(id);
+  expect(logged).not.toContain("synthetic-private");
+  expect(logged).not.toContain("cause");
+  expect(logged).not.toContain("body");
+});
+
+test.each([
+  new Error("synthetic-private-error@example.test"),
+  new GiftCardApiError("synthetic-private-category"),
+])(
+  "unknown failures use a fixed category and preserve a safe worker result",
+  async (error) => {
+    const id = await order(),
+      { provider, service } = fixtureProvider();
+    provider.submit.mockRejectedValueOnce(error);
+    expect(await service.runOneDetailed("submit", { order_id: id })).toEqual({
+      processed: true,
+      error_code: "SUBMISSION_UNCERTAIN",
+      provider_error: null,
+    });
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toEqual({
+      event: "gift_card_fulfillment_failed",
+      phase: "submit",
+      category: "UNEXPECTED_ERROR",
+      http_status: null,
+      invalid_fields: [],
+    });
+    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(
+      "synthetic-private",
+    );
+  },
+);
+
+test("detailed results distinguish an empty queue from an unknown tracking response", async () => {
+  const { provider, service } = fixtureProvider();
+  expect(
+    await service.runOneDetailed("submit", { order_id: randomUUID() }),
+  ).toEqual({ processed: false, error_code: null, provider_error: null });
+  expect(errorLog).not.toHaveBeenCalled();
+  const id = await order();
+  await service.runOne("submit", { order_id: id });
+  await makeDue(id);
+  provider.track.mockResolvedValueOnce({
+    status: "unknown",
+    reference: null,
+    provider_status: null,
+  });
+  expect(await service.runOneDetailed("track", { order_id: id })).toEqual({
+    processed: true,
+    error_code: "TRACKING_UNKNOWN",
+    provider_error: null,
+  });
+  expect(await gift(id)).toMatchObject({
+    status: "PAID",
+    last_error: "TRACKING_UNKNOWN",
+  });
+  expect(provider.submit).toHaveBeenCalledTimes(1);
 });
 
 test("tracking status 3 completes once without storing or revealing a code", async () => {
