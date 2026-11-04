@@ -193,6 +193,9 @@ describe("distribution API v1 contract", () => {
     });
 
     expect(patchPlan.strategy).toBe("PATCH");
+    if (patchPlan.strategy !== "PATCH") {
+      throw new Error("Expected a patch update plan");
+    }
     expect(patchPlan.patch).not.toHaveProperty("url");
     expect(fullPlan.strategy).toBe("FULL");
   });

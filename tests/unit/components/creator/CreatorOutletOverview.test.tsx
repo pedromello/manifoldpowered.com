@@ -50,7 +50,16 @@ function publication(
       catalog_has_games: false,
       editorial_highlight: false,
     },
-    capabilities: { edit: true, publish: true, unpublish: true },
+    capabilities: {
+      identity: true,
+      curation: true,
+      featured: true,
+      sales: true,
+      earnings: true,
+      edit: true,
+      publish: true,
+      unpublish: true,
+    },
     ...overrides,
   };
 }

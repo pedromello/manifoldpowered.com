@@ -8,7 +8,7 @@ jest.mock("models/currency", () => ({
 jest.mock("models/pricing", () => ({ BASE_CURRENCY: "USD" }));
 
 function request(headers: NextApiRequest["headers"] = {}) {
-  return { headers, query: { locale: "pt-BR" } } as NextApiRequest;
+  return { headers, query: { locale: "pt-BR" } } as unknown as NextApiRequest;
 }
 
 function setEnvironment(

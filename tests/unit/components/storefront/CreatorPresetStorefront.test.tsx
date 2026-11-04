@@ -224,7 +224,11 @@ describe("CreatorPresetStorefront", () => {
         external_offer: {
           provider,
           amount: "10.00",
+          original_amount: null,
+          discount_percent: null,
           currency: "BRL",
+          url: "https://example.test/offer",
+          captured_at: null,
         },
       };
       input.featured = [external];

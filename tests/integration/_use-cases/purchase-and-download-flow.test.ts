@@ -2,6 +2,7 @@ import { Game, GameFile, User, Session } from "generated/prisma/client";
 import webserver from "infra/webserver";
 import orchestrator from "tests/orchestrator";
 import gameModel from "models/game";
+import { purchaseGameWithVerifiedPayment } from "tests/fixtures/paid_game_purchase";
 
 const testClientAddress = orchestrator.createTestClientAddress(
   "purchase-and-download-flow",
@@ -230,7 +231,7 @@ describe("Use case: Purchase and Download Flow", () => {
       expect(foundGame.status).toEqual(game.status);
     });
 
-    test("Buyer adds game to library", async () => {
+    test("Buyer pays before the game is added to the library", async () => {
       const response = await fetch(`${webserver.getOrigin()}/api/v1/library`, {
         method: "POST",
         headers: {
@@ -242,7 +243,11 @@ describe("Use case: Purchase and Download Flow", () => {
         }),
       });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(409);
+      await purchaseGameWithVerifiedPayment(
+        buyerSession.user_id,
+        foundGame.slug,
+      );
     });
 
     test("Buyer checks his library", async () => {

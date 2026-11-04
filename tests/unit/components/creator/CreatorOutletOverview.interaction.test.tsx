@@ -99,7 +99,9 @@ function invokeFunctionElement(element: TestElement): ReactNode {
   if (typeof element.type !== "function") {
     throw new Error("Expected a function component");
   }
-  return element.type(element.props);
+  return (element.type as (props: Record<string, unknown>) => ReactNode)(
+    element.props,
+  );
 }
 
 function elementText(node: ReactNode): string {
@@ -129,7 +131,16 @@ function readyPublication(): CreatorOutletPublication {
       catalog_has_games: true,
       editorial_highlight: true,
     },
-    capabilities: { edit: true, publish: true, unpublish: true },
+    capabilities: {
+      identity: true,
+      curation: true,
+      featured: true,
+      sales: true,
+      earnings: true,
+      edit: true,
+      publish: true,
+      unpublish: true,
+    },
   };
 }
 

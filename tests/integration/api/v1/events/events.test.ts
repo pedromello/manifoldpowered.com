@@ -870,7 +870,7 @@ describe("first-party product events HTTP → PostgreSQL", () => {
             {
               ...req,
               headers: { "x-forwarded-for": "203.0.113." + i },
-            } as NextApiRequest,
+            } as unknown as NextApiRequest,
             2,
             now,
           ),

@@ -138,9 +138,7 @@ describe("PlatformStorefrontHome", () => {
     expect(markup).toContain('href="/item/test-game?store=outlet-teste-1"');
     expect(markup).toContain('action="/store/outlet-teste-1"');
     expect(markup).toContain('placeholder="Search games in this Outlet..."');
-    expect(markup).not.toContain(
-      "Think Steam, but with creator-run storefronts.",
-    );
+    expect(markup).not.toContain("Discover games");
   });
 
   test("keeps the platform homepage copy when no Outlet context exists", () => {

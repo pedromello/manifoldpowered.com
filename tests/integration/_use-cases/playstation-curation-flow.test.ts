@@ -176,7 +176,7 @@ test("imports a PS5 edition concurrently, publishes its curation and refreshes w
   ).toBeNull();
   const promotionRequest = {
     headers: { "x-vercel-ip-country": "BR" },
-  } as NextApiRequest;
+  } as unknown as NextApiRequest;
   expect(
     await promotionGameIds(promotionRequest, { id: game.id }, "BRL"),
   ).toContain(game.id);

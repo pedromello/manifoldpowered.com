@@ -9,6 +9,7 @@ import {
   Building2,
   Coins,
   Gamepad2,
+  Gift,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
 import {
   acceptProductEventContext,
   resetProductEventsClient,
@@ -27,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/backoffice", label: "Dashboard", icon: LayoutDashboard },
   { href: "/backoffice/home", label: "Homepage", icon: Store },
   { href: "/backoffice/revenue", label: "Revenue", icon: Banknote },
+  { href: "/backoffice/gift-cards", label: "Gift cards", icon: Gift },
   { href: "/backoffice/analytics", label: "Store clicks", icon: BarChart3 },
   { href: "/backoffice/games", label: "Games", icon: Gamepad2 },
   {
@@ -44,6 +47,7 @@ const NAV_ITEMS = [
 export function BackofficeTopNav({ username }: { username: string }) {
   const router = useRouter();
   const { t } = useI18n();
+  const { giftCardsEnabled } = usePurchaseAvailability();
 
   async function handleSignOut() {
     resetProductEventsClient();
@@ -59,7 +63,9 @@ export function BackofficeTopNav({ username }: { username: string }) {
     );
   }
 
-  const links = NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+  const links = NAV_ITEMS.filter(
+    (item) => item.href !== "/backoffice/gift-cards" || giftCardsEnabled,
+  ).map(({ href, label, icon: Icon }) => (
     <Link
       key={href}
       href={href}

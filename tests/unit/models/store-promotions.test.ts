@@ -30,7 +30,7 @@ test("scopes candidates by curation and regional fallback before reading only bo
   jest.mocked(prisma.game.findMany).mockResolvedValue([]);
   const curation = { tags: { hasSome: ["co-op"] } };
   await promotionGameIds(
-    { headers: { "x-vercel-ip-country": "BR" } } as NextApiRequest,
+    { headers: { "x-vercel-ip-country": "BR" } } as unknown as NextApiRequest,
     curation,
     "USD",
   );

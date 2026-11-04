@@ -4,8 +4,10 @@ import {
   unstable_doesMiddlewareMatch,
 } from "next/experimental/testing/server";
 
-import nextConfig from "../../next.config";
 import { config, proxy } from "../../proxy";
+
+const nextConfig =
+  jest.requireActual<import("next").NextConfig>("../../next.config");
 
 function request(
   path: string,

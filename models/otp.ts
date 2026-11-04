@@ -5,6 +5,11 @@ import email from "infra/email";
 import { UnauthorizedError } from "infra/errors";
 import password from "models/password";
 import user from "models/user";
+import {
+  lockAccountEmail,
+  normalizeAccountEmail,
+  recordVerifiedAccountEmail,
+} from "models/user_email_verification";
 
 const EXPIRATION_IN_MILLISECONDS = 1000 * 60 * 10; // 10 minutes
 const CODE_LENGTH = 6;
@@ -19,34 +24,32 @@ async function create(userId: string) {
   const code = generateCode();
   const codeHash = await password.hash(code);
 
-  await invalidateOutstandingCodes(userId);
-
-  const otp = await prisma.userOtp.create({
-    data: {
-      user_id: userId,
-      code_hash: codeHash,
-      expires_at: new Date(Date.now() + EXPIRATION_IN_MILLISECONDS),
-    },
+  const otp = await prisma.$transaction(async (tx) => {
+    const account = await lockAccountEmail(tx, userId);
+    await tx.userOtp.updateMany({
+      where: { user_id: userId, used_at: null },
+      data: { used_at: new Date() },
+    });
+    return tx.userOtp.create({
+      data: {
+        user_id: userId,
+        email: normalizeAccountEmail(account.email),
+        code_hash: codeHash,
+        expires_at: new Date(Date.now() + EXPIRATION_IN_MILLISECONDS),
+      },
+    });
   });
 
   return { code, otp };
 }
 
-async function invalidateOutstandingCodes(userId: string) {
-  await prisma.userOtp.updateMany({
-    where: {
-      user_id: userId,
-      used_at: null,
-    },
-    data: {
-      used_at: new Date(),
-    },
-  });
-}
-
-async function sendEmailToUser(user: User, code: string) {
+async function sendEmailToUser(
+  user: User,
+  code: string,
+  challengeEmail: string,
+) {
   await email.send({
-    to: user.email,
+    to: challengeEmail,
     subject: "Your Manifold login code",
     text: `Hey ${user.username},
 
@@ -96,16 +99,29 @@ async function validateAndConsume(providedLogin: string, providedCode: string) {
     throw invalidOrExpiredError;
   }
 
-  await prisma.userOtp.update({
-    where: {
-      id: activeOtp.id,
-    },
-    data: {
-      used_at: new Date(),
-    },
+  return prisma.$transaction(async (tx) => {
+    const account = await lockAccountEmail(tx, userFound.id);
+    if (
+      activeOtp.email &&
+      activeOtp.email !== normalizeAccountEmail(account.email)
+    ) {
+      throw invalidOrExpiredError;
+    }
+    const consumed = await tx.userOtp.updateMany({
+      where: {
+        id: activeOtp.id,
+        user_id: userFound.id,
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
+      data: { used_at: new Date() },
+    });
+    if (consumed.count !== 1) throw invalidOrExpiredError;
+    // Pre-migration challenges do not contain mailbox evidence.
+    if (activeOtp.email)
+      await recordVerifiedAccountEmail(tx, userFound.id, activeOtp.email);
+    return tx.user.findUniqueOrThrow({ where: { id: userFound.id } });
   });
-
-  return userFound;
 }
 
 const otp = {
