@@ -110,7 +110,6 @@ describe("GET /api/v1/user/purchases", () => {
 
     test("Should record the outlet they bought through", async () => {
       const game = await createDeveloperWithGame();
-      await gameModel.makePublic(game.id);
 
       const referrer = await orchestrator.createUser();
       await orchestrator.activateUser(referrer.id);

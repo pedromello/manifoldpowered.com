@@ -1,3 +1,4 @@
+import gameModel from "models/game";
 import orchestrator from "tests/orchestrator";
 import webserver from "infra/webserver";
 import { prisma } from "infra/database";
@@ -127,6 +128,7 @@ describe("POST /api/v1/wishlists", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       const response = await fetch(
         `${webserver.getOrigin()}/api/v1/wishlists`,
@@ -189,6 +191,7 @@ describe("POST /api/v1/wishlists", () => {
       await orchestrator.activateUser(user.id);
       const session = await orchestrator.createSession(user.id);
       const game = await orchestrator.createGame(user.id);
+      await gameModel.makePublic(game.id);
 
       // First request
       await fetch(`${webserver.getOrigin()}/api/v1/wishlists`, {

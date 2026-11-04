@@ -25,7 +25,7 @@ async function acquireGame(
   storeSlug?: string,
   currencyCode: string = BASE_CURRENCY,
 ) {
-  const existingGame = await game.findOneBySlug(gameSlug);
+  const existingGame = await game.findOnePublicBySlug(gameSlug);
   if (!existingGame) {
     throw new NotFoundError({
       message: "Game not found",

@@ -70,7 +70,7 @@ async function postHandler(req: NextApiRequest, res: NextApiResponse) {
   // The same currency the visitor was shown a price in, so the sale and its
   // ledger entries record what they were actually charged.
   const currencyCode = await region.currencyForRequest(req);
-  const target = await game.findOneBySlug(parsedBody.data.slug);
+  const target = await game.findOnePublicBySlug(parsedBody.data.slug);
   if (
     target &&
     (!(await pricing.priceForOrFail(target, currencyCode)).amount.isZero() ||

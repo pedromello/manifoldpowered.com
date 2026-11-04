@@ -73,6 +73,74 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe("home social preview", () => {
+  test("replaces a game that becomes private with the next public banner", async () => {
+    const games = [
+      "First Game",
+      "Second Game",
+      "Third Game",
+      "Fourth Game",
+    ].map((title, index) => ({
+      slug: `game-${index}`,
+      title,
+      status: index === 0 ? "ACTIVE" : "ONLY_DISPLAY",
+      media: { banner: `https://images.unsplash.com/game-${index}.png` },
+    }));
+    const catalogUrl = `${ORIGIN}/api/v1/games?locale=pt-BR&social_preview=1&order=newest&limit=12`;
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) =>
+        String(input) === catalogUrl
+          ? Response.json({ games })
+          : imageResponse("image/png", PNG_BYTES),
+      );
+    const imageUrl = `${ORIGIN}/api/og/home?locale=pt-BR&preview=1`;
+    const initial = await handler(
+      new NextRequest(imageUrl, { headers: { cookie: "session_id=private" } }),
+    );
+    expect(await initial.text()).toContain('alt="First Game"');
+    expect(initial.headers.get("cache-control")).toContain("s-maxage=60");
+    const etag = initial.headers.get("etag")!;
+    const revalidation = new NextRequest(imageUrl, {
+      headers: { "if-none-match": etag },
+    });
+    expect((await handler(revalidation)).status).toBe(304);
+
+    games[0].status = "PRIVATE";
+    fetchMock.mockClear();
+    const updated = await handler(revalidation);
+    expect(updated.status).toBe(200);
+    expect(updated.headers.get("etag")).not.toBe(etag);
+    const markup = await updated.text();
+    expect(markup).not.toContain('alt="First Game"');
+    expect(markup).toContain('alt="Fourth Game"');
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      new URL(games[0].media.banner),
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(catalogUrl),
+      expect.objectContaining({
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      }),
+    );
+  });
+
+  test("renders the branded fallback when the catalog is unavailable", async () => {
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 503 }));
+    const response = await handler(
+      new NextRequest(`${ORIGIN}/api/og/home?locale=pt-BR`),
+    );
+    expect(response.status).toBe(200);
+    const markup = await response.text();
+    expect(markup).toContain("Descubra seu próximo jogo");
+    expect(markup).not.toContain("<img");
+  });
+});
+
 describe("selection social preview privacy", () => {
   test.each(
     ["outlet", "selection"].flatMap((kind) =>
@@ -337,7 +405,6 @@ describe("OG image loading", () => {
 
   test.each([
     "/images/brand/manifold-logo.png",
-    "/images/social/home-catalog/twisted-tower.jpg",
     "/storefronts/strategos-void/logo.jpg",
   ])("retains absolute HTTPS public static artwork: %s", async (path) => {
     const fetchMock = jest

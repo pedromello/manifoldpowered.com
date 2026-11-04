@@ -182,6 +182,7 @@ describe("GET /api/v1/backoffice/revenue", () => {
 
       const developer = await orchestrator.createUser();
       const game = await orchestrator.createGame(developer.id, { price: 100 });
+      await gameModel.makePublic(game.id);
 
       const firstBuyer = await orchestrator.createUser();
       await library.acquireGame(firstBuyer.id, game.slug, undefined, "USD");

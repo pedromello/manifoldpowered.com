@@ -167,6 +167,8 @@ export const gameStatusValues = [
   "PRIVATE",
 ] as const;
 
+const PUBLIC_GAME_STATUSES: GameStatus[] = ["ACTIVE", "ONLY_DISPLAY"];
+
 export const gameAdminQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -640,7 +642,9 @@ function deepMerge(target: any, source: any) {
 }
 
 async function findOnePublicBySlug(slug: string) {
-  return await findOneBySlug(slug);
+  return await prisma.game.findUnique({
+    where: { slug, status: { in: PUBLIC_GAME_STATUSES } },
+  });
 }
 
 async function findOneBySlug(slug: string) {
@@ -869,7 +873,7 @@ async function findAllPaginated({
   ownership_status?: "UNCLAIMED" | "CLAIMED";
 }) {
   const where: Prisma.GameWhereInput = {
-    status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+    status: { in: PUBLIC_GAME_STATUSES },
   };
 
   if (ownership_status === "UNCLAIMED") {
@@ -1053,7 +1057,7 @@ async function findAllPaginatedAdmin({
 
 async function findAllForSitemap() {
   return prisma.game.findMany({
-    where: { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
+    where: { status: { in: PUBLIC_GAME_STATUSES } },
     orderBy: { updated_at: "desc" },
     select: { slug: true, updated_at: true },
   });
@@ -1072,7 +1076,7 @@ async function findAllForCuration(priceableGameIds?: string[] | null) {
 
   return prisma.game.findMany({
     where: {
-      status: { in: ["ACTIVE", "ONLY_DISPLAY"] },
+      status: { in: PUBLIC_GAME_STATUSES },
       ...(andClauses.length > 0 && { AND: andClauses }),
     },
   });
@@ -1143,7 +1147,7 @@ async function findCurationCatalogPage({
       }
     : undefined;
   const baseWhere = andGameWhere(
-    { status: { in: ["ACTIVE", "ONLY_DISPLAY"] } },
+    { status: { in: PUBLIC_GAME_STATUSES } },
     pricingWhere,
   );
 

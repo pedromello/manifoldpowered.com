@@ -1,4 +1,5 @@
 import { ServiceError } from "./errors";
+import { withRetryAfter } from "./provider_retry";
 
 const STEAM_APPDETAILS_URL = "https://store.steampowered.com/api/appdetails";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -78,11 +79,14 @@ export async function fetchAppDetails(
   }
 
   if (!response.ok) {
-    throw new ServiceError({
-      message: `Steam API responded with status ${response.status} for app id "${appId}".`,
-      action: "Try again later or check Steam's service status.",
-      context: { status: response.status },
-    });
+    throw withRetryAfter(
+      new ServiceError({
+        message: `Steam API responded with status ${response.status} for app id "${appId}".`,
+        action: "Try again later or check Steam's service status.",
+        context: { status: response.status },
+      }),
+      response,
+    );
   }
 
   const body: SteamAppDetailsApiResponse = await response.json();

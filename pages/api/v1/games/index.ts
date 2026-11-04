@@ -4,6 +4,7 @@ import controller from "infra/controller";
 import game, { gameQuerySchema } from "models/game";
 import storefrontPricing from "models/storefront_pricing";
 import { ValidationError } from "infra/errors";
+import { socialPreviewRequest } from "lib/social-preview-request";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -23,8 +24,9 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const { order, sort_by, ...rest } = result.data;
 
+  const pricingRequest = socialPreviewRequest(req);
   const { currency, gameIds, locale } =
-    await storefrontPricing.idConstraintForRequest(req);
+    await storefrontPricing.idConstraintForRequest(pricingRequest);
 
   const { games, pagination } = await game.findAllPaginated({
     ...rest,
@@ -33,7 +35,11 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
     locale,
   });
 
-  const context = await storefrontPricing.contextFor(currency, games, req);
+  const context = await storefrontPricing.contextFor(
+    currency,
+    games,
+    pricingRequest,
+  );
 
   return res.status(200).json({
     games: storefrontPricing.filterAndPrice(req.context.user, games, context),

@@ -117,6 +117,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 25 });
+      await gameModel.makePublic(game.id);
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
       const session = await orchestrator.createSession(buyer.id);
@@ -167,10 +168,43 @@ describe("POST /api/v1/library", () => {
       });
     });
 
+    test.each(["PRIVATE", "INACTIVE"] as const)(
+      "rejects acquiring a game with status %s",
+      async (status) => {
+        const creator = await orchestrator.createUser();
+        const game = await orchestrator.createGame(creator.id, { price: 25 });
+        await gameModel.setStatus(game.id, status);
+
+        const buyer = await orchestrator.createUser();
+        await orchestrator.activateUser(buyer.id);
+        const session = await orchestrator.createSession(buyer.id);
+        const response = await fetch(
+          `${webserver.getOrigin()}/api/v1/library`,
+          {
+            method: "POST",
+            headers: {
+              Cookie: `session_id=${session.token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ slug: game.slug }),
+          },
+        );
+
+        expect(response.status).toBe(404);
+        expect(await prisma.sale.count({ where: { game_id: game.id } })).toBe(
+          0,
+        );
+        expect(
+          await prisma.libraryItem.count({ where: { item_id: game.id } }),
+        ).toBe(0);
+      },
+    );
+
     test("With a valid free game slug should return 201 Created", async () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 0 });
+      await gameModel.makePublic(game.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -207,6 +241,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 0 });
+      await gameModel.makePublic(game.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -249,6 +284,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 0 });
+      await gameModel.makePublic(game.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -315,6 +351,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 0 });
+      await gameModel.makePublic(game.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);
@@ -345,6 +382,7 @@ describe("POST /api/v1/library", () => {
       const creator = await orchestrator.createUser();
       await orchestrator.activateUser(creator.id);
       const game = await orchestrator.createGame(creator.id, { price: 0 });
+      await gameModel.makePublic(game.id);
 
       const buyer = await orchestrator.createUser();
       await orchestrator.activateUser(buyer.id);

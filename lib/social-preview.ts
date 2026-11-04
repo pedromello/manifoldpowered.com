@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { cleanMetadataText } from "lib/seo";
 import type { StoreApi } from "components/store/types";
-import { SOCIAL_PREVIEW_DESIGN } from "lib/social-preview-version";
+import {
+  HOME_PREVIEW_DESIGN,
+  SOCIAL_PREVIEW_DESIGN,
+} from "lib/social-preview-version";
 
 export const COMPOSED_PREVIEW_CACHE =
   "public, max-age=0, s-maxage=60, must-revalidate";
@@ -145,7 +148,7 @@ export function fitPreviewText(
 
 /** Hash the actual render input, including loaded image bytes and fallbacks. */
 export async function composedPreviewHeaders(
-  kind: "selection" | "outlet",
+  kind: "home" | "selection" | "outlet",
   locale: string,
   input: unknown,
 ): Promise<Record<string, string>> {
@@ -156,9 +159,10 @@ export async function composedPreviewHeaders(
   const hash = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
+  const design = kind === "home" ? HOME_PREVIEW_DESIGN : SOCIAL_PREVIEW_DESIGN;
   return {
     "Cache-Control": COMPOSED_PREVIEW_CACHE,
     "Content-Disposition": "inline",
-    ETag: `W/"og-${kind}-${SOCIAL_PREVIEW_DESIGN}-${locale}-${hash}"`,
+    ETag: `W/"og-${kind}-${design}-${locale}-${hash}"`,
   };
 }
