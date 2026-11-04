@@ -102,6 +102,9 @@ describe("Use case: Registration Flow (all successful)", () => {
       username: "registration-flow",
       email: "registration-flow@manifoldpowered.com",
       password: newUserWithPassword.password,
+      verified_email: "registration-flow@manifoldpowered.com",
+      email_verified_at: expect.any(Date),
+      email_version: 0,
       features: [
         "create:session",
         "read:session",

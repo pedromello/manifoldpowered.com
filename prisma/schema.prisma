@@ -25,6 +25,10 @@ model User {
 
   // Why 234 characters? https://stackoverflow.com/a/1199238
   email String @unique @db.VarChar(234)
+  // Set only by a consumed, address-bound activation token or login OTP.
+  verified_email    String?   @db.VarChar(234)
+  email_verified_at DateTime?
+  email_version     Int       @default(0)
 
   // Why 60 characters? https://security.stackexchange.com/q/39849
   // Nullable: passwordless accounts authenticate via email OTP instead
@@ -60,6 +64,9 @@ model UserActivationToken {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  // Null on challenges issued before address binding was introduced.
+  recipient_email String? @db.VarChar(234)
+  email_version   Int?
   expires_at DateTime
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
@@ -74,6 +81,8 @@ model UserOtp {
   used_at    DateTime?
   // No FK on purpose, we will experiment a no Foreign Key approach as github does ("At GitHub we do not use foreign keys, ever, anywhere.") https://github.com/github/gh-ost/issues/331#issuecomment-266027731
   user_id    String
+  recipient_email String? @db.VarChar(234)
+  email_version   Int?
   code_hash  String    @db.VarChar(60)
   expires_at DateTime
   created_at DateTime  @default(now())

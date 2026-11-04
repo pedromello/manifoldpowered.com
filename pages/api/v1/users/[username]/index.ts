@@ -3,7 +3,8 @@ import { createRouter } from "next-connect";
 import controller from "infra/controller";
 import user from "models/user";
 import authorization from "models/authorization";
-import { ForbiddenError } from "infra/errors";
+import { ForbiddenError, ValidationError } from "infra/errors";
+import { userUpdateSchema } from "contracts/creator-requests";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -28,7 +29,13 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
 
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
   const { username } = req.query;
-  const userUpdateDto = req.body;
+  const input = userUpdateSchema.safeParse(req.body);
+  if (!input.success) {
+    throw new ValidationError({
+      message: "One or more fields are invalid",
+      action: "Only username, email and password can be updated here",
+    });
+  }
 
   const userTryingToPatch = req.context.user;
   const userToPatch = await user.findOneByUsername(username as string);
@@ -42,7 +49,7 @@ async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
 
   const updatedUser = await user.updateByUsername(
     username as string,
-    userUpdateDto,
+    input.data,
   );
 
   const secureOutputValues = authorization.filterOutput(
