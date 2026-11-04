@@ -26,7 +26,7 @@ GIFT_CARD_PROVIDER_USERNAME=replace_with_private_sandbox_username
 GIFT_CARD_PROVIDER_PASSWORD=replace_with_private_sandbox_password
 GIFT_CARD_PROVIDER_API_TOKEN=replace_with_private_catalog_and_order_token
 GIFT_CARD_PROVIDER_TOKEN_SOURCE=configured
-GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED=false
+GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED=true
 GIFT_CARD_PROVIDER_CONTRACT_VERIFIED=false
 GIFT_CARD_RECIPIENT_ENCRYPTION_KEY=replace_with_a_private_random_64_hex_character_key
 GIFT_CARD_PROVIDER_RESPONSE_MAPPING='{"products_path":"data.products","sku":"sku","name":"name","face_value":"face_value","fixed_currency":"BRL","value_unit":"major","cost":"cost","reference":"data.reference","status":"data.status"}'
@@ -63,9 +63,12 @@ The recipient encryption key must be 32 random bytes encoded as **64 hexadecimal
 characters**. Keep it in private durable secret storage, consistent across the
 application instances and redeployments. Losing or replacing it without a
 migration makes existing encrypted recipient details unreadable. Recipient name
-and optional document use authenticated encryption bound to the order ID;
-the verified email is snapshotted separately for delivery. Set document-required
-according to the verified contract, not the example default.
+and document use authenticated encryption bound to the order ID;
+the verified email is snapshotted separately for delivery. The API adapter requires
+a recipient document by default, including when the configuration is missing or
+invalid. Only set `GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED=false` after verifying
+that the provider accepts orders without a document. An existing explicit `false`
+remains an opt-out and must be changed to `true` when a document is required.
 A nullable field in a schema does not establish that runtime validation accepts
 an absent document. Confirm that requirement before allowing payment.
 

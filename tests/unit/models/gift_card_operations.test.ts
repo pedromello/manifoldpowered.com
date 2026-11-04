@@ -66,6 +66,23 @@ test("a captured provider failure is reported as failed rather than succeeded", 
   expect(run).toHaveBeenNthCalledWith(1, "submit");
 });
 
+test("a recipient sent to review is reported as a processed failure", async () => {
+  run.mockResolvedValueOnce({
+    processed: true,
+    error_code: "RECIPIENT_REVIEW",
+    provider_error: null,
+  });
+  expect(await giftCardOperations.submitPaidOrders()).toEqual({
+    processed: 1,
+    succeeded: 0,
+    failed: 1,
+    remaining: 0,
+    last_error: "RECIPIENT_REVIEW",
+  });
+  expect(run).toHaveBeenNthCalledWith(1, "submit");
+  expect(run).toHaveBeenCalledTimes(2);
+});
+
 test("a mixed batch counts each processed outcome and stops on an empty queue", async () => {
   run
     .mockResolvedValueOnce(succeeded)

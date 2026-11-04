@@ -4,6 +4,7 @@ import { ConflictError } from "infra/errors";
 import {
   GiftCardApiError,
   emailGiftProvider,
+  recipientDocumentRequired,
   type EmailGiftProvider,
   type EmailGiftTracking,
 } from "infra/gift_card_api";
@@ -173,12 +174,17 @@ export function createEmailGiftDelivery({
         await tx.giftCardFulfillmentJob.delete({
           where: { order_id: gift.id },
         });
-        return null;
+        return { review: true as const };
       }
       let recipient: ReturnType<typeof decryptGiftRecipient> | null = null;
       try {
-        if (!gift.submitted_at && !gift.issuance_started_at)
+        if (!gift.submitted_at && !gift.issuance_started_at) {
           recipient = decryptGiftRecipient(gift.recipient_data, gift.id);
+          if (recipientDocumentRequired() && !recipient.document)
+            throw new ConflictError({
+              message: "The recipient document requires review.",
+            });
+        }
       } catch {
         await tx.giftCardOrder.update({
           where: { id: gift.id },
@@ -194,7 +200,7 @@ export function createEmailGiftDelivery({
         await tx.giftCardFulfillmentJob.delete({
           where: { order_id: gift.id },
         });
-        return null;
+        return { review: true as const };
       }
       await tx.giftCardFulfillmentJob.update({
         where: { order_id: gift.id },
@@ -221,6 +227,12 @@ export function createEmailGiftDelivery({
     });
     if (!claim)
       return { processed: false, error_code: null, provider_error: null };
+    if ("review" in claim)
+      return {
+        processed: true,
+        error_code: "RECIPIENT_REVIEW",
+        provider_error: null,
+      };
     const operation =
       phase === "track" || claim.reconciling ? "track" : "submit";
     let result: EmailGiftTracking | undefined;

@@ -581,7 +581,11 @@ test("encryption key loss before initial submission cannot leave an issuance mar
   const id = await order(),
     { provider, service } = fixtureProvider();
   delete process.env.GIFT_CARD_RECIPIENT_ENCRYPTION_KEY;
-  expect(await service.runOne("submit", { order_id: id })).toBe(false);
+  expect(await service.runOneDetailed("submit", { order_id: id })).toEqual({
+    processed: true,
+    error_code: "RECIPIENT_REVIEW",
+    provider_error: null,
+  });
   expect(await gift(id)).toMatchObject({
     fulfillment_status: "REVIEW",
     last_error: "RECIPIENT_REVIEW",

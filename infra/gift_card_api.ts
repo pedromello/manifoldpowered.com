@@ -183,7 +183,9 @@ function failureDetails(body: unknown, operation: GiftCardApiOperation) {
 export const emailGiftCardsSelected = () =>
   process.env.GIFT_CARD_PROVIDER === "api";
 export const recipientDocumentRequired = () =>
-  process.env.GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED === "true";
+  process.env.GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED === "true" ||
+  (emailGiftCardsSelected() &&
+    process.env.GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED !== "false");
 
 export function fieldAt(value: unknown, path: string): unknown {
   if (!path) return value;
