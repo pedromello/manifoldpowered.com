@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { NotFoundError } from "infra/errors";
+import game from "models/game";
 import library from "models/library";
 import pricing from "models/pricing";
 import handler from "pages/api/v1/library";
@@ -10,7 +12,7 @@ jest.mock("models/library", () => ({
 jest.mock("models/game", () => ({
   __esModule: true,
   default: {
-    findOneBySlug: jest.fn().mockResolvedValue({ id: "synthetic-game" }),
+    findOnePublicBySlug: jest.fn().mockResolvedValue({ id: "synthetic-game" }),
   },
 }));
 jest.mock("models/pricing", () => ({
@@ -74,6 +76,18 @@ test.each(["USD", "BRL"])(
     expect(library.acquireGame).not.toHaveBeenCalled();
   },
 );
+test("non-public games retain the not-found response before pricing", async () => {
+  (game.findOnePublicBySlug as jest.Mock).mockResolvedValueOnce(null);
+  (library.acquireGame as jest.Mock).mockRejectedValueOnce(
+    new NotFoundError({ message: "Game not found" }),
+  );
+  const res = await submit();
+  expect(game.findOnePublicBySlug).toHaveBeenCalledWith("synthetic-game");
+  expect(res.status).toHaveBeenCalledWith(404);
+  expect(pricing.priceForOrFail).not.toHaveBeenCalled();
+  expect(pricing.priceFor).not.toHaveBeenCalled();
+});
+
 test("free games retain direct acquisition", async () => {
   (pricing.priceForOrFail as jest.Mock).mockResolvedValue({
     amount: { isZero: () => true },
