@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import useSWR from "swr";
 import { ArrowRight, Loader2 } from "lucide-react";
 import type { GiftCardProduct } from "infra/gift_card_provider";
@@ -19,6 +19,7 @@ async function catalogFetcher(url: string): Promise<Catalog> {
 export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const purchaseInProgress = useRef(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const Title = featured ? "h2" : "h1";
@@ -43,17 +44,16 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
   }
 
   async function buy(product: GiftCardProduct) {
-    if (busy) return;
+    if (purchaseInProgress.current) return;
+    purchaseInProgress.current = true;
     setBusy(product.code);
     setMessage("");
     try {
-      // Revalidate identity before using a buyer-scoped purchase key.
       const userResponse = await fetch("/api/v1/user", { cache: "no-store" });
       if (!userResponse.ok) {
         await router.push(loginHref(product));
         return;
       }
-      const user = await userResponse.json();
       if (!data?.checkout_available) {
         setMessage(
           t(
@@ -63,12 +63,6 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
         await mutate();
         return;
       }
-      const storageKey = `gift-card-request:${user.id}:${product.code}`;
-      let key = sessionStorage.getItem(storageKey);
-      if (!key) {
-        key = crypto.randomUUID();
-        sessionStorage.setItem(storageKey, key);
-      }
       const response = await fetch("/api/v1/orders", {
         method: "POST",
         cache: "no-store",
@@ -76,16 +70,16 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
         body: JSON.stringify({
           item_type: "GIFT_CARD",
           item_id: product.code,
-          idempotency_key: key,
+          idempotency_key: crypto.randomUUID(),
         }),
       });
       if (!response.ok) throw new Error("Purchase unavailable");
       const order: { id: string } = await response.json();
-      sessionStorage.removeItem(storageKey);
       await router.push(`/checkout/${order.id}`);
     } catch {
       setMessage(t("We could not start your purchase. Try again."));
     } finally {
+      purchaseInProgress.current = false;
       setBusy(null);
     }
   }
@@ -118,10 +112,10 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
           </Link>
         ) : (
           <Link
-            href="/library/gift-cards"
+            href="/library/orders"
             className="text-sm font-semibold text-violet-200 hover:text-white"
           >
-            {t("My gift cards")}
+            {t("My orders")}
           </Link>
         )}
       </div>

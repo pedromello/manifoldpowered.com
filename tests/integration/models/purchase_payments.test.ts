@@ -227,7 +227,7 @@ async function start(
       }),
   };
 }
-test("two tabs create one order and perform one charge", async () => {
+test("retrying the same gift-card checkout creates one order and one charge", async () => {
   const f = fixture(),
     user = await freshBuyer(),
     key = randomUUID();
@@ -240,7 +240,7 @@ test("two tabs create one order and perform one charge", async () => {
     f.service.begin(user, {
       item_type: "GIFT_CARD",
       item_id: "sandbox-brl-25",
-      idempotency_key: randomUUID(),
+      idempotency_key: key,
     }),
   ]);
   expect(a.id).toBe(b.id);
@@ -262,6 +262,95 @@ test("two tabs create one order and perform one charge", async () => {
   expect(f.pay).toHaveBeenCalledTimes(1);
   expect(f.createOrder).toHaveBeenCalledTimes(1);
   expect((await f.service.findOwn(user, a.id)).paid_at).toBeNull();
+});
+test("new gift-card checkouts start unpaid and earlier orders stay accessible by id", async () => {
+  const f = fixture();
+  const user = await freshBuyer();
+  const previous = await start(f, user);
+  f.setState("PAID");
+  await previous.submit();
+  expect(await f.service.findOwn(user, previous.order.id)).toMatchObject({
+    payment_status: "PAID",
+    delivery_status: "PENDING",
+  });
+
+  const beginGift = () =>
+    f.service.begin(user, {
+      item_type: "GIFT_CARD",
+      item_id: "sandbox-brl-25",
+      idempotency_key: randomUUID(),
+    });
+  const [first, second] = await Promise.all([beginGift(), beginGift()]);
+  expect(new Set([previous.order.id, first.id, second.id]).size).toBe(3);
+  for (const order of [first, second]) {
+    expect(await f.service.view(user, order.id)).toMatchObject({
+      order: { id: order.id, payment_status: "UNPAID", can_pay: true },
+      attempt: null,
+    });
+  }
+  expect(await f.service.listOwn(user)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: previous.order.id,
+        payment_status: "PAID",
+      }),
+      expect.objectContaining({ id: first.id, payment_status: "UNPAID" }),
+      expect.objectContaining({ id: second.id, payment_status: "UNPAID" }),
+    ]),
+  );
+  expect(await f.service.view(user, previous.order.id)).toMatchObject({
+    order: { id: previous.order.id, payment_status: "PAID", can_pay: false },
+    attempt: { id: previous.attempt.id, submitted: true },
+  });
+  const resumed = await f.service.quote(user, first.id, {
+    method: "card",
+    installments: 1,
+    idempotency_key: randomUUID(),
+  });
+  expect(await f.service.view(user, first.id)).toMatchObject({
+    attempt: { id: resumed.id, submitted: false },
+  });
+  expect((await f.service.view(user, second.id)).attempt).toBeNull();
+  expect(f.pay).toHaveBeenCalledTimes(1);
+});
+test("an unlinked legacy gift-card order does not block a new checkout", async () => {
+  const f = fixture();
+  const user = await freshBuyer();
+  const legacy = await prisma.giftCardOrder.create({
+    data: {
+      user_id: user,
+      idempotency_key: randomUUID(),
+      product_code: "sandbox-brl-25",
+      product_name: "Legacy test gift card",
+      amount_minor: 2500,
+      currency: "BRL",
+      status: "AWAITING_PAYMENT",
+    },
+  });
+
+  const order = await f.service.begin(user, {
+    item_type: "GIFT_CARD",
+    item_id: legacy.product_code,
+    idempotency_key: randomUUID(),
+  });
+  expect(order.gift_card_order_id).not.toBe(legacy.id);
+  expect(order.payment_status).toBe("UNPAID");
+  expect(
+    await prisma.giftCardOrder.findUnique({ where: { id: legacy.id } }),
+  ).toMatchObject({ status: "AWAITING_PAYMENT" });
+});
+test("the same paid-game checkout is reused across different request keys", async () => {
+  const f = fixture();
+  const user = await freshBuyer();
+  const beginGame = () =>
+    f.service.begin(user, {
+      item_type: "GAME",
+      item_id: slug,
+      idempotency_key: randomUUID(),
+    });
+
+  const [first, second] = await Promise.all([beginGame(), beginGame()]);
+  expect(second.id).toBe(first.id);
 });
 test("authorized card does not unlock a game; confirmation creates one sale and balanced ledger using snapshots", async () => {
   const f = fixture(),

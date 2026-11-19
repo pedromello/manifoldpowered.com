@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import Stripe from "stripe";
 import type { NextApiRequest } from "next";
-import type { BuyerCheckout } from "contracts/purchase-orders";
+import type { BuyerCheckout, BuyerOrder } from "contracts/purchase-orders";
 import { prisma } from "infra/database";
+import { appmaxPaymentProvider } from "infra/payments/appmax";
+import type { PaymentQuote } from "infra/payments/types";
 import { stripeCheckoutGateway } from "infra/stripe_checkout";
 import type { EmailGiftProvider } from "infra/gift_card_api";
 import { createEmailGiftDelivery } from "models/gift_card_email_delivery";
@@ -23,6 +25,7 @@ import webhookHandler from "pages/api/v1/webhooks/stripe";
 import giftLibraryHandler from "pages/api/v1/gift-card-orders";
 import revealHandler from "pages/api/v1/gift-card-orders/[id]/reveal";
 import { apiRequest } from "tests/fixtures/api_request";
+import { appmaxCheckoutFixture } from "tests/fixtures/appmax_checkout";
 import {
   checkoutFixture,
   paymentEvent,
@@ -276,16 +279,20 @@ async function begin(buyer: Buyer) {
   expect(catalog.body.products).toContainEqual(
     expect.objectContaining({ code: productCode, amount_minor: 2500 }),
   );
-  const response = await apiRequest<{ id: string }>(orderHandler, {
-    url: "/api/v1/orders",
-    session: buyer.session,
-    body: {
-      item_type: "GIFT_CARD",
-      item_id: productCode,
-      idempotency_key: randomUUID(),
+  const response = await apiRequest<{ id: string; checkout_url: string }>(
+    orderHandler,
+    {
+      url: "/api/v1/orders",
+      session: buyer.session,
+      body: {
+        item_type: "GIFT_CARD",
+        item_id: productCode,
+        idempotency_key: randomUUID(),
+      },
     },
-  });
+  );
   expect(response.status).toBe(201);
+  expect(response.body.checkout_url).toBe(`/checkout/${response.body.id}`);
   return response.body.id;
 }
 async function confirm(buyer: Buyer, id: string, body: unknown = recipient) {
@@ -355,6 +362,123 @@ function privateMaterialAbsent(value: unknown) {
   expect(output).not.toContain(recipient.name);
   expect(output).not.toContain(recipient.document);
 }
+
+test("a new catalog purchase opens Appmax while My orders resumes the earlier checkout", async () => {
+  const buyer = await register();
+  const earlierId = await begin(buyer);
+  expect((await confirm(buyer, earlierId)).status).toBe(200);
+  const earlierAttempt = await quote(buyer, earlierId);
+
+  Object.assign(process.env, {
+    PAYMENT_PROVIDER: "appmax",
+    APPMAX_CLIENT_ID: "synthetic-use-case-client",
+    APPMAX_CLIENT_SECRET: "synthetic-use-case-secret",
+    APPMAX_AUTH_URL: "https://auth.sandboxappmax.com.br/oauth2/token",
+    APPMAX_API_URL: "https://api.sandboxappmax.com.br",
+  });
+  const appmax = appmaxCheckoutFixture();
+  jest
+    .spyOn(appmaxPaymentProvider, "quotes")
+    .mockImplementation(appmax.provider.quotes);
+  const scope = { provider: "appmax", environment: "sandbox" };
+  const existingInstallation = await prisma.paymentInstallation.findUnique({
+    where: { provider_environment: scope },
+  });
+  const installation =
+    existingInstallation ??
+    (await prisma.paymentInstallation.create({
+      data: { ...scope, external_id: randomUUID() },
+    }));
+  try {
+    const newId = await begin(buyer);
+    expect(newId).not.toBe(earlierId);
+    const freshCheckout = await detail(buyer, newId);
+    expect(freshCheckout.status).toBe(200);
+    expect(freshCheckout.body.order).toMatchObject({
+      id: newId,
+      item_id: productCode,
+      payment_status: "UNPAID",
+      can_pay: true,
+    });
+    expect(freshCheckout.body.attempt).toBeNull();
+    expect(freshCheckout.body.gift_card_delivery).toMatchObject({
+      channel: "EMAIL",
+      confirmed: false,
+      recipient_ready: false,
+    });
+    const { external_id: externalId, ...checkout } =
+      freshCheckout.body.checkout;
+    expect(Boolean(externalId) && externalId === installation.external_id).toBe(
+      true,
+    );
+    expect(checkout).toEqual({
+      available: true,
+      hosted: false,
+      methods: ["pix", "card"],
+      installments: true,
+      script_url: "https://scripts.sandboxappmax.com.br/appmax.min.js",
+    });
+
+    const options = await apiRequest<{ options: PaymentQuote[] }>(
+      quoteHandler,
+      {
+        url: `/api/v1/orders/${newId}/quote`,
+        method: "GET",
+        query: { id: newId },
+        session: buyer.session,
+      },
+    );
+    expect(options.status).toBe(200);
+    expect(options.body.options).toEqual([
+      { installments: 1, total_minor: 2500, interest_minor: 0 },
+      { installments: 3, total_minor: 2800, interest_minor: 300 },
+    ]);
+    expect(appmax.request.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://auth.sandboxappmax.com.br/oauth2/token",
+      "https://api.sandboxappmax.com.br/v1/payments/installments",
+    ]);
+
+    const history = await apiRequest<{ orders: BuyerOrder[] }>(orderHandler, {
+      url: "/api/v1/orders",
+      method: "GET",
+      session: buyer.session,
+    });
+    expect(history.status).toBe(200);
+    expect(history.body.orders).toHaveLength(2);
+    expect(history.body.orders).toEqual(
+      expect.arrayContaining(
+        [earlierId, newId].map((id) =>
+          expect.objectContaining({
+            id,
+            item_id: productCode,
+            payment_status: "UNPAID",
+            can_pay: true,
+          }),
+        ),
+      ),
+    );
+    const earlierOrder = history.body.orders.find(
+      ({ id }) => id === earlierId,
+    )!;
+    const resumed = await detail(buyer, earlierOrder.id);
+    expect(resumed.status).toBe(200);
+    expect(resumed.body.order.id).toBe(earlierId);
+    expect(resumed.body.attempt?.id).toBe(earlierAttempt.id);
+    expect(resumed.body.checkout).toMatchObject({
+      available: true,
+      hosted: true,
+      methods: ["card"],
+    });
+    expect(resumed.body.gift_card_delivery?.recipient_ready).toBe(true);
+    expect(fixture.gateway.create).not.toHaveBeenCalled();
+    expect(service.submit).not.toHaveBeenCalled();
+  } finally {
+    if (!existingInstallation)
+      await prisma.paymentInstallation.delete({
+        where: { id: installation.id },
+      });
+  }
+});
 
 test("registration through verified Stripe payment queues email delivery, then tracking completes without a code", async () => {
   const buyer = await register();

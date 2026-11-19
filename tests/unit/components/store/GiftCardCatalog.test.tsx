@@ -63,7 +63,8 @@ test("dedicated page has one clear heading and explains email delivery", () => {
   expect(html).toContain(
     "Receive your gift card by email after payment confirmation.",
   );
-  expect(html).toContain("My gift cards");
+  expect(html).toContain('href="/library/orders"');
+  expect(html).toContain("My orders");
 });
 
 test("home feature links to the dedicated public gift card store", () => {

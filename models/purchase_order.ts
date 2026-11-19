@@ -247,61 +247,37 @@ export function createPurchaseOrderService({
           });
         return previous;
       }
-      if (
-        input.item_type === "GAME" &&
-        (await tx.libraryItem.findUnique({
-          where: {
-            user_id_item_id_item_type: {
-              user_id: userId,
-              item_id: input.item_id,
-              item_type: "GAME",
+      if (input.item_type === "GAME") {
+        if (
+          await tx.libraryItem.findUnique({
+            where: {
+              user_id_item_id_item_type: {
+                user_id: userId,
+                item_id: input.item_id,
+                item_type: "GAME",
+              },
             },
-          },
-        }))
-      )
-        throw new ConflictError({
-          message: "This game is already in your library.",
-        });
-      const existing = await tx.purchaseOrder.findFirst({
-        where: {
-          user_id: userId,
-          item_type: input.item_type,
-          item_id: input.item_id,
-          OR: [
-            { payment_status: { in: ["UNPAID", "PENDING", "PROCESSING"] } },
-            {
-              payment_status: "PAID",
-              delivery_status: { in: ["PENDING", "FAILED"] },
-            },
-          ],
-        },
-      });
-      if (existing) return existing;
-      // Legacy demo/Stripe deliveries also block another gift-card checkout.
-      if (input.item_type === "GIFT_CARD") {
-        const gift = await tx.giftCardOrder.findFirst({
+          })
+        )
+          throw new ConflictError({
+            message: "This game is already in your library.",
+            action: "Refresh the resource and try again",
+          });
+        const existing = await tx.purchaseOrder.findFirst({
           where: {
             user_id: userId,
-            product_code: input.item_id,
-            status: {
-              in: [
-                "CHECKOUT_PENDING",
-                "AWAITING_PAYMENT",
-                "PAID",
-                "ISSUANCE_FAILED",
-              ],
-            },
+            item_type: "GAME",
+            item_id: input.item_id,
+            OR: [
+              { payment_status: { in: ["UNPAID", "PENDING", "PROCESSING"] } },
+              {
+                payment_status: "PAID",
+                delivery_status: { in: ["PENDING", "FAILED"] },
+              },
+            ],
           },
         });
-        if (gift) {
-          const linked = await tx.purchaseOrder.findUnique({
-            where: { gift_card_order_id: gift.id },
-          });
-          if (linked) return linked;
-          throw new ConflictError({
-            message: "You already have a purchase awaiting completion.",
-          });
-        }
+        if (existing) return existing;
       }
       const affiliate =
         input.item_type === "GAME"
