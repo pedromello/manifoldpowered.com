@@ -169,6 +169,42 @@ describe("PATCH /api/v1/users/[username]", () => {
       });
     });
 
+    test.each([
+      ["features", { features: ["update:user:status:any"] }],
+      ["id", { id: "00000000-0000-4000-8000-000000000000" }],
+      ["status", { status: "ADMIN" }],
+      ["unknown", { unknown: "value" }],
+    ])("Rejects the %s field without changing the user", async (_, field) => {
+      const createdUser = await orchestrator.createUser();
+      await orchestrator.activateUser(createdUser.id);
+      const sessionObj = await orchestrator.createSession(createdUser.id);
+      const originalUser = await user.findOneById(createdUser.id);
+
+      const patchResponse = await fetch(
+        `${webserver.getOrigin()}/api/v1/users/${createdUser.username}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${sessionObj.token}`,
+          },
+          body: JSON.stringify({
+            username: "should-not-be-applied",
+            ...field,
+          }),
+        },
+      );
+
+      expect(patchResponse.status).toBe(400);
+      expect(await patchResponse.json()).toMatchObject({
+        name: "ValidationError",
+      });
+
+      const userInDatabase = await user.findOneById(createdUser.id);
+      expect(userInDatabase.username).toBe(originalUser.username);
+      expect(userInDatabase.features).toEqual(originalUser.features);
+    });
+
     test("With valid username", async () => {
       const user1 = await orchestrator.createUser();
       await orchestrator.activateUser(user1.id);

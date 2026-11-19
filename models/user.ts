@@ -18,12 +18,15 @@ export type CreateUserDto = z.infer<typeof userSchema> & {
   features?: string[];
 };
 
-interface UpdateUserDto {
-  username?: string;
-  email?: string;
-  password?: string;
-  features?: string[];
-}
+export const userUpdateSchema = z
+  .object({
+    username: z.string().min(1).max(30).optional(),
+    email: z.email().optional(),
+    password: z.string().min(1).optional(),
+  })
+  .strict();
+
+type UpdateUserDto = z.infer<typeof userUpdateSchema>;
 
 const create = async (createUserDto: CreateUserDto) => {
   await validateUniqueEmail(createUserDto.email);
@@ -40,9 +43,7 @@ const create = async (createUserDto: CreateUserDto) => {
     },
   });
 
-  function injectDefaultFeaturesInObject(
-    userDto: CreateUserDto | UpdateUserDto,
-  ) {
+  function injectDefaultFeaturesInObject(userDto: CreateUserDto) {
     userDto.features = ["read:activation_token"];
   }
 };
@@ -157,10 +158,19 @@ const findOneById = async (id: string) => {
   return user;
 };
 
-const updateByUsername = async (
-  username: string,
-  userUpdateDto: UpdateUserDto,
-) => {
+const updateByUsername = async (username: string, updateData: unknown) => {
+  const result = userUpdateSchema.safeParse(updateData);
+
+  if (!result.success) {
+    throw new ValidationError({
+      message: "One or more fields are invalid",
+      action: "Check the fields and try again",
+      context: result.error.issues,
+    });
+  }
+
+  const userUpdateDto = result.data;
+
   if (userUpdateDto.username) {
     await validateUniqueUsername(userUpdateDto.username);
   }
@@ -183,7 +193,11 @@ const update = async (id: string, userUpdateDto: UpdateUserDto) => {
     where: {
       id,
     },
-    data: userUpdateDto,
+    data: {
+      username: userUpdateDto.username,
+      email: userUpdateDto.email,
+      password: userUpdateDto.password,
+    },
   });
 
   return updatedUser;
@@ -286,7 +300,6 @@ const user = {
   findOneByLogin,
   findAllPaginated,
   updateByUsername,
-  update,
   setFeatures,
   addFeatures,
   disable,
