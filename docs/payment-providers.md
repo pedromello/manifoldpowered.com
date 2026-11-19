@@ -28,9 +28,9 @@ APPMAX_API_URL=https://api.sandboxappmax.com.br
 APPMAX_WEBHOOK_TOKEN=replace_with_a_random_secret_of_at_least_32_characters
 ```
 
-This integration uses the **own-store API** in the Appmax panel. Appstore app
-installation and its different webhook envelope are not used. Obtain the merchant
-credentials and External ID in the sandbox panel's API tab. Import the External ID:
+The checkout uses merchant credentials. For an own-store setup, obtain the
+merchant credentials and External ID in the sandbox panel's API tab. Import the
+External ID:
 
 ```powershell
 npm run payments:configure-appmax -- --external-id YOUR_INSTALLATION_UUID
@@ -90,6 +90,30 @@ Uncertain creation without a recoverable remote reference requires manual review
 Do not clear `uncertain` or create a replacement payment until the remote account
 has been reconciled. Retry delivery does not charge again. Observe job age,
 `last_error`, and backlog; do not depend only on provider webhook retries.
+
+## Appstore sandbox URL setup
+
+Scope the Appstore configuration to the Preview branch used for homologation.
+Set `APPMAX_APPSTORE_NUMERIC_ID` to the numerical Appstore app ID and
+`APPMAX_APPSTORE_APP_ID` to the public app UUID. Store a separate random,
+URL-safe `APPMAX_APPSTORE_WEBHOOK_TOKEN` of at least 32 characters as a secret.
+
+- Platform URL uses the Preview origin that buyers can open in a browser.
+- Validation URL uses `/api/v1/appmax/health` on that origin. Send a `POST`
+  with the numerical `app_id` to verify that two calls return distinct v4 UUIDs.
+  The route also accepts the documented synthetic Appmax validator payload.
+- Webhook URL uses `/api/v1/webhooks/appmax/<private-token>/appstore` on the
+  same origin. Keep the token and complete URL out of Git and diagnostic output.
+  Matching notifications schedule reconciliation of the existing sandbox order
+  through its recorded payment attempt.
+
+The validation route checks the URL contract for Appstore setup. A synthetic
+response does not identify a store installation. Before completing merchant
+installation, connect the authorization and callback flow to durable storage of
+the installation ID returned by the validation route. Configure the merchant's
+own Client ID and Client Secret and the matching External ID before testing a
+checkout. See the [Appstore installation guide](https://docs.appmax.com.br/guides/instalacao)
+and [Appstore webhook contract](https://docs.appmax.com.br/guides/webhooks).
 
 ## API and delivery
 
