@@ -1338,6 +1338,17 @@ model PaymentInstallation {
   @@map("payment_installations")
 }
 
+model AppmaxInstallationAttempt {
+  external_key_hash        String   @id @db.VarChar(64)
+  authorization_token_hash String   @unique @db.VarChar(64)
+  external_id              String?  @db.Uuid
+  credential_digest        String?  @db.VarChar(64)
+  expires_at               DateTime
+
+  @@index([expires_at])
+  @@map("appmax_installation_attempts")
+}
+
 // Append-only double-entry ledger. Every money movement is written as a set of
 // entries sharing an entry_group_id which sums to zero within each currency,
 // so a bug that loses money fails at write time instead of surfacing in a
