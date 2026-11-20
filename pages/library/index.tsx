@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { BookMarked, PackageX, Receipt } from "lucide-react";
+import { BookMarked, Gift, PackageX, Receipt } from "lucide-react";
 
 import { LibraryGameCard } from "components/library/LibraryGameCard";
 import { StoreHomeLayout } from "components/store/StoreHomeLayout";
 import type { GameApi } from "components/store/types";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "components/store/usePurchaseAvailability";
 import { fetchJson, isAuthenticationError } from "lib/api-client";
 
 type LibraryItem = {
@@ -20,6 +21,7 @@ type LibraryItem = {
 export default function LibraryPage() {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const { purchasesEnabled, giftCardsEnabled } = usePurchaseAvailability();
   const {
     data: libraryData,
     error,
@@ -64,13 +66,26 @@ export default function LibraryPage() {
           </div>
 
           {!isLoggedOut && (
-            <Link
-              href="/library/purchases"
-              className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
-            >
-              <Receipt size={16} />
-              {t("Purchase history")}
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              {giftCardsEnabled && (
+                <Link
+                  href="/library/gift-cards"
+                  className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
+                >
+                  <Gift size={16} />
+                  {t("Gift cards")}
+                </Link>
+              )}
+              <Link
+                href={
+                  purchasesEnabled ? "/library/orders" : "/library/purchases"
+                }
+                className="inline-flex h-10 w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/60 hover:border-white/20 hover:text-white"
+              >
+                <Receipt size={16} />
+                {t(purchasesEnabled ? "My orders" : "Purchase history")}
+              </Link>
+            </div>
           )}
         </header>
 

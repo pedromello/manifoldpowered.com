@@ -42,6 +42,7 @@ function savedGame(overrides: Partial<Game> = {}): Game {
     publisher_name: null,
     steam_app_id: null,
     nintendo_nsuid: null,
+    playstation_product_id: null,
     steam_price: null,
     steam_original_price: null,
     steam_discount_percent: null,

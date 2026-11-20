@@ -48,11 +48,11 @@ describe("POST /api/v1/backoffice/feature-backfill", () => {
       const updateMany = prisma.user.updateMany.bind(prisma.user);
       const spy = jest
         .spyOn(prisma.user, "updateMany")
-        .mockImplementation(async (args) => {
+        .mockImplementation((async (args) => {
           if (args.where?.id === target.id)
             await user.setFeatures(target.id, concurrentFeatures);
           return updateMany(args);
-        });
+        }) as typeof updateMany);
       try {
         const report = await featureBackfill.reconcileHomeAdmins();
         expect(report.admins.skipped_ineligible).toBeGreaterThanOrEqual(1);

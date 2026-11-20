@@ -176,7 +176,9 @@ describe("creator onboarding game search contract", () => {
     if (typeof selection.type !== "function") {
       throw new Error("SelectionStep must be a function component");
     }
-    const renderedSelection = selection.type(selection.props);
+    const renderedSelection = (
+      selection.type as (props: Record<string, unknown>) => ReactNode
+    )(selection.props);
     const autocomplete = allElements(renderedSelection).find(
       (element) => element.type === mockAutocomplete,
     );
@@ -266,7 +268,9 @@ describe("creator onboarding game search contract", () => {
       if (typeof selection.type !== "function") {
         throw new Error("SelectionStep must be a function component");
       }
-      const renderedSelection = selection.type(selection.props);
+      const renderedSelection = (
+        selection.type as (props: Record<string, unknown>) => ReactNode
+      )(selection.props);
       const selectionElements = allElements(renderedSelection);
       const curationLinks = selectionElements.filter(
         (element) =>
@@ -321,7 +325,9 @@ describe("creator onboarding game search contract", () => {
         if (typeof selection.type !== "function") {
           throw new Error("SelectionStep must be a function component");
         }
-        selection.type(selection.props);
+        (selection.type as (props: Record<string, unknown>) => ReactNode)(
+          selection.props,
+        );
         const previewEffect = effects.at(-1);
         if (!previewEffect) throw new Error("Selection preview effect missing");
         const cleanup = previewEffect();

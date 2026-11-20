@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { DiscoverOutlets } from "components/store/DiscoverOutlets";
+import { GiftCardCatalog } from "components/store/GiftCardCatalog";
 import { OutletAffiliateLinks } from "components/store/OutletAffiliateLinks";
 import { SelectionCarousel } from "components/storefront/default/SelectionCarousel";
 import { DiscountBadge } from "components/store/DiscountBadge";
@@ -384,6 +385,7 @@ export function PlatformStorefrontHome({
   pagination,
   setPage,
   showDiscover,
+  showGiftCards,
   editorialSelections = [],
   homeCommunities = [],
 }: DefaultStorefrontProps) {
@@ -460,6 +462,12 @@ export function PlatformStorefrontHome({
           {store ? <div className="shrink-0">{followControl}</div> : null}
         </div>
 
+        {showGiftCards && !store && (
+          <div className="mb-8">
+            <GiftCardCatalog featured />
+          </div>
+        )}
+
         {store && (
           <div className="mb-6">
             <OutletAffiliateLinks store={store} isPreview={isPreview} />
@@ -478,7 +486,7 @@ export function PlatformStorefrontHome({
           />
         ) : (
           <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center text-white/40">
-            {t("The first games are being prepared for the catalog.")}
+            {t("No featured games right now.")}
           </div>
         )}
         {!store && showDiscover && (
@@ -522,7 +530,7 @@ export function PlatformStorefrontHome({
             <p className="text-xs font-bold uppercase tracking-[0.17em] text-white/35">
               {store
                 ? t("{name}'s catalog", { name: store.name })
-                : t("Shared catalog")}
+                : t("All games")}
             </p>
             <h2 className="mt-2 text-3xl font-black tracking-[-0.025em]">
               {t("Explore games")}

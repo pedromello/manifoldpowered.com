@@ -53,7 +53,8 @@ function renderCommunities() {
   jest
     .spyOn(track.children[1], "getBoundingClientRect")
     .mockReturnValue({ left: 360, width: 300 } as DOMRect);
-  const scrollBy = jest.fn(({ left }: ScrollToOptions) => {
+  const scrollBy = jest.fn((options: ScrollToOptions | number = {}) => {
+    const left = typeof options === "number" ? options : (options.left ?? 0);
     track.scrollLeft = Math.min(932, Math.max(0, track.scrollLeft + left));
     track.dispatchEvent(new Event("scroll"));
   });

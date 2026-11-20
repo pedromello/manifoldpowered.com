@@ -135,7 +135,9 @@ function invoke(element: TestElement): ReactNode {
   if (typeof element.type !== "function") {
     throw new Error("Expected a function component");
   }
-  return element.type(element.props);
+  return (element.type as (props: Record<string, unknown>) => ReactNode)(
+    element.props,
+  );
 }
 
 function textContent(node: ReactNode): string {
@@ -352,6 +354,7 @@ describe("store manage Overview wiring", () => {
             capabilities: financeCapabilities,
           },
           isLoading: false,
+          isValidating: false,
           error: undefined,
           mutate: jest.fn(),
         };
@@ -360,6 +363,7 @@ describe("store manage Overview wiring", () => {
         return {
           data: undefined,
           isLoading: false,
+          isValidating: false,
           error: undefined,
           mutate: jest.fn(),
         };
