@@ -98,6 +98,13 @@ Set `APPMAX_APPSTORE_NUMERIC_ID` to the numerical Appstore app ID and
 `APPMAX_APPSTORE_APP_ID` to the public app UUID. Store a separate random,
 URL-safe `APPMAX_APPSTORE_WEBHOOK_TOKEN` of at least 32 characters as a secret.
 
+Set `APPMAX_MERCHANT_CLIENT_ID` and `APPMAX_MERCHANT_CLIENT_SECRET` together
+in Preview for the checkout to use the installed sandbox merchant. The
+installation uses its separate `APPMAX_APPSTORE_CLIENT_ID` and
+`APPMAX_APPSTORE_CLIENT_SECRET` when supplied. Existing environments can
+continue to use `APPMAX_CLIENT_ID` and `APPMAX_CLIENT_SECRET` as the fallback
+pair for their configured use.
+
 - Platform URL uses the Preview origin that buyers can open in a browser.
 - Validation URL uses `/api/v1/appmax/health` on that origin. Send a `POST`
   with the numerical `app_id` to verify that two calls return distinct v4 UUIDs.

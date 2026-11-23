@@ -15,6 +15,17 @@ export function selectedPaymentProvider(): PaymentProviderName {
     throw new ServiceError({ message: "Purchases are unavailable." });
   return provider;
 }
+export function appmaxMerchantCredentials() {
+  const merchantId = process.env.APPMAX_MERCHANT_CLIENT_ID;
+  const merchantSecret = process.env.APPMAX_MERCHANT_CLIENT_SECRET;
+  const hasMerchantPair =
+    merchantId !== undefined || merchantSecret !== undefined;
+  const client_id = hasMerchantPair ? merchantId : process.env.APPMAX_CLIENT_ID;
+  const client_secret = hasMerchantPair
+    ? merchantSecret
+    : process.env.APPMAX_CLIENT_SECRET;
+  if (client_id && client_secret) return { client_id, client_secret };
+}
 export function appmaxEndpoints() {
   assertPaymentSandbox();
   const auth = (

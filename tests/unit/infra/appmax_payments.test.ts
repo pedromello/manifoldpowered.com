@@ -104,6 +104,23 @@ test("quotes only the configured installments in cents, without invented rates",
     appmaxQuotes({ data: { installments: { "3": { total: 28.0 } } } }, 2500),
   ).toEqual([]);
 });
+test("normalizes scalar sandbox parcel totals from reais to cents", () => {
+  expect(
+    appmaxQuotes(
+      {
+        data: {
+          parcels: { "1": 100, "2": 102.29, "12": 119.99, "13": 122 },
+          settings: { type: "AM", settings: { "1": 0, "2": 2.29 } },
+        },
+      },
+      10_000,
+    ),
+  ).toEqual([
+    { installments: 1, total_minor: 10_000, interest_minor: 0 },
+    { installments: 2, total_minor: 10_229, interest_minor: 229 },
+    { installments: 12, total_minor: 11_999, interest_minor: 1_999 },
+  ]);
+});
 test("does not trust the environment field or accept Appstore envelopes as panel orders", () => {
   expect(
     decodeAppmaxPaymentWebhook({
@@ -141,6 +158,35 @@ test("defaults to Appmax and rejects unknown or live environments", async () => 
     createAppmaxPaymentProvider({ request }).quotes(2500),
   ).rejects.toThrow();
   expect(request).not.toHaveBeenCalled();
+});
+test("uses the dedicated merchant pair without mixing it with legacy credentials", async () => {
+  Object.assign(process.env, {
+    APPMAX_CLIENT_ID: "synthetic-app-client",
+    APPMAX_CLIENT_SECRET: "synthetic-app-secret",
+    APPMAX_MERCHANT_CLIENT_ID: "synthetic-merchant-client",
+    APPMAX_MERCHANT_CLIENT_SECRET: "synthetic-merchant-secret",
+    PAYMENT_ENVIRONMENT: "sandbox",
+  });
+  const request = jest.fn(
+    async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      if (String(url).endsWith("/oauth2/token")) {
+        const form = new URLSearchParams(String(init?.body));
+        expect(form.get("client_id")).toBe("synthetic-merchant-client");
+        expect(form.get("client_secret")).toBe("synthetic-merchant-secret");
+        return Response.json({
+          access_token: "synthetic-token",
+          expires_in: 3600,
+        });
+      }
+      return Response.json({ data: { parcels: { "1": 28 } } });
+    },
+  );
+  const provider = createAppmaxPaymentProvider({ request });
+  await expect(provider.quotes(2_800)).resolves.toEqual([
+    { installments: 1, total_minor: 2_800, interest_minor: 0 },
+  ]);
+  delete process.env.APPMAX_MERCHANT_CLIENT_SECRET;
+  expect(provider.configured()).toBe(false);
 });
 test("uses merchant auth, caches its token, sends financed total once and keeps card data out of requests", async () => {
   Object.assign(process.env, {

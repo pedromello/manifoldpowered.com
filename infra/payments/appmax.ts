@@ -1,7 +1,8 @@
 import { isIP } from "node:net";
+import { Prisma } from "generated/prisma/client";
 import { z } from "zod";
 import { ServiceError, ValidationError } from "infra/errors";
-import { assertPaymentSandbox, appmaxEndpoints } from "./config";
+import { appmaxEndpoints, appmaxMerchantCredentials } from "./config";
 import { PaymentTransportError } from "./errors";
 export { PaymentTransportError } from "./errors";
 import type {
@@ -43,15 +44,38 @@ const id = z
 const money = z.number().int().nonnegative().max(2147483647);
 export function appmaxQuotes(payload: unknown, amount: number): PaymentQuote[] {
   const schema = z.object({
-    data: z.object({
-      installments: z.record(z.string(), z.object({ total: money })),
-      settings: z
+    data: z.union([
+      z.object({
+        installments: z.record(z.string(), z.object({ total: money })),
+        settings: z
+          .object({
+            max_installments: z.number().int().positive(),
+            min_installment_value: money.optional(),
+          })
+          .optional(),
+      }),
+      z
         .object({
-          max_installments: z.number().int().positive(),
-          min_installment_value: money.optional(),
+          // The sandbox also returns scalar installment totals in BRL.
+          parcels: z.record(
+            z.string(),
+            z
+              .number()
+              .nonnegative()
+              .max(21_474_836.47)
+              .transform((total) => ({
+                total: new Prisma.Decimal(total)
+                  .mul(100)
+                  .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+                  .toNumber(),
+              })),
+          ),
         })
-        .optional(),
-    }),
+        .transform(({ parcels }) => ({
+          installments: parcels,
+          settings: undefined,
+        })),
+    ]),
   });
   const parsed = schema.safeParse(payload);
   if (!parsed.success) throw new PaymentTransportError();
@@ -216,21 +240,21 @@ export function createAppmaxPaymentProvider({
     }
   }
   async function token() {
-    assertPaymentSandbox();
-    if (!provider.configured())
+    const { auth } = appmaxEndpoints();
+    const credentials = appmaxMerchantCredentials();
+    if (!credentials)
       throw new ServiceError({ message: "Purchases are unavailable." });
     if (cachedToken && cachedToken.until > Date.now()) return cachedToken.value;
     if (!tokenRequest)
       tokenRequest = (async () => {
         const payload = await http(
-          appmaxEndpoints().auth,
+          auth,
           {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
               grant_type: "client_credentials",
-              client_id: process.env.APPMAX_CLIENT_ID!,
-              client_secret: process.env.APPMAX_CLIENT_SECRET!,
+              ...credentials,
             }),
           },
           true,
@@ -276,9 +300,7 @@ export function createAppmaxPaymentProvider({
     configured: () => {
       try {
         appmaxEndpoints();
-        return Boolean(
-          process.env.APPMAX_CLIENT_ID && process.env.APPMAX_CLIENT_SECRET,
-        );
+        return Boolean(appmaxMerchantCredentials());
       } catch {
         return false;
       }
