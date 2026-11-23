@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import useSWR from "swr";
-import { Checkout } from "components/checkout/Checkout";
+import { Checkout, quoteForSelection } from "components/checkout/Checkout";
 import type { BuyerCheckout } from "contracts/purchase-orders";
 
 jest.mock("swr", () => ({ __esModule: true, default: jest.fn() }));
@@ -76,12 +76,11 @@ test.each([true, false])(
       gift_card_delivery: emailDelivery,
       checkout: { ...checkout.checkout, hosted },
     });
-    expect(html).toContain("Confirm gift card delivery");
-    expect(html).toContain('value="buyer@example.test"');
-    expect(html).toContain('readOnly=""');
-    expect(html).toContain('name="confirm_delivery"');
-    expect(html).not.toContain(">Confirm</button>");
-    expect(html).not.toContain("Confirm payment");
+    expect(html).toContain("Gift card delivery");
+    expect(html.match(/buyer@example\.test/g)).toHaveLength(1);
+    expect(html).toContain("Confirm delivery and continue");
+    expect(html).not.toContain('name="recipient_document"');
+    expect(html).not.toContain("Continue to payment");
     expect(html).not.toContain("Generate Pix code");
     expect(html).not.toContain('name="card-number"');
   },
@@ -95,15 +94,16 @@ test("unverified delivery email requires a fresh login before recipient details 
   expect(html).toContain("Verify email");
   expect(html).toContain("callbackUrl=%2Fcheckout%2Fsynthetic-order");
   expect(html).not.toContain('name="recipient_name"');
-  expect(html).not.toContain(">Confirm</button>");
+  expect(html).not.toContain("Generate Pix code");
 });
 
 test("saved recipient enables payment while receipt continues to show email delivery", () => {
   const delivery = { ...emailDelivery, confirmed: true, recipient_ready: true };
   const html = render({ ...checkout, gift_card_delivery: delivery });
-  expect(html).toContain(">Confirm</button>");
-  expect(html).not.toContain("Confirm delivery details");
-  expect(html).toContain("buyer@example.test");
+  expect(html).toContain("Generate Pix code");
+  expect(html).not.toContain(">Confirm</button>");
+  expect(html).not.toContain("Confirm delivery and continue");
+  expect(html.match(/buyer@example\.test/g)).toHaveLength(1);
   const receipt = render({
     ...checkout,
     gift_card_delivery: delivery,
@@ -116,6 +116,54 @@ test("saved recipient enables payment while receipt continues to show email deli
   expect(receipt).toContain("Delivered by email");
   expect(receipt).not.toContain("Code available");
   expect(receipt).not.toContain("View code");
+});
+test("a required saved document can be reused without showing or resending its value", () => {
+  const html = render({
+    ...checkout,
+    gift_card_delivery: {
+      ...emailDelivery,
+      confirmed: true,
+      recipient_ready: true,
+      document_required: true,
+    },
+  });
+  expect(html).toContain("Use the delivery document for payment");
+  expect(html).toContain('name="reuse_recipient_document"');
+  expect(html).not.toContain('name="document_number"');
+  expect(html).not.toContain('name="recipient_document"');
+});
+
+test("only a live, unsubmitted quote for this method and installments is reusable", () => {
+  const attempt = {
+    id: "synthetic-quote",
+    method: "card",
+    installments: 3,
+    total_minor: 2650,
+    interest_minor: 150,
+    quote_expires_at: new Date(Date.now() + 60000).toISOString(),
+    submitted: false,
+    uncertain: false,
+    checkout_url: null,
+    pix: null,
+  };
+  const quoted = { ...checkout, attempt };
+  expect(quoteForSelection(quoted, "card", 3)).toBe(attempt);
+  expect(quoteForSelection(quoted, "card", 2)).toBeNull();
+  expect(quoteForSelection(quoted, "pix", 1)).toBeNull();
+  expect(
+    quoteForSelection(
+      { ...quoted, attempt: { ...attempt, submitted: true } },
+      "card",
+      3,
+    ),
+  ).toBeNull();
+  expect(
+    quoteForSelection(
+      { ...quoted, attempt: { ...attempt, quote_expires_at: "2000-01-01" } },
+      "card",
+      3,
+    ),
+  ).toBeNull();
 });
 test("a submitted uncertain payment offers status checks without another payment or local cancellation", () => {
   const html = render({

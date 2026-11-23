@@ -113,25 +113,16 @@ export function appmaxSnapshot(
       order: z.object({
         id,
         status: z.string(),
-        total_paid: money.optional(),
-        amounts: z
-          .object({
-            sub_total: money,
-            shipping_value: money,
-            discount: money,
-            installment_fee: money,
-          })
-          .optional(),
+        total_paid: money.nullish(),
       }),
       customer: z.object({ id }),
       payment: z
         .object({
           method: z.string().optional(),
-          installments: z.number().int().positive().optional(),
+          installments: z.unknown().optional(),
           paid_at: z.string().nullable().optional(),
         })
-        .passthrough()
-        .optional(),
+        .nullish(),
     }),
   });
   const result = schema.safeParse(payload);
@@ -314,6 +305,7 @@ export function createAppmaxPaymentProvider({
         method: body === undefined ? "GET" : "POST",
         headers: {
           Authorization: `Bearer ${auth}`,
+          Accept: "application/json",
           "Content-Type": "application/json",
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),

@@ -480,6 +480,175 @@ test("a new catalog purchase opens Appmax while My orders resumes the earlier ch
   }
 });
 
+test.each(["pix", "card"] as const)(
+  "Appmax %s reconciles payment before sending the email gift",
+  async (method) => {
+    Object.assign(process.env, {
+      PAYMENT_PROVIDER: "appmax",
+      APPMAX_MERCHANT_CLIENT_ID: "synthetic-use-case-client",
+      APPMAX_MERCHANT_CLIENT_SECRET: "synthetic-use-case-secret",
+      APPMAX_AUTH_URL: "https://auth.sandboxappmax.com.br/oauth2/token",
+      APPMAX_API_URL: "https://api.sandboxappmax.com.br",
+      GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED: "true",
+    });
+    const appmax = appmaxCheckoutFixture();
+    jest
+      .spyOn(appmaxPaymentProvider, "quote")
+      .mockImplementation(appmax.provider.quote);
+    jest
+      .spyOn(appmaxPaymentProvider, "createCustomer")
+      .mockImplementation(appmax.provider.createCustomer);
+    jest
+      .spyOn(appmaxPaymentProvider, "createOrder")
+      .mockImplementation(appmax.provider.createOrder);
+    jest
+      .spyOn(appmaxPaymentProvider, "pay")
+      .mockImplementation(appmax.provider.pay);
+    jest
+      .spyOn(appmaxPaymentProvider, "retrieve")
+      .mockImplementation(appmax.provider.retrieve);
+
+    const buyer = await register();
+    const id = await begin(buyer);
+    expect((await confirm(buyer, id)).status).toBe(200);
+    const offered = await apiRequest<BuyerCheckout>(quoteHandler, {
+      url: `/api/v1/orders/${id}/quote`,
+      query: { id },
+      session: buyer.session,
+      body: {
+        method,
+        installments: method === "pix" ? 1 : 3,
+        idempotency_key: randomUUID(),
+      },
+    });
+    expect(offered.status).toBe(200);
+    const attempt = offered.body.attempt!;
+    expect(attempt.total_minor).toBe(method === "pix" ? 2500 : 2800);
+    const alternateDocument = "11122233344";
+    const input = {
+      attempt_id: attempt.id,
+      expected_total_minor: attempt.total_minor,
+      ...(method === "card" ? { card_token: "synthetic-card-token" } : {}),
+      buyer: {
+        first_name: "Sandbox",
+        last_name: "Buyer",
+        phone: "11999999999",
+        ip: "192.0.2.1",
+        ...(method === "pix"
+          ? { reuse_recipient_document: true }
+          : { document_number: alternateDocument }),
+      },
+    };
+    const submitPayment = () =>
+      apiRequest<BuyerCheckout>(paymentHandler, {
+        url: `/api/v1/orders/${id}/payment`,
+        query: { id },
+        session: buyer.session,
+        body: input,
+      });
+    const payment = await submitPayment();
+    expect(payment.status).toBe(200);
+    expect(["PENDING", "PROCESSING"]).toContain(
+      payment.body.order.payment_status,
+    );
+    expect((await submitPayment()).status).toBe(200);
+    const paymentPath = `/v1/payments/${method === "pix" ? "pix" : "credit-card"}`;
+    const paymentRequests = appmax.request.mock.calls.filter(
+      ([url]) => new URL(String(url)).pathname === paymentPath,
+    );
+    expect(paymentRequests).toHaveLength(1);
+    expect(
+      JSON.parse(String(paymentRequests[0][1]?.body)).payment_data,
+    ).toMatchObject(
+      method === "pix"
+        ? { pix: { document_number: recipient.document } }
+        : {
+            credit_card: {
+              holder_document_number: alternateDocument,
+              installments: 3,
+            },
+          },
+    );
+    const checkout = await detail(buyer, id);
+    privateMaterialAbsent(checkout.body);
+    expect(JSON.stringify(checkout.body)).not.toContain(alternateDocument);
+    expect(service.submit).not.toHaveBeenCalled();
+    expect(
+      await prisma.giftCardFulfillmentJob.findUnique({
+        where: { order_id: id },
+      }),
+    ).toBeNull();
+
+    const { remote_order_id } =
+      await prisma.purchasePaymentAttempt.findUniqueOrThrow({
+        where: { id: attempt.id },
+      });
+    expect(remote_order_id).not.toBeNull();
+    appmax.approve(remote_order_id!);
+    await expect(paymentWorker.runOneDetailed(id)).resolves.toEqual({
+      processed: true,
+      error_code: null,
+      provider_error: null,
+    });
+    expect(
+      appmax.request.mock.calls.filter(
+        ([url, init]) =>
+          init?.method === "GET" &&
+          new URL(String(url)).pathname === `/v1/orders/${remote_order_id}`,
+      ),
+    ).toHaveLength(method === "pix" ? 1 : 2);
+    expect((await detail(buyer, id)).body.order).toMatchObject({
+      payment_status: "PAID",
+      delivery_status: "PENDING",
+    });
+    expect(
+      await prisma.giftCardFulfillmentJob.findUnique({
+        where: { order_id: id },
+      }),
+    ).not.toBeNull();
+    expect(service.submit).not.toHaveBeenCalled();
+
+    const delivery = createEmailGiftDelivery({ getProvider: () => service });
+    await expect(delivery.runOne("submit", { order_id: id })).resolves.toBe(
+      true,
+    );
+    await expect(delivery.runOne("submit", { order_id: id })).resolves.toBe(
+      false,
+    );
+    expect(service.submit).toHaveBeenCalledTimes(1);
+    expect(service.submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: id,
+        amount_minor: 2500,
+        recipient: {
+          name: recipient.name,
+          document: recipient.document,
+          email: buyer.email,
+        },
+      }),
+    );
+    expect(
+      await prisma.giftCardOrder.findUniqueOrThrow({ where: { id } }),
+    ).toMatchObject({
+      provider_reference: expect.stringMatching(/^synthetic-email-/),
+      last_error: null,
+    });
+    expect((await detail(buyer, id)).body.order).toMatchObject({
+      payment_status: "PAID",
+      gift_card_delivery: { channel: "EMAIL", status: "PROCESSING" },
+    });
+    await expect(
+      delivery.runOne("track", { order_id: id, force: true }),
+    ).resolves.toBe(true);
+    expect(service.track).toHaveBeenCalledWith(id);
+    expect((await detail(buyer, id)).body.order).toMatchObject({
+      payment_status: "PAID",
+      delivery_status: "READY",
+      gift_card_delivery: { channel: "EMAIL", status: "DELIVERED" },
+    });
+  },
+);
+
 test("registration through verified Stripe payment queues email delivery, then tracking completes without a code", async () => {
   const buyer = await register();
   const id = await begin(buyer);

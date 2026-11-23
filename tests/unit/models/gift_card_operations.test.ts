@@ -7,6 +7,7 @@ import paymentWorker from "models/purchase_payment_jobs";
 
 jest.mock("infra/database", () => ({
   prisma: {
+    giftCardOrder: { count: jest.fn() },
     giftCardFulfillmentJob: { count: jest.fn() },
     purchasePaymentJob: { count: jest.fn() },
   },
@@ -53,6 +54,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue(noJob);
   jest.mocked(prisma.giftCardFulfillmentJob.count).mockResolvedValue(0);
+  jest.mocked(prisma.giftCardOrder.count).mockResolvedValue(0);
   jest.mocked(prisma.purchasePaymentJob.count).mockResolvedValue(0);
 });
 
@@ -142,6 +144,38 @@ test("targeted tracking reports a captured failure and invokes the worker only o
   });
   expect(run).toHaveBeenCalledTimes(1);
   expect(run).toHaveBeenCalledWith("track", options);
+});
+
+test("targeted submission processes only the requested order and counts only its submission work", async () => {
+  const id = "synthetic-order";
+  run.mockResolvedValue(succeeded);
+  expect(await giftCardOperations.submitPaidOrders(id)).toEqual({
+    processed: 1,
+    succeeded: 1,
+    failed: 0,
+    remaining: 0,
+    last_error: null,
+  });
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(run).toHaveBeenCalledWith("submit", { order_id: id });
+  expect(prisma.giftCardFulfillmentJob.count).not.toHaveBeenCalled();
+  expect(prisma.giftCardOrder.count).toHaveBeenCalledWith({
+    where: {
+      id,
+      delivery_channel: "EMAIL",
+      paid_at: { not: null },
+      submitted_at: null,
+      fulfillment_status: { in: ["QUEUED", "SUBMITTING"] },
+    },
+  });
+});
+
+test("an unavailable targeted order cannot be reported as submitted or fall back to the batch", async () => {
+  await expect(
+    giftCardOperations.submitPaidOrders("synthetic-order"),
+  ).rejects.toThrow("Sending is unavailable for this order.");
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(run).toHaveBeenCalledWith("submit", { order_id: "synthetic-order" });
 });
 
 test("payment reconciliation counts a successful attempt", async () => {

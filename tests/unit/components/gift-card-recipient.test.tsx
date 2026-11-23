@@ -31,7 +31,7 @@ const delivery = {
 test("recipient confirmation sends identity fields and explicit confirmation without client supplied email", async () => {
   const onConfirm = jest.fn(async () => {});
   const node = GiftCardRecipient({
-    delivery,
+    delivery: { ...delivery, document_required: true },
     busy: false,
     orderId: "order",
     onConfirm,
@@ -43,7 +43,6 @@ test("recipient confirmation sends identity fields and explicit confirmation wit
       ({
         recipient_name: "  Synthetic Buyer  ",
         recipient_document: "123.456.789-09",
-        confirm_delivery: "on",
         email: "attacker@example.test",
       })[name],
   })) as unknown as typeof FormData;
@@ -62,7 +61,7 @@ test("recipient confirmation sends identity fields and explicit confirmation wit
   }
 });
 
-test("unchecked delivery consent never submits recipient details", async () => {
+test("an incomplete delivery form never submits recipient details", async () => {
   const onConfirm = jest.fn(async () => {});
   const node = GiftCardRecipient({
     delivery,
@@ -84,6 +83,19 @@ test("unchecked delivery consent never submits recipient details", async () => {
   } finally {
     global.FormData = original;
   }
+});
+test("optional documents are not collected for gift card delivery", () => {
+  const node = GiftCardRecipient({
+    delivery,
+    busy: false,
+    orderId: "order",
+    onConfirm: async () => {},
+  });
+  expect(
+    elements(node).find(
+      (element) => element.props.name === "recipient_document",
+    ),
+  ).toBeUndefined();
 });
 
 test("configured document requirement reaches the form without disclosing saved identity", () => {

@@ -12,7 +12,11 @@ const buyer = z
     first_name: z.string().trim().min(1).max(80),
     last_name: z.string().trim().min(1).max(80),
     phone: z.string().regex(/^\d{10,11}$/),
-    document_number: z.string().regex(/^\d{11}$|^\d{14}$/),
+    document_number: z
+      .string()
+      .regex(/^\d{11}$|^\d{14}$/)
+      .optional(),
+    reuse_recipient_document: z.literal(true).optional(),
     ip: z.string().refine((value) => Boolean(isIP(value))),
     holder_name: z.string().trim().min(1).max(100).optional(),
     holder_document_number: z
@@ -20,7 +24,10 @@ const buyer = z
       .regex(/^\d{11}$|^\d{14}$/)
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(({ document_number, reuse_recipient_document }) =>
+    reuse_recipient_document ? !document_number : Boolean(document_number),
+  );
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
   .use(controller.requireAuthentication)

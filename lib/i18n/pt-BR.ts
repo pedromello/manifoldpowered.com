@@ -19,6 +19,9 @@ export const ptBR: Record<string, string> = {
   "Verify pending payments with the payment service.":
     "Verificar pagamentos pendentes com o serviço de pagamentos.",
   "Send paid orders": "Enviar pedidos pagos",
+  "Send order": "Enviar pedido",
+  "Sending is unavailable for this order.":
+    "O envio deste pedido está indisponível.",
   "Submit paid gift cards for delivery by email.":
     "Enviar os pedidos de gift cards pagos para entrega por e-mail.",
   "Track deliveries": "Consultar entregas",
@@ -63,6 +66,8 @@ export const ptBR: Record<string, string> = {
     "Se o e-mail da sua conta mudou, cancele este pedido e inicie uma nova compra.",
   "Verify email": "Verificar e-mail",
   "Confirm gift card delivery": "Confirme a entrega do gift card",
+  "Gift card delivery": "Entrega do gift card",
+  "Confirm delivery and continue": "Confirmar entrega e continuar",
   "Your gift card will be sent to your account email. Confirm the details before paying.":
     "Seu gift card será enviado para o e-mail da sua conta. Confirme os dados antes de pagar.",
   "Recipient full name": "Nome completo do destinatário",
@@ -124,6 +129,8 @@ export const ptBR: Record<string, string> = {
   "Card number": "Número do cartão",
   "Name on card": "Nome no cartão",
   "Confirm payment": "Confirmar pagamento",
+  "Pay by card": "Pagar com cartão",
+  "Continue to payment": "Continuar para o pagamento",
   "Pay with Pix": "Pague com Pix",
   "Scan the QR code in your bank app or copy the Pix code.":
     "Leia o QR Code no aplicativo do seu banco ou copie o código Pix.",
@@ -135,6 +142,8 @@ export const ptBR: Record<string, string> = {
   "Copy Pix code": "Copiar código Pix",
   "We could not prepare the payment. Reload the page and try again.":
     "Não foi possível preparar o pagamento. Atualize a página e tente novamente.",
+  "We could not read your card. Check the details and try again.":
+    "Não foi possível ler o cartão. Confira os dados e tente novamente.",
   "Please check your purchase details.": "Confira os dados da sua compra.",
   "Please check your card details.": "Confira os dados do seu cartão.",
   "We are checking your payment. Check this order before trying again.":
@@ -151,13 +160,26 @@ export const ptBR: Record<string, string> = {
   "Your product will be available after payment confirmation.":
     "Seu produto ficará disponível após a confirmação do pagamento.",
   "Check payment status": "Verificar pagamento",
+  "Payment check requested.": "Consulta de pagamento solicitada.",
+  "The total changed. Review the new amount and confirm again.":
+    "O total mudou. Confira o novo valor e confirme novamente.",
+  "Please confirm your payment option again.":
+    "Confirme a forma de pagamento novamente.",
+  "Payment failed. Check your details or try another method.":
+    "O pagamento falhou. Confira seus dados ou tente outra forma de pagamento.",
   "Your details": "Seus dados",
+  "Payer details": "Dados de quem paga",
+  "Use the delivery document for payment":
+    "Usar o CPF ou CNPJ da entrega para pagar",
+  "CPF or CNPJ": "CPF ou CNPJ",
+  "Cardholder document": "CPF ou CNPJ do titular",
   "First name": "Nome",
   "Last name": "Sobrenome",
   "Phone number": "Telefone",
   "Payment method": "Forma de pagamento",
   "Credit card": "Cartão de crédito",
   Installments: "Parcelas",
+  "Loading installments": "Carregando parcelas",
   "Pay in full": "À vista",
   "Installment options are temporarily unavailable.":
     "As opções de parcelamento estão temporariamente indisponíveis.",

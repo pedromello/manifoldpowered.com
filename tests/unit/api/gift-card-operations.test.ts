@@ -5,6 +5,7 @@ import productHandler from "pages/api/v1/backoffice/gift-cards/products";
 import cronHandler from "pages/api/v1/cron/gift-cards/[action]";
 import operations from "models/gift_card_operations";
 import auditLog from "models/audit_log";
+import { ConflictError } from "infra/errors";
 
 jest.mock("models/gift_card_operations", () => ({
   __esModule: true,
@@ -171,6 +172,85 @@ test("runs the shared operation and audits only the projected report", async () 
 test("payment reconciliation executes the payment runner", async () => {
   await call(adminHandler, { action: "reconcile-payments" });
   expect(operations.reconcilePayments).toHaveBeenCalledTimes(1);
+});
+
+const submitAction = "submit-paid-orders";
+const targetOrderId = "7a330000-0000-4000-8000-000000000001";
+
+test("a scoped submission sends the requested ID and projects an order-scoped audit", async () => {
+  jest.mocked(operations.submitPaidOrders).mockResolvedValue({
+    ...report,
+    remaining: 0,
+  });
+  const response = await call(adminHandler, {
+    action: submitAction,
+    body: { order_id: targetOrderId },
+  });
+  expect(response.status).toHaveBeenCalledWith(200);
+  expect(response.json).toHaveBeenCalledWith({ ...report, remaining: 0 });
+  expect(operations.submitPaidOrders).toHaveBeenCalledTimes(1);
+  expect(operations.submitPaidOrders).toHaveBeenCalledWith(targetOrderId);
+  expect(auditLog.record).toHaveBeenCalledWith({
+    admin_user_id: "admin",
+    action: "gift_card:submit-paid-orders",
+    target_type: "gift_card_order",
+    target_id: targetOrderId,
+    metadata: { ...report, remaining: 0 },
+  });
+});
+
+test.each([
+  { user: "anonymous", body: { order_id: targetOrderId }, status: 401 },
+  { user: "buyer", body: { order_id: targetOrderId }, status: 403 },
+  { user: "admin", body: { order_id: "invalid" }, status: 400 },
+  {
+    user: "admin",
+    body: { order_id: targetOrderId, force: true },
+    status: 400,
+  },
+])(
+  "rejects a prohibited or invalid scoped submission (%j)",
+  async ({ user, body, status }) => {
+    const response = await call(adminHandler, {
+      action: submitAction,
+      user,
+      body,
+    });
+    expect(response.status).toHaveBeenCalledWith(status);
+    expect(operations.submitPaidOrders).not.toHaveBeenCalled();
+  },
+);
+
+test("an empty submission body still runs the batch", async () => {
+  const response = await call(adminHandler, { action: submitAction });
+  expect(response.status).toHaveBeenCalledWith(200);
+  expect(operations.submitPaidOrders).toHaveBeenCalledWith(undefined);
+});
+
+test("an unavailable scoped submission returns a conflict and audits the selected order", async () => {
+  const message = "Sending is unavailable for this order.";
+  jest
+    .mocked(operations.submitPaidOrders)
+    .mockRejectedValue(new ConflictError({ message }));
+  const response = await call(adminHandler, {
+    action: submitAction,
+    body: { order_id: targetOrderId },
+  });
+  expect(response.status).toHaveBeenCalledWith(409);
+  const [payload] = response.json.mock.calls[0];
+  expect(JSON.parse(JSON.stringify(payload))).toEqual({
+    message,
+    name: "ConflictError",
+    action: "Refresh the resource and try again",
+    status_code: 409,
+  });
+  expect(auditLog.record).toHaveBeenCalledWith({
+    admin_user_id: "admin",
+    action: "gift_card:submit-paid-orders",
+    target_type: "gift_card_order",
+    target_id: targetOrderId,
+    metadata: { failed: true },
+  });
 });
 
 test("forced tracking requires a valid local order ID", async () => {

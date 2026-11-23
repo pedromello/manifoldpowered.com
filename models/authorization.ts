@@ -1536,6 +1536,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         fulfillment_status: string;
         last_error: string | null;
         next_tracking_at: string | null;
+        can_submit: boolean;
       }[];
       products: {
         id: string;
@@ -1574,6 +1575,7 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
         fulfillment_status: order.fulfillment_status,
         last_error: order.last_error,
         next_tracking_at: order.next_tracking_at,
+        can_submit: order.can_submit,
       })),
     };
   }

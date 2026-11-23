@@ -8,6 +8,7 @@ import { assertSandbox } from "infra/runtime";
 import { ValidationError } from "infra/errors";
 import {
   operationActionSchema,
+  operationOrderIdSchema,
   requireSameOriginJson,
   runGiftCardOperation,
 } from "infra/gift_card_operations_http";
@@ -24,9 +25,14 @@ export default createRouter<NextApiRequest, NextApiResponse>()
     if (!action.success)
       throw new ValidationError({ message: "Unknown operation." });
     res.setHeader("Cache-Control", "no-store");
+    const targetOrder = operationOrderIdSchema.safeParse(req.body?.order_id);
     const targeted =
-      action.data === "track-deliveries" &&
-      typeof req.body?.order_id === "string";
+      targetOrder.success &&
+      (action.data === "track-deliveries" ||
+        action.data === "submit-paid-orders");
+    const target = targeted
+      ? { target_type: "gift_card_order", target_id: targetOrder.data }
+      : { target_type: "system", target_id: "gift_cards" };
     let report;
     try {
       report = await runGiftCardOperation(action.data, req.body);
@@ -34,8 +40,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       await auditLog.record({
         admin_user_id: req.context.user.id!,
         action: `gift_card:${action.data}`,
-        target_type: "system",
-        target_id: "gift_cards",
+        ...target,
         metadata: { failed: true },
       });
       throw error;
@@ -48,11 +53,12 @@ export default createRouter<NextApiRequest, NextApiResponse>()
     await auditLog.record({
       admin_user_id: req.context.user.id!,
       action: `gift_card:${action.data}`,
-      target_type: targeted ? "gift_card_order" : "system",
-      target_id: targeted ? req.body.order_id : "gift_cards",
+      ...target,
       metadata: {
         ...(output as Prisma.InputJsonObject),
-        ...(targeted ? { early_tracking: req.body.force === true } : {}),
+        ...(targeted && action.data === "track-deliveries"
+          ? { early_tracking: req.body.force === true }
+          : {}),
       },
     });
     return res.status(200).json(output);

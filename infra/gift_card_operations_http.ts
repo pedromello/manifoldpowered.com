@@ -11,6 +11,7 @@ export const operationActionSchema = z.enum([
   "track-deliveries",
 ]);
 export type OperationAction = z.infer<typeof operationActionSchema>;
+export const operationOrderIdSchema = z.uuid();
 
 export function requireSameOriginJson(req: NextApiRequest) {
   const contentType = req.headers["content-type"]?.split(";", 1)[0];
@@ -39,9 +40,25 @@ export async function runGiftCardOperation(
   body: unknown,
   { cron = false } = {},
 ) {
+  if (action === "submit-paid-orders") {
+    const parsed = z
+      .object({ order_id: operationOrderIdSchema.optional() })
+      .strict()
+      .safeParse(body ?? {});
+    if (!parsed.success)
+      throw new ValidationError({
+        message: "Please check the operation details.",
+      });
+    if (parsed.data.order_id && cron)
+      throw new ForbiddenError({ message: "This request is not permitted." });
+    return operations.submitPaidOrders(parsed.data.order_id);
+  }
   if (action === "track-deliveries") {
     const parsed = z
-      .object({ order_id: z.uuid().optional(), force: z.boolean().optional() })
+      .object({
+        order_id: operationOrderIdSchema.optional(),
+        force: z.boolean().optional(),
+      })
       .strict()
       .safeParse(body ?? {});
     if (!parsed.success || (parsed.data.force && !parsed.data.order_id))
@@ -62,6 +79,5 @@ export async function runGiftCardOperation(
       message: "This operation accepts an empty body.",
     });
   if (action === "sync-catalog") return operations.syncCatalog();
-  if (action === "reconcile-payments") return operations.reconcilePayments();
-  return operations.submitPaidOrders();
+  return operations.reconcilePayments();
 }

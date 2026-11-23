@@ -27,6 +27,13 @@ const originalFetch = global.fetch;
 const mutate = jest.fn();
 let state: unknown[], cursor: number;
 let summary: {
+  recent_orders?: {
+    id: string;
+    fulfillment_status: string;
+    last_error: string | null;
+    next_tracking_at: string | null;
+    can_submit: boolean;
+  }[];
   products: Array<{
     id: string;
     code: string;
@@ -142,6 +149,52 @@ test.each([
     expect(button?.props["aria-label"]).toBe(`${action}: ${name}`);
   },
 );
+
+test("the per-order action submits only the eligible order", async () => {
+  const eligible = "7a330000-0000-4000-8000-000000000001";
+  summary.recent_orders = [
+    {
+      id: eligible,
+      fulfillment_status: "QUEUED",
+      last_error: null,
+      next_tracking_at: null,
+      can_submit: true,
+    },
+    {
+      id: "7a330000-0000-4000-8000-000000000002",
+      fulfillment_status: "QUEUED",
+      last_error: null,
+      next_tracking_at: null,
+      can_submit: false,
+    },
+  ];
+  jest.mocked(global.fetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      processed: 1,
+      succeeded: 1,
+      failed: 0,
+      remaining: 0,
+      last_error: null,
+    }),
+  } as Response);
+  const buttons = elements(render()).filter(
+    (element) => element.type === "button" && text(element) === "Send order",
+  );
+  expect(buttons).toHaveLength(1);
+  expect(buttons[0].props["aria-label"]).toBe(`Send order ${eligible}`);
+  (buttons[0].props.onClick as () => void)();
+  await settle();
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(global.fetch).toHaveBeenCalledWith(
+    "/api/v1/backoffice/gift-cards/submit-paid-orders",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ order_id: eligible }),
+    }),
+  );
+  expect(mutate).toHaveBeenCalledTimes(1);
+});
 
 test("a successful sync keeps its pending and completion feedback beside the clicked button and refreshes products", async () => {
   let finish!: (value: Response) => void;

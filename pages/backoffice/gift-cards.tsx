@@ -34,6 +34,7 @@ type Summary = {
     fulfillment_status: string;
     last_error: string | null;
     next_tracking_at: string | null;
+    can_submit: boolean;
   }[];
   products: {
     id: string;
@@ -396,25 +397,58 @@ export default function GiftCardOperationsPage({
                         <th className="p-3">{t("Status")}</th>
                         <th className="p-3">{t("Last error")}</th>
                         <th className="p-3">{t("Next delivery check")}</th>
+                        <th className="p-3">{t("Operations")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {data.recent_orders.map((order) => (
-                        <tr key={order.id} className="border-t border-white/10">
-                          <td className="p-3 font-mono text-xs">{order.id}</td>
-                          <td className="p-3">{order.fulfillment_status}</td>
-                          <td className="p-3 text-amber-200">
-                            {order.last_error ?? "—"}
-                          </td>
-                          <td className="p-3">
-                            {order.next_tracking_at
-                              ? new Date(order.next_tracking_at).toLocaleString(
-                                  locale,
-                                )
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
+                      {data.recent_orders.map((order) => {
+                        const key = `submit-${order.id}`;
+                        return (
+                          <tr
+                            key={order.id}
+                            className="border-t border-white/10"
+                          >
+                            <td className="p-3 font-mono text-xs">
+                              {order.id}
+                            </td>
+                            <td className="p-3">{order.fulfillment_status}</td>
+                            <td className="p-3 text-amber-200">
+                              {order.last_error ?? "—"}
+                            </td>
+                            <td className="p-3">
+                              {order.next_tracking_at
+                                ? new Date(
+                                    order.next_tracking_at,
+                                  ).toLocaleString(locale)
+                                : "—"}
+                            </td>
+                            <td
+                              className="space-y-2 p-3"
+                              aria-busy={busy === key}
+                            >
+                              {order.can_submit && (
+                                <button
+                                  type="button"
+                                  disabled={!!busy}
+                                  aria-label={`${t("Send order")} ${order.id}`}
+                                  onClick={() =>
+                                    void run(
+                                      "submit-paid-orders",
+                                      { order_id: order.id },
+                                      "Send order",
+                                      key,
+                                    )
+                                  }
+                                  className="whitespace-nowrap rounded-lg border border-violet-400/40 px-3 py-2 font-bold hover:bg-violet-500/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:opacity-40"
+                                >
+                                  {t("Send order")}
+                                </button>
+                              )}
+                              {feedbackFor(key)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

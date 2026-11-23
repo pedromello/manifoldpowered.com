@@ -10,6 +10,7 @@ import {
   CreditCard,
   Gamepad2,
   Loader2,
+  Mail,
   QrCode,
 } from "lucide-react";
 import { useI18n } from "lib/i18n";
@@ -20,6 +21,11 @@ import {
 } from "lib/purchase-status";
 import { GiftCardArtwork } from "components/store/GiftCardArtwork";
 import type { BuyerCheckout } from "contracts/purchase-orders";
+
+const digits = (value: string) => value.replace(/\D/g, "");
+const normalizeDigits = (event: React.FormEvent<HTMLInputElement>) => {
+  event.currentTarget.value = digits(event.currentTarget.value);
+};
 
 export function GiftCardRecipient({
   delivery,
@@ -57,37 +63,25 @@ export function GiftCardRecipient({
   return (
     <form
       className="space-y-5"
+      method="POST"
       onSubmit={async (event) => {
         event.preventDefault();
         if (busy || !event.currentTarget.reportValidity()) return;
         const fields = new FormData(event.currentTarget);
-        if (fields.get("confirm_delivery") !== "on") return;
-        const document = String(fields.get("recipient_document") || "").replace(
-          /\D/g,
-          "",
-        );
+        const document = delivery.document_required
+          ? digits(String(fields.get("recipient_document") || ""))
+          : "";
+        const name = String(fields.get("recipient_name") || "").trim();
+        if (!name || (delivery.document_required && !document)) return;
         await onConfirm({
-          name: String(fields.get("recipient_name") || "").trim(),
+          name,
           ...(document ? { document } : {}),
           confirmed: true,
         });
       }}
     >
-      <h2 className="text-lg font-bold">{t("Confirm gift card delivery")}</h2>
-      <p className="text-sm leading-6 text-white/60">
-        {t(
-          "Your gift card will be sent to your account email. Confirm the details before paying.",
-        )}
-      </p>
-      <label className="block text-sm text-white/70">
-        {t("Delivery email")}
-        <input
-          type="email"
-          value={delivery.email}
-          readOnly
-          className="checkout-input"
-        />
-      </label>
+      <h2 className="text-lg font-bold">{t("Gift card delivery")}</h2>
+      <DeliveryEmail email={delivery.email} />
       <label className="block text-sm text-white/70">
         {t("Recipient full name")}
         <input
@@ -100,39 +94,41 @@ export function GiftCardRecipient({
           className="checkout-input"
         />
       </label>
-      <label className="block text-sm text-white/70">
-        {t(
-          delivery.document_required
-            ? "Recipient document"
-            : "Recipient document (if required)",
-        )}
-        <input
-          name="recipient_document"
-          inputMode="numeric"
-          autoComplete="off"
-          required={delivery.document_required}
-          pattern="[0-9./-]{11,18}"
-          maxLength={18}
-          disabled={busy}
-          className="checkout-input"
-        />
-      </label>
-      <label className="flex items-start gap-3 text-sm leading-6 text-white/70">
-        <input
-          type="checkbox"
-          name="confirm_delivery"
-          required
-          disabled={busy}
-          className="mt-1 size-4 shrink-0 accent-violet-500"
-        />
-        {t(
-          "I confirm that the gift card should be sent to the email shown above.",
-        )}
-      </label>
+      {delivery.document_required && (
+        <label className="block text-sm text-white/70">
+          {t("Recipient document")}
+          <input
+            name="recipient_document"
+            inputMode="numeric"
+            autoComplete="off"
+            required
+            pattern="[0-9]{11}|[0-9]{14}"
+            maxLength={18}
+            onInput={normalizeDigits}
+            disabled={busy}
+            className="checkout-input"
+          />
+        </label>
+      )}
       <button type="submit" disabled={busy} className="checkout-primary">
-        {t(busy ? "Please wait" : "Confirm delivery details")}
+        {t(busy ? "Please wait" : "Confirm delivery and continue")}
       </button>
     </form>
+  );
+}
+
+function DeliveryEmail({ email }: { email: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3">
+      <Mail aria-hidden="true" size={18} className="shrink-0 text-violet-300" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-white/60">
+          {t("Delivery email")}
+        </p>
+        <p className="mt-0.5 break-words text-sm font-medium">{email}</p>
+      </div>
+    </div>
   );
 }
 
@@ -181,7 +177,7 @@ function AppmaxCardFields({
   onIp,
   onToken,
   onError,
-  onBusy,
+  onStart,
 }: {
   externalId: string;
   scriptUrl: string;
@@ -190,7 +186,7 @@ function AppmaxCardFields({
   onIp: (ip: string) => void;
   onToken: (token: string) => void;
   onError: () => void;
-  onBusy: () => boolean;
+  onStart: (holderName: string) => boolean;
 }) {
   const { t } = useI18n();
   const [loaded, setLoaded] = useState(false);
@@ -231,7 +227,13 @@ function AppmaxCardFields({
         method="POST"
         onSubmitCapture={(event) => {
           event.preventDefault();
-          if (disabled || !onBusy()) event.stopPropagation();
+          const holderInput =
+            event.currentTarget.elements.namedItem("card-holder-name");
+          const holderName =
+            holderInput instanceof HTMLInputElement
+              ? holderInput.value.trim()
+              : "";
+          if (disabled || !onStart(holderName)) event.stopPropagation();
         }}
         onSubmit={(event) => event.preventDefault()}
         className={visible ? "mt-6 space-y-4" : "hidden"}
@@ -302,7 +304,7 @@ function AppmaxCardFields({
           disabled={disabled || !loaded}
           className="checkout-primary"
         >
-          {t("Confirm payment")}
+          {t("Pay by card")}
         </button>
       </form>
     </>
@@ -311,6 +313,41 @@ function AppmaxCardFields({
 
 const money = (amount: number, currency: string) =>
   formatMoney((amount / 100).toFixed(2), currency);
+
+type PaymentMethod = BuyerCheckout["checkout"]["methods"][number];
+
+export function quoteForSelection(
+  data: BuyerCheckout | undefined,
+  method: PaymentMethod,
+  installments: number,
+) {
+  const attempt = data?.attempt;
+  return data?.order.payment_status === "UNPAID" &&
+    attempt &&
+    !attempt.submitted &&
+    !attempt.uncertain &&
+    attempt.method === method &&
+    attempt.installments === installments &&
+    Date.parse(attempt.quote_expires_at) > Date.now()
+    ? attempt
+    : null;
+}
+
+function readBuyerForm(form: HTMLFormElement | null, ip: string) {
+  if (!form?.reportValidity()) return null;
+  const fields = new FormData(form);
+  return {
+    first_name: String(fields.get("first_name") || "").trim(),
+    last_name: String(fields.get("last_name") || "").trim(),
+    phone: digits(String(fields.get("phone") || "")),
+    ...(fields.get("reuse_recipient_document") === "on"
+      ? { reuse_recipient_document: true }
+      : {
+          document_number: digits(String(fields.get("document_number") || "")),
+        }),
+    ip,
+  };
+}
 function PixInstructions({
   pix,
 }: {
@@ -328,59 +365,68 @@ function PixInstructions({
     ? Math.max(0, Math.floor((Date.parse(pix.expires_at) - now) / 1000))
     : null;
   return (
-    <section className="mt-6 rounded-xl border border-white/10 p-5 text-center">
-      <h2 className="font-bold">{t("Pay with Pix")}</h2>
-      <p className="mt-2 text-sm text-white/60">
-        {t("Scan the QR code in your bank app or copy the Pix code.")}
-      </p>
+    <section className="mt-5 rounded-xl border border-white/10 p-4 text-center sm:p-5">
+      <h3 className="font-bold">{t("Pay with Pix")}</h3>
       {seconds === 0 ? (
-        <p className="mt-5 text-amber-200">
+        <p role="status" className="mt-3 text-sm text-amber-200">
           {t(
             "This Pix code has expired. Check your order before trying again.",
           )}
         </p>
       ) : (
         <>
-          <Image
-            src={`data:image/png;base64,${pix.qrcode}`}
-            alt={t("Pix QR code")}
-            width={240}
-            height={240}
-            unoptimized
-            className="mx-auto mt-5 rounded-lg bg-white p-3"
-          />
-          {seconds !== null && (
-            <p className="mt-3 text-sm text-white/60">
-              {t("Expires in")} {Math.floor(seconds / 60)}:
-              {String(seconds % 60).padStart(2, "0")}
-            </p>
-          )}
-          <textarea
-            readOnly
-            aria-label={t("Pix code")}
-            value={pix.emv}
-            className="mt-4 h-20 w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/70"
-          />
+          <p className="mt-1 text-sm text-white/70">
+            {t("Scan the QR code in your bank app or copy the Pix code.")}
+          </p>
           <button
+            type="button"
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(pix.emv);
                 setCopied(true);
                 setCopyError(false);
               } catch {
+                setCopied(false);
                 setCopyError(true);
               }
             }}
-            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 px-4 font-semibold hover:bg-white/5"
+            className="checkout-primary mt-4 gap-2"
           >
-            <Copy size={16} />
-            {t(copied ? "Code copied" : "Copy Pix code")}
+            <Copy aria-hidden="true" size={16} />
+            <span aria-live="polite">
+              {t(copied ? "Code copied" : "Copy Pix code")}
+            </span>
           </button>
           {copyError && (
-            <p role="alert" className="mt-3 text-sm text-amber-200">
+            <p role="alert" className="mt-2 text-sm text-amber-200">
               {t("Could not copy. Select the code to copy it manually.")}
             </p>
           )}
+          <Image
+            src={`data:image/png;base64,${pix.qrcode}`}
+            alt={t("Pix QR code")}
+            width={200}
+            height={200}
+            unoptimized
+            className="mx-auto mt-5 rounded-lg bg-white p-3"
+          />
+          {seconds !== null && (
+            <p className="mt-3 text-sm text-white/70">
+              {t("Expires in")} {Math.floor(seconds / 60)}:
+              {String(seconds % 60).padStart(2, "0")}
+            </p>
+          )}
+          <details open={copyError || undefined} className="mt-2">
+            <summary className="mx-auto cursor-pointer rounded px-2 py-2 text-sm text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-400">
+              {t("Pix code")}
+            </summary>
+            <textarea
+              readOnly
+              aria-label={t("Pix code")}
+              value={pix.emv}
+              className="mt-2 min-h-16 w-full rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/80"
+            />
+          </details>
         </>
       )}
     </section>
@@ -410,30 +456,57 @@ export function Checkout({ orderId }: { orderId: string }) {
       refreshInterval: 10000,
     },
   );
-  const [chosen, setChosen] = useState<"pix" | "card" | null>(null),
-    [installments, setInstallments] = useState(1),
-    [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
-  const [prepared, setPrepared] = useState<{
-      id: string;
-      method: string;
+  const [choice, setChoice] = useState<{
+      method: PaymentMethod;
       installments: number;
-      total: number;
     } | null>(null),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [statusMessage, setStatusMessage] = useState(""),
+    [differentDocument, setDifferentDocument] = useState(false),
+    [sdkFailed, setSdkFailed] = useState(false),
     [ip, setIp] = useState("");
   const buyerForm = useRef<HTMLFormElement>(null),
+    paymentHeading = useRef<HTMLHeadingElement>(null),
+    focusPayment = useRef(false),
     inFlight = useRef(false),
     tokenTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
-    tokenizing = useRef(false);
-  const method = chosen ?? data?.checkout.methods[0] ?? "pix";
-  const { data: quotes, error: quoteError } = useSWR<{
+    pendingCard = useRef<{
+      buyer: NonNullable<ReturnType<typeof readBuyerForm>> & {
+        holder_name: string;
+      };
+      installments: number;
+      reviewedTotal: number;
+    } | null>(null);
+  const paymentReady = Boolean(data && recipientConfirmed(data));
+  const canReuseDocument = Boolean(
+    paymentReady && data?.gift_card_delivery?.document_required,
+  );
+  const method =
+    choice?.method ??
+    (data?.attempt?.method === "card" && data.checkout.methods.includes("card")
+      ? "card"
+      : (data?.checkout.methods[0] ?? "pix"));
+  const installments =
+    method === "card"
+      ? (choice?.installments ?? data?.attempt?.installments ?? 1)
+      : 1;
+  const {
+    data: quotes,
+    error: quoteError,
+    isLoading: quoteLoading,
+  } = useSWR<{
     options: {
       installments: number;
       total_minor: number;
       interest_minor: number;
     }[];
   }>(
-    data?.checkout.available && method === "card" && data.checkout.installments
+    paymentReady &&
+      data?.order.can_pay &&
+      data.checkout.available &&
+      method === "card" &&
+      data.checkout.installments
       ? [`/api/v1/orders/${orderId}/quote`, user?.id]
       : null,
     async ([url]) => {
@@ -443,66 +516,98 @@ export function Checkout({ orderId }: { orderId: string }) {
     },
     { shouldRetryOnError: false, revalidateOnFocus: false },
   );
+  const option = quotes?.options.find(
+    (item) => item.installments === installments,
+  );
+  const activeQuote = quoteForSelection(data, method, installments);
+  const displayedTotal =
+    activeQuote?.total_minor ??
+    option?.total_minor ??
+    data?.order.amount_minor ??
+    0;
+  useEffect(() => {
+    if (!paymentReady || !focusPayment.current) return;
+    focusPayment.current = false;
+    paymentHeading.current?.focus();
+  }, [paymentReady]);
   useEffect(
     () => () => {
       if (tokenTimer.current) clearTimeout(tokenTimer.current);
     },
     [],
   );
-  const failedSdk = useCallback(() => {
-    if (tokenTimer.current) clearTimeout(tokenTimer.current);
-    inFlight.current = false;
-    tokenizing.current = false;
-    setBusy(false);
-    setMessage(
-      t("We could not prepare the payment. Reload the page and try again."),
-    );
-  }, [t]);
-  const readBuyer = useCallback(() => {
-    if (!buyerForm.current?.reportValidity()) return null;
-    const fields = new FormData(buyerForm.current);
-    return {
-      first_name: String(fields.get("first_name") || ""),
-      last_name: String(fields.get("last_name") || ""),
-      phone: String(fields.get("phone") || "").replace(/\D/g, ""),
-      document_number: String(fields.get("document_number") || "").replace(
-        /\D/g,
-        "",
-      ),
-      holder_document_number: String(
-        fields.get("document_number") || "",
-      ).replace(/\D/g, ""),
-      holder_name:
-        document
-          .querySelector<HTMLInputElement>(
-            'form[data-appmax-checkout] input[name="card-holder-name"]',
-          )
-          ?.value.trim() || undefined,
-      ip,
-    };
-  }, [ip]);
+  const failedSdk = useCallback(
+    (timedOut = false) => {
+      if (inFlight.current) return;
+      if (tokenTimer.current) clearTimeout(tokenTimer.current);
+      const reload = timedOut || !pendingCard.current;
+      pendingCard.current = null;
+      if (reload) setSdkFailed(true);
+      setBusy(false);
+      setMessage(
+        t(
+          reload
+            ? "We could not prepare the payment. Reload the page and try again."
+            : "We could not read your card. Check the details and try again.",
+        ),
+      );
+    },
+    [t],
+  );
   const sendPayment = useCallback(
     async (token?: string) => {
-      tokenizing.current = false;
+      if (inFlight.current || (token && !pendingCard.current)) return;
+      const card = token ? pendingCard.current : null;
+      pendingCard.current = null;
       if (tokenTimer.current) clearTimeout(tokenTimer.current);
-      if (!data || !prepared || inFlight.current || !recipientConfirmed(data))
+      if (!data?.order.can_pay || !paymentReady) {
+        setBusy(false);
         return;
-      const buyer = data.checkout.hosted ? undefined : readBuyer();
+      }
+      if (card && (method !== "card" || card.installments !== installments)) {
+        setMessage(t("Please confirm your payment option again."));
+        setBusy(false);
+        return;
+      }
+      const buyer = data.checkout.hosted
+        ? undefined
+        : token
+          ? card?.buyer
+          : readBuyerForm(buyerForm.current, ip);
       if (!data.checkout.hosted && (!buyer || !ip)) {
-        setMessage(t("Please check your purchase details."));
         setBusy(false);
         return;
       }
       inFlight.current = true;
       setBusy(true);
       setMessage("");
-      if (tokenTimer.current) clearTimeout(tokenTimer.current);
+      const reviewedTotal = card?.reviewedTotal ?? displayedTotal;
       try {
+        let quote = quoteForSelection(data, method, installments);
+        if (!quote) {
+          const reviewed = await checkoutRequest(
+            `/api/v1/orders/${orderId}/quote`,
+            {
+              method,
+              installments,
+              idempotency_key: crypto.randomUUID(),
+            },
+          );
+          await mutate(reviewed, { revalidate: false });
+          quote = quoteForSelection(reviewed, method, installments);
+        }
+        if (!quote) throw new Error();
+        if (quote.total_minor !== reviewedTotal) {
+          setMessage(
+            t("The total changed. Review the new amount and confirm again."),
+          );
+          return;
+        }
         const result = await checkoutRequest(
           `/api/v1/orders/${orderId}/payment`,
           {
-            attempt_id: prepared.id,
-            expected_total_minor: prepared.total,
+            attempt_id: quote.id,
+            expected_total_minor: reviewedTotal,
             ...(buyer ? { buyer } : {}),
             ...(token ? { card_token: token } : {}),
           },
@@ -531,32 +636,18 @@ export function Checkout({ orderId }: { orderId: string }) {
         setBusy(false);
       }
     },
-    [data, prepared, readBuyer, ip, t, orderId, mutate],
+    [
+      data,
+      paymentReady,
+      ip,
+      method,
+      installments,
+      displayedTotal,
+      t,
+      orderId,
+      mutate,
+    ],
   );
-  async function prepare() {
-    if (!data || busy || !recipientConfirmed(data)) return;
-    setBusy(true);
-    setMessage("");
-    try {
-      const result = await checkoutRequest(`/api/v1/orders/${orderId}/quote`, {
-        method,
-        installments: method === "pix" ? 1 : installments,
-        idempotency_key: crypto.randomUUID(),
-      });
-      await mutate(result, { revalidate: false });
-      if (result.attempt)
-        setPrepared({
-          id: result.attempt.id,
-          method: result.attempt.method,
-          installments: result.attempt.installments,
-          total: result.attempt.total_minor,
-        });
-    } catch {
-      setMessage(t("We could not prepare the payment. Try again."));
-    } finally {
-      setBusy(false);
-    }
-  }
   async function confirmRecipient(recipient: {
     name: string;
     document?: string;
@@ -571,7 +662,7 @@ export function Checkout({ orderId }: { orderId: string }) {
         `/api/v1/orders/${orderId}/recipient`,
         recipient,
       );
-      setPrepared(null);
+      focusPayment.current = recipientConfirmed(result);
       await mutate(result, { revalidate: false });
     } catch {
       setMessage(
@@ -623,27 +714,75 @@ export function Checkout({ orderId }: { orderId: string }) {
     );
   const payDisabled =
     busy ||
-    !recipientConfirmed(data) ||
+    !order.can_pay ||
+    !paymentReady ||
     !data.checkout.available ||
-    !prepared ||
-    prepared.method !== method ||
-    prepared.installments !== (method === "pix" ? 1 : installments) ||
-    !ip;
-  const option = quotes?.options.find(
-    (option) => option.installments === installments,
-  );
+    (!data.checkout.hosted && (!ip || sdkFailed)) ||
+    (method === "card" &&
+      !activeQuote &&
+      (quoteLoading || (installments > 1 && !option)));
+  const showingPaymentChoices =
+    order.can_pay && paymentReady && data.checkout.available && !submitted;
+  const total = showingPaymentChoices
+    ? displayedTotal
+    : submitted || order.payment_status === "PAID"
+      ? (attempt?.total_minor ?? order.total_minor)
+      : order.amount_minor;
+  const interest = total - order.amount_minor;
+  const deliveryEmail = data.gift_card_delivery?.email;
   return (
     <>
-      <header className="py-8">
+      <header className="py-6 sm:py-8">
         <h1 className="text-3xl font-black sm:text-4xl">
           {t("Complete your purchase")}
         </h1>
-        <p className="mt-2 text-sm text-white/50">
-          {t("Review your order and choose how to pay.")}
-        </p>
       </header>
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
-        <section className="rounded-2xl border border-white/10 bg-[#110d18] p-5 sm:p-7">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+        <aside className="min-w-0 rounded-2xl border border-white/10 bg-[#110d18] p-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:p-5">
+          <div className="flex items-center gap-3">
+            <div
+              className={`relative aspect-[4/3] w-16 shrink-0 overflow-hidden rounded-lg sm:w-20 ${order.item_id === "sandbox-brl-25" ? "bg-[#e60012]" : "bg-[#1b2838]"}`}
+            >
+              {order.item_type === "GIFT_CARD" ? (
+                <GiftCardArtwork productCode={order.item_id} sizes="80px" />
+              ) : order.image_url ? (
+                <Image
+                  src={order.image_url}
+                  alt=""
+                  fill
+                  sizes="80px"
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-white/60">
+                  <Gamepad2 aria-hidden="true" size={24} />
+                </div>
+              )}
+            </div>
+            <h2 className="min-w-0 break-words text-sm font-bold sm:text-base">
+              {order.product_name}
+            </h2>
+          </div>
+          <dl className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm">
+            {interest > 0 && (
+              <div className="flex justify-between gap-3 text-white/70">
+                <dt>{t("Installment interest")}</dt>
+                <dd className="shrink-0">{money(interest, order.currency)}</dd>
+              </div>
+            )}
+            <div
+              className="flex items-baseline justify-between gap-3"
+              aria-live="polite"
+            >
+              <dt className="font-medium text-white/70">{t("Order total")}</dt>
+              <dd className="shrink-0 text-lg font-bold tabular-nums">
+                {money(total, order.currency)}
+              </dd>
+            </div>
+          </dl>
+        </aside>
+        <section className="min-w-0 rounded-2xl border border-white/10 bg-[#110d18] p-5 sm:p-7 lg:col-start-1 lg:row-start-1">
           {message && (
             <p
               role="alert"
@@ -652,15 +791,14 @@ export function Checkout({ orderId }: { orderId: string }) {
               {message}
             </p>
           )}
-          {data.gift_card_delivery?.channel === "EMAIL" &&
-            data.gift_card_delivery.email && (
-              <p className="mb-6 break-all rounded-lg border border-violet-400/20 bg-violet-400/5 p-4 text-sm leading-6 text-white/70">
-                {t("Delivery email")}: {data.gift_card_delivery.email}
-                <span className="mt-1 block text-xs text-white/50">
-                  {t("The gift card code will be delivered by email.")}
-                </span>
-              </p>
-            )}
+          {!message && order.payment_status === "FAILED" && (
+            <p
+              role="alert"
+              className="mb-4 rounded-lg bg-amber-400/10 p-3 text-sm text-amber-100"
+            >
+              {t("Payment failed. Check your details or try another method.")}
+            </p>
+          )}
           {order.payment_status === "PAID" ? (
             <>
               <CheckCircle2 className="text-emerald-300" size={32} />
@@ -677,6 +815,11 @@ export function Checkout({ orderId }: { orderId: string }) {
                   ),
                 )}
               </p>
+              {deliveryEmail && (
+                <div className="mt-4">
+                  <DeliveryEmail email={deliveryEmail} />
+                </div>
+              )}
               <Link
                 href={
                   order.item_type === "GAME"
@@ -701,14 +844,21 @@ export function Checkout({ orderId }: { orderId: string }) {
                     "Purchase under review",
                 )}
               </h2>
-              <p className="mt-3 text-sm leading-6 text-white/60">
-                {t(
-                  attempt?.uncertain
-                    ? "We are checking your payment. Check this order before trying again."
-                    : "Your product will be available after payment confirmation.",
-                )}
-              </p>
-              {attempt?.pix && <PixInstructions pix={attempt.pix} />}{" "}
+              {attempt?.uncertain ? (
+                <p className="mt-3 text-sm leading-6 text-white/70">
+                  {t(
+                    "We are checking your payment. Check this order before trying again.",
+                  )}
+                </p>
+              ) : attempt?.pix ? (
+                <PixInstructions pix={attempt.pix} />
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-white/70">
+                  {t(
+                    "Your product will be available after payment confirmation.",
+                  )}
+                </p>
+              )}
               {attempt?.checkout_url && recipientConfirmed(data) && (
                 <a
                   href={attempt.checkout_url}
@@ -718,26 +868,41 @@ export function Checkout({ orderId }: { orderId: string }) {
                 </a>
               )}
               <button
-                className="mt-5 text-sm text-violet-200 underline underline-offset-4"
+                type="button"
+                className="mt-4 min-h-11 rounded-lg px-2 text-sm font-medium text-violet-200 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-violet-400 disabled:opacity-50"
                 disabled={busy}
                 onClick={async () => {
+                  if (inFlight.current) return;
+                  inFlight.current = true;
                   setBusy(true);
+                  setMessage("");
+                  setStatusMessage("");
                   try {
-                    await checkoutRequest(`/api/v1/orders/${orderId}`, {
-                      action: "reconcile",
-                    });
-                    await mutate();
+                    const refreshed = await checkoutRequest(
+                      `/api/v1/orders/${orderId}`,
+                      {
+                        action: "reconcile",
+                      },
+                    );
+                    await mutate(refreshed, { revalidate: false });
+                    setStatusMessage(t("Payment check requested."));
                   } catch {
                     setMessage(
                       t("We could not complete this action. Try again."),
                     );
                   } finally {
+                    inFlight.current = false;
                     setBusy(false);
                   }
                 }}
               >
-                {t("Check payment status")}
+                {t(busy ? "Please wait" : "Check payment status")}
               </button>
+              {statusMessage && (
+                <p role="status" className="text-sm text-white/70">
+                  {statusMessage}
+                </p>
+              )}
             </>
           ) : order.payment_status === "CANCELLED" ||
             ["REFUNDED", "DISPUTED"].includes(order.payment_status) ? (
@@ -764,115 +929,96 @@ export function Checkout({ orderId }: { orderId: string }) {
             />
           ) : (
             <>
-              {!data.checkout.hosted && (
-                <form
-                  ref={buyerForm}
-                  onSubmit={(event) => event.preventDefault()}
-                  className="space-y-4"
-                >
-                  <h2 className="text-lg font-bold">{t("Your details")}</h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm text-white/70">
-                      {t("First name")}
-                      <input
-                        name="first_name"
-                        autoComplete="given-name"
-                        required
-                        maxLength={80}
-                        className="checkout-input"
-                      />
-                    </label>
-                    <label className="text-sm text-white/70">
-                      {t("Last name")}
-                      <input
-                        name="last_name"
-                        autoComplete="family-name"
-                        required
-                        maxLength={80}
-                        className="checkout-input"
-                      />
-                    </label>
-                  </div>
-                  <label className="block text-sm text-white/70">
-                    {t("Phone number")}
-                    <input
-                      name="phone"
-                      autoComplete="tel-national"
-                      inputMode="tel"
-                      required
-                      pattern="[0-9 ()+-]{10,18}"
-                      maxLength={18}
-                      className="checkout-input"
-                    />
-                  </label>
-                  <label className="block text-sm text-white/70">
-                    CPF / CNPJ
-                    <input
-                      name="document_number"
-                      inputMode="numeric"
-                      required
-                      pattern="[0-9./-]{11,18}"
-                      maxLength={18}
-                      className="checkout-input"
-                    />
-                  </label>
-                </form>
+              {deliveryEmail && (
+                <div className="mb-6">
+                  <DeliveryEmail email={deliveryEmail} />
+                </div>
               )}
-              <h2 className="mb-4 mt-7 text-lg font-bold">
+              <h2
+                ref={paymentHeading}
+                tabIndex={-1}
+                id="checkout-method"
+                className="mb-3 scroll-mt-24 text-lg font-bold"
+              >
                 {t("Payment method")}
               </h2>
-              <div className="flex gap-3">
+              <div
+                role="group"
+                aria-labelledby="checkout-method"
+                className="mb-5 flex flex-wrap gap-2"
+              >
                 {data.checkout.methods.map((value) => (
                   <button
                     key={value}
+                    type="button"
                     aria-pressed={method === value}
                     onClick={() => {
-                      setChosen(value);
-                      setInstallments(1);
-                      setPrepared(null);
-                      setMessage("");
+                      if (value === method) return;
+                      setChoice({ method: value, installments: 1 });
+                      if (!sdkFailed) setMessage("");
                     }}
                     disabled={busy}
-                    className={`flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-semibold ${method === value ? "border-violet-400/50 bg-violet-500/15 text-violet-200" : "border-white/10 text-white/60 hover:bg-white/5"}`}
+                    className={`flex min-h-12 min-w-max flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-violet-400 ${method === value ? "border-violet-400/50 bg-violet-500/15 text-violet-200" : "border-white/15 text-white/70 hover:bg-white/5"}`}
                   >
                     {value === "pix" ? (
-                      <QrCode size={17} />
+                      <QrCode aria-hidden="true" size={17} />
                     ) : (
-                      <CreditCard size={17} />
+                      <CreditCard aria-hidden="true" size={17} />
                     )}{" "}
                     {t(value === "pix" ? "Pix" : "Credit card")}
                   </button>
                 ))}
               </div>
               {method === "card" && data.checkout.installments && (
-                <label className="mt-5 block text-sm text-white/70">
+                <label className="mb-6 block text-sm text-white/80">
                   {t("Installments")}
                   <select
                     value={installments}
+                    disabled={busy}
                     onChange={(event) => {
-                      setInstallments(Number(event.target.value));
-                      setPrepared(null);
+                      setChoice({
+                        method,
+                        installments: Number(event.target.value),
+                      });
+                      if (!sdkFailed) setMessage("");
                     }}
                     className="checkout-input"
                   >
                     <option value={1}>{t("Pay in full")}</option>
-                    {quotes?.options
-                      .filter((option) => option.installments > 1)
-                      .map((option) => (
-                        <option
-                          key={option.installments}
-                          value={option.installments}
-                        >
-                          {option.installments}x ·{" "}
-                          {money(
-                            Math.ceil(option.total_minor / option.installments),
-                            order.currency,
-                          )}{" "}
-                          · {t("Total")}:{" "}
-                          {money(option.total_minor, order.currency)}
-                        </option>
-                      ))}
+                    {Array.from(
+                      new Set([
+                        ...(quotes?.options.map((item) => item.installments) ??
+                          []),
+                        installments,
+                      ]),
+                    )
+                      .filter((count) => count > 1)
+                      .sort((left, right) => left - right)
+                      .map((count) => {
+                        const quote =
+                          count === installments && activeQuote
+                            ? activeQuote
+                            : quotes?.options.find(
+                                (item) => item.installments === count,
+                              );
+                        return (
+                          <option key={count} value={count}>
+                            {count}x
+                            {quote
+                              ? ` · ${t("Total")} ${money(quote.total_minor, order.currency)}`
+                              : ""}
+                          </option>
+                        );
+                      })}
                   </select>
+                  {quoteLoading && !activeQuote && (
+                    <span
+                      role="status"
+                      className="mt-2 block text-xs text-white/70"
+                    >
+                      {t("Loading installments")}
+                    </span>
+                  )}
                   {quoteError && (
                     <span
                       role="alert"
@@ -883,46 +1029,98 @@ export function Checkout({ orderId }: { orderId: string }) {
                   )}
                 </label>
               )}
-              {method === "card" && option && (
-                <p className="mt-3 text-xs text-white/50">
-                  {t("Installment interest")}:{" "}
-                  {money(option.interest_minor, order.currency)}
-                </p>
-              )}
-              <button
-                onClick={prepare}
-                disabled={
-                  busy ||
-                  Boolean(method === "card" && installments > 1 && !option)
-                }
-                className="mt-5 min-h-11 w-full rounded-lg border border-white/15 px-4 text-sm font-semibold hover:bg-white/5 disabled:opacity-40"
-              >
-                {t(busy ? "Please wait" : "Confirm")}
-              </button>
-              {prepared && (
-                <div className="mt-5 rounded-xl bg-violet-500/10 p-4">
-                  <p className="text-sm text-white/70">{t("Order total")}</p>
-                  <p className="mt-1 text-2xl font-bold">
-                    {money(prepared.total, order.currency)}
-                  </p>
-                  {prepared.installments > 1 && (
-                    <p className="mt-2 text-sm text-white/60">
-                      {prepared.installments}x · {t("Installment interest")}:{" "}
-                      {money(
-                        prepared.total - order.amount_minor,
-                        order.currency,
-                      )}
-                    </p>
-                  )}
-                </div>
+              {!data.checkout.hosted && (
+                <form
+                  ref={buyerForm}
+                  method="POST"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (method === "pix" && !payDisabled) void sendPayment();
+                  }}
+                >
+                  <fieldset disabled={busy} className="space-y-4">
+                    <legend className="mb-3 text-base font-bold">
+                      {t("Payer details")}
+                    </legend>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="text-sm text-white/70">
+                        {t("First name")}
+                        <input
+                          name="first_name"
+                          autoComplete="given-name"
+                          required
+                          maxLength={80}
+                          className="checkout-input"
+                        />
+                      </label>
+                      <label className="text-sm text-white/70">
+                        {t("Last name")}
+                        <input
+                          name="last_name"
+                          autoComplete="family-name"
+                          required
+                          maxLength={80}
+                          className="checkout-input"
+                        />
+                      </label>
+                    </div>
+                    <label className="block text-sm text-white/70">
+                      {t("Phone number")}
+                      <input
+                        name="phone"
+                        autoComplete="tel-national"
+                        inputMode="tel"
+                        required
+                        pattern="[0-9]{10,11}"
+                        onInput={normalizeDigits}
+                        maxLength={18}
+                        className="checkout-input"
+                      />
+                    </label>
+                    {canReuseDocument && (
+                      <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-white/80">
+                        <input
+                          name="reuse_recipient_document"
+                          type="checkbox"
+                          checked={!differentDocument}
+                          onChange={(event) =>
+                            setDifferentDocument(!event.target.checked)
+                          }
+                          className="size-4 shrink-0 accent-violet-500"
+                        />
+                        {t("Use the delivery document for payment")}
+                      </label>
+                    )}
+                    {(!canReuseDocument || differentDocument) && (
+                      <label className="block text-sm text-white/70">
+                        {t(
+                          method === "card"
+                            ? "Cardholder document"
+                            : "CPF or CNPJ",
+                        )}
+                        <input
+                          name="document_number"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          required
+                          pattern="[0-9]{11}|[0-9]{14}"
+                          maxLength={18}
+                          onInput={normalizeDigits}
+                          className="checkout-input"
+                        />
+                      </label>
+                    )}
+                  </fieldset>
+                </form>
               )}
               {data.checkout.hosted ? (
                 <button
+                  type="button"
                   onClick={() => sendPayment()}
-                  disabled={busy || !prepared || !recipientConfirmed(data)}
-                  className="checkout-primary mt-6"
+                  disabled={payDisabled}
+                  className="checkout-primary"
                 >
-                  {t("Confirm payment")}
+                  {t("Continue to payment")}
                 </button>
               ) : (
                 <>
@@ -932,19 +1130,30 @@ export function Checkout({ orderId }: { orderId: string }) {
                     visible={method === "card"}
                     disabled={payDisabled}
                     onIp={setIp}
-                    onToken={sendPayment}
-                    onError={failedSdk}
-                    onBusy={() => {
-                      if (tokenizing.current || inFlight.current) return false;
-                      if (!readBuyer()) return false;
-                      tokenizing.current = true;
+                    onToken={(token) =>
+                      token ? void sendPayment(token) : failedSdk()
+                    }
+                    onError={() => failedSdk()}
+                    onStart={(holder_name) => {
+                      if (pendingCard.current || inFlight.current) return false;
+                      const buyer = readBuyerForm(buyerForm.current, ip);
+                      if (!buyer || !holder_name) return false;
+                      pendingCard.current = {
+                        buyer: { ...buyer, holder_name },
+                        installments,
+                        reviewedTotal: displayedTotal,
+                      };
                       setBusy(true);
-                      tokenTimer.current = setTimeout(failedSdk, 20000);
+                      tokenTimer.current = setTimeout(
+                        () => failedSdk(true),
+                        20000,
+                      );
                       return true;
                     }}
                   />
                   {method === "pix" && (
                     <button
+                      type="button"
                       onClick={() => sendPayment()}
                       disabled={payDisabled}
                       className="checkout-primary mt-6"
@@ -997,66 +1206,6 @@ export function Checkout({ orderId }: { orderId: string }) {
             </button>
           )}
         </section>
-        <aside className="order-first rounded-2xl border border-white/10 bg-[#110d18] p-5 lg:order-last">
-          <div
-            className={`relative mb-4 aspect-video overflow-hidden rounded-lg ${order.item_id === "sandbox-brl-25" ? "bg-[#e60012]" : "bg-[#1b2838]"}`}
-          >
-            {order.item_type === "GIFT_CARD" ? (
-              <GiftCardArtwork
-                productCode={order.item_id}
-                sizes={order.item_id === "sandbox-brl-25" ? "1600px" : "340px"}
-              />
-            ) : order.image_url ? (
-              <Image
-                src={order.image_url}
-                alt={order.product_name}
-                fill
-                sizes="340px"
-                unoptimized
-                className="object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-white/35">
-                <Gamepad2 size={48} />
-              </div>
-            )}
-          </div>
-          <h2 className="font-bold">{order.product_name}</h2>
-          <p className="mt-2 text-sm text-white/50">
-            {t(order.item_type === "GAME" ? "Game" : "Gift card")}
-          </p>
-          <dl className="mt-5 space-y-3 border-t border-white/10 pt-5 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">{t("Product price")}</dt>
-              <dd className="font-bold">
-                {money(order.amount_minor, order.currency)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">{t("Installment interest")}</dt>
-              <dd>{money(attempt?.interest_minor ?? 0, order.currency)}</dd>
-            </div>
-            <div className="flex justify-between gap-4 border-t border-white/10 pt-3">
-              <dt className="font-semibold">{t("Order total")}</dt>
-              <dd className="font-bold">
-                {money(
-                  attempt?.total_minor ?? order.amount_minor,
-                  order.currency,
-                )}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">{t("Payment")}</dt>
-              <dd>{t(purchasePaymentLabels[order.payment_status])}</dd>
-            </div>
-          </dl>
-          <Link
-            href="/library/orders"
-            className="mt-6 inline-flex text-sm text-violet-200 hover:text-white"
-          >
-            {t("My orders")}
-          </Link>
-        </aside>
       </div>
       <style jsx global>{`
         .checkout-input {
@@ -1091,6 +1240,10 @@ export function Checkout({ orderId }: { orderId: string }) {
         }
         .checkout-primary:hover {
           background: #8b5cf6;
+        }
+        .checkout-primary:focus-visible {
+          outline: 2px solid #c4b5fd;
+          outline-offset: 2px;
         }
         .checkout-primary:disabled {
           opacity: 0.4;

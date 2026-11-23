@@ -466,7 +466,10 @@ export function createPurchaseOrderService({
     input: {
       attempt_id: string;
       expected_total_minor: number;
-      buyer: PaymentBuyer;
+      buyer: Omit<PaymentBuyer, "document_number"> & {
+        document_number?: string;
+        reuse_recipient_document?: true;
+      };
       card_token?: string;
     },
   ) {
@@ -482,7 +485,8 @@ export function createPurchaseOrderService({
           message: "Please confirm your payment option again.",
         });
       if (attempt.submission_started_at || attempt.uncertain)
-        return { order, attempt, send: false };
+        return { send: false } as const;
+      let recipientDocument: string | undefined;
       if (order.gift_card_order_id) {
         const gift = await tx.giftCardOrder.findUniqueOrThrow({
           where: { id: order.gift_card_order_id },
@@ -504,6 +508,7 @@ export function createPurchaseOrderService({
                 "Confirm your gift card delivery details before payment.",
             });
           const recipient = decryptGiftRecipient(gift.recipient_data!, gift.id);
+          recipientDocument = recipient.document;
           if (recipientDocumentRequired() && !recipient.document)
             throw new ConflictError({
               message:
@@ -511,6 +516,20 @@ export function createPurchaseOrderService({
             });
         }
       }
+      const { reuse_recipient_document, document_number, ...details } =
+        input.buyer;
+      const document = reuse_recipient_document
+        ? recipientDocument
+        : document_number;
+      if (order.payment_provider === "appmax" && !document)
+        throw new ValidationError({
+          message: "Please check your payment document.",
+          action: "Enter the CPF or CNPJ of the person paying.",
+        });
+      const buyer: PaymentBuyer = {
+        ...details,
+        document_number: document ?? "",
+      };
       if (
         order.paid_at ||
         attempt.status !== "UNPAID" ||
@@ -543,7 +562,7 @@ export function createPurchaseOrderService({
         data: { payment_status: "PROCESSING" },
       });
       await enqueuePurchase(id, tx);
-      return { order, attempt, send: true };
+      return { order, attempt, buyer, send: true } as const;
     }, txOptions);
     if (!reservation.send) return view(userId, id);
     const provider = getProvider(
@@ -554,7 +573,7 @@ export function createPurchaseOrderService({
     try {
       const context = paymentContext(reservation.order, attempt);
       if (!provider.capabilities.hosted) {
-        const customer = await provider.createCustomer(input.buyer);
+        const customer = await provider.createCustomer(reservation.buyer);
         attempt = await prisma.purchasePaymentAttempt.update({
           where: { id: attempt.id },
           data: { remote_customer_id: customer },
@@ -571,7 +590,7 @@ export function createPurchaseOrderService({
       }
       const snapshot = await provider.pay(
         paymentContext(reservation.order, attempt),
-        input.buyer,
+        reservation.buyer,
         input.card_token,
       );
       if (!attempt.remote_order_id)

@@ -1,6 +1,6 @@
 import { prisma } from "infra/database";
 import { assertGiftCardSandbox } from "infra/gift_card_provider";
-import { NotFoundError } from "infra/errors";
+import { ConflictError, NotFoundError } from "infra/errors";
 import { syncGiftCardCatalog } from "models/gift_card_catalog";
 import paymentWorker from "models/purchase_payment_jobs";
 import emailDelivery, {
@@ -18,6 +18,7 @@ export type OperationReport = {
 async function batch(
   run: () => Promise<GiftCardFulfillmentResult>,
   remaining: () => Promise<number>,
+  limit = 5,
 ): Promise<OperationReport> {
   const started = Date.now(),
     report: OperationReport = {
@@ -27,7 +28,7 @@ async function batch(
       remaining: 0,
       last_error: null,
     };
-  while (report.processed < 5 && Date.now() - started < 20000) {
+  while (report.processed < limit && Date.now() - started < 20000) {
     try {
       const result = await run();
       if (!result.processed) break;
@@ -45,6 +46,14 @@ async function batch(
   report.remaining = await remaining();
   return report;
 }
+const submissionStatuses = ["QUEUED", "SUBMITTING"];
+const awaitingSubmission = {
+  delivery_channel: "EMAIL",
+  paid_at: { not: null },
+  submitted_at: null,
+  fulfillment_status: { in: submissionStatuses },
+};
+
 async function summary() {
   assertGiftCardSandbox();
   const [
@@ -71,12 +80,7 @@ async function summary() {
     prisma.giftCardCatalogSync.findUnique({ where: { id: "catalog" } }),
     prisma.purchasePaymentJob.count(),
     prisma.giftCardOrder.count({
-      where: {
-        delivery_channel: "EMAIL",
-        paid_at: { not: null },
-        submitted_at: null,
-        fulfillment_status: { in: ["QUEUED", "SUBMITTING"] },
-      },
+      where: awaitingSubmission,
     }),
     prisma.giftCardFulfillmentJob.count(),
     prisma.giftCardOrder.count({
@@ -92,11 +96,32 @@ async function summary() {
         fulfillment_status: true,
         last_error: true,
         next_tracking_at: true,
+        paid_at: true,
+        submitted_at: true,
       },
       orderBy: { updated_at: "desc" },
       take: 20,
     }),
   ]);
+  const pendingOrderIds = recent_orders
+    .filter(
+      (order) =>
+        order.paid_at &&
+        !order.submitted_at &&
+        submissionStatuses.includes(order.fulfillment_status),
+    )
+    .map(({ id }) => id);
+  const eligiblePurchases = await prisma.purchaseOrder.findMany({
+    where: {
+      gift_card_order_id: { in: pendingOrderIds },
+      payment_status: "PAID",
+      delivery_status: { not: "REVIEW" },
+    },
+    select: { gift_card_order_id: true },
+  });
+  const eligibleIds = new Set(
+    eligiblePurchases.map(({ gift_card_order_id }) => gift_card_order_id),
+  );
   return {
     products,
     last_sync_at: sync?.last_success_at?.toISOString() ?? null,
@@ -106,8 +131,11 @@ async function summary() {
     tracking_jobs,
     review_orders,
     recent_orders: recent_orders.map((order) => ({
-      ...order,
+      id: order.id,
+      fulfillment_status: order.fulfillment_status,
+      last_error: order.last_error,
       next_tracking_at: order.next_tracking_at?.toISOString() ?? null,
+      can_submit: eligibleIds.has(order.id),
     })),
   };
 }
@@ -128,8 +156,23 @@ async function reconcilePayments() {
     () => prisma.purchasePaymentJob.count(),
   );
 }
-async function submitPaidOrders() {
+async function submitPaidOrders(orderId?: string) {
   assertGiftCardSandbox();
+  if (orderId) {
+    const report = await batch(
+      () => emailDelivery.runOneDetailed("submit", { order_id: orderId }),
+      () =>
+        prisma.giftCardOrder.count({
+          where: { ...awaitingSubmission, id: orderId },
+        }),
+      1,
+    );
+    if (!report.processed && !report.failed)
+      throw new ConflictError({
+        message: "Sending is unavailable for this order.",
+      });
+    return report;
+  }
   return batch(
     () => emailDelivery.runOneDetailed("submit"),
     () => prisma.giftCardFulfillmentJob.count(),

@@ -10,6 +10,7 @@ import {
   createEmailGiftDelivery,
   enqueueGiftFulfillment,
 } from "models/gift_card_email_delivery";
+import giftCardOperations from "models/gift_card_operations";
 
 // Synthetic provider, real PostgreSQL claims/transactions. This suite creates
 // only its own orders and never calls a payment, email, or gift-card API.
@@ -190,6 +191,41 @@ test("accepted submission stays processing with a six-hour tracking reservation"
   expect(await service.runOne("track", { order_id: id })).toBe(false);
   expect(provider.submit).toHaveBeenCalledTimes(1);
   expect(provider.track).not.toHaveBeenCalled();
+});
+
+test("targeted submission accepts only the chosen paid order and does not send it twice", async () => {
+  const other = await order(),
+    reversed = await order(),
+    chosen = await order(),
+    { provider, service } = fixtureProvider();
+  await makeDue(other);
+  await financialReversal(reversed);
+  expect((await giftCardOperations.summary()).recent_orders).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: chosen, can_submit: true }),
+      expect.objectContaining({ id: other, can_submit: true }),
+      expect.objectContaining({ id: reversed, can_submit: false }),
+    ]),
+  );
+  await expect(
+    service.runOneDetailed("submit", { order_id: chosen }),
+  ).resolves.toMatchObject({ processed: true, error_code: null });
+  await expect(
+    service.runOneDetailed("submit", { order_id: chosen }),
+  ).resolves.toMatchObject({ processed: false });
+  expect(provider.submit).toHaveBeenCalledTimes(1);
+  expect(provider.submit).toHaveBeenCalledWith(
+    expect.objectContaining({ request_id: chosen }),
+  );
+  await expect(gift(chosen)).resolves.toMatchObject({
+    fulfillment_status: "PROCESSING",
+    provider_reference: `synthetic:${chosen}`,
+  });
+  await expect(gift(other)).resolves.toMatchObject({
+    fulfillment_status: "QUEUED",
+    submitted_at: null,
+    provider_reference: null,
+  });
 });
 
 test("detailed results expose captured failures while the boolean worker remains compatible", async () => {

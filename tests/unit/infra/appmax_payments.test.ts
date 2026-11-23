@@ -97,6 +97,32 @@ test("describes invalid order details without exposing response values", () => {
     }),
   );
 });
+test("ignores ancillary seller data when verifying Pix and tolerates an empty pending payment", () => {
+  const body = detail();
+  const pix = { ...context, method: "pix" as const, installments: 1 };
+  expect(
+    appmaxSnapshot(
+      {
+        data: {
+          ...body.data,
+          order: { ...body.data.order, amounts: { sub_total: null } },
+          payment: { ...body.data.payment, method: "pix", installments: 0 },
+        },
+      },
+      pix,
+    ),
+  ).toMatchObject({ state: "PAID", total_minor: pix.amount_minor });
+  const noPayment = {
+    data: {
+      ...body.data,
+      order: { ...body.data.order, total_paid: null },
+      payment: null,
+    },
+  };
+  expect(() => appmaxSnapshot(noPayment, pix)).toThrow();
+  noPayment.data.order.status = "pendente";
+  expect(appmaxSnapshot(noPayment, pix).state).toBe("PENDING");
+});
 test("quotes only the configured installments in cents, without invented rates", () => {
   expect(
     appmaxQuotes(
