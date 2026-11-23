@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "infra/database";
-import { ConflictError } from "infra/errors";
+import { ConflictError, ValidationError } from "infra/errors";
 import purchaseOrder from "models/purchase_order";
 import { assertPaymentSandbox } from "infra/payments";
 import { PaymentTransportError } from "infra/payments/errors";
@@ -8,7 +8,7 @@ import { PaymentTransportError } from "infra/payments/errors";
 export function createPurchasePaymentWorker({
   orders = purchaseOrder,
 }: { orders?: Pick<typeof purchaseOrder, "reconcile"> } = {}) {
-  async function runOne(onlyOrderId?: string) {
+  async function runOneDetailed(onlyOrderId?: string) {
     assertPaymentSandbox();
     const token = randomUUID();
     const claim = await prisma.$transaction(async (tx) => {
@@ -25,18 +25,34 @@ export function createPurchasePaymentWorker({
         },
       });
     });
-    if (!claim) return false;
+    if (!claim) {
+      return { processed: false, error_code: null, provider_error: null };
+    }
     let failure: string | null = null;
     let retryAfter = 0;
     try {
       await orders.reconcile(claim.order_id);
     } catch (error) {
-      if (error instanceof PaymentTransportError)
-        retryAfter = error.retryAfter * 1000;
+      const upstream = error instanceof PaymentTransportError ? error : null;
+      if (upstream) retryAfter = upstream.retryAfter * 1000;
       failure =
         error instanceof ConflictError
           ? "MANUAL_REVIEW"
           : "RECONCILIATION_UNAVAILABLE";
+      if (process.env.APP_ENV === "hml") {
+        console.warn("[payments] Reconciliation failed", {
+          code: failure,
+          stage:
+            upstream?.stage ??
+            (upstream
+              ? "transport"
+              : error instanceof ValidationError
+                ? "snapshot_validation"
+                : "reconciliation"),
+          upstreamStatus: upstream?.httpStatus,
+          fields: upstream?.fields,
+        });
+      }
     }
     await prisma.$transaction(async (tx) => {
       const [row] = await tx.$queryRaw<
@@ -93,8 +109,11 @@ export function createPurchasePaymentWorker({
         },
       });
     });
-    return true;
+    return { processed: true, error_code: failure, provider_error: null };
   }
-  return { runOne };
+  async function runOne(onlyOrderId?: string) {
+    return (await runOneDetailed(onlyOrderId)).processed;
+  }
+  return { runOne, runOneDetailed };
 }
 export default createPurchasePaymentWorker();

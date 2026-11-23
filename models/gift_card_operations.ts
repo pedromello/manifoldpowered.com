@@ -124,11 +124,7 @@ async function syncCatalog(): Promise<OperationReport> {
 async function reconcilePayments() {
   assertGiftCardSandbox();
   return batch(
-    async () => ({
-      processed: await paymentWorker.runOne(),
-      error_code: null,
-      provider_error: null,
-    }),
+    () => paymentWorker.runOneDetailed(),
     () => prisma.purchasePaymentJob.count(),
   );
 }

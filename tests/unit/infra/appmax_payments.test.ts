@@ -77,6 +77,26 @@ test.each([
   if (kind === "unknown") body.data.order.status = "synthetic-unknown";
   expect(() => appmaxSnapshot(body, context)).toThrow();
 });
+test("describes invalid order details without exposing response values", () => {
+  const body = detail();
+  expect(() => appmaxSnapshot(body, { ...context, method: "pix" })).toThrow(
+    expect.objectContaining({
+      stage: "payment_evidence",
+      fields: ["payment.method"],
+    }),
+  );
+  expect(() =>
+    appmaxSnapshot(
+      { data: { ...body.data, customer: { id: "synthetic-private-value" } } },
+      context,
+    ),
+  ).toThrow(
+    expect.objectContaining({
+      stage: "order_shape",
+      fields: ["data.customer.id"],
+    }),
+  );
+});
 test("quotes only the configured installments in cents, without invented rates", () => {
   expect(
     appmaxQuotes(

@@ -23,7 +23,7 @@ jest.mock("models/gift_card_email_delivery", () => ({
 }));
 jest.mock("models/purchase_payment_jobs", () => ({
   __esModule: true,
-  default: { runOne: jest.fn() },
+  default: { runOneDetailed: jest.fn() },
 }));
 
 const run = emailDelivery.runOneDetailed as jest.MockedFunction<
@@ -48,7 +48,10 @@ const failed: GiftCardFulfillmentResult = {
 beforeEach(() => {
   jest.clearAllMocks();
   run.mockReset().mockResolvedValue(noJob);
-  jest.mocked(paymentWorker.runOne).mockReset().mockResolvedValue(false);
+  jest
+    .mocked(paymentWorker.runOneDetailed)
+    .mockReset()
+    .mockResolvedValue(noJob);
   jest.mocked(prisma.giftCardFulfillmentJob.count).mockResolvedValue(0);
   jest.mocked(prisma.purchasePaymentJob.count).mockResolvedValue(0);
 });
@@ -141,8 +144,8 @@ test("targeted tracking reports a captured failure and invokes the worker only o
   expect(run).toHaveBeenCalledWith("track", options);
 });
 
-test("payment reconciliation retains its existing boolean worker behavior", async () => {
-  jest.mocked(paymentWorker.runOne).mockResolvedValueOnce(true);
+test("payment reconciliation counts a successful attempt", async () => {
+  jest.mocked(paymentWorker.runOneDetailed).mockResolvedValueOnce(succeeded);
   expect(await giftCardOperations.reconcilePayments()).toEqual({
     processed: 1,
     succeeded: 1,
@@ -150,8 +153,24 @@ test("payment reconciliation retains its existing boolean worker behavior", asyn
     remaining: 0,
     last_error: null,
   });
-  expect(paymentWorker.runOne).toHaveBeenCalledTimes(2);
+  expect(paymentWorker.runOneDetailed).toHaveBeenCalledTimes(2);
   expect(run).not.toHaveBeenCalled();
+});
+
+test("a reconciliation failure is reported while its job remains queued", async () => {
+  jest.mocked(paymentWorker.runOneDetailed).mockResolvedValueOnce({
+    processed: true,
+    error_code: "RECONCILIATION_UNAVAILABLE",
+    provider_error: null,
+  });
+  jest.mocked(prisma.purchasePaymentJob.count).mockResolvedValue(1);
+  expect(await giftCardOperations.reconcilePayments()).toEqual({
+    processed: 1,
+    succeeded: 0,
+    failed: 1,
+    remaining: 1,
+    last_error: "RECONCILIATION_UNAVAILABLE",
+  });
 });
 
 test("an uncaught worker error is reduced to a fixed operation error", async () => {

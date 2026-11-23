@@ -20,7 +20,8 @@ export function appmaxDate(value: unknown): Date | undefined {
       ? value.replace(" ", "T") + "-03:00"
       : value,
   );
-  if (!Number.isFinite(date.getTime())) throw new PaymentTransportError();
+  if (!Number.isFinite(date.getTime()))
+    throw new PaymentTransportError(undefined, undefined, "payment_date");
   return date;
 }
 const states: Record<string, PaymentState> = {
@@ -134,24 +135,45 @@ export function appmaxSnapshot(
     }),
   });
   const result = schema.safeParse(payload);
-  if (!result.success) throw new PaymentTransportError();
+  if (!result.success) {
+    // The schema has fixed keys. Keep provider values and error messages out of logs.
+    const fields = result.error.issues.map(({ path }) => path.join("."));
+    throw new PaymentTransportError(
+      undefined,
+      undefined,
+      "order_shape",
+      fields,
+    );
+  }
   const { order, customer, payment } = result.data.data;
-  const state = states[order.status];
+  if (!Object.hasOwn(states, order.status))
+    throw new PaymentTransportError(undefined, undefined, "order_status");
   if (
-    !state ||
     order.id !== context.remote_order_id ||
     customer.id !== context.customer_id
   )
-    throw new PaymentTransportError();
-  if (
-    state === "PAID" &&
-    (!payment?.paid_at ||
-      order.total_paid !== context.amount_minor ||
-      payment.method !== (context.method === "card" ? "creditcard" : "pix") ||
-      (context.method === "card" &&
-        payment.installments !== context.installments))
-  )
-    throw new PaymentTransportError();
+    throw new PaymentTransportError(undefined, undefined, "order_identity");
+  const state = states[order.status];
+  if (state === "PAID") {
+    const fields: string[] = [];
+    if (order.total_paid !== context.amount_minor)
+      fields.push("order.total_paid");
+    if (!payment?.paid_at) fields.push("payment.paid_at");
+    if (payment?.method !== (context.method === "card" ? "creditcard" : "pix"))
+      fields.push("payment.method");
+    if (
+      context.method === "card" &&
+      payment?.installments !== context.installments
+    )
+      fields.push("payment.installments");
+    if (fields.length)
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_evidence",
+        fields,
+      );
+  }
   return {
     remote_order_id: order.id,
     remote_customer_id: customer.id,
@@ -235,7 +257,11 @@ export function createAppmaxPaymentProvider({
         if (body.length > 1024 * 1024) throw new Error();
         return JSON.parse(body);
       } catch {
-        throw new PaymentTransportError();
+        throw new PaymentTransportError(
+          undefined,
+          response.status,
+          "response_json",
+        );
       }
     }
   }

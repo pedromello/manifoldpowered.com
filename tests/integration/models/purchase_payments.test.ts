@@ -670,10 +670,17 @@ test("worker honors provider retry-after even when a notification arrives during
       throw new PaymentTransportError(120);
     },
   };
-  await createPurchasePaymentWorker({ orders }).runOne(purchase.order.id);
+  await expect(
+    createPurchasePaymentWorker({ orders }).runOneDetailed(purchase.order.id),
+  ).resolves.toEqual({
+    processed: true,
+    error_code: "RECONCILIATION_UNAVAILABLE",
+    provider_error: null,
+  });
   const job = await prisma.purchasePaymentJob.findUniqueOrThrow({
     where: { order_id: purchase.order.id },
   });
+  expect(job.last_error).toBe("RECONCILIATION_UNAVAILABLE");
   expect(job.run_after.getTime()).toBeGreaterThan(Date.now() + 115000);
   expect(job.claim_token).toBeNull();
 });
