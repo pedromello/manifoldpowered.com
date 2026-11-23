@@ -80,7 +80,7 @@ test.each([true, false])(
     expect(html).toContain('value="buyer@example.test"');
     expect(html).toContain('readOnly=""');
     expect(html).toContain('name="confirm_delivery"');
-    expect(html).not.toContain("Review payment");
+    expect(html).not.toContain(">Confirm</button>");
     expect(html).not.toContain("Confirm payment");
     expect(html).not.toContain("Generate Pix code");
     expect(html).not.toContain('name="card-number"');
@@ -95,13 +95,13 @@ test("unverified delivery email requires a fresh login before recipient details 
   expect(html).toContain("Verify email");
   expect(html).toContain("callbackUrl=%2Fcheckout%2Fsynthetic-order");
   expect(html).not.toContain('name="recipient_name"');
-  expect(html).not.toContain("Review payment");
+  expect(html).not.toContain(">Confirm</button>");
 });
 
 test("saved recipient enables payment while receipt continues to show email delivery", () => {
   const delivery = { ...emailDelivery, confirmed: true, recipient_ready: true };
   const html = render({ ...checkout, gift_card_delivery: delivery });
-  expect(html).toContain("Review payment");
+  expect(html).toContain(">Confirm</button>");
   expect(html).not.toContain("Confirm delivery details");
   expect(html).toContain("buyer@example.test");
   const receipt = render({

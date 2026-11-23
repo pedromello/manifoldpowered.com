@@ -162,7 +162,7 @@ export const ptBR: Record<string, string> = {
   "Installment options are temporarily unavailable.":
     "As opções de parcelamento estão temporariamente indisponíveis.",
   "Please wait": "Aguarde",
-  "Review payment": "Revisar pagamento",
+  Confirm: "Confirmar",
   "Generate Pix code": "Gerar código Pix",
   "Processing your payment": "Processando seu pagamento",
   "My orders": "Meus pedidos",

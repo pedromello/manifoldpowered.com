@@ -897,7 +897,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                 }
                 className="mt-5 min-h-11 w-full rounded-lg border border-white/15 px-4 text-sm font-semibold hover:bg-white/5 disabled:opacity-40"
               >
-                {t(busy ? "Please wait" : "Review payment")}
+                {t(busy ? "Please wait" : "Confirm")}
               </button>
               {prepared && (
                 <div className="mt-5 rounded-xl bg-violet-500/10 p-4">
