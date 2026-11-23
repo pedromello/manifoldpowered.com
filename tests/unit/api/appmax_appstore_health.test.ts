@@ -32,6 +32,7 @@ jest.mock("infra/database", () => ({
 
 const environment = { ...process.env };
 const appId = 123;
+const appUuid = "5b0eb478-dfad-4d25-a302-3a1789ec561b";
 const url = "/api/v1/appmax/health";
 const uuidV4 =
   /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/;
@@ -40,6 +41,7 @@ beforeEach(() => {
   process.env.VERCEL_ENV = "preview";
   process.env.PAYMENT_ENVIRONMENT = "sandbox";
   process.env.APPMAX_APPSTORE_NUMERIC_ID = String(appId);
+  process.env.APPMAX_APPSTORE_APP_ID = appUuid;
   process.env.APP_ENV = "hml";
   process.env.POSTGRES_DB = "homolog";
   mockTransactionClient.$queryRaw.mockResolvedValue([{ name: "homolog" }]);
@@ -143,26 +145,29 @@ describe("staging an actual Appmax sandbox installation", () => {
     expect(prisma.paymentInstallation.upsert).not.toHaveBeenCalled();
   });
 
-  test("accepts the client_key alias without credentials", async () => {
-    const capturedId = "654ae100-cfe0-48fb-abb4-cdc20686b1f1";
-    attempts.findFirst.mockResolvedValueOnce({ external_id: capturedId });
+  test.each([String(appId), appUuid])(
+    "captures the staged installation for the same app ID sent as %s",
+    async (callbackAppId) => {
+      const capturedId = "654ae100-cfe0-48fb-abb4-cdc20686b1f1";
+      attempts.findFirst.mockResolvedValueOnce({ external_id: capturedId });
 
-    const result = await apiRequest(handler, {
-      url,
-      body: { app_id: appId, client_key: externalKey },
-    });
+      const result = await apiRequest(handler, {
+        url,
+        body: { app_id: callbackAppId, client_key: externalKey },
+      });
 
-    expect(result.status).toBe(200);
-    expect(result.body).toEqual({ external_id: capturedId });
-    expect(attempts.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          external_id: expect.stringMatching(uuidV4),
-          credential_digest: null,
-        },
-      }),
-    );
-  });
+      expect(result.status).toBe(200);
+      expect(result.body).toEqual({ external_id: capturedId });
+      expect(attempts.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            external_id: expect.stringMatching(uuidV4),
+            credential_digest: null,
+          },
+        }),
+      );
+    },
+  );
 
   test("does not read or write staging when the configured database is not homolog", async () => {
     process.env.POSTGRES_DB = "another_database";
@@ -189,7 +194,14 @@ describe("staging an actual Appmax sandbox installation", () => {
   });
 });
 
-test.each([{}, { app_id: appId + 1 }, { app_id: String(appId) }])(
+test.each([
+  {},
+  { app_id: appId + 1 },
+  { app_id: String(appId + 1) },
+  { app_id: ` ${appId}` },
+  { app_id: "654ae100-cfe0-48fb-abb4-cdc20686b1f1" },
+  { app_id: true },
+])(
   "rejects invalid Appstore health check input %j without exposing submitted data",
   async (body) => {
     const result = await apiRequest(handler, { url, body });
