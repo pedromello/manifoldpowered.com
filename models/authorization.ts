@@ -39,6 +39,7 @@ import {
   ratingSystemPreviewSchema,
   ratingSystemResultSchema,
 } from "contracts/outlet-rating";
+import { giftCardCheckoutResponse } from "contracts/gift-card-checkout";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -95,6 +96,7 @@ const AVAILABLE_FEATURES = [
 
   // Session
   "create:session",
+  "create:gift_card_checkout",
   "read:session",
 
   // OTP
@@ -590,6 +592,10 @@ function storeManagementCapabilities(
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
+
+  if (feature === "create:gift_card_checkout") {
+    return giftCardCheckoutResponse.parse(resource);
+  }
 
   if (typeof resource === "object" && resource !== null) {
     if (

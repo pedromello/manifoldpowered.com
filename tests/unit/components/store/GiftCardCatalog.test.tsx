@@ -34,13 +34,12 @@ function render({ buyer = false, available = false, featured = false } = {}) {
   return renderToStaticMarkup(<GiftCardCatalog featured={featured} />);
 }
 
-test("anonymous visitors see the product and a login return path for the selected card", () => {
+test("anonymous visitors can open checkout for the selected gift card", () => {
   const html = render({ available: true });
   expect(html).toContain("Demo gift card");
-  expect(html).toContain("Log in to buy");
-  expect(html).toContain(
-    "callbackUrl=%2Fpt-BR%2Fstore%2Fgift-cards%3Fproduct%3Dsandbox-brl-25",
-  );
+  expect(html).toContain("Buy");
+  expect(html).toContain('href="/checkout/gift-card?product=sandbox-brl-25"');
+  expect(html).not.toContain("callbackUrl=");
   expect(html).not.toContain("synthetic-private-code");
 });
 
@@ -51,7 +50,7 @@ test("configured buyers can start checkout while unconfigured buyers see a disab
   expect(unavailable).toContain('disabled=""');
   const guest = render();
   expect(guest).toContain("Purchases unavailable");
-  expect(guest).not.toContain("Log in to buy");
+  expect(guest).not.toContain("/checkout/gift-card");
   expect(guest).not.toContain("Checkout");
 });
 

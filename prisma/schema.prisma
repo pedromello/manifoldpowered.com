@@ -86,6 +86,27 @@ model UserOtp {
   @@map("user_otps")
 }
 
+model GiftCardCheckoutChallenge {
+  id           String    @id @default(uuid())
+  intent_id    String
+  product_code String    @db.VarChar(255)
+  email        String    @db.VarChar(234)
+  browser_hash String    @db.VarChar(64)
+  address_hash String    @db.VarChar(64)
+  code_hash    String    @db.VarChar(64)
+  attempts     Int       @default(0)
+  session_id   String?
+  expires_at   DateTime
+  used_at      DateTime?
+  created_at   DateTime  @default(now())
+
+  @@index([email, created_at])
+  @@index([address_hash, created_at])
+  @@index([browser_hash, intent_id])
+  @@index([expires_at])
+  @@map("gift_card_checkout_challenges")
+}
+
 // Exact mailbox proof is separate from profile fields that buyers can update.
 model UserEmailVerification {
   user_id     String   @id

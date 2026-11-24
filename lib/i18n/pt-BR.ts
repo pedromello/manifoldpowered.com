@@ -252,6 +252,40 @@ export const ptBR: Record<string, string> = {
   "We could not start your purchase. Try again.":
     "Não foi possível iniciar sua compra. Tente novamente.",
   "Log in to buy": "Entrar para comprar",
+  "Continue with email": "Continuar com e-mail",
+  "Your gift card will be sent to this email. If you don't have an account, we'll create one so you can track your order.":
+    "Seu gift card será enviado para este e-mail. Se você ainda não tiver conta, criaremos uma para você acompanhar o pedido.",
+  "Confirm your email": "Confirme seu e-mail",
+  "We sent a six-digit code to {email}.":
+    "Enviamos um código de seis dígitos para {email}.",
+  "Enter the six-digit code we sent to your email.":
+    "Digite o código de seis dígitos que enviamos para seu e-mail.",
+  "Confirm and continue": "Confirmar e continuar",
+  "Change email": "Trocar e-mail",
+  "Resend code": "Reenviar código",
+  "Resend code in {seconds}s": "Reenviar código em {seconds} s",
+  "Try again in {seconds}s": "Tente novamente em {seconds} s",
+  "New code sent.": "Enviamos um novo código.",
+  "Your checkout session expired. Enter your email again.":
+    "Sua sessão de compra expirou. Digite seu e-mail novamente.",
+  "We could not send the confirmation code. Try again.":
+    "Não foi possível enviar o código de confirmação. Tente novamente.",
+  "We could not confirm your code. Try again.":
+    "Não foi possível confirmar o código. Tente novamente.",
+  "We could not open your order. Try again.":
+    "Não foi possível abrir seu pedido. Tente novamente.",
+  "This gift card is unavailable. Choose another gift card.":
+    "Este gift card está indisponível. Escolha outro gift card.",
+  "Invalid or expired checkout code.":
+    "Código de confirmação inválido ou expirado.",
+  "This gift card is no longer available.":
+    "Este gift card não está mais disponível.",
+  "Wait before requesting another code.":
+    "Aguarde antes de solicitar outro código.",
+  "Sign out to use a different email address.":
+    "Saia da conta pelo menu para usar outro e-mail. Você pode voltar a esta página para retomar a compra.",
+  "We could not send the checkout code. Try again.":
+    "Não foi possível enviar o código de confirmação. Tente novamente.",
   "New purchases are temporarily unavailable. Please try again later.":
     "Novas compras estão temporariamente indisponíveis. Tente novamente mais tarde.",
   "No gift cards are available right now.":

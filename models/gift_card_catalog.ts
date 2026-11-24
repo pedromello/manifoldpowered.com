@@ -4,12 +4,23 @@ import { ConflictError, ValidationError } from "infra/errors";
 import {
   emailGiftCardsSelected,
   emailGiftCatalogProvider,
+  emailGiftPurchasesConfigured,
   type EmailGiftCatalogProvider,
 } from "infra/gift_card_api";
 import {
   assertGiftCardSandbox,
   simulatedGiftCardProvider,
 } from "infra/gift_card_provider";
+import { paymentsConfigured } from "infra/payments";
+import { giftCardsEnabled } from "infra/runtime";
+
+export function giftCardCheckoutAvailable() {
+  return (
+    giftCardsEnabled() &&
+    paymentsConfigured() &&
+    (!emailGiftCardsSelected() || emailGiftPurchasesConfigured())
+  );
+}
 
 export async function giftCardProducts() {
   assertGiftCardSandbox();

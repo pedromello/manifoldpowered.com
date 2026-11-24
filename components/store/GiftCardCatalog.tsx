@@ -17,7 +17,7 @@ async function catalogFetcher(url: string): Promise<Catalog> {
 }
 
 export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const purchaseInProgress = useRef(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -38,9 +38,8 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
     { shouldRetryOnError: false },
   );
 
-  function loginHref(product: GiftCardProduct) {
-    const callback = `${locale === "pt-BR" ? "/pt-BR" : ""}/store/gift-cards?product=${encodeURIComponent(product.code)}`;
-    return `/login?callbackUrl=${encodeURIComponent(callback)}`;
+  function checkoutHref(product: GiftCardProduct) {
+    return `/checkout/gift-card?product=${encodeURIComponent(product.code)}`;
   }
 
   async function buy(product: GiftCardProduct) {
@@ -51,7 +50,7 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
     try {
       const userResponse = await fetch("/api/v1/user", { cache: "no-store" });
       if (!userResponse.ok) {
-        await router.push(loginHref(product));
+        await router.push(checkoutHref(product));
         return;
       }
       if (!data?.checkout_available) {
@@ -201,10 +200,10 @@ export function GiftCardCatalog({ featured = false }: { featured?: boolean }) {
                     </button>
                   ) : (
                     <Link
-                      href={loginHref(product)}
+                      href={checkoutHref(product)}
                       className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold transition-colors hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
                     >
-                      {t("Log in to buy")}
+                      {t("Buy")}
                       <ArrowRight size={16} aria-hidden="true" />
                     </Link>
                   )}
