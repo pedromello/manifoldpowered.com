@@ -1,0 +1,48 @@
+import { ServiceError } from "infra/errors";
+
+export class PaymentTransportError extends ServiceError {
+  readonly retryAfter: number;
+  readonly httpStatus?: number;
+  readonly stage?:
+    | "authentication"
+    | "request"
+    | "response_json"
+    | "order_shape"
+    | "order_identity"
+    | "order_status"
+    | "payment_evidence"
+    | "payment_date"
+    | "payment_link_rejected"
+    | "payment_link_shape"
+    | "payment_link_url"
+    | "payment_link_identity"
+    | "payment_link_orders_shape"
+    | "payment_link_order_identity"
+    | "payment_link_order_amount"
+    | "payment_link_multiple_payments"
+    | "payment_link_payment_evidence";
+  readonly fields?: string[];
+  constructor(
+    retryAfter = 30,
+    httpStatus?: number,
+    stage?: PaymentTransportError["stage"],
+    fields?: string[],
+  ) {
+    super({
+      message:
+        "We could not confirm your payment right now. Check your order before trying again.",
+    });
+    this.retryAfter = retryAfter;
+    this.httpStatus = httpStatus;
+    this.stage = stage;
+    this.fields = fields;
+  }
+}
+export class PaymentLinkRejectedError extends PaymentTransportError {
+  get validationCategory() {
+    if (this.httpStatus === 422)
+      return this.fields?.length
+        ? "field_validation"
+        : "validation_without_fields";
+  }
+}

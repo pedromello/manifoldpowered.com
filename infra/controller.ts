@@ -77,7 +77,9 @@ function logServerError(
       method: req.method,
       // Query strings may contain signed URLs or other credentials. Logging
       // only the pathname keeps those secrets out of operational logs.
-      path: req.url?.split("?", 1)[0],
+      path: req.url
+        ?.split("?", 1)[0]
+        ?.replace(/\/webhooks\/appmax\/[^/]+/, "/webhooks/appmax/[redacted]"),
       name: error.name,
       status_code: error.statusCode,
       message: error.message,

@@ -14,14 +14,8 @@ export default createRouter<NextApiRequest, NextApiResponse>()
 async function patchHandler(req: NextApiRequest, res: NextApiResponse) {
   const { activation_id: activationId } = req.query;
 
-  const validActivation = await activation.findOneValidById(
-    activationId as string,
-  );
-  const validatedUser = await activation.activateUserByUserId(
-    validActivation.user_id,
-  );
-
-  const updatedActivation = await activation.markAsUsed(validActivation.id);
+  const { user: validatedUser, activation: updatedActivation } =
+    await activation.consume(activationId as string);
 
   const newSession = await session.create(validatedUser.id);
   controller.setSessionCookie(res, newSession.token);

@@ -3,16 +3,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
-import { Compass, Gamepad2, Library, Radio, Search, Store } from "lucide-react";
+import {
+  Compass,
+  Gamepad2,
+  Gift,
+  Library,
+  Radio,
+  Search,
+  Store,
+} from "lucide-react";
 
 import { UserMenu } from "components/store/UserMenu";
 import { FollowedOutlets } from "components/store/FollowedOutlets";
 import { LanguageSwitcher } from "components/LanguageSwitcher";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "./usePurchaseAvailability";
 
 const primaryNavigation = [
   { href: "/store", label: "Discover", icon: Compass },
   { href: "/store#outlets", label: "Outlets", icon: Radio },
+  { href: "/store/gift-cards", label: "Gift cards", icon: Gift },
   { href: "/library", label: "Library", icon: Library },
 ] as const;
 
@@ -151,8 +161,13 @@ export function StoreHomeLayout({
 }) {
   const router = useRouter();
   const { t } = useI18n();
+  const { giftCardsEnabled } = usePurchaseAvailability();
+  const visibleNavigation = primaryNavigation.filter(
+    (item) => item.href !== "/store/gift-cards" || giftCardsEnabled,
+  );
 
   const isActive = (href: string) => {
+    if (href === "/store/gift-cards") return router.pathname === href;
     if (href === "/library") return router.pathname.startsWith("/library");
     if (href === "/store") return router.pathname === "/store";
     if (href === "/store#outlets") {
@@ -177,7 +192,7 @@ export function StoreHomeLayout({
           aria-label={t("Main navigation")}
         >
           <div className="space-y-1">
-            {primaryNavigation.map(({ href, label, icon: Icon }) => (
+            {visibleNavigation.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -279,10 +294,10 @@ export function StoreHomeLayout({
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-3 border-t border-white/[0.1] bg-[#0d0a13]/98 px-4 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className={`fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] ${visibleNavigation.length === 4 ? "grid-cols-4" : "grid-cols-3"} border-t border-white/[0.1] bg-[#0d0a13]/98 px-4 pb-[env(safe-area-inset-bottom)] lg:hidden`}
         aria-label={t("Mobile navigation")}
       >
-        {primaryNavigation.map(({ href, label, icon: Icon }) => (
+        {visibleNavigation.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

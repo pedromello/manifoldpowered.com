@@ -39,6 +39,7 @@ import {
   ratingSystemPreviewSchema,
   ratingSystemResultSchema,
 } from "contracts/outlet-rating";
+import { giftCardCheckoutResponse } from "contracts/gift-card-checkout";
 
 type SaleWithGame = Sale & {
   game_title?: string;
@@ -95,6 +96,7 @@ const AVAILABLE_FEATURES = [
 
   // Session
   "create:session",
+  "create:gift_card_checkout",
   "read:session",
 
   // OTP
@@ -205,6 +207,8 @@ const AVAILABLE_FEATURES = [
   "read:game:any",
   "update:game:status:any",
   "read:dashboard:any",
+  "read:gift_card:any",
+  "update:gift_card:any",
   "read:audit_log:any",
   // The platform's own income statement, across every payee at once. Admin-only
   // with no non-:any counterpart, because there is no narrower version of it:
@@ -290,6 +294,8 @@ const ADMIN_ONLY_FEATURES = [
   "read:game:any",
   "update:game:status:any",
   "read:dashboard:any",
+  "read:gift_card:any",
+  "update:gift_card:any",
   "read:audit_log:any",
   "read:game_ownership_claim:any",
   "decide:game_ownership_claim:any",
@@ -586,6 +592,10 @@ function storeManagementCapabilities(
 function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
   validateUser(user);
   validateFeature(feature);
+
+  if (feature === "create:gift_card_checkout") {
+    return giftCardCheckoutResponse.parse(resource);
+  }
 
   if (typeof resource === "object" && resource !== null) {
     if (
@@ -1522,6 +1532,74 @@ function filterOutput(user: Partial<User>, feature: string, resource: unknown) {
       users: dashboardOutput.users,
       studios: dashboardOutput.studios,
       stores: dashboardOutput.stores,
+    };
+  }
+
+  if (feature === "read:gift_card:any") {
+    const summary = resource as {
+      recent_orders?: {
+        id: string;
+        fulfillment_status: string;
+        last_error: string | null;
+        next_tracking_at: string | null;
+        can_submit: boolean;
+      }[];
+      products: {
+        id: string;
+        code: string;
+        name: string;
+        amount_minor: number;
+        currency: string;
+        enabled: boolean;
+        available: boolean;
+      }[];
+      last_sync_at: string | null;
+      last_error: string | null;
+      payment_jobs: number;
+      submission_jobs: number;
+      tracking_jobs: number;
+      review_orders: number;
+    };
+    return {
+      products: summary.products.map((product) => ({
+        id: product.id,
+        code: product.code,
+        name: product.name,
+        amount_minor: product.amount_minor,
+        currency: product.currency,
+        enabled: product.enabled,
+        available: product.available,
+      })),
+      last_sync_at: summary.last_sync_at,
+      last_error: summary.last_error,
+      payment_jobs: summary.payment_jobs,
+      submission_jobs: summary.submission_jobs,
+      tracking_jobs: summary.tracking_jobs,
+      review_orders: summary.review_orders,
+      recent_orders: (summary.recent_orders ?? []).map((order) => ({
+        id: order.id,
+        fulfillment_status: order.fulfillment_status,
+        last_error: order.last_error,
+        next_tracking_at: order.next_tracking_at,
+        can_submit: order.can_submit,
+      })),
+    };
+  }
+
+  if (feature === "update:gift_card:any") {
+    const report = resource as {
+      processed: number;
+      succeeded: number;
+      failed: number;
+      remaining: number;
+      last_error: string | null;
+    };
+    return {
+      processed: report.processed,
+      succeeded: report.succeeded,
+      failed: report.failed,
+      remaining: report.remaining,
+      last_error: report.last_error,
     };
   }
 

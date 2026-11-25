@@ -9,10 +9,12 @@ import {
   Loader2,
   Shield,
   Download,
+  Receipt,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useI18n } from "lib/i18n";
+import { usePurchaseAvailability } from "./usePurchaseAvailability";
 import { fetchJson } from "lib/api-client";
 import {
   acceptProductEventContext,
@@ -26,6 +28,7 @@ export function UserMenu({
 }) {
   const router = useRouter();
   const { t } = useI18n();
+  const { purchasesEnabled } = usePurchaseAvailability();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +118,17 @@ export function UserMenu({
               <Library size={16} className="text-indigo-400" />
               {t("My Library")}
             </Link>
+
+            {purchasesEnabled && (
+              <Link
+                href="/library/orders"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <Receipt size={16} className="text-indigo-400" />
+                {t("My orders")}
+              </Link>
+            )}
 
             <Link
               href="/games/steam-import"
