@@ -56,8 +56,12 @@ beforeEach(() => {
       "synthetic-use-case-webhook-token-at-least-32-characters",
   });
   fixture = appmaxCheckoutFixture();
-  // Keep the production strategy resolver and use a fresh real adapter for each
-  // test. Only its injected HTTP transport is synthetic.
+  // Exercise the legacy direct checkout with the actual adapter and synthetic HTTP.
+  jest.replaceProperty(
+    appmaxPaymentProvider,
+    "capabilities",
+    fixture.provider.capabilities,
+  );
   jest
     .spyOn(appmaxPaymentProvider, "configured")
     .mockImplementation(fixture.provider.configured);

@@ -112,6 +112,7 @@ beforeEach(() => {
   tx.purchaseOrder.findUniqueOrThrow.mockResolvedValue(order);
   tx.purchasePaymentAttempt.findFirst.mockResolvedValue({
     id: "synthetic-attempt",
+    method: "card",
     submission_started_at: null,
     uncertain: false,
   });

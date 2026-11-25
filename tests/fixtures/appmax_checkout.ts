@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createAppmaxPaymentProvider } from "infra/payments/appmax";
+import type { PaymentProvider } from "infra/payments/types";
 
 type RemoteOrder = {
   customer_id: number;
@@ -10,8 +11,8 @@ type RemoteOrder = {
   paid_at?: string;
 };
 
-// Test-only HTTP responses. The actual Appmax adapter serializes requests,
-// authenticates and interprets these responses; nothing reaches an external API.
+// Test-only direct Pix/card responses for the legacy checkout. The actual
+// adapter serializes and interprets the requests without contacting Appmax.
 export function appmaxCheckoutFixture() {
   const customers = new Map<number, { email: string }>();
   const orders = new Map<number, RemoteOrder>();
@@ -125,7 +126,14 @@ export function appmaxCheckoutFixture() {
       throw new Error("Unexpected Appmax fixture endpoint.");
     },
   );
-  const provider = createAppmaxPaymentProvider({ request });
+  const provider: PaymentProvider = {
+    ...createAppmaxPaymentProvider({ request }),
+    capabilities: {
+      methods: ["pix", "card"],
+      installments: true,
+      hosted: false,
+    },
+  };
   function approve(id: string) {
     const order = orders.get(Number(id));
     if (!order?.method)
