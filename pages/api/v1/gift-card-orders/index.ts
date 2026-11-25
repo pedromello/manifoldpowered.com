@@ -3,10 +3,11 @@ import { z } from "zod";
 import type { NextApiRequest, NextApiResponse } from "next";
 import controller from "infra/controller";
 import { ValidationError } from "infra/errors";
+import { prisma } from "infra/database";
 import giftCardOrder, { giftCardOrderOutput } from "models/gift_card_order";
 import { giftCardProducts } from "models/gift_card_catalog";
 import { paymentsConfigured } from "infra/payments";
-import purchases from "models/purchase_order";
+import purchases, { orderOutput } from "models/purchase_order";
 import {
   emailGiftCardsSelected,
   emailGiftPurchasesConfigured,
@@ -31,9 +32,47 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       giftCardProducts(),
       giftCardOrder.listOwn(req.context.user.id!),
     ]);
+    const pendingGiftIds = orders
+      .filter((order) =>
+        ["CHECKOUT_PENDING", "AWAITING_PAYMENT", "PAYMENT_FAILED"].includes(
+          order.status,
+        ),
+      )
+      .map((order) => order.id);
+    const linkedOrders = pendingGiftIds.length
+      ? await prisma.purchaseOrder.findMany({
+          where: {
+            user_id: req.context.user.id!,
+            payment_environment: "sandbox",
+            gift_card_order_id: { in: pendingGiftIds },
+          },
+        })
+      : [];
+    const latestAttempts = linkedOrders.length
+      ? await prisma.purchasePaymentAttempt.findMany({
+          where: { order_id: { in: linkedOrders.map((order) => order.id) } },
+          distinct: ["order_id"],
+          orderBy: { created_at: "desc" },
+        })
+      : [];
+    const attemptByOrder = new Map(
+      latestAttempts.map((attempt) => [attempt.order_id, attempt]),
+    );
+    const cancellationByGift = new Map(
+      linkedOrders.map((order) => [
+        order.gift_card_order_id,
+        orderOutput(order, attemptByOrder.get(order.id)).can_cancel,
+      ]),
+    );
     res.status(200).json({
       products,
-      orders: orders.map(giftCardOrderOutput),
+      orders: orders.map((order) => {
+        const canCancel = cancellationByGift.get(order.id);
+        return {
+          ...giftCardOrderOutput(order),
+          ...(canCancel === undefined ? {} : { can_cancel: canCancel }),
+        };
+      }),
       checkout_available:
         paymentsConfigured() &&
         (!emailGiftCardsSelected() || emailGiftPurchasesConfigured()),

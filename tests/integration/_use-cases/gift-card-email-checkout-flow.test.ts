@@ -4,7 +4,10 @@ import Stripe from "stripe";
 import type { NextApiRequest } from "next";
 import type { BuyerCheckout, BuyerOrder } from "contracts/purchase-orders";
 import { prisma } from "infra/database";
-import { appmaxPaymentProvider } from "infra/payments/appmax";
+import {
+  appmaxPaymentProvider,
+  createAppmaxPaymentProvider,
+} from "infra/payments/appmax";
 import type { PaymentQuote } from "infra/payments/types";
 import { stripeCheckoutGateway } from "infra/stripe_checkout";
 import type { EmailGiftProvider } from "infra/gift_card_api";
@@ -32,7 +35,7 @@ import {
 } from "tests/fixtures/gift_card_checkout";
 
 // Real registration, mailbox challenges, controllers, transactions and durable
-// jobs. Only Stripe transport and the external email gift service are fixtures.
+// jobs. Payment transports and the email gift service use synthetic fixtures.
 const original = { ...process.env };
 const users = new Set<string>();
 const registrationEmails = new Set<string>();
@@ -363,6 +366,16 @@ function privateMaterialAbsent(value: unknown) {
   expect(output).not.toContain(recipient.document);
 }
 
+function directAppmaxFixture() {
+  const appmax = appmaxCheckoutFixture();
+  jest.replaceProperty(appmaxPaymentProvider, "capabilities", {
+    methods: ["pix", "card"],
+    installments: true,
+    hosted: false,
+  });
+  return appmax;
+}
+
 test("a new catalog purchase opens Appmax while My orders resumes the earlier checkout", async () => {
   const buyer = await register();
   const earlierId = await begin(buyer);
@@ -376,7 +389,7 @@ test("a new catalog purchase opens Appmax while My orders resumes the earlier ch
     APPMAX_AUTH_URL: "https://auth.sandboxappmax.com.br/oauth2/token",
     APPMAX_API_URL: "https://api.sandboxappmax.com.br",
   });
-  const appmax = appmaxCheckoutFixture();
+  const appmax = directAppmaxFixture();
   jest
     .spyOn(appmaxPaymentProvider, "quotes")
     .mockImplementation(appmax.provider.quotes);
@@ -491,7 +504,7 @@ test.each(["pix", "card"] as const)(
       APPMAX_API_URL: "https://api.sandboxappmax.com.br",
       GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED: "true",
     });
-    const appmax = appmaxCheckoutFixture();
+    const appmax = directAppmaxFixture();
     jest
       .spyOn(appmaxPaymentProvider, "quote")
       .mockImplementation(appmax.provider.quote);
@@ -693,6 +706,252 @@ test.each(["pix", "card"] as const)(
       payment_status: "PAID",
       delivery_status: "READY",
       gift_card_delivery: { channel: "EMAIL", status: "DELIVERED" },
+    });
+  },
+);
+
+test.each([
+  ["Pix", "pix", 2500],
+  ["card", "creditcard", 2500],
+  ["an incorrect amount", "pix", 2400],
+] as const)(
+  "Appmax payment link reconciles %s before email fulfillment",
+  async (_, method, paidAmount) => {
+    Object.assign(process.env, {
+      PAYMENT_PROVIDER: "appmax",
+      APPMAX_MERCHANT_CLIENT_ID: "synthetic-use-case-client",
+      APPMAX_MERCHANT_CLIENT_SECRET: "synthetic-use-case-secret",
+      APPMAX_AUTH_URL: "https://auth.sandboxappmax.com.br/oauth2/token",
+      APPMAX_API_URL: "https://api.sandboxappmax.com.br",
+      GIFT_CARD_PROVIDER_DOCUMENT_REQUIRED: "true",
+    });
+    const linkId = Number.parseInt(randomUUID().slice(0, 7), 16) + 1;
+    const childId = linkId + 1;
+    const declinedId = linkId + 2;
+    const checkoutUrl =
+      "https://checkout.sandboxappmax.com.br/pl/synthetic-email";
+    let settled = false;
+    const request = jest.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        if (url.href === "https://auth.sandboxappmax.com.br/oauth2/token")
+          return Response.json({
+            access_token: "synthetic-link-bearer",
+            expires_in: 3600,
+          });
+        if (
+          url.origin !== "https://api.sandboxappmax.com.br" ||
+          new Headers(init?.headers).get("authorization") !==
+            "Bearer synthetic-link-bearer"
+        )
+          throw new Error("Unexpected Appmax payment link fixture request.");
+        if (url.pathname === "/v1/payment-link" && init?.method === "POST")
+          return Response.json(
+            { data: { id: linkId, checkout_url: checkoutUrl } },
+            { status: 201 },
+          );
+        if (url.pathname === `/v1/payment-link/${linkId}/orders`) {
+          const orders = [{ id: declinedId, status: "cancelado", total: 2500 }];
+          if (settled)
+            orders.push({ id: childId, status: "aprovado", total: 2500 });
+          return Response.json({
+            data: orders.map((order) => ({ order })),
+            meta: { page: 1, total_pages: 1 },
+          });
+        }
+        if (url.pathname === `/v1/orders/${childId}` && settled)
+          return Response.json({
+            data: {
+              order: {
+                id: childId,
+                status: "aprovado",
+                total_paid: paidAmount,
+                payment_link_id: linkId,
+                currency: "BRL",
+              },
+              customer: { id: 789 },
+              payment: {
+                method,
+                installments: 1,
+                paid_at: new Date().toISOString(),
+              },
+            },
+          });
+        throw new Error("Unexpected Appmax payment link fixture endpoint.");
+      },
+    );
+    const provider = createAppmaxPaymentProvider({ request });
+    jest
+      .spyOn(appmaxPaymentProvider, "quote")
+      .mockImplementation(provider.quote);
+    jest
+      .spyOn(appmaxPaymentProvider, "quotes")
+      .mockImplementation(provider.quotes);
+    jest
+      .spyOn(appmaxPaymentProvider, "createCustomer")
+      .mockImplementation(provider.createCustomer);
+    jest
+      .spyOn(appmaxPaymentProvider, "createOrder")
+      .mockImplementation(provider.createOrder);
+    jest.spyOn(appmaxPaymentProvider, "pay").mockImplementation(provider.pay);
+    jest
+      .spyOn(appmaxPaymentProvider, "retrieve")
+      .mockImplementation(provider.retrieve);
+
+    const buyer = await register();
+    const id = await begin(buyer);
+    const offer = () =>
+      apiRequest<BuyerCheckout>(quoteHandler, {
+        url: `/api/v1/orders/${id}/quote`,
+        query: { id },
+        session: buyer.session,
+        body: {
+          method: "link",
+          installments: 1,
+          idempotency_key: randomUUID(),
+        },
+      });
+    const confirmed = await confirm(buyer, id, {
+      first_name: "Delivery",
+      last_name: "Recipient Fixture",
+      document: recipient.document,
+      confirmed: true,
+    });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.checkout).toMatchObject({
+      available: true,
+      hosted: true,
+      payment_link: true,
+      methods: ["link"],
+      installments: false,
+    });
+    expect(confirmed.body.checkout.script_url).toBeFalsy();
+    expect(confirmed.body.gift_card_delivery).not.toHaveProperty(
+      "recipient_first_name",
+    );
+    const quoted = await offer();
+    expect(quoted.status).toBe(200);
+    const attempt = quoted.body.attempt!;
+    expect(attempt).toMatchObject({ method: "link", total_minor: 2500 });
+    const opened = await pay(buyer, id, attempt);
+    expect(opened.status).toBe(200);
+    expect(opened.body.order.payment_status).toBe("PENDING");
+    expect(opened.body.attempt?.checkout_url).toBe(checkoutUrl);
+    privateMaterialAbsent(opened.body);
+    const repeated = await pay(buyer, id, attempt);
+    expect(repeated.status).toBe(200);
+    expect(repeated.body.attempt?.checkout_url).toBe(checkoutUrl);
+    expect((await detail(buyer, id)).body.attempt?.checkout_url).toBe(
+      checkoutUrl,
+    );
+    expect((await offer()).status).toBe(409);
+    const library = await apiRequest<{
+      orders: Array<{ id: string; can_cancel?: boolean }>;
+    }>(giftLibraryHandler, {
+      url: "/api/v1/gift-card-orders",
+      method: "GET",
+      session: buyer.session,
+    });
+    expect(library.status).toBe(200);
+    expect(library.body.orders).toContainEqual(
+      expect.objectContaining({
+        id: opened.body.order.gift_card_order_id,
+        can_cancel: false,
+      }),
+    );
+    const created = request.mock.calls.filter(
+      ([url]) => new URL(String(url)).pathname === "/v1/payment-link",
+    );
+    expect(created).toHaveLength(1);
+    expect(JSON.parse(String(created[0][1]?.body))).toEqual({
+      name: "Synthetic email gift card",
+      description: "Synthetic email gift card",
+      value: 2500,
+      product_type: "digital",
+      payments: [["pix", "creditcard"]],
+      max_installments: 1,
+      fee_transfer_from_installment: 0,
+      allow_multiple_sales: false,
+    });
+    expect(appmaxPaymentProvider.createCustomer).not.toHaveBeenCalled();
+    expect(appmaxPaymentProvider.createOrder).not.toHaveBeenCalled();
+
+    await expect(paymentWorker.runOneDetailed(id)).resolves.toMatchObject({
+      processed: true,
+      error_code: null,
+    });
+    expect((await detail(buyer, id)).body.order.payment_status).toBe("PENDING");
+    expect(
+      await prisma.purchasePaymentAttempt.findUniqueOrThrow({
+        where: { id: attempt.id },
+      }),
+    ).toMatchObject({
+      remote_order_id: `link:${linkId}`,
+      remote_payment_id: null,
+    });
+    expect(
+      await prisma.giftCardFulfillmentJob.findUnique({
+        where: { order_id: id },
+      }),
+    ).toBeNull();
+
+    settled = true;
+    const recheck = await apiRequest<BuyerCheckout>(detailHandler, {
+      url: `/api/v1/orders/${id}`,
+      query: { id },
+      session: buyer.session,
+      body: { action: "reconcile" },
+    });
+    expect(recheck.status).toBe(200);
+    const final = recheck.body;
+    if (paidAmount !== 2500) {
+      expect(final.order.payment_status).not.toBe("PAID");
+      expect(
+        await prisma.giftCardFulfillmentJob.findUnique({
+          where: { order_id: id },
+        }),
+      ).toBeNull();
+      expect(service.submit).not.toHaveBeenCalled();
+      return;
+    }
+
+    expect(final.order).toMatchObject({
+      payment_status: "PAID",
+      delivery_status: "PENDING",
+    });
+    expect(
+      await prisma.purchasePaymentAttempt.findUniqueOrThrow({
+        where: { id: attempt.id },
+      }),
+    ).toMatchObject({
+      remote_order_id: `link:${linkId}`,
+      remote_payment_id: String(childId),
+    });
+    const delivery = createEmailGiftDelivery({ getProvider: () => service });
+    await expect(delivery.runOne("submit", { order_id: id })).resolves.toBe(
+      true,
+    );
+    await expect(delivery.runOne("submit", { order_id: id })).resolves.toBe(
+      false,
+    );
+    expect(service.submit).toHaveBeenCalledTimes(1);
+    expect(service.submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: id,
+        amount_minor: 2500,
+        recipient: {
+          name: recipient.name,
+          document: recipient.document,
+          email: buyer.email,
+        },
+      }),
+    );
+    await expect(
+      delivery.runOne("track", { order_id: id, force: true }),
+    ).resolves.toBe(true);
+    expect((await detail(buyer, id)).body.order).toMatchObject({
+      payment_status: "PAID",
+      delivery_status: "READY",
     });
   },
 );

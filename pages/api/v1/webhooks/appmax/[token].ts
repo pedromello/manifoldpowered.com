@@ -9,6 +9,7 @@ import {
 } from "infra/payments/webhooks";
 import { prisma } from "infra/database";
 import { enqueuePaymentSignal } from "models/purchase_order";
+import paymentWorker from "models/purchase_payment_jobs";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 export default createRouter<NextApiRequest, NextApiResponse>()
@@ -20,11 +21,14 @@ export default createRouter<NextApiRequest, NextApiResponse>()
     if (signal) {
       const attempts = await prisma.purchasePaymentAttempt.findMany({
         where: {
-          remote_order_id: signal.remote_order_id,
+          OR: [
+            { remote_order_id: signal.remote_order_id },
+            { method: "link", remote_payment_id: signal.remote_order_id },
+          ],
           payment_provider: "appmax",
           payment_environment: "sandbox",
         },
-        select: { id: true, order_id: true },
+        select: { id: true, order_id: true, method: true },
       });
       const bound = await prisma.purchaseOrder.findMany({
         where: {
@@ -37,8 +41,11 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       for (const order of bound)
         for (const attempt of attempts.filter(
           (item) => item.order_id === order.id,
-        ))
+        )) {
           await enqueuePaymentSignal(order.id, attempt.id);
+          if (attempt.method === "link")
+            await paymentWorker.runOneDetailed(order.id);
+        }
     }
     return res.status(200).json({ received: true });
   })

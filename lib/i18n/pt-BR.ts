@@ -133,6 +133,12 @@ export const ptBR: Record<string, string> = {
   "Pay by card": "Pagar com cartão",
   "Pay {amount}": "Pagar {amount}",
   "Continue to payment": "Continuar para o pagamento",
+  "Opening payment page…": "Abrindo página de pagamento…",
+  "Choose Pix or credit card on the payment page.":
+    "Escolha Pix ou cartão de crédito na página de pagamento.",
+  "After paying, return here to check your payment status.":
+    "Depois de pagar, volte aqui para acompanhar o status do pagamento.",
+  "Open payment page": "Abrir página de pagamento",
   "Pay with Pix": "Pague com Pix",
   "Scan the QR code in your bank app or copy the Pix code.":
     "Leia o QR Code no aplicativo do seu banco ou copie o código Pix.",
@@ -180,6 +186,8 @@ export const ptBR: Record<string, string> = {
   "Last name": "Sobrenome",
   "Phone number": "Telefone",
   "Payment method": "Forma de pagamento",
+  "This product is below the payment link minimum.":
+    "O pagamento por link exige um pedido de pelo menos R$ 5,00.",
   "Credit card": "Cartão de crédito",
   Installments: "Parcelas",
   "Loading installments": "Carregando parcelas",

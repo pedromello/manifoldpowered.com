@@ -165,6 +165,17 @@ test("pending email purchase goes through checkout for recipient confirmation", 
   expect(html).not.toContain("You do not need to pay again.");
 });
 
+test("a pending order with a payable link can resume but cannot cancel locally", () => {
+  const html = render("AWAITING_PAYMENT", true, null, {
+    delivery_channel: "EMAIL",
+    can_cancel: false,
+  });
+  expect(html).toContain('href="/checkout/synthetic-order"');
+  expect(html).toContain("Continue purchase");
+  expect(html).not.toContain("Cancel purchase");
+  expect(render("AWAITING_PAYMENT")).toContain("Cancel purchase");
+});
+
 test("unpaid cancelled email order does not promise a future delivery", () => {
   const html = render("CANCELLED", true, null, {
     delivery_channel: "EMAIL",

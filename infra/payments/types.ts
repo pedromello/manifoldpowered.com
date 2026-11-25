@@ -1,6 +1,6 @@
 export type PaymentProviderName = "appmax" | "stripe";
 export type PaymentEnvironment = "sandbox";
-export type PaymentMethod = "pix" | "card";
+export type PaymentMethod = "pix" | "card" | "link";
 export type PaymentState =
   | "UNPAID"
   | "PENDING"
@@ -36,6 +36,7 @@ export type PaymentContext = {
   installments: number;
   customer_id?: string;
   remote_order_id?: string;
+  remote_payment_id?: string;
 };
 export type PaymentSnapshot = {
   remote_order_id: string;
@@ -71,7 +72,7 @@ export interface PaymentProvider {
   createOrder(input: PaymentContext): Promise<string>;
   pay(
     input: PaymentContext,
-    buyer: PaymentBuyer,
+    buyer?: PaymentBuyer,
     cardToken?: string,
   ): Promise<PaymentSnapshot>;
   retrieve(input: PaymentContext): Promise<PaymentSnapshot>;

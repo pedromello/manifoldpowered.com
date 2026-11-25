@@ -3,7 +3,7 @@ import { Prisma } from "generated/prisma/client";
 import { z } from "zod";
 import { ServiceError, ValidationError } from "infra/errors";
 import { appmaxEndpoints, appmaxMerchantCredentials } from "./config";
-import { PaymentTransportError } from "./errors";
+import { PaymentLinkRejectedError, PaymentTransportError } from "./errors";
 export { PaymentTransportError } from "./errors";
 import type {
   PaymentContext,
@@ -43,6 +43,25 @@ const id = z
   .union([z.number().int().positive(), z.string().regex(/^\d+$/)])
   .transform(String);
 const money = z.number().int().nonnegative().max(2147483647);
+export const appmaxPaymentLinkMinimum = 500;
+
+const linkId = z
+  .union([z.number().int().positive(), z.string().regex(/^[1-9][0-9]*$/)])
+  .transform(String);
+const checkoutLinkResponse = z.object({
+  data: z.object({ id: linkId, checkout_url: z.string().min(1).max(2048) }),
+});
+const linkOrdersResponse = z.object({
+  data: z.array(
+    z.object({
+      order: z.object({ id: linkId, status: z.string(), total: money }),
+    }),
+  ),
+  meta: z.object({
+    page: z.number().int().positive(),
+    total_pages: z.number().int().nonnegative(),
+  }),
+});
 export function appmaxQuotes(payload: unknown, amount: number): PaymentQuote[] {
   const schema = z.object({
     data: z.union([
@@ -104,16 +123,15 @@ export function appmaxQuotes(payload: unknown, amount: number): PaymentQuote[] {
     .sort((a, b) => a.installments - b.installments);
 }
 
-export function appmaxSnapshot(
-  payload: unknown,
-  context: PaymentContext,
-): PaymentSnapshot {
+function readAppmaxOrder(payload: unknown) {
   const schema = z.object({
     data: z.object({
       order: z.object({
         id,
         status: z.string(),
         total_paid: money.nullish(),
+        payment_link_id: z.unknown(),
+        currency: z.unknown(),
       }),
       customer: z.object({ id }),
       payment: z
@@ -121,6 +139,7 @@ export function appmaxSnapshot(
           method: z.string().optional(),
           installments: z.unknown().optional(),
           paid_at: z.string().nullable().optional(),
+          currency: z.unknown(),
         })
         .nullish(),
     }),
@@ -136,15 +155,26 @@ export function appmaxSnapshot(
       fields,
     );
   }
-  const { order, customer, payment } = result.data.data;
-  if (!Object.hasOwn(states, order.status))
+  return result.data.data;
+}
+
+function appmaxOrderState(status: string) {
+  if (!Object.hasOwn(states, status))
     throw new PaymentTransportError(undefined, undefined, "order_status");
+  return states[status];
+}
+
+export function appmaxSnapshot(
+  payload: unknown,
+  context: PaymentContext,
+): PaymentSnapshot {
+  const { order, customer, payment } = readAppmaxOrder(payload);
+  const state = appmaxOrderState(order.status);
   if (
     order.id !== context.remote_order_id ||
     customer.id !== context.customer_id
   )
     throw new PaymentTransportError(undefined, undefined, "order_identity");
-  const state = states[order.status];
   if (state === "PAID") {
     const fields: string[] = [];
     if (order.total_paid !== context.amount_minor)
@@ -176,6 +206,60 @@ export function appmaxSnapshot(
     paid_at: appmaxDate(payment?.paid_at),
     delivery_blocked: order.status === "pendente_integracao_em_analise",
   };
+}
+
+function validatedLinkQuote(
+  amount: number,
+  installments: number,
+): PaymentQuote {
+  if (installments !== 1)
+    throw new ValidationError({
+      message: "This installment option is unavailable.",
+    });
+  if (!money.safeParse(amount).success || amount < appmaxPaymentLinkMinimum)
+    throw new ValidationError({
+      message: "This product is below the payment link minimum.",
+      action: "Choose a product worth at least R$ 5.00.",
+    });
+  return { installments: 1, total_minor: amount, interest_minor: 0 };
+}
+
+function sandboxCheckoutUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.hash &&
+      url.hostname.endsWith(".sandboxappmax.com.br")
+    )
+      return url.href;
+  } catch {
+    // The provider URL is not safe to return to the browser.
+  }
+  throw new PaymentTransportError(undefined, undefined, "payment_link_url");
+}
+
+function pendingLink(
+  input: PaymentContext,
+  remoteOrderId: string,
+  checkoutUrl?: string,
+): PaymentSnapshot {
+  return {
+    remote_order_id: remoteOrderId,
+    state: "PENDING",
+    total_minor: input.amount_minor,
+    currency: "BRL",
+    method: "link",
+    installments: 1,
+    ...(checkoutUrl ? { checkout_url: checkoutUrl } : {}),
+  };
+}
+
+function isFinancialState(state: PaymentState) {
+  return state === "PAID" || state === "REFUNDED" || state === "DISPUTED";
 }
 
 export function createAppmaxPaymentProvider({
@@ -298,7 +382,18 @@ export function createAppmaxPaymentProvider({
     body?: unknown,
     safeRetry = body === undefined,
   ) {
-    const auth = await token();
+    let auth: string;
+    try {
+      auth = await token();
+    } catch (error) {
+      if (path === "/v1/payment-link" && body !== undefined)
+        throw new PaymentLinkRejectedError(
+          undefined,
+          error instanceof PaymentTransportError ? error.httpStatus : undefined,
+          "authentication",
+        );
+      throw error;
+    }
     return http(
       appmaxEndpoints().api + path,
       {
@@ -313,6 +408,176 @@ export function createAppmaxPaymentProvider({
       safeRetry,
     );
   }
+
+  async function createLink(input: PaymentContext) {
+    validatedLinkQuote(input.amount_minor, input.installments);
+    let payload: unknown;
+    try {
+      payload = await api("/v1/payment-link", {
+        name: input.product_name,
+        description: input.product_name,
+        value: input.amount_minor,
+        product_type: "digital",
+        payments: [["pix", "creditcard"]],
+        max_installments: 1,
+        fee_transfer_from_installment: 0,
+        allow_multiple_sales: false,
+      });
+    } catch (error) {
+      if (
+        error instanceof PaymentTransportError &&
+        error.httpStatus !== undefined &&
+        [400, 401, 403, 422].includes(error.httpStatus) &&
+        error.stage === "request"
+      )
+        throw new PaymentLinkRejectedError(
+          undefined,
+          error.httpStatus,
+          "payment_link_rejected",
+        );
+      throw error;
+    }
+    const parsed = checkoutLinkResponse.safeParse(payload);
+    if (!parsed.success)
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_shape",
+      );
+    const { id, checkout_url } = parsed.data.data;
+    return pendingLink(input, `link:${id}`, sandboxCheckoutUrl(checkout_url));
+  }
+
+  async function readLink(
+    input: PaymentContext,
+    reference: string,
+  ): Promise<PaymentSnapshot> {
+    const parsedId = linkId.safeParse(reference.slice("link:".length));
+    if (
+      !reference.startsWith("link:") ||
+      !parsedId.success ||
+      input.currency !== "BRL" ||
+      input.method !== "link"
+    )
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_identity",
+      );
+    const listPath = `/v1/payment-link/${parsedId.data}/orders`;
+    const orders = new Map<
+      string,
+      z.infer<typeof linkOrdersResponse>["data"][number]["order"]
+    >();
+    let totalPages = 1;
+    for (let page = 1; page <= totalPages; page++) {
+      const parsed = linkOrdersResponse.safeParse(
+        await api(page === 1 ? listPath : `${listPath}?page=${page}`),
+      );
+      if (
+        !parsed.success ||
+        parsed.data.meta.page !== page ||
+        parsed.data.meta.total_pages > 10
+      )
+        throw new PaymentTransportError(
+          undefined,
+          undefined,
+          "payment_link_orders_shape",
+        );
+      totalPages = parsed.data.meta.total_pages;
+      for (const { order } of parsed.data.data) orders.set(order.id, order);
+    }
+    const financialOrders = [...orders.values()].filter(
+      (order) =>
+        isFinancialState(appmaxOrderState(order.status)) ||
+        order.status === "pendente_integracao_em_analise",
+    );
+    if (
+      financialOrders.length > 1 ||
+      (input.remote_payment_id &&
+        financialOrders.some(({ id }) => id !== input.remote_payment_id))
+    )
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_multiple_payments",
+      );
+    const settled = input.remote_payment_id
+      ? orders.get(input.remote_payment_id)
+      : financialOrders[0];
+    if (!settled) {
+      if (input.remote_payment_id)
+        throw new PaymentTransportError(
+          undefined,
+          undefined,
+          "payment_link_order_identity",
+        );
+      return pendingLink(input, reference);
+    }
+    if (settled.total !== input.amount_minor)
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_order_amount",
+      );
+
+    const { order, payment } = readAppmaxOrder(
+      await api(`/v1/orders/${settled.id}`),
+    );
+    const state = appmaxOrderState(order.status);
+    const detailLinkId = linkId.safeParse(order.payment_link_id);
+    if (
+      order.id !== settled.id ||
+      (order.payment_link_id != null &&
+        (!detailLinkId.success || detailLinkId.data !== parsedId.data)) ||
+      [order.currency, payment?.currency].some(
+        (currency) =>
+          currency != null &&
+          (typeof currency !== "string" || currency.toUpperCase() !== "BRL"),
+      )
+    )
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_order_identity",
+      );
+
+    const method =
+      payment?.method === "creditcard"
+        ? "card"
+        : payment?.method === "pix"
+          ? "pix"
+          : "link";
+    const paidAt = appmaxDate(payment?.paid_at);
+    if (
+      state === "PAID" &&
+      (order.total_paid !== input.amount_minor ||
+        !paidAt ||
+        method === "link" ||
+        (method === "card" && payment?.installments !== 1))
+    )
+      throw new PaymentTransportError(
+        undefined,
+        undefined,
+        "payment_link_payment_evidence",
+      );
+    if (!isFinancialState(state) && !input.remote_payment_id)
+      return {
+        ...pendingLink(input, reference),
+        ...(order.status === "pendente_integracao_em_analise"
+          ? { state: "PROCESSING", delivery_blocked: true }
+          : {}),
+      };
+    return {
+      ...pendingLink(input, reference),
+      remote_payment_id: settled.id,
+      state,
+      method,
+      paid_at: paidAt,
+      delivery_blocked: order.status === "pendente_integracao_em_analise",
+    };
+  }
+
   const provider: PaymentProvider = {
     name: "appmax",
     configured: () => {
@@ -324,11 +589,12 @@ export function createAppmaxPaymentProvider({
       }
     },
     capabilities: {
-      methods: ["pix", "card"],
-      installments: true,
-      hosted: false,
+      methods: ["link"],
+      installments: false,
+      hosted: true,
     },
     async quote(amount, installments, method) {
+      if (method === "link") return validatedLinkQuote(amount, installments);
       if (method === "pix")
         return { installments: 1, total_minor: amount, interest_minor: 0 };
       const quotes = await provider.quotes(amount);
@@ -407,6 +673,14 @@ export function createAppmaxPaymentProvider({
         throw new ValidationError({
           message: "This payment currency is unavailable.",
         });
+      if (input.method === "link")
+        return input.remote_order_id
+          ? provider.retrieve(input)
+          : createLink(input);
+      if (!buyer)
+        throw new ValidationError({
+          message: "Please check your purchase details.",
+        });
       if (input.method === "pix") {
         const parsed = z
           .object({
@@ -463,6 +737,8 @@ export function createAppmaxPaymentProvider({
       return provider.retrieve(input);
     },
     async retrieve(input) {
+      if (input.method === "link" || input.remote_order_id?.startsWith("link:"))
+        return readLink(input, input.remote_order_id ?? "");
       return appmaxSnapshot(
         await api(`/v1/orders/${encodeURIComponent(input.remote_order_id!)}`),
         input,

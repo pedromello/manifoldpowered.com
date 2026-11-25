@@ -22,7 +22,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .post(controller.canRequest("create:library"), async (req, res) => {
     const parsed = z
       .object({
-        method: z.enum(["pix", "card"]),
+        method: z.enum(["pix", "card", "link"]),
         installments: z.number().int().min(1).max(12),
         idempotency_key: z.uuid(),
       })

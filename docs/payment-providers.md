@@ -28,9 +28,15 @@ APPMAX_API_URL=https://api.sandboxappmax.com.br
 APPMAX_WEBHOOK_TOKEN=replace_with_a_random_secret_of_at_least_32_characters
 ```
 
-The checkout uses merchant credentials. For an own-store setup, obtain the
-merchant credentials and External ID in the sandbox panel's API tab. Import the
-External ID:
+The checkout uses sandbox merchant credentials. The Appmax adapter creates an
+individual payment link for each order and offers Pix and single-installment
+card payment on the hosted page. Appmax requires a minimum of R$ 5.00. The
+recipient and verified delivery email stay in the store checkout. Payment
+details are entered on the hosted page. Once a link is issued, reopening that
+order resumes the same link.
+
+The External ID is used by legacy direct Appmax integrations. If it is needed
+for the existing direct-payment tooling, import it:
 
 ```powershell
 npm run payments:configure-appmax -- --external-id YOUR_INSTALLATION_UUID
@@ -44,15 +50,13 @@ quote without creating an order or charging. Endpoint overrides are validated
 against official sandbox URLs; credentials are never sent to arbitrary hosts.
 
 The worker loads Next.js environment files, including local overrides. Restart
-the server/worker after changing credentials or provider configuration. The External
-ID is non-secret configuration stored in `payment_installations`; it is read from
-the database for checkout. Sandbox script, API, auth and installation must match.
+the server or worker after changing credentials or provider configuration.
 Production payments are deliberately blocked in this delivery.
 
 To exercise Stripe instead, set `PAYMENT_PROVIDER=stripe` and retain the existing
 ignored Stripe test key and signing secret. Its adapter supports hosted card
-checkout in one installment. Appmax supports in-site Pix and tokenized card payments
-with the installment options returned by the merchant's configuration, up to 12.
+checkout in one installment. Existing in-site Appmax payment attempts can still
+be reconciled.
 
 ## Webhooks and worker
 
@@ -73,11 +77,13 @@ Panel events include `OrderPaid`, `OrderApproved`, `OrderAuthorized`,
 Panel envelopes use `data.id`; Appstore `data.order_id` envelopes are rejected.
 The panel's `environment` field is not an environment boundary.
 
-Notifications are untrusted signals, not payment proof. The endpoint binds a
-known external order to a known local provider/environment, writes durable work,
-and acknowledges. The worker queries the authenticated provider, checks customer,
-amount, method and installments, and then settles/fulfills. Stripe continues using
-its signed raw-body endpoint and enqueues the same kind of work for common orders.
+Notifications schedule verification. The endpoint binds a known external order
+or payment link to a local attempt within the same provider and environment,
+writes durable work and acknowledges. For an Appmax link the worker verifies
+the order through the authenticated link and order APIs and checks the amount
+and payment method before settlement. Buyers can return to the store order and
+request the same reconciliation from the checkout. Stripe continues using its
+signed raw-body endpoint and enqueues the same kind of work for common orders.
 Unknown notifications never create orders or grant products. Raw webhook bodies
 and card/token payloads are not persisted.
 Verified status receipts live in `purchase_payment_events`, once per attempt

@@ -4,6 +4,7 @@ import { z } from "zod";
 import controller from "infra/controller";
 import { ValidationError } from "infra/errors";
 import orders, { enqueuePurchase } from "models/purchase_order";
+import paymentWorker from "models/purchase_payment_jobs";
 
 export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.injectAnonymousOrUser)
@@ -29,10 +30,17 @@ export default createRouter<NextApiRequest, NextApiResponse>()
         message: "Please check your purchase details.",
       });
     const id = String(req.query.id);
-    await orders.findOwn(req.context.user.id!, id);
+    const order = await orders.findOwn(req.context.user.id!, id);
     if (parsed.data.action === "cancel")
       await orders.cancel(req.context.user.id!, id);
-    else await enqueuePurchase(id);
+    else {
+      await enqueuePurchase(id);
+      if (
+        order.payment_provider === "appmax" &&
+        ["PENDING", "PROCESSING"].includes(order.payment_status)
+      )
+        await paymentWorker.runOneDetailed(id);
+    }
     return res.status(200).json(await orders.view(req.context.user.id!, id));
   })
   .handler(controller.errorHandlers);

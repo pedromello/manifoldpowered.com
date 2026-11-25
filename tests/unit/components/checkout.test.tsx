@@ -177,6 +177,69 @@ test("Stripe checkout remains outside the Appmax payment panel", () => {
   expect(html).not.toContain("data-appmax-checkout");
 });
 
+const hostedCheckout: BuyerCheckout = {
+  ...checkout,
+  checkout: {
+    available: true,
+    hosted: true,
+    payment_link: true,
+    installments: false,
+    methods: ["link"],
+    external_id: null,
+    script_url: null,
+  },
+};
+
+test("the hosted payment link checkout leaves the payment method and payer details to the provider", () => {
+  const html = render({
+    ...hostedCheckout,
+    gift_card_delivery: {
+      ...emailDelivery,
+      confirmed: true,
+      recipient_ready: true,
+      document_required: true,
+    },
+  });
+  expect(html).toContain("Continue to payment");
+  expect(html).toContain("Choose Pix or credit card on the payment page.");
+  expect(html).toContain("buyer@example.test");
+  expect(html).not.toContain("Generate Pix code");
+  expect(html).not.toContain("data-appmax-checkout");
+  expect(html).not.toContain('name="first_name"');
+  expect(html).not.toContain('name="document_number"');
+});
+
+test("a pending order offers its saved payment link after the original quote expires", () => {
+  const url = "https://checkout.sandboxappmax.com.br/pl/synthetic";
+  const html = render({
+    ...hostedCheckout,
+    order: {
+      ...checkout.order,
+      payment_status: "PENDING",
+      can_pay: false,
+      can_cancel: false,
+    },
+    attempt: {
+      id: "synthetic-attempt",
+      method: "link",
+      installments: 1,
+      total_minor: 2500,
+      interest_minor: 0,
+      quote_expires_at: "2000-01-01",
+      submitted: true,
+      uncertain: false,
+      checkout_url: url,
+      pix: null,
+    },
+  });
+  expect(html).toContain(
+    `href="${url}" target="_blank" rel="noopener noreferrer"`,
+  );
+  expect(html).toContain("Open payment page");
+  expect(html).toContain("Check payment status");
+  expect(html).not.toContain("Continue to payment");
+});
+
 test("waiting for Pix keeps the QR, copy and status actions inside the payment panel", () => {
   const html = render({
     ...checkout,

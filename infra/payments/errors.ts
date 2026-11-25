@@ -11,7 +11,16 @@ export class PaymentTransportError extends ServiceError {
     | "order_identity"
     | "order_status"
     | "payment_evidence"
-    | "payment_date";
+    | "payment_date"
+    | "payment_link_rejected"
+    | "payment_link_shape"
+    | "payment_link_url"
+    | "payment_link_identity"
+    | "payment_link_orders_shape"
+    | "payment_link_order_identity"
+    | "payment_link_order_amount"
+    | "payment_link_multiple_payments"
+    | "payment_link_payment_evidence";
   readonly fields?: string[];
   constructor(
     retryAfter = 30,
@@ -29,3 +38,4 @@ export class PaymentTransportError extends ServiceError {
     this.fields = fields;
   }
 }
+export class PaymentLinkRejectedError extends PaymentTransportError {}

@@ -464,6 +464,24 @@ function PixInstructions({
     </section>
   );
 }
+
+function paymentNavigationUrl(
+  value: string | null | undefined,
+  isPaymentLink: boolean,
+) {
+  try {
+    if (!value) return null;
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.port)
+      return null;
+    if (!isPaymentLink && url.origin !== "https://checkout.stripe.com")
+      return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 export function Checkout({ orderId }: { orderId: string }) {
   const { t } = useI18n();
   const {
@@ -510,6 +528,8 @@ export function Checkout({ orderId }: { orderId: string }) {
     paymentHeading = useRef<HTMLHeadingElement>(null),
     focusPayment = useRef(false),
     inFlight = useRef(false),
+    lastStatusCheck = useRef(0),
+    initialLinkCheck = useRef<string | null>(null),
     tokenTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
     pendingCard = useRef<{
       buyer: NonNullable<ReturnType<typeof readBuyerForm>> & {
@@ -618,7 +638,7 @@ export function Checkout({ orderId }: { orderId: string }) {
     [t],
   );
   const sendPayment = useCallback(
-    async (token?: string) => {
+    async (token?: string, paymentTab?: Window | null) => {
       if (inFlight.current || (token && !pendingCard.current)) return;
       const card = token ? pendingCard.current : null;
       pendingCard.current = null;
@@ -645,6 +665,7 @@ export function Checkout({ orderId }: { orderId: string }) {
       setBusy(true);
       setMessage("");
       const reviewedTotal = card?.reviewedTotal ?? displayedTotal;
+      let navigated = false;
       try {
         let quote = quoteForSelection(data, method, installments);
         if (!quote) {
@@ -675,11 +696,18 @@ export function Checkout({ orderId }: { orderId: string }) {
             ...(token ? { card_token: token } : {}),
           },
         );
+        if (result.attempt?.method === "link")
+          initialLinkCheck.current = result.attempt.id;
         await mutate(result, { revalidate: false });
         if (result.attempt?.checkout_url) {
-          const url = new URL(result.attempt.checkout_url);
-          if (url.origin !== "https://checkout.stripe.com") throw new Error();
-          window.location.assign(url.href);
+          const url = paymentNavigationUrl(
+            result.attempt.checkout_url,
+            result.attempt.method === "link",
+          );
+          if (!url) throw new Error();
+          if (!paymentTab) window.location.assign(url);
+          else if (!paymentTab.closed) paymentTab.location.replace(url);
+          navigated = true;
         }
         if (result.attempt?.uncertain)
           setMessage(
@@ -695,6 +723,7 @@ export function Checkout({ orderId }: { orderId: string }) {
         );
         await mutate();
       } finally {
+        if (!navigated) paymentTab?.close();
         inFlight.current = false;
         setBusy(false);
       }
@@ -711,6 +740,58 @@ export function Checkout({ orderId }: { orderId: string }) {
       mutate,
     ],
   );
+  const checkPaymentStatus = useCallback(
+    async (announce: boolean) => {
+      const now = Date.now();
+      if (
+        inFlight.current ||
+        (!announce && now - lastStatusCheck.current < 10000)
+      )
+        return;
+      lastStatusCheck.current = now;
+      inFlight.current = true;
+      if (announce) {
+        setBusy(true);
+        setMessage("");
+        setStatusMessage("");
+      }
+      try {
+        const refreshed = await checkoutRequest(`/api/v1/orders/${orderId}`, {
+          action: "reconcile",
+        });
+        await mutate(refreshed, { revalidate: false });
+        if (announce) setStatusMessage(t("Payment check requested."));
+      } catch {
+        if (announce)
+          setMessage(t("We could not complete this action. Try again."));
+      } finally {
+        inFlight.current = false;
+        if (announce) setBusy(false);
+      }
+    },
+    [mutate, orderId, t],
+  );
+  const pendingPaymentLink =
+    data?.attempt?.method === "link" &&
+    data.attempt.submitted &&
+    ["UNPAID", "PENDING", "PROCESSING"].includes(data.order.payment_status)
+      ? data.attempt.id
+      : null;
+  useEffect(() => {
+    if (!pendingPaymentLink) return;
+    const checkOnReturn = () => {
+      if (document.hidden || inFlight.current) return;
+      initialLinkCheck.current = pendingPaymentLink;
+      void checkPaymentStatus(false);
+    };
+    if (initialLinkCheck.current !== pendingPaymentLink) checkOnReturn();
+    window.addEventListener("focus", checkOnReturn);
+    document.addEventListener("visibilitychange", checkOnReturn);
+    return () => {
+      window.removeEventListener("focus", checkOnReturn);
+      document.removeEventListener("visibilitychange", checkOnReturn);
+    };
+  }, [checkPaymentStatus, pendingPaymentLink]);
   async function confirmRecipient(recipient: RecipientConfirmation) {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -764,6 +845,11 @@ export function Checkout({ orderId }: { orderId: string }) {
     );
   const order = data.order,
     attempt = data.attempt,
+    isHostedPaymentLink = data.checkout.payment_link === true,
+    resumePaymentUrl = paymentNavigationUrl(
+      attempt?.checkout_url,
+      attempt?.method === "link",
+    ),
     submitted = Boolean(
       attempt?.submitted &&
       !(
@@ -783,7 +869,7 @@ export function Checkout({ orderId }: { orderId: string }) {
   const showingPaymentChoices =
     order.can_pay && paymentReady && data.checkout.available && !submitted;
   const appmaxPaymentPanel =
-    !data.checkout.hosted &&
+    (!data.checkout.hosted || isHostedPaymentLink || Boolean(attempt?.pix)) &&
     order.payment_status !== "PAID" &&
     (showingPaymentChoices || submitted);
   const total = showingPaymentChoices
@@ -925,46 +1011,35 @@ export function Checkout({ orderId }: { orderId: string }) {
               ) : (
                 <p className="checkout-muted mt-3 text-sm leading-6">
                   {t(
-                    "Your product will be available after payment confirmation.",
+                    attempt?.method === "link"
+                      ? "After paying, return here to check your payment status."
+                      : "Your product will be available after payment confirmation.",
                   )}
                 </p>
               )}
-              {attempt?.checkout_url && recipientConfirmed(data) && (
+              {resumePaymentUrl && recipientConfirmed(data) && (
                 <a
-                  href={attempt.checkout_url}
+                  href={resumePaymentUrl}
+                  target={attempt?.method === "link" ? "_blank" : undefined}
+                  rel={
+                    attempt?.method === "link"
+                      ? "noopener noreferrer"
+                      : undefined
+                  }
                   className="checkout-primary mt-6"
                 >
-                  {t("Continue purchase")}
+                  {t(
+                    attempt?.method === "link"
+                      ? "Open payment page"
+                      : "Continue purchase",
+                  )}
                 </a>
               )}
               <button
                 type="button"
                 className="checkout-accent mt-4 min-h-11 rounded-lg px-2 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 disabled:opacity-50"
                 disabled={busy}
-                onClick={async () => {
-                  if (inFlight.current) return;
-                  inFlight.current = true;
-                  setBusy(true);
-                  setMessage("");
-                  setStatusMessage("");
-                  try {
-                    const refreshed = await checkoutRequest(
-                      `/api/v1/orders/${orderId}`,
-                      {
-                        action: "reconcile",
-                      },
-                    );
-                    await mutate(refreshed, { revalidate: false });
-                    setStatusMessage(t("Payment check requested."));
-                  } catch {
-                    setMessage(
-                      t("We could not complete this action. Try again."),
-                    );
-                  } finally {
-                    inFlight.current = false;
-                    setBusy(false);
-                  }
-                }}
+                onClick={() => void checkPaymentStatus(true)}
               >
                 {t(busy ? "Please wait" : "Check payment status")}
               </button>
@@ -997,6 +1072,35 @@ export function Checkout({ orderId }: { orderId: string }) {
               orderId={orderId}
               onConfirm={confirmRecipient}
             />
+          ) : isHostedPaymentLink ? (
+            <>
+              <h2
+                ref={paymentHeading}
+                tabIndex={-1}
+                className="scroll-mt-24 text-lg font-bold"
+              >
+                {t("Payment method")}
+              </h2>
+              <p className="checkout-muted my-4 text-sm leading-6">
+                {t("Choose Pix or credit card on the payment page.")}
+              </p>
+              <button
+                type="button"
+                disabled={payDisabled}
+                className="checkout-primary"
+                onClick={() => {
+                  if (payDisabled || inFlight.current) return;
+                  const paymentTab = window.open("", "_blank");
+                  if (paymentTab) paymentTab.opener = null;
+                  void sendPayment(undefined, paymentTab);
+                }}
+              >
+                {t(busy ? "Opening payment page…" : "Continue to payment")}
+              </button>
+              <p className="checkout-muted mt-3 text-sm leading-6">
+                {t("After paying, return here to check your payment status.")}
+              </p>
+            </>
           ) : (
             <>
               {deliveryEmail && !appmaxPaymentPanel && (

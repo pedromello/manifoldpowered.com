@@ -39,6 +39,10 @@ import pricing from "models/pricing";
 import commercialTerms from "models/commercial_terms";
 import { fulfillPaidPurchase, resolveAffiliateLeniently } from "models/library";
 import giftCardDelivery from "models/gift_card_delivery";
+import {
+  PaymentLinkRejectedError,
+  PaymentTransportError,
+} from "infra/payments/errors";
 
 const financialFinal = ["REFUNDED", "DISPUTED"];
 const active = ["UNPAID", "PENDING", "PROCESSING"];
@@ -62,6 +66,7 @@ export function paymentContext(
     installments: attempt.installments,
     customer_id: attempt.remote_customer_id ?? undefined,
     remote_order_id: attempt.remote_order_id ?? undefined,
+    remote_payment_id: attempt.remote_payment_id ?? undefined,
   };
 }
 export async function lockPurchase(
@@ -108,14 +113,24 @@ export function validatePaymentSnapshot(
   attempt: PurchasePaymentAttempt,
   snapshot: PaymentSnapshot,
 ) {
+  const paymentLink =
+    order.payment_provider === "appmax" && attempt.method === "link";
+  const settled = ["PAID", "REFUNDED", "DISPUTED"].includes(snapshot.state);
+  const linkedPayment = snapshot.method === "pix" || snapshot.method === "card";
   if (
     snapshot.remote_order_id !== attempt.remote_order_id ||
     snapshot.total_minor !== attempt.total_minor ||
     snapshot.currency !== order.currency ||
-    snapshot.method !== attempt.method ||
+    (snapshot.method !== attempt.method && !(paymentLink && linkedPayment)) ||
     snapshot.installments !== attempt.installments ||
     (attempt.remote_customer_id &&
       snapshot.remote_customer_id !== attempt.remote_customer_id) ||
+    (paymentLink &&
+      settled &&
+      (!snapshot.remote_payment_id ||
+        (snapshot.state === "PAID" && !linkedPayment) ||
+        (attempt.remote_payment_id &&
+          snapshot.remote_payment_id !== attempt.remote_payment_id))) ||
     (snapshot.state === "PAID" &&
       !snapshot.remote_payment_id &&
       order.payment_provider === "stripe")
@@ -382,7 +397,8 @@ export function createPurchaseOrderService({
     const provider = getProvider(order.payment_provider as PaymentProviderName);
     if (
       !provider.capabilities.methods.includes(input.method) ||
-      (input.method === "pix" && input.installments !== 1)
+      (input.method !== "card" && input.installments !== 1) ||
+      (input.method === "link" && order.currency !== "BRL")
     )
       throw new ValidationError({
         message: "This payment option is unavailable.",
@@ -416,6 +432,7 @@ export function createPurchaseOrderService({
       if (
         current &&
         (current.uncertain ||
+          (current.method === "link" && current.remote_order_id) ||
           (current.submission_started_at &&
             !["FAILED", "CANCELLED"].includes(current.status)))
       )
@@ -470,7 +487,7 @@ export function createPurchaseOrderService({
     input: {
       attempt_id: string;
       expected_total_minor: number;
-      buyer: Omit<PaymentBuyer, "document_number"> & {
+      buyer?: Omit<PaymentBuyer, "document_number"> & {
         document_number?: string;
         reuse_recipient_document?: true;
       };
@@ -479,7 +496,8 @@ export function createPurchaseOrderService({
   ) {
     assertPaymentSandbox();
     const own = await findOwn(userId, id);
-    if (!getProvider(own.payment_provider as PaymentProviderName).configured())
+    const provider = getProvider(own.payment_provider as PaymentProviderName);
+    if (!provider.configured())
       throw new ServiceError({ message: "Purchases are unavailable." });
     const reservation = await prisma.$transaction(async (tx) => {
       const order = await lockPurchase(tx, id, userId);
@@ -490,9 +508,14 @@ export function createPurchaseOrderService({
         });
       if (attempt.submission_started_at || attempt.uncertain)
         return { send: false } as const;
-      const { reuse_recipient_document, document_number, ...details } =
-        input.buyer;
-      let recipientDocument: string | undefined;
+      if (
+        !provider.capabilities.methods.includes(attempt.method as PaymentMethod)
+      )
+        throw new ValidationError({
+          message: "This payment option is unavailable.",
+        });
+      const paymentLink = attempt.method === "link";
+      let recipient: ReturnType<typeof decryptGiftRecipient> | undefined;
       if (order.gift_card_order_id) {
         const gift = await tx.giftCardOrder.findUniqueOrThrow({
           where: { id: order.gift_card_order_id },
@@ -513,22 +536,7 @@ export function createPurchaseOrderService({
               message:
                 "Confirm your gift card delivery details before payment.",
             });
-          const recipient = decryptGiftRecipient(gift.recipient_data!, gift.id);
-          if (
-            order.payment_provider === "appmax" &&
-            reuse_recipient_document &&
-            recipient.first_name &&
-            recipient.last_name &&
-            (normalizedName(details.first_name) !==
-              normalizedName(recipient.first_name) ||
-              normalizedName(details.last_name) !==
-                normalizedName(recipient.last_name))
-          )
-            throw new ValidationError({
-              message: "Please check your payment document.",
-              action: "Enter the CPF or CNPJ of the person paying.",
-            });
-          recipientDocument = recipient.document;
+          recipient = decryptGiftRecipient(gift.recipient_data, gift.id);
           if (recipientDocumentRequired() && !recipient.document)
             throw new ConflictError({
               message:
@@ -536,18 +544,34 @@ export function createPurchaseOrderService({
             });
         }
       }
-      const document = reuse_recipient_document
-        ? recipientDocument
-        : document_number;
-      if (order.payment_provider === "appmax" && !document)
-        throw new ValidationError({
-          message: "Please check your payment document.",
-          action: "Enter the CPF or CNPJ of the person paying.",
-        });
-      const buyer: PaymentBuyer = {
-        ...details,
-        document_number: document ?? "",
-      };
+      let buyer: PaymentBuyer | undefined;
+      if (!paymentLink) {
+        if (!input.buyer)
+          throw new ValidationError({
+            message: "Please check your purchase details.",
+          });
+        const { reuse_recipient_document, document_number, ...details } =
+          input.buyer;
+        const document = reuse_recipient_document
+          ? recipient?.document
+          : document_number;
+        if (
+          order.payment_provider === "appmax" &&
+          (!document ||
+            (reuse_recipient_document &&
+              recipient?.first_name &&
+              recipient.last_name &&
+              (normalizedName(details.first_name) !==
+                normalizedName(recipient.first_name) ||
+                normalizedName(details.last_name) !==
+                  normalizedName(recipient.last_name))))
+        )
+          throw new ValidationError({
+            message: "Please check your payment document.",
+            action: "Enter the CPF or CNPJ of the person paying.",
+          });
+        buyer = { ...details, document_number: document ?? "" };
+      }
       if (
         order.paid_at ||
         attempt.status !== "UNPAID" ||
@@ -583,14 +607,11 @@ export function createPurchaseOrderService({
       return { order, attempt, buyer, send: true } as const;
     }, txOptions);
     if (!reservation.send) return view(userId, id);
-    const provider = getProvider(
-      reservation.order.payment_provider as PaymentProviderName,
-    );
     let attempt = reservation.attempt;
     let orderCreationStarted = provider.capabilities.hosted;
     try {
       const context = paymentContext(reservation.order, attempt);
-      if (!provider.capabilities.hosted) {
+      if (!provider.capabilities.hosted && reservation.buyer) {
         const customer = await provider.createCustomer(reservation.buyer);
         attempt = await prisma.purchasePaymentAttempt.update({
           where: { id: attempt.id },
@@ -618,8 +639,17 @@ export function createPurchaseOrderService({
         });
       await applySnapshot(id, attempt.id, snapshot);
       await enqueuePurchase(id);
-    } catch {
-      if (!orderCreationStarted) {
+    } catch (error) {
+      if (
+        attempt.method === "link" &&
+        process.env.APP_ENV === "hml" &&
+        error instanceof PaymentTransportError
+      )
+        console.warn("[payments] Appmax link unavailable", {
+          stage: error.stage,
+          upstreamStatus: error.httpStatus,
+        });
+      if (!orderCreationStarted || error instanceof PaymentLinkRejectedError) {
         // No remote order or charge was attempted: retrying with a new quote is safe.
         await prisma.$transaction(async (tx) => {
           const order = await lockPurchase(tx, id);
@@ -755,7 +785,11 @@ export function createPurchaseOrderService({
           last_error: null,
           remote_payment_id:
             snapshot.remote_payment_id ?? attempt.remote_payment_id,
-          checkout_url: snapshot.checkout_url ?? null,
+          checkout_url:
+            snapshot.checkout_url ??
+            (attempt.method === "link" && active.includes(snapshot.state)
+              ? attempt.checkout_url
+              : null),
           pix_emv: snapshot.pix_emv ?? attempt.pix_emv,
           pix_qrcode: snapshot.pix_qrcode ?? attempt.pix_qrcode,
           expires_at: snapshot.expires_at ?? attempt.expires_at,
@@ -989,8 +1023,9 @@ export function createPurchaseOrderService({
         })) ?? (await latest(id)))
       : await latest(id);
     const provider = getProvider(order.payment_provider as PaymentProviderName);
+    const paymentLink = provider.capabilities.methods.includes("link");
     const installation =
-      order.payment_provider === "appmax"
+      order.payment_provider === "appmax" && !paymentLink
         ? await prisma.paymentInstallation.findUnique({
             where: {
               provider_environment: {
@@ -1044,6 +1079,7 @@ export function createPurchaseOrderService({
       recipient.first_name &&
       recipient.last_name &&
       order.payment_provider === "appmax" &&
+      !paymentLink &&
       !order.paid_at &&
       ["UNPAID", "FAILED"].includes(order.payment_status)
         ? {
@@ -1085,6 +1121,7 @@ export function createPurchaseOrderService({
           (provider.capabilities.hosted || Boolean(installation)),
         methods: provider.capabilities.methods,
         hosted: provider.capabilities.hosted,
+        ...(paymentLink ? { payment_link: true } : {}),
         installments: provider.capabilities.installments,
         external_id: installation?.external_id ?? null,
         script_url: installation
@@ -1102,7 +1139,9 @@ export function createPurchaseOrderService({
             submitted: Boolean(attempt.submission_started_at),
             uncertain: attempt.uncertain,
             checkout_url:
-              active.includes(order.payment_status) && !attempt.uncertain
+              active.includes(order.payment_status) &&
+              !attempt.uncertain &&
+              (attempt.method !== "link" || order.delivery_status !== "REVIEW")
                 ? attempt.checkout_url
                 : null,
             pix:
@@ -1254,6 +1293,7 @@ export function orderOutput(
       !financialFinal.includes(order.payment_status) &&
       order.payment_status !== "CANCELLED" &&
       !attempt?.uncertain &&
+      (attempt?.method !== "link" || !attempt.remote_order_id) &&
       (!attempt?.submission_started_at ||
         ["FAILED", "CANCELLED"].includes(attempt.status)),
     can_cancel:

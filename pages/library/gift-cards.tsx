@@ -28,6 +28,7 @@ type Order = ReturnType<typeof giftCardOrderOutput> & {
   recipient_email?: string | null;
   fulfillment_status?: string | null;
   next_tracking_at?: string | null;
+  can_cancel?: boolean;
 };
 type Catalogue = {
   orders: Order[];
@@ -463,13 +464,17 @@ function GiftCardsContent() {
                                       {t("Continue purchase")}
                                     </button>
                                   )}
-                                  <button
-                                    disabled={busy || !data?.checkout_available}
-                                    onClick={() => act(order, "cancel")}
-                                    className="min-h-11 rounded-lg border border-white/20 px-4 text-sm transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    {t("Cancel purchase")}
-                                  </button>
+                                  {order.can_cancel !== false && (
+                                    <button
+                                      disabled={
+                                        busy || !data?.checkout_available
+                                      }
+                                      onClick={() => act(order, "cancel")}
+                                      className="min-h-11 rounded-lg border border-white/20 px-4 text-sm transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      {t("Cancel purchase")}
+                                    </button>
+                                  )}
                                 </>
                               )}
                               {order.delivery_channel !== "EMAIL" &&

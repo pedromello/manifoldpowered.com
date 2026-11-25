@@ -2,6 +2,11 @@ import { z } from "zod";
 import { timingSafeEqual } from "node:crypto";
 import { NotFoundError, ValidationError } from "infra/errors";
 
+const paymentLinkId = z
+  .union([z.number().int().positive(), z.string().regex(/^[1-9][0-9]*$/)])
+  .transform(String)
+  .nullish();
+
 const events = new Set([
   "OrderApproved",
   "OrderAuthorized",
@@ -24,7 +29,10 @@ export function decodeAppmaxPaymentWebhook(body: unknown) {
   const parsed = z
     .object({
       event: z.string(),
-      data: z.object({ id: z.number().int().positive() }),
+      data: z.object({
+        id: z.number().int().positive(),
+        payment_link_id: paymentLinkId,
+      }),
     })
     .safeParse(body);
   if (!parsed.success)
@@ -32,7 +40,9 @@ export function decodeAppmaxPaymentWebhook(body: unknown) {
   if (!events.has(parsed.data.event)) return null;
   // The panel emits environment="production" even for sandbox. It is not authority.
   return {
-    remote_order_id: String(parsed.data.data.id),
+    remote_order_id: parsed.data.data.payment_link_id
+      ? `link:${parsed.data.data.payment_link_id}`
+      : String(parsed.data.data.id),
     event: parsed.data.event,
   };
 }
@@ -73,7 +83,10 @@ const appstoreEnvelope = z.object({
   site_id: z.guid(),
   event: z.string().min(1).max(100),
   event_type: z.string().min(1).max(100),
-  data: z.object({ order_id: z.unknown().optional() }),
+  data: z.object({
+    order_id: z.unknown().optional(),
+    payment_link_id: z.unknown().optional(),
+  }),
 });
 const remoteOrderId = z.number().int().positive();
 
@@ -119,8 +132,13 @@ export function decodeAppmaxAppstorePaymentWebhook(
   if (!orderEvent && !paymentEvent) return null;
 
   const id = remoteOrderId.safeParse(data.order_id);
-  if (!id.success || event_type !== (orderEvent ? "order" : "payment")) {
+  const link = paymentLinkId.safeParse(data.payment_link_id);
+  if (
+    !id.success ||
+    !link.success ||
+    event_type !== (orderEvent ? "order" : "payment")
+  ) {
     throw invalidAppstoreNotification();
   }
-  return String(id.data);
+  return link.data ? `link:${link.data}` : String(id.data);
 }

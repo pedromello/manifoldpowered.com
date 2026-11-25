@@ -36,8 +36,9 @@ export type BuyerCheckout = {
   };
   checkout: {
     available: boolean;
-    methods: ("pix" | "card")[];
+    methods: ("pix" | "card" | "link")[];
     hosted: boolean;
+    payment_link?: boolean;
     installments: boolean;
     external_id: string | null;
     script_url: string | null;

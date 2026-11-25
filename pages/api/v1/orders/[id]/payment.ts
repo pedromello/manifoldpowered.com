@@ -53,25 +53,28 @@ export default createRouter<NextApiRequest, NextApiResponse>()
       req.context.user.id!,
       String(req.query.id),
     );
-    if (order.payment_provider === "appmax" && !parsed.data.buyer)
-      throw new ValidationError({
-        message: "Please check your purchase details.",
-      });
-    const account = await prisma.user.findUniqueOrThrow({
-      where: { id: req.context.user.id! },
-      select: { email: true },
-    });
-    const details = parsed.data.buyer ?? {
-      first_name: "",
-      last_name: "",
-      phone: "",
-      document_number: "",
-      ip: "",
-    };
+    const details =
+      parsed.data.buyer ??
+      (order.payment_provider === "stripe"
+        ? {
+            first_name: "",
+            last_name: "",
+            phone: "",
+            document_number: "",
+            ip: "",
+          }
+        : undefined);
+    const account = details
+      ? await prisma.user.findUniqueOrThrow({
+          where: { id: req.context.user.id! },
+          select: { email: true },
+        })
+      : undefined;
     return res.status(200).json(
       await orders.submit(req.context.user.id!, order.id, {
         ...parsed.data,
-        buyer: { ...details, email: account.email },
+        buyer:
+          details && account ? { ...details, email: account.email } : undefined,
       }),
     );
   })
