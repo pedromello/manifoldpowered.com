@@ -26,6 +26,15 @@ const digits = (value: string) => value.replace(/\D/g, "");
 const normalizeDigits = (event: React.FormEvent<HTMLInputElement>) => {
   event.currentTarget.value = digits(event.currentTarget.value);
 };
+const normalizeName = (name: string) =>
+  name.trim().replace(/\s+/g, " ").toLowerCase();
+
+type RecipientConfirmation = {
+  first_name: string;
+  last_name: string;
+  document?: string;
+  confirmed: true;
+};
 
 export function GiftCardRecipient({
   delivery,
@@ -35,11 +44,7 @@ export function GiftCardRecipient({
 }: {
   delivery: NonNullable<BuyerCheckout["gift_card_delivery"]>;
   busy: boolean;
-  onConfirm: (recipient: {
-    name: string;
-    document?: string;
-    confirmed: true;
-  }) => Promise<void>;
+  onConfirm: (recipient: RecipientConfirmation) => Promise<void>;
   orderId: string;
 }) {
   const { t } = useI18n();
@@ -71,10 +76,19 @@ export function GiftCardRecipient({
         const document = delivery.document_required
           ? digits(String(fields.get("recipient_document") || ""))
           : "";
-        const name = String(fields.get("recipient_name") || "").trim();
-        if (!name || (delivery.document_required && !document)) return;
+        const firstName = String(
+          fields.get("recipient_first_name") || "",
+        ).trim();
+        const lastName = String(fields.get("recipient_last_name") || "").trim();
+        if (
+          !firstName ||
+          !lastName ||
+          (delivery.document_required && !document)
+        )
+          return;
         await onConfirm({
-          name,
+          first_name: firstName,
+          last_name: lastName,
           ...(document ? { document } : {}),
           confirmed: true,
         });
@@ -82,18 +96,31 @@ export function GiftCardRecipient({
     >
       <h2 className="text-lg font-bold">{t("Gift card delivery")}</h2>
       <DeliveryEmail email={delivery.email} />
-      <label className="block text-sm text-white/70">
-        {t("Recipient full name")}
-        <input
-          name="recipient_name"
-          autoComplete="name"
-          required
-          minLength={2}
-          maxLength={120}
-          disabled={busy}
-          className="checkout-input"
-        />
-      </label>
+      <fieldset disabled={busy}>
+        <legend className="mb-2 font-semibold">{t("Recipient")}</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="min-w-0 text-sm text-white/70">
+            {t("First name")}
+            <input
+              name="recipient_first_name"
+              autoComplete="section-delivery given-name"
+              required
+              maxLength={80}
+              className="checkout-input"
+            />
+          </label>
+          <label className="min-w-0 text-sm text-white/70">
+            {t("Last name")}
+            <input
+              name="recipient_last_name"
+              autoComplete="section-delivery family-name"
+              required
+              maxLength={80}
+              className="checkout-input"
+            />
+          </label>
+        </div>
+      </fieldset>
       {delivery.document_required && (
         <label className="block text-sm text-white/70">
           {t("Recipient document")}
@@ -174,7 +201,9 @@ function AppmaxCardFields({
   scriptUrl,
   visible,
   disabled,
+  total,
   onIp,
+  onHolderNameChange,
   onToken,
   onError,
   onStart,
@@ -183,7 +212,9 @@ function AppmaxCardFields({
   scriptUrl: string;
   visible: boolean;
   disabled: boolean;
+  total: string;
   onIp: (ip: string) => void;
+  onHolderNameChange: (name: string) => void;
   onToken: (token: string) => void;
   onError: () => void;
   onStart: (holderName: string) => boolean;
@@ -238,7 +269,7 @@ function AppmaxCardFields({
         onSubmit={(event) => event.preventDefault()}
         className={visible ? "mt-6 space-y-4" : "hidden"}
       >
-        <label className="block text-sm text-white/70">
+        <label className="checkout-muted block text-sm">
           {t("Card number")}
           <input
             name="card-number"
@@ -250,18 +281,19 @@ function AppmaxCardFields({
             disabled={disabled && !loaded}
           />
         </label>
-        <label className="block text-sm text-white/70">
+        <label className="checkout-muted block text-sm">
           {t("Name on card")}
           <input
             name="card-holder-name"
             required
             autoComplete="cc-name"
+            onChange={(event) => onHolderNameChange(event.target.value)}
             maxLength={100}
             className="checkout-input"
           />
         </label>
         <div className="grid grid-cols-3 gap-3">
-          <label className="block text-sm text-white/70">
+          <label className="checkout-muted block min-w-0 text-sm">
             {t("Month")}
             <input
               name="exp-month"
@@ -273,7 +305,7 @@ function AppmaxCardFields({
               className="checkout-input"
             />
           </label>
-          <label className="block text-sm text-white/70">
+          <label className="checkout-muted block min-w-0 text-sm">
             {t("Year")}
             <input
               name="exp-year"
@@ -285,7 +317,7 @@ function AppmaxCardFields({
               className="checkout-input"
             />
           </label>
-          <label className="block text-sm text-white/70">
+          <label className="checkout-muted block min-w-0 text-sm">
             CVV
             <input
               name="cvv"
@@ -304,7 +336,7 @@ function AppmaxCardFields({
           disabled={disabled || !loaded}
           className="checkout-primary"
         >
-          {t("Pay by card")}
+          {t("Pay {amount}", { amount: total })}
         </button>
       </form>
     </>
@@ -365,19 +397,33 @@ function PixInstructions({
     ? Math.max(0, Math.floor((Date.parse(pix.expires_at) - now) / 1000))
     : null;
   return (
-    <section className="mt-5 rounded-xl border border-white/10 p-4 text-center sm:p-5">
+    <section className="mt-5 text-center">
       <h3 className="font-bold">{t("Pay with Pix")}</h3>
       {seconds === 0 ? (
-        <p role="status" className="mt-3 text-sm text-amber-200">
+        <p role="status" className="checkout-warning mt-3 text-sm">
           {t(
             "This Pix code has expired. Check your order before trying again.",
           )}
         </p>
       ) : (
         <>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="checkout-muted mt-1 text-sm">
             {t("Scan the QR code in your bank app or copy the Pix code.")}
           </p>
+          <Image
+            src={`data:image/png;base64,${pix.qrcode}`}
+            alt={t("Pix QR code")}
+            width={200}
+            height={200}
+            unoptimized
+            className="mx-auto mt-4 h-auto max-w-full rounded-lg bg-white p-3"
+          />
+          {seconds !== null && (
+            <p className="checkout-muted mt-3 text-sm">
+              {t("Expires in")} {Math.floor(seconds / 60)}:
+              {String(seconds % 60).padStart(2, "0")}
+            </p>
+          )}
           <button
             type="button"
             onClick={async () => {
@@ -398,33 +444,19 @@ function PixInstructions({
             </span>
           </button>
           {copyError && (
-            <p role="alert" className="mt-2 text-sm text-amber-200">
+            <p role="alert" className="checkout-warning mt-2 text-sm">
               {t("Could not copy. Select the code to copy it manually.")}
             </p>
           )}
-          <Image
-            src={`data:image/png;base64,${pix.qrcode}`}
-            alt={t("Pix QR code")}
-            width={200}
-            height={200}
-            unoptimized
-            className="mx-auto mt-5 rounded-lg bg-white p-3"
-          />
-          {seconds !== null && (
-            <p className="mt-3 text-sm text-white/70">
-              {t("Expires in")} {Math.floor(seconds / 60)}:
-              {String(seconds % 60).padStart(2, "0")}
-            </p>
-          )}
           <details open={copyError || undefined} className="mt-2">
-            <summary className="mx-auto cursor-pointer rounded px-2 py-2 text-sm text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-400">
+            <summary className="checkout-accent mx-auto cursor-pointer rounded px-2 py-2 text-sm focus-visible:outline-2">
               {t("Pix code")}
             </summary>
             <textarea
               readOnly
               aria-label={t("Pix code")}
               value={pix.emv}
-              className="mt-2 min-h-16 w-full rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/80"
+              className="checkout-input text-xs"
             />
           </details>
         </>
@@ -463,7 +495,15 @@ export function Checkout({ orderId }: { orderId: string }) {
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [statusMessage, setStatusMessage] = useState(""),
-    [differentDocument, setDifferentDocument] = useState(false),
+    [documentChoice, setDocumentChoice] = useState<{
+      reuse: boolean;
+      cardholder: string;
+    }>(),
+    [cardHolderName, setCardHolderName] = useState(""),
+    [payerName, setPayerName] = useState<{
+      firstName: string;
+      lastName: string;
+    }>(),
     [sdkFailed, setSdkFailed] = useState(false),
     [ip, setIp] = useState("");
   const buyerForm = useRef<HTMLFormElement>(null),
@@ -487,6 +527,29 @@ export function Checkout({ orderId }: { orderId: string }) {
     (data?.attempt?.method === "card" && data.checkout.methods.includes("card")
       ? "card"
       : (data?.checkout.methods[0] ?? "pix"));
+  const recipientFirstName =
+    data?.gift_card_delivery?.recipient_first_name ?? "";
+  const recipientLastName = data?.gift_card_delivery?.recipient_last_name ?? "";
+  const prefillPayer = Boolean(
+    paymentReady && recipientFirstName && recipientLastName,
+  );
+  const firstName = payerName?.firstName ?? recipientFirstName;
+  const lastName = payerName?.lastName ?? recipientLastName;
+  const differentPayer =
+    prefillPayer &&
+    (normalizeName(firstName) !== normalizeName(recipientFirstName) ||
+      normalizeName(lastName) !== normalizeName(recipientLastName));
+  const payerFullName = normalizeName(`${firstName} ${lastName}`);
+  const cardholder = normalizeName(cardHolderName);
+  const differentCardholder =
+    method === "card" && Boolean(cardholder && cardholder !== payerFullName);
+  const reuseRecipientDocument =
+    canReuseDocument &&
+    !differentPayer &&
+    (differentCardholder
+      ? documentChoice?.reuse === true &&
+        documentChoice.cardholder === cardholder
+      : (documentChoice?.reuse ?? prefillPayer));
   const installments =
     method === "card"
       ? (choice?.installments ?? data?.attempt?.installments ?? 1)
@@ -648,11 +711,7 @@ export function Checkout({ orderId }: { orderId: string }) {
       mutate,
     ],
   );
-  async function confirmRecipient(recipient: {
-    name: string;
-    document?: string;
-    confirmed: true;
-  }) {
+  async function confirmRecipient(recipient: RecipientConfirmation) {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
@@ -723,6 +782,10 @@ export function Checkout({ orderId }: { orderId: string }) {
       (quoteLoading || (installments > 1 && !option)));
   const showingPaymentChoices =
     order.can_pay && paymentReady && data.checkout.available && !submitted;
+  const appmaxPaymentPanel =
+    !data.checkout.hosted &&
+    order.payment_status !== "PAID" &&
+    (showingPaymentChoices || submitted);
   const total = showingPaymentChoices
     ? displayedTotal
     : submitted || order.payment_status === "PAID"
@@ -781,12 +844,19 @@ export function Checkout({ orderId }: { orderId: string }) {
               </dd>
             </div>
           </dl>
+          {appmaxPaymentPanel && showingPaymentChoices && deliveryEmail && (
+            <div className="mt-3">
+              <DeliveryEmail email={deliveryEmail} />
+            </div>
+          )}
         </aside>
-        <section className="min-w-0 rounded-2xl border border-white/10 bg-[#110d18] p-5 sm:p-7 lg:col-start-1 lg:row-start-1">
+        <section
+          className={`min-w-0 rounded-2xl border border-white/10 p-5 sm:p-7 lg:col-start-1 lg:row-start-1 ${appmaxPaymentPanel ? "checkout-payment-panel" : "bg-[#110d18]"}`}
+        >
           {message && (
             <p
               role="alert"
-              className="mb-5 rounded-lg bg-amber-400/10 p-4 text-sm text-amber-100"
+              className="checkout-alert mb-5 rounded-lg p-4 text-sm"
             >
               {message}
             </p>
@@ -794,7 +864,7 @@ export function Checkout({ orderId }: { orderId: string }) {
           {!message && order.payment_status === "FAILED" && (
             <p
               role="alert"
-              className="mb-4 rounded-lg bg-amber-400/10 p-3 text-sm text-amber-100"
+              className="checkout-alert mb-4 rounded-lg p-3 text-sm"
             >
               {t("Payment failed. Check your details or try another method.")}
             </p>
@@ -837,7 +907,7 @@ export function Checkout({ orderId }: { orderId: string }) {
             </>
           ) : submitted ? (
             <>
-              <Clock3 className="text-violet-300" />
+              <Clock3 className="checkout-accent" />
               <h2 className="mt-4 text-xl font-bold">
                 {t(
                   purchasePaymentLabels[order.payment_status] ??
@@ -845,7 +915,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                 )}
               </h2>
               {attempt?.uncertain ? (
-                <p className="mt-3 text-sm leading-6 text-white/70">
+                <p className="checkout-muted mt-3 text-sm leading-6">
                   {t(
                     "We are checking your payment. Check this order before trying again.",
                   )}
@@ -853,7 +923,7 @@ export function Checkout({ orderId }: { orderId: string }) {
               ) : attempt?.pix ? (
                 <PixInstructions pix={attempt.pix} />
               ) : (
-                <p className="mt-3 text-sm leading-6 text-white/70">
+                <p className="checkout-muted mt-3 text-sm leading-6">
                   {t(
                     "Your product will be available after payment confirmation.",
                   )}
@@ -869,7 +939,7 @@ export function Checkout({ orderId }: { orderId: string }) {
               )}
               <button
                 type="button"
-                className="mt-4 min-h-11 rounded-lg px-2 text-sm font-medium text-violet-200 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-violet-400 disabled:opacity-50"
+                className="checkout-accent mt-4 min-h-11 rounded-lg px-2 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 disabled:opacity-50"
                 disabled={busy}
                 onClick={async () => {
                   if (inFlight.current) return;
@@ -899,7 +969,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                 {t(busy ? "Please wait" : "Check payment status")}
               </button>
               {statusMessage && (
-                <p role="status" className="text-sm text-white/70">
+                <p role="status" className="checkout-muted text-sm">
                   {statusMessage}
                 </p>
               )}
@@ -929,7 +999,7 @@ export function Checkout({ orderId }: { orderId: string }) {
             />
           ) : (
             <>
-              {deliveryEmail && (
+              {deliveryEmail && !appmaxPaymentPanel && (
                 <div className="mb-6">
                   <DeliveryEmail email={deliveryEmail} />
                 </div>
@@ -958,19 +1028,27 @@ export function Checkout({ orderId }: { orderId: string }) {
                       if (!sdkFailed) setMessage("");
                     }}
                     disabled={busy}
-                    className={`flex min-h-12 min-w-max flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-violet-400 ${method === value ? "border-violet-400/50 bg-violet-500/15 text-violet-200" : "border-white/15 text-white/70 hover:bg-white/5"}`}
+                    className="checkout-method flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-sm font-semibold sm:px-3"
                   >
                     {value === "pix" ? (
-                      <QrCode aria-hidden="true" size={17} />
+                      <QrCode
+                        aria-hidden="true"
+                        size={17}
+                        className="shrink-0"
+                      />
                     ) : (
-                      <CreditCard aria-hidden="true" size={17} />
+                      <CreditCard
+                        aria-hidden="true"
+                        size={17}
+                        className="shrink-0"
+                      />
                     )}{" "}
                     {t(value === "pix" ? "Pix" : "Credit card")}
                   </button>
                 ))}
               </div>
               {method === "card" && data.checkout.installments && (
-                <label className="mb-6 block text-sm text-white/80">
+                <label className="checkout-muted mb-6 block text-sm">
                   {t("Installments")}
                   <select
                     value={installments}
@@ -1014,7 +1092,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                   {quoteLoading && !activeQuote && (
                     <span
                       role="status"
-                      className="mt-2 block text-xs text-white/70"
+                      className="checkout-muted mt-2 block text-xs"
                     >
                       {t("Loading installments")}
                     </span>
@@ -1022,7 +1100,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                   {quoteError && (
                     <span
                       role="alert"
-                      className="mt-2 block text-xs text-amber-200"
+                      className="checkout-warning mt-2 block text-xs"
                     >
                       {t("Installment options are temporarily unavailable.")}
                     </span>
@@ -1042,33 +1120,52 @@ export function Checkout({ orderId }: { orderId: string }) {
                     <legend className="mb-3 text-base font-bold">
                       {t("Payer details")}
                     </legend>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="text-sm text-white/70">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="checkout-muted min-w-0 text-sm">
                         {t("First name")}
                         <input
                           name="first_name"
-                          autoComplete="given-name"
+                          autoComplete="section-payment given-name"
+                          value={firstName}
+                          onChange={(event) =>
+                            setPayerName({
+                              firstName: event.target.value,
+                              lastName,
+                            })
+                          }
                           required
                           maxLength={80}
                           className="checkout-input"
                         />
                       </label>
-                      <label className="text-sm text-white/70">
+                      <label className="checkout-muted min-w-0 text-sm">
                         {t("Last name")}
                         <input
                           name="last_name"
-                          autoComplete="family-name"
+                          autoComplete="section-payment family-name"
+                          value={lastName}
+                          onChange={(event) =>
+                            setPayerName({
+                              firstName,
+                              lastName: event.target.value,
+                            })
+                          }
                           required
                           maxLength={80}
                           className="checkout-input"
                         />
                       </label>
                     </div>
-                    <label className="block text-sm text-white/70">
+                    {prefillPayer && (
+                      <p className="checkout-muted text-sm">
+                        {t("You can edit the payer details.")}
+                      </p>
+                    )}
+                    <label className="checkout-muted block text-sm">
                       {t("Phone number")}
                       <input
                         name="phone"
-                        autoComplete="tel-national"
+                        autoComplete="section-payment tel-national"
                         inputMode="tel"
                         required
                         pattern="[0-9]{10,11}"
@@ -1078,21 +1175,25 @@ export function Checkout({ orderId }: { orderId: string }) {
                       />
                     </label>
                     {canReuseDocument && (
-                      <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-white/80">
+                      <label className="checkout-muted flex min-h-11 items-center gap-3 text-sm font-medium">
                         <input
                           name="reuse_recipient_document"
                           type="checkbox"
-                          checked={!differentDocument}
+                          checked={reuseRecipientDocument}
+                          disabled={differentPayer}
                           onChange={(event) =>
-                            setDifferentDocument(!event.target.checked)
+                            setDocumentChoice({
+                              reuse: event.target.checked,
+                              cardholder,
+                            })
                           }
                           className="size-4 shrink-0 accent-violet-500"
                         />
                         {t("Use the delivery document for payment")}
                       </label>
                     )}
-                    {(!canReuseDocument || differentDocument) && (
-                      <label className="block text-sm text-white/70">
+                    {!reuseRecipientDocument && (
+                      <label className="checkout-muted block text-sm">
                         {t(
                           method === "card"
                             ? "Cardholder document"
@@ -1129,13 +1230,24 @@ export function Checkout({ orderId }: { orderId: string }) {
                     scriptUrl={data.checkout.script_url!}
                     visible={method === "card"}
                     disabled={payDisabled}
+                    total={money(displayedTotal, order.currency)}
                     onIp={setIp}
+                    onHolderNameChange={setCardHolderName}
                     onToken={(token) =>
                       token ? void sendPayment(token) : failedSdk()
                     }
                     onError={() => failedSdk()}
                     onStart={(holder_name) => {
                       if (pendingCard.current || inFlight.current) return false;
+                      const submittedCardholder = normalizeName(holder_name);
+                      if (
+                        reuseRecipientDocument &&
+                        submittedCardholder !== payerFullName &&
+                        submittedCardholder !== cardholder
+                      ) {
+                        setCardHolderName(holder_name);
+                        return false;
+                      }
                       const buyer = readBuyerForm(buyerForm.current, ip);
                       if (!buyer || !holder_name) return false;
                       pendingCard.current = {
@@ -1166,7 +1278,7 @@ export function Checkout({ orderId }: { orderId: string }) {
               {busy && (
                 <p
                   role="status"
-                  className="mt-4 flex items-center gap-2 text-sm text-white/60"
+                  className="checkout-muted mt-4 flex items-center gap-2 text-sm"
                 >
                   <Loader2 size={16} className="animate-spin" />
                   {t("Processing your payment")}
@@ -1176,7 +1288,7 @@ export function Checkout({ orderId }: { orderId: string }) {
           )}
           {order.can_cancel && (
             <button
-              className="mt-6 text-sm text-white/50 underline underline-offset-4 hover:text-white disabled:opacity-40"
+              className="checkout-muted mt-6 min-h-11 text-sm underline underline-offset-4 disabled:opacity-40"
               disabled={busy}
               onClick={async () => {
                 if (inFlight.current) return;
@@ -1208,6 +1320,52 @@ export function Checkout({ orderId }: { orderId: string }) {
         </section>
       </div>
       <style jsx global>{`
+        .checkout-payment-panel {
+          border-color: #e6d9f4;
+          background: #f7f1ff;
+          color: #27143d;
+          color-scheme: light;
+          --checkout-muted: #4e3b63;
+          --checkout-accent: #5823a3;
+          --checkout-warning: #854d0e;
+          --checkout-alert-bg: #fff2d9;
+          --checkout-alert-text: #783a15;
+          --checkout-method-border: #9382a3;
+          --checkout-method-selected: #7441c5;
+          --checkout-method-background: #e9dbfb;
+          --checkout-hover: #f0e6fb;
+          --checkout-focus: #6d28d9;
+        }
+        .checkout-muted {
+          color: var(--checkout-muted, rgb(255 255 255/0.72));
+        }
+        .checkout-accent {
+          color: var(--checkout-accent, #ddd6fe);
+        }
+        .checkout-warning {
+          color: var(--checkout-warning, #fde68a);
+        }
+        .checkout-alert {
+          background: var(--checkout-alert-bg, rgb(251 191 36/0.1));
+          color: var(--checkout-alert-text, #fef3c7);
+        }
+        .checkout-method {
+          border-color: var(--checkout-method-border, rgb(255 255 255/0.15));
+          color: var(--checkout-muted, rgb(255 255 255/0.72));
+        }
+        .checkout-method:hover {
+          background: var(--checkout-hover, rgb(255 255 255/0.05));
+        }
+        .checkout-method[aria-pressed="true"] {
+          border-color: var(--checkout-method-selected, rgb(167 139 250/0.5));
+          background: var(--checkout-method-background, rgb(139 92 246/0.15));
+          color: var(--checkout-accent, #ddd6fe);
+        }
+        .checkout-method:focus-visible,
+        .checkout-accent:focus-visible {
+          outline: 2px solid var(--checkout-focus, #a78bfa);
+          outline-offset: 2px;
+        }
         .checkout-input {
           display: block;
           width: 100%;
@@ -1221,8 +1379,16 @@ export function Checkout({ orderId }: { orderId: string }) {
           outline: none;
         }
         .checkout-input:focus {
-          border-color: #a78bfa;
+          border-color: var(--checkout-focus, #a78bfa);
           box-shadow: 0 0 0 2px rgb(167 139 250/0.15);
+        }
+        .checkout-payment-panel .checkout-input {
+          border-color: #9989a8;
+          background: #fffcff;
+          color: #27143d;
+        }
+        .checkout-payment-panel .checkout-input:focus {
+          border-color: var(--checkout-focus);
         }
         .checkout-primary {
           display: inline-flex;
@@ -1241,8 +1407,11 @@ export function Checkout({ orderId }: { orderId: string }) {
         .checkout-primary:hover {
           background: #8b5cf6;
         }
+        .checkout-payment-panel .checkout-primary:hover {
+          background: #6d28d9;
+        }
         .checkout-primary:focus-visible {
-          outline: 2px solid #c4b5fd;
+          outline: 2px solid var(--checkout-focus, #c4b5fd);
           outline-offset: 2px;
         }
         .checkout-primary:disabled {

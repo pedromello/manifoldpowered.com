@@ -247,7 +247,10 @@ export function createEmailGiftDelivery({
           sku: claim.gift.provider_sku!,
           amount_minor: claim.gift.amount_minor,
           recipient: {
-            ...claim.recipient!,
+            name: claim.recipient!.name,
+            ...(claim.recipient!.document
+              ? { document: claim.recipient!.document }
+              : {}),
             email: claim.gift.recipient_email!,
           },
         });

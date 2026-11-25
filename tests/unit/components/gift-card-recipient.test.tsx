@@ -41,7 +41,8 @@ test("recipient confirmation sends identity fields and explicit confirmation wit
   global.FormData = jest.fn(() => ({
     get: (name: string) =>
       ({
-        recipient_name: "  Synthetic Buyer  ",
+        recipient_first_name: "  Synthetic Maria  ",
+        recipient_last_name: "  de Buyer  ",
         recipient_document: "123.456.789-09",
         email: "attacker@example.test",
       })[name],
@@ -52,7 +53,8 @@ test("recipient confirmation sends identity fields and explicit confirmation wit
       currentTarget: { reportValidity: () => true },
     });
     expect(onConfirm).toHaveBeenCalledWith({
-      name: "Synthetic Buyer",
+      first_name: "Synthetic Maria",
+      last_name: "de Buyer",
       document: "12345678909",
       confirmed: true,
     });
@@ -72,7 +74,8 @@ test("an incomplete delivery form never submits recipient details", async () => 
   const form = elements(node).find((element) => element.type === "form")!;
   const original = global.FormData;
   global.FormData = jest.fn(() => ({
-    get: () => null,
+    get: (name: string) =>
+      name === "recipient_first_name" ? "Synthetic" : null,
   })) as unknown as typeof FormData;
   try {
     await (form.props.onSubmit as (event: unknown) => Promise<void>)({

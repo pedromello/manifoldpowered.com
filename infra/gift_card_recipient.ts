@@ -2,15 +2,39 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { ServiceError } from "infra/errors";
 
-const schema = z
-  .object({
-    name: z.string().trim().min(1).max(160),
-    document: z
-      .string()
-      .regex(/^\d{11}$|^\d{14}$/)
-      .optional(),
+const document = z
+  .string()
+  .regex(/^\d{11}$|^\d{14}$/)
+  .optional();
+const legacyRecipient = z.strictObject({
+  name: z.string().trim().min(1).max(160),
+  document,
+});
+const splitRecipient = z
+  .strictObject({
+    first_name: z.string().trim().min(1).max(80),
+    last_name: z.string().trim().min(1).max(80),
+    document,
   })
-  .strict();
+  .refine(
+    ({ first_name, last_name }) => first_name.length + last_name.length < 160,
+  );
+const schema = z.union([legacyRecipient, splitRecipient]);
+const confirmed = z.literal(true);
+
+export const giftRecipientConfirmation = z.union([
+  legacyRecipient
+    .extend({ confirmed })
+    .transform(({ name, document }) => ({ name, document })),
+  splitRecipient
+    .safeExtend({ confirmed })
+    .transform(({ first_name, last_name, document }) => ({
+      first_name,
+      last_name,
+      document,
+    })),
+]);
+
 function key() {
   const value = process.env.GIFT_CARD_RECIPIENT_ENCRYPTION_KEY;
   if (!value || !/^[a-fA-F0-9]{64}$/.test(value))
@@ -38,7 +62,15 @@ export function encryptGiftRecipient(
     data.toString("base64url"),
   ].join(".");
 }
-export function decryptGiftRecipient(value: string, orderId: string) {
+export function decryptGiftRecipient(
+  value: string,
+  orderId: string,
+): {
+  name: string;
+  document?: string;
+  first_name?: string;
+  last_name?: string;
+} {
   try {
     const [version, nonce, tag, data] = value.split(".");
     if (version !== "v1") throw new Error();
@@ -49,7 +81,7 @@ export function decryptGiftRecipient(value: string, orderId: string) {
     );
     cipher.setAAD(Buffer.from(orderId));
     cipher.setAuthTag(Buffer.from(tag, "base64url"));
-    return schema.parse(
+    const recipient = schema.parse(
       JSON.parse(
         Buffer.concat([
           cipher.update(Buffer.from(data, "base64url")),
@@ -57,6 +89,12 @@ export function decryptGiftRecipient(value: string, orderId: string) {
         ]).toString("utf8"),
       ),
     );
+    return "name" in recipient
+      ? recipient
+      : {
+          ...recipient,
+          name: `${recipient.first_name} ${recipient.last_name}`,
+        };
   } catch {
     throw new ServiceError({
       message: "Gift card delivery details require review.",

@@ -510,7 +510,24 @@ test.each(["pix", "card"] as const)(
 
     const buyer = await register();
     const id = await begin(buyer);
-    expect((await confirm(buyer, id)).status).toBe(200);
+    const recipientParts = {
+      first_name: "Delivery",
+      last_name: "Recipient Fixture",
+    };
+    const confirmation = await confirm(buyer, id, {
+      ...recipientParts,
+      document: recipient.document,
+      confirmed: true,
+    });
+    const expectedPrefill = {
+      recipient_first_name: recipientParts.first_name,
+      recipient_last_name: recipientParts.last_name,
+    };
+    expect(confirmation.status).toBe(200);
+    expect(confirmation.body.gift_card_delivery).toMatchObject(expectedPrefill);
+    expect((await detail(buyer, id)).body.gift_card_delivery).toMatchObject(
+      expectedPrefill,
+    );
     const offered = await apiRequest<BuyerCheckout>(quoteHandler, {
       url: `/api/v1/orders/${id}/quote`,
       query: { id },
@@ -525,33 +542,58 @@ test.each(["pix", "card"] as const)(
     const attempt = offered.body.attempt!;
     expect(attempt.total_minor).toBe(method === "pix" ? 2500 : 2800);
     const alternateDocument = "11122233344";
+    const paymentBuyer = {
+      ...(method === "pix"
+        ? recipientParts
+        : { first_name: "Sandbox", last_name: "Buyer" }),
+      phone: "11999999999",
+      ip: "192.0.2.1",
+    };
     const input = {
       attempt_id: attempt.id,
       expected_total_minor: attempt.total_minor,
       ...(method === "card" ? { card_token: "synthetic-card-token" } : {}),
       buyer: {
-        first_name: "Sandbox",
-        last_name: "Buyer",
-        phone: "11999999999",
-        ip: "192.0.2.1",
+        ...paymentBuyer,
         ...(method === "pix"
           ? { reuse_recipient_document: true }
           : { document_number: alternateDocument }),
       },
     };
-    const submitPayment = () =>
+    const submitPayment = (body: unknown = input) =>
       apiRequest<BuyerCheckout>(paymentHandler, {
         url: `/api/v1/orders/${id}/payment`,
         query: { id },
         session: buyer.session,
-        body: input,
+        body,
       });
+    if (method === "card") {
+      const rejected = await submitPayment({
+        ...input,
+        buyer: { ...paymentBuyer, reuse_recipient_document: true },
+      });
+      expect(rejected.status).toBe(400);
+      expect(rejected.body).toMatchObject({
+        name: "ValidationError",
+        message: "Please check your payment document.",
+        action: "Enter the CPF or CNPJ of the person paying.",
+        status_code: 400,
+      });
+      expect(appmaxPaymentProvider.createCustomer).not.toHaveBeenCalled();
+    }
     const payment = await submitPayment();
     expect(payment.status).toBe(200);
     expect(["PENDING", "PROCESSING"]).toContain(
       payment.body.order.payment_status,
     );
     expect((await submitPayment()).status).toBe(200);
+    expect(appmaxPaymentProvider.createCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...paymentBuyer,
+        document_number:
+          method === "pix" ? recipient.document : alternateDocument,
+      }),
+    );
     const paymentPath = `/v1/payments/${method === "pix" ? "pix" : "credit-card"}`;
     const paymentRequests = appmax.request.mock.calls.filter(
       ([url]) => new URL(String(url)).pathname === paymentPath,
@@ -571,6 +613,12 @@ test.each(["pix", "card"] as const)(
     );
     const checkout = await detail(buyer, id);
     privateMaterialAbsent(checkout.body);
+    expect(checkout.body.gift_card_delivery).not.toHaveProperty(
+      "recipient_first_name",
+    );
+    expect(checkout.body.gift_card_delivery).not.toHaveProperty(
+      "recipient_last_name",
+    );
     expect(JSON.stringify(checkout.body)).not.toContain(alternateDocument);
     expect(service.submit).not.toHaveBeenCalled();
     expect(

@@ -43,6 +43,10 @@ import giftCardDelivery from "models/gift_card_delivery";
 const financialFinal = ["REFUNDED", "DISPUTED"];
 const active = ["UNPAID", "PENDING", "PROCESSING"];
 const txOptions = { maxWait: 5000, timeout: 10000 };
+function normalizedName(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export function paymentContext(
   order: PurchaseOrder,
   attempt: PurchasePaymentAttempt,
@@ -486,6 +490,8 @@ export function createPurchaseOrderService({
         });
       if (attempt.submission_started_at || attempt.uncertain)
         return { send: false } as const;
+      const { reuse_recipient_document, document_number, ...details } =
+        input.buyer;
       let recipientDocument: string | undefined;
       if (order.gift_card_order_id) {
         const gift = await tx.giftCardOrder.findUniqueOrThrow({
@@ -508,6 +514,20 @@ export function createPurchaseOrderService({
                 "Confirm your gift card delivery details before payment.",
             });
           const recipient = decryptGiftRecipient(gift.recipient_data!, gift.id);
+          if (
+            order.payment_provider === "appmax" &&
+            reuse_recipient_document &&
+            recipient.first_name &&
+            recipient.last_name &&
+            (normalizedName(details.first_name) !==
+              normalizedName(recipient.first_name) ||
+              normalizedName(details.last_name) !==
+                normalizedName(recipient.last_name))
+          )
+            throw new ValidationError({
+              message: "Please check your payment document.",
+              action: "Enter the CPF or CNPJ of the person paying.",
+            });
           recipientDocument = recipient.document;
           if (recipientDocumentRequired() && !recipient.document)
             throw new ConflictError({
@@ -516,8 +536,6 @@ export function createPurchaseOrderService({
             });
         }
       }
-      const { reuse_recipient_document, document_number, ...details } =
-        input.buyer;
       const document = reuse_recipient_document
         ? recipientDocument
         : document_number;
@@ -999,19 +1017,40 @@ export function createPurchaseOrderService({
           where: { user_id: userId },
         })
       : null;
-    let recipientReady = Boolean(
-      gift?.recipient_confirmed_at && gift.recipient_data,
-    );
-    if (gift?.delivery_channel === "EMAIL" && gift.recipient_data) {
+    const email = account?.email.trim().toLowerCase();
+    const verificationRequired =
+      !email || proof?.email !== email || gift?.recipient_email !== email;
+    const documentRequired =
+      gift?.delivery_channel === "EMAIL" && recipientDocumentRequired();
+    let recipient: ReturnType<typeof decryptGiftRecipient> | null = null;
+    if (
+      gift?.delivery_channel === "EMAIL" &&
+      gift.recipient_confirmed_at &&
+      gift.recipient_data
+    ) {
       try {
-        const recipient = decryptGiftRecipient(gift.recipient_data, gift.id);
-        recipientReady =
-          recipientReady &&
-          (!recipientDocumentRequired() || Boolean(recipient.document));
+        recipient = decryptGiftRecipient(gift.recipient_data, gift.id);
       } catch {
-        recipientReady = false;
+        // An unreadable recipient must be reconfirmed before payment.
       }
     }
+    const recipientReady = Boolean(
+      recipient && (!documentRequired || recipient.document),
+    );
+    const editableRecipientNames =
+      !verificationRequired &&
+      recipientReady &&
+      recipient &&
+      recipient.first_name &&
+      recipient.last_name &&
+      order.payment_provider === "appmax" &&
+      !order.paid_at &&
+      ["UNPAID", "FAILED"].includes(order.payment_status)
+        ? {
+            recipient_first_name: recipient.first_name,
+            recipient_last_name: recipient.last_name,
+          }
+        : {};
     return {
       order: {
         ...orderOutput(order, attempt),
@@ -1032,11 +1071,9 @@ export function createPurchaseOrderService({
               email: gift.recipient_email,
               confirmed: Boolean(gift.recipient_confirmed_at),
               recipient_ready: recipientReady,
-              verification_required:
-                !account ||
-                proof?.email !== account.email.trim().toLowerCase() ||
-                gift.recipient_email !== account.email.trim().toLowerCase(),
-              document_required: recipientDocumentRequired(),
+              verification_required: verificationRequired,
+              document_required: documentRequired,
+              ...editableRecipientNames,
             },
           }
         : {}),

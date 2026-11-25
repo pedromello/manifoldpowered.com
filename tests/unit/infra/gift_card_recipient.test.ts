@@ -1,6 +1,7 @@
 import {
   decryptGiftRecipient,
   encryptGiftRecipient,
+  giftRecipientConfirmation,
 } from "infra/gift_card_recipient";
 
 const original = process.env.GIFT_CARD_RECIPIENT_ENCRYPTION_KEY;
@@ -33,4 +34,32 @@ test("invalid keys and modified ciphertext fail without echoing input", () => {
   expect(() =>
     encryptGiftRecipient({ name: "Sample Buyer" }, "order-a"),
   ).toThrow("not configured");
+});
+
+test("retains encrypted split names and joins them for issuance", () => {
+  const details = {
+    first_name: "María Luísa",
+    last_name: "da Silva",
+    document: "00000000000",
+  };
+  const confirmed = giftRecipientConfirmation.parse({
+    ...details,
+    first_name: ` ${details.first_name} `,
+    confirmed: true,
+  });
+  expect(confirmed).toEqual(details);
+  const encrypted = encryptGiftRecipient(confirmed, "order-a");
+  expect(encrypted).not.toContain(details.first_name);
+  expect(encrypted).not.toContain(details.last_name);
+  expect(decryptGiftRecipient(encrypted, "order-a")).toEqual({
+    ...details,
+    name: "María Luísa da Silva",
+  });
+  expect(
+    giftRecipientConfirmation.safeParse({
+      ...details,
+      last_name: " ",
+      confirmed: true,
+    }).success,
+  ).toBe(false);
 });

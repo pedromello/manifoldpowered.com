@@ -67,6 +67,7 @@ export const ptBR: Record<string, string> = {
   "Verify email": "Verificar e-mail",
   "Confirm gift card delivery": "Confirme a entrega do gift card",
   "Gift card delivery": "Entrega do gift card",
+  Recipient: "Destinatário",
   "Confirm delivery and continue": "Confirmar entrega e continuar",
   "Your gift card will be sent to your account email. Confirm the details before paying.":
     "Seu gift card será enviado para o e-mail da sua conta. Confirme os dados antes de pagar.",
@@ -130,6 +131,7 @@ export const ptBR: Record<string, string> = {
   "Name on card": "Nome no cartão",
   "Confirm payment": "Confirmar pagamento",
   "Pay by card": "Pagar com cartão",
+  "Pay {amount}": "Pagar {amount}",
   "Continue to payment": "Continuar para o pagamento",
   "Pay with Pix": "Pague com Pix",
   "Scan the QR code in your bank app or copy the Pix code.":
@@ -169,6 +171,7 @@ export const ptBR: Record<string, string> = {
     "O pagamento falhou. Confira seus dados ou tente outra forma de pagamento.",
   "Your details": "Seus dados",
   "Payer details": "Dados de quem paga",
+  "You can edit the payer details.": "Você pode alterar os dados de quem paga.",
   "Use the delivery document for payment":
     "Usar o CPF ou CNPJ da entrega para pagar",
   "CPF or CNPJ": "CPF ou CNPJ",

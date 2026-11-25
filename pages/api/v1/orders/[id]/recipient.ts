@@ -4,7 +4,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import controller from "infra/controller";
 import { prisma } from "infra/database";
 import { ConflictError, NotFoundError, ValidationError } from "infra/errors";
-import { encryptGiftRecipient } from "infra/gift_card_recipient";
+import {
+  encryptGiftRecipient,
+  giftRecipientConfirmation,
+} from "infra/gift_card_recipient";
 import { recipientDocumentRequired } from "infra/gift_card_api";
 import { requireVerifiedAccountEmail } from "models/user_email_verification";
 import purchases from "models/purchase_order";
@@ -14,17 +17,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
   .use(controller.requireAuthentication)
   .post(controller.canRequest("create:library"), async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    const parsed = z
-      .object({
-        name: z.string().trim().min(1).max(160),
-        document: z
-          .string()
-          .regex(/^\d{11}$|^\d{14}$/)
-          .optional(),
-        confirmed: z.literal(true),
-      })
-      .strict()
-      .safeParse(req.body);
+    const parsed = giftRecipientConfirmation.safeParse(req.body);
     if (
       !z.uuid().safeParse(req.query.id).success ||
       !parsed.success ||
@@ -39,10 +32,7 @@ export default createRouter<NextApiRequest, NextApiResponse>()
     if (!own.gift_card_order_id)
       throw new NotFoundError({ message: "Gift card order not found." });
     const ciphertext = encryptGiftRecipient(
-      {
-        name: parsed.data.name,
-        ...(parsed.data.document ? { document: parsed.data.document } : {}),
-      },
+      parsed.data,
       own.gift_card_order_id,
     );
     try {

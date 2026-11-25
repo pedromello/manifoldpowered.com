@@ -31,6 +31,8 @@ export type BuyerCheckout = {
     recipient_ready: boolean;
     verification_required: boolean;
     document_required?: boolean;
+    recipient_first_name?: string;
+    recipient_last_name?: string;
   };
   checkout: {
     available: boolean;

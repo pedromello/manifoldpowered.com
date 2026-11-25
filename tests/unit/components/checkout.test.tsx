@@ -42,9 +42,11 @@ function render(data: BuyerCheckout) {
     data:
       key === "/api/v1/user"
         ? { id: "synthetic-buyer" }
-        : key === null
-          ? undefined
-          : data,
+        : Array.isArray(key) && key[0].endsWith("/quote")
+          ? { options: [] }
+          : key === null
+            ? undefined
+            : data,
     isLoading: false,
     mutate: jest.fn(),
   }));
@@ -53,6 +55,7 @@ function render(data: BuyerCheckout) {
 test("the first Pix paint already mounts the card and IP forms required by the SDK", () => {
   const html = render(checkout);
   expect(html).toContain("data-appmax-customer");
+  expect(html).toMatch(/<section\b[^>]*class="[^"]*checkout-payment-panel/);
   expect(html).toContain("data-appmax-checkout");
   expect(html).toContain('name="card-number"');
   expect(html).toContain('name="exp-month"');
@@ -93,7 +96,8 @@ test("unverified delivery email requires a fresh login before recipient details 
   });
   expect(html).toContain("Verify email");
   expect(html).toContain("callbackUrl=%2Fcheckout%2Fsynthetic-order");
-  expect(html).not.toContain('name="recipient_name"');
+  expect(html).not.toContain('name="recipient_first_name"');
+  expect(html).not.toContain('name="recipient_last_name"');
   expect(html).not.toContain("Generate Pix code");
 });
 
@@ -117,7 +121,36 @@ test("saved recipient enables payment while receipt continues to show email deli
   expect(receipt).not.toContain("Code available");
   expect(receipt).not.toContain("View code");
 });
-test("a required saved document can be reused without showing or resending its value", () => {
+test.each(["pix", "card"] as const)(
+  "verified recipient names prefill the %s payer and permit protected document reuse",
+  (method) => {
+    const html = render({
+      ...checkout,
+      gift_card_delivery: {
+        ...emailDelivery,
+        confirmed: true,
+        recipient_ready: true,
+        document_required: true,
+        recipient_first_name: "Synthetic Maria",
+        recipient_last_name: "de Buyer",
+      },
+      checkout: {
+        ...checkout.checkout,
+        methods: [method],
+      },
+    });
+    expect(html).toContain('value="Synthetic Maria"');
+    expect(html).toContain('value="de Buyer"');
+    expect(html).toContain("You can edit the payer details.");
+    expect(html).toContain("Use the delivery document for payment");
+    expect(html).toContain('name="reuse_recipient_document"');
+    expect(html).toContain('checked=""');
+    expect(html).not.toContain('name="document_number"');
+    expect(html).not.toContain('name="recipient_document"');
+  },
+);
+
+test("an old order without structured recipient names can opt into document reuse", () => {
   const html = render({
     ...checkout,
     gift_card_delivery: {
@@ -129,8 +162,47 @@ test("a required saved document can be reused without showing or resending its v
   });
   expect(html).toContain("Use the delivery document for payment");
   expect(html).toContain('name="reuse_recipient_document"');
-  expect(html).not.toContain('name="document_number"');
+  expect(html).not.toContain('checked=""');
+  expect(html).toContain('name="document_number"');
   expect(html).not.toContain('name="recipient_document"');
+});
+
+test("Stripe checkout remains outside the Appmax payment panel", () => {
+  const html = render({
+    ...checkout,
+    checkout: { ...checkout.checkout, hosted: true, methods: ["card"] },
+  });
+  expect(html).toContain("Continue to payment");
+  expect(html).not.toMatch(/<section\b[^>]*class="[^"]*checkout-payment-panel/);
+  expect(html).not.toContain("data-appmax-checkout");
+});
+
+test("waiting for Pix keeps the QR, copy and status actions inside the payment panel", () => {
+  const html = render({
+    ...checkout,
+    order: {
+      ...checkout.order,
+      payment_status: "PENDING",
+      can_pay: false,
+      can_cancel: false,
+    },
+    attempt: {
+      id: "synthetic-attempt",
+      method: "pix",
+      installments: 1,
+      total_minor: 2500,
+      interest_minor: 0,
+      quote_expires_at: "2026-10-12T16:00:00Z",
+      submitted: true,
+      uncertain: false,
+      checkout_url: null,
+      pix: { emv: "synthetic-pix-code", qrcode: "aGVsbG8=", expires_at: null },
+    },
+  });
+  expect(html).toMatch(/<section\b[^>]*class="[^"]*checkout-payment-panel/);
+  expect(html).toContain("Pix QR code");
+  expect(html).toContain("Copy Pix code");
+  expect(html).toContain("Check payment status");
 });
 
 test("only a live, unsubmitted quote for this method and installments is reusable", () => {
