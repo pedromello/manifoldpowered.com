@@ -134,9 +134,10 @@ test("editing the payer names requires a separate document on both Pix and card"
   }
 });
 
-test.each([false, true])(
-  "the hosted checkout confirms its original link when the buyer returns (reloaded=%s)",
-  async (reloaded) => {
+test.each(["fresh", "reloaded", "rejected", "uncertain"] as const)(
+  "the hosted checkout prepares and verifies the payment link (%s)",
+  async (scenario) => {
+    const reloaded = scenario === "reloaded";
     const reactEnvironment = globalThis as {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
     };
@@ -173,36 +174,51 @@ test.each([false, true])(
       checkout_url: null,
       pix: null,
     };
+    const retryQuote = { ...quote, id: "synthetic-retry-link-attempt" };
     const url = "https://checkout.sandboxappmax.com.br/pl/synthetic";
     const pending: BuyerCheckout = {
       ...hosted,
       order: { ...hosted.order, payment_status: "PENDING", can_pay: false },
-      attempt: { ...quote, checkout_url: url, submitted: true },
+      attempt: {
+        ...(scenario === "rejected" ? retryQuote : quote),
+        checkout_url: url,
+        submitted: true,
+      },
     };
     const paid: BuyerCheckout = {
       ...pending,
       order: { ...pending.order, payment_status: "PAID" },
     };
-    const responses = reloaded
-      ? [paid]
-      : [{ ...hosted, attempt: quote }, pending, paid];
-    const fetcher = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
-      async () =>
-        ({
-          ok: true,
-          json: async () => responses.shift(),
-        }) as Response,
-    );
-    globalThis.fetch = fetcher;
-    const paymentTab = {
-      closed: false,
-      opener: window as Window | null,
-      location: { replace: jest.fn() },
-      close: jest.fn(),
+    const rejected: BuyerCheckout = {
+      ...hosted,
+      order: { ...hosted.order, payment_status: "FAILED" },
+      attempt: { ...quote, submitted: true },
     };
-    const open = jest
-      .spyOn(window, "open")
-      .mockReturnValue(paymentTab as unknown as Window);
+    const uncertain: BuyerCheckout = {
+      ...pending,
+      attempt: { ...quote, submitted: true, uncertain: true },
+    };
+    const responses = {
+      reloaded: [paid],
+      fresh: [pending, paid],
+      rejected: [rejected, { ...hosted, attempt: retryQuote }, pending, paid],
+      uncertain: [uncertain],
+    }[scenario];
+    const reply = (value?: BuyerCheckout) =>
+      ({ ok: true, json: async () => value }) as Response;
+    const fetcher = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>(
+      async () => reply(responses.shift()),
+    );
+    let resolveQuote: (response: Response) => void = () => {};
+    if (!reloaded)
+      fetcher.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveQuote = resolve;
+          }),
+      );
+    globalThis.fetch = fetcher;
+    const open = jest.spyOn(window, "open").mockReturnValue(null);
     const container = document.createElement("div");
     const root = createRoot(container);
     document.body.append(container);
@@ -231,11 +247,13 @@ test.each([false, true])(
         const continueButton = [...container.querySelectorAll("button")].find(
           (button) => button.textContent === "Continue to payment",
         )!;
+        expect(continueButton.disabled).toBe(true);
+        expect(container.textContent).toContain("Preparing payment link…");
         await act(async () => continueButton.click());
-        expect(open).toHaveBeenCalledTimes(1);
-        expect(paymentTab.opener).toBeNull();
-        expect(paymentTab.location.replace).toHaveBeenCalledWith(url);
-        expect(paymentTab.close).not.toHaveBeenCalled();
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        await act(async () =>
+          resolveQuote(reply({ ...hosted, attempt: quote })),
+        );
         expect(fetcher.mock.calls.map(([request]) => request)).toEqual([
           "/api/v1/orders/synthetic-order/quote",
           "/api/v1/orders/synthetic-order/payment",
@@ -249,19 +267,55 @@ test.each([false, true])(
           attempt_id: quote.id,
           expected_total_minor: 2500,
         });
-        expect(
-          container.querySelector(`a[href="${url}"]`)?.getAttribute("target"),
-        ).toBe("_blank");
-        expect(container.textContent).not.toContain("Continue to payment");
+        const retryButton = [...container.querySelectorAll("button")].find(
+          (button) => button.textContent === "Prepare payment link again",
+        );
+        if (scenario === "uncertain") {
+          expect(retryButton).toBeUndefined();
+          expect(container.querySelector(`a[href="${url}"]`)).toBeNull();
+          expect(container.textContent).toContain("Check payment status");
+          expect(open).not.toHaveBeenCalled();
+          return;
+        }
+        if (scenario === "rejected") {
+          expect(container.textContent).not.toContain("Payment failed.");
+          expect(container.textContent).toContain(
+            "We could not prepare your payment link.",
+          );
+          expect(fetcher).toHaveBeenCalledTimes(2);
+          await act(async () => retryButton!.click());
+          expect(JSON.parse(String(fetcher.mock.calls[3]?.[1]?.body))).toEqual({
+            attempt_id: retryQuote.id,
+            expected_total_minor: 2500,
+          });
+        } else {
+          expect(retryButton).toBeUndefined();
+        }
+        const preparationRequests = scenario === "rejected" ? 4 : 2;
+        expect(fetcher).toHaveBeenCalledTimes(preparationRequests);
+        const continueLink = container.querySelector<HTMLAnchorElement>(
+          `a[href="${url}"]`,
+        )!;
+        expect(continueLink.target).toBe("_blank");
+        expect(continueLink.textContent).toBe("Continue to payment");
+        expect(container.querySelector("section h2")?.textContent).toBe(
+          "Payment method",
+        );
+        continueLink.addEventListener("click", (event) =>
+          event.preventDefault(),
+        );
+        await act(async () => continueLink.click());
+        expect(fetcher).toHaveBeenCalledTimes(preparationRequests);
 
         await act(async () => {
           window.dispatchEvent(new Event("focus"));
           document.dispatchEvent(new Event("visibilitychange"));
         });
-      } else {
-        expect(open).not.toHaveBeenCalled();
       }
-      expect(fetcher).toHaveBeenCalledTimes(reloaded ? 1 : 3);
+      expect(open).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledTimes(
+        reloaded ? 1 : scenario === "rejected" ? 5 : 3,
+      );
       expect(fetcher).toHaveBeenLastCalledWith(
         "/api/v1/orders/synthetic-order",
         expect.objectContaining({

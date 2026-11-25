@@ -62,6 +62,44 @@ const linkOrdersResponse = z.object({
     total_pages: z.number().int().nonnegative(),
   }),
 });
+const paymentLinkFields = new Set([
+  "name",
+  "value",
+  "description",
+  "product_type",
+  "document",
+  "payments",
+  "max_installments",
+  "fee_transfer_from_installment",
+  "allow_multiple_sales",
+]);
+const errorFields = z.record(z.string(), z.unknown());
+const linkValidationResponse = z.object({ errors: errorFields });
+
+async function readPaymentLinkValidationFields(response: Response) {
+  try {
+    const limit = 16 * 1024;
+    if (Number(response.headers.get("content-length")) > limit) return [];
+    const body = await response.text();
+    if (body.length > limit) return [];
+    const parsed = linkValidationResponse.safeParse(JSON.parse(body));
+    if (!parsed.success) return [];
+    const { errors } = parsed.data;
+    const messageFields = errorFields.safeParse(errors.message);
+    return [
+      ...new Set(
+        [
+          ...Object.keys(errors),
+          ...(messageFields.success ? Object.keys(messageFields.data) : []),
+        ]
+          .map((key) => key.split(".", 1)[0])
+          .filter((key) => paymentLinkFields.has(key)),
+      ),
+    ].sort();
+  } catch {
+    return [];
+  }
+}
 export function appmaxQuotes(payload: unknown, amount: number): PaymentQuote[] {
   const schema = z.object({
     data: z.union([
@@ -325,6 +363,11 @@ export function createAppmaxPaymentProvider({
           Math.min(3600, Math.max(5, retrySeconds || 30)),
           response.status,
           url.endsWith("/oauth2/token") ? "authentication" : "request",
+          response.status === 422 &&
+            init.method === "POST" &&
+            url.endsWith("/v1/payment-link")
+            ? await readPaymentLinkValidationFields(response)
+            : undefined,
         );
       }
       try {
@@ -418,7 +461,7 @@ export function createAppmaxPaymentProvider({
         description: input.product_name,
         value: input.amount_minor,
         product_type: "digital",
-        payments: [["pix", "creditcard"]],
+        payments: ["pix", "creditcard"],
         max_installments: 1,
         fee_transfer_from_installment: 0,
         allow_multiple_sales: false,
@@ -434,6 +477,7 @@ export function createAppmaxPaymentProvider({
           undefined,
           error.httpStatus,
           "payment_link_rejected",
+          error.fields,
         );
       throw error;
     }

@@ -60,7 +60,7 @@ test("the first Pix paint already mounts the card and IP forms required by the S
   expect(html).toContain('name="card-number"');
   expect(html).toContain('name="exp-month"');
   expect(html).toContain('name="cvv"');
-  expect(html).toContain("Cancel order");
+  expect(html).not.toContain("Cancel order");
 });
 
 const emailDelivery = {
@@ -201,8 +201,11 @@ test("the hosted payment link checkout leaves the payment method and payer detai
     },
   });
   expect(html).toContain("Continue to payment");
+  expect(html).toMatch(/<button\b[^>]*disabled=""[^>]*>Continue to payment/);
   expect(html).toContain("Choose Pix or credit card on the payment page.");
   expect(html).toContain("buyer@example.test");
+  expect(html).not.toMatch(/<section\b[^>]*class="[^"]*checkout-payment-panel/);
+  expect(html).not.toContain("Cancel order");
   expect(html).not.toContain("Generate Pix code");
   expect(html).not.toContain("data-appmax-checkout");
   expect(html).not.toContain('name="first_name"');
@@ -235,9 +238,9 @@ test("a pending order offers its saved payment link after the original quote exp
   expect(html).toContain(
     `href="${url}" target="_blank" rel="noopener noreferrer"`,
   );
-  expect(html).toContain("Open payment page");
+  expect(html).toContain(">Continue to payment</a>");
   expect(html).toContain("Check payment status");
-  expect(html).not.toContain("Continue to payment");
+  expect(html).not.toContain("Prepare payment link again");
 });
 
 test("waiting for Pix keeps the QR, copy and status actions inside the payment panel", () => {

@@ -482,6 +482,17 @@ function paymentNavigationUrl(
   }
 }
 
+function canPreparePaymentLink(data: BuyerCheckout | undefined) {
+  return Boolean(
+    data?.checkout.payment_link &&
+    data.checkout.available &&
+    data.order.can_pay &&
+    recipientConfirmed(data) &&
+    !data.attempt?.checkout_url &&
+    !data.attempt?.uncertain,
+  );
+}
+
 export function Checkout({ orderId }: { orderId: string }) {
   const { t } = useI18n();
   const {
@@ -513,6 +524,9 @@ export function Checkout({ orderId }: { orderId: string }) {
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [statusMessage, setStatusMessage] = useState(""),
+    [linkPreparationFailure, setLinkPreparationFailure] = useState<
+      "retry" | "unknown" | null
+    >(null),
     [documentChoice, setDocumentChoice] = useState<{
       reuse: boolean;
       cardholder: string;
@@ -528,6 +542,7 @@ export function Checkout({ orderId }: { orderId: string }) {
     paymentHeading = useRef<HTMLHeadingElement>(null),
     focusPayment = useRef(false),
     inFlight = useRef(false),
+    autoPreparedOrder = useRef<string | null>(null),
     lastStatusCheck = useRef(0),
     initialLinkCheck = useRef<string | null>(null),
     tokenTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
@@ -638,7 +653,7 @@ export function Checkout({ orderId }: { orderId: string }) {
     [t],
   );
   const sendPayment = useCallback(
-    async (token?: string, paymentTab?: Window | null) => {
+    async (token?: string) => {
       if (inFlight.current || (token && !pendingCard.current)) return;
       const card = token ? pendingCard.current : null;
       pendingCard.current = null;
@@ -647,6 +662,8 @@ export function Checkout({ orderId }: { orderId: string }) {
         setBusy(false);
         return;
       }
+      const preparingPaymentLink = data.checkout.payment_link === true;
+      if (preparingPaymentLink && !canPreparePaymentLink(data)) return;
       if (card && (method !== "card" || card.installments !== installments)) {
         setMessage(t("Please confirm your payment option again."));
         setBusy(false);
@@ -664,24 +681,27 @@ export function Checkout({ orderId }: { orderId: string }) {
       inFlight.current = true;
       setBusy(true);
       setMessage("");
+      if (preparingPaymentLink) {
+        autoPreparedOrder.current = orderId;
+        setLinkPreparationFailure(null);
+      }
       const reviewedTotal = card?.reviewedTotal ?? displayedTotal;
-      let navigated = false;
       try {
-        let quote = quoteForSelection(data, method, installments);
+        let reviewed = data;
+        let quote = quoteForSelection(reviewed, method, installments);
         if (!quote) {
-          const reviewed = await checkoutRequest(
-            `/api/v1/orders/${orderId}/quote`,
-            {
-              method,
-              installments,
-              idempotency_key: crypto.randomUUID(),
-            },
-          );
+          reviewed = await checkoutRequest(`/api/v1/orders/${orderId}/quote`, {
+            method,
+            installments,
+            idempotency_key: crypto.randomUUID(),
+          });
           await mutate(reviewed, { revalidate: false });
           quote = quoteForSelection(reviewed, method, installments);
         }
         if (!quote) throw new Error();
         if (quote.total_minor !== reviewedTotal) {
+          if (preparingPaymentLink && canPreparePaymentLink(reviewed))
+            setLinkPreparationFailure("retry");
           setMessage(
             t("The total changed. Review the new amount and confirm again."),
           );
@@ -699,15 +719,20 @@ export function Checkout({ orderId }: { orderId: string }) {
         if (result.attempt?.method === "link")
           initialLinkCheck.current = result.attempt.id;
         await mutate(result, { revalidate: false });
+        if (preparingPaymentLink) {
+          if (
+            result.attempt?.method !== "link" ||
+            !paymentNavigationUrl(result.attempt.checkout_url, true)
+          )
+            setLinkPreparationFailure(
+              canPreparePaymentLink(result) ? "retry" : "unknown",
+            );
+          return;
+        }
         if (result.attempt?.checkout_url) {
-          const url = paymentNavigationUrl(
-            result.attempt.checkout_url,
-            result.attempt.method === "link",
-          );
+          const url = paymentNavigationUrl(result.attempt.checkout_url, false);
           if (!url) throw new Error();
-          if (!paymentTab) window.location.assign(url);
-          else if (!paymentTab.closed) paymentTab.location.replace(url);
-          navigated = true;
+          window.location.assign(url);
         }
         if (result.attempt?.uncertain)
           setMessage(
@@ -716,6 +741,21 @@ export function Checkout({ orderId }: { orderId: string }) {
             ),
           );
       } catch {
+        if (preparingPaymentLink) {
+          // A response failure alone cannot tell us if a link was created.
+          setLinkPreparationFailure("unknown");
+          try {
+            const refreshed = await checkoutRequest(
+              `/api/v1/orders/${orderId}`,
+            );
+            await mutate(refreshed, { revalidate: false });
+            if (canPreparePaymentLink(refreshed))
+              setLinkPreparationFailure("retry");
+          } catch {
+            // Keep preparation disabled until the order status is known.
+          }
+          return;
+        }
         setMessage(
           t(
             "We could not confirm your payment right now. Check your order before trying again.",
@@ -723,7 +763,6 @@ export function Checkout({ orderId }: { orderId: string }) {
         );
         await mutate();
       } finally {
-        if (!navigated) paymentTab?.close();
         inFlight.current = false;
         setBusy(false);
       }
@@ -740,6 +779,17 @@ export function Checkout({ orderId }: { orderId: string }) {
       mutate,
     ],
   );
+  useEffect(() => {
+    if (
+      !data ||
+      busy ||
+      inFlight.current ||
+      autoPreparedOrder.current === orderId ||
+      !canPreparePaymentLink(data)
+    )
+      return;
+    void sendPayment();
+  }, [busy, data, orderId, sendPayment]);
   const checkPaymentStatus = useCallback(
     async (announce: boolean) => {
       const now = Date.now();
@@ -760,6 +810,8 @@ export function Checkout({ orderId }: { orderId: string }) {
           action: "reconcile",
         });
         await mutate(refreshed, { revalidate: false });
+        if (announce && canPreparePaymentLink(refreshed))
+          setLinkPreparationFailure("retry");
         if (announce) setStatusMessage(t("Payment check requested."));
       } catch {
         if (announce)
@@ -869,9 +921,14 @@ export function Checkout({ orderId }: { orderId: string }) {
   const showingPaymentChoices =
     order.can_pay && paymentReady && data.checkout.available && !submitted;
   const appmaxPaymentPanel =
-    (!data.checkout.hosted || isHostedPaymentLink || Boolean(attempt?.pix)) &&
+    (!data.checkout.hosted || Boolean(attempt?.pix)) &&
     order.payment_status !== "PAID" &&
     (showingPaymentChoices || submitted);
+  const hostedLinkReady =
+    attempt?.method === "link" && Boolean(resumePaymentUrl);
+  const showDeliveryInSummary =
+    (showingPaymentChoices && (appmaxPaymentPanel || isHostedPaymentLink)) ||
+    (isHostedPaymentLink && submitted);
   const total = showingPaymentChoices
     ? displayedTotal
     : submitted || order.payment_status === "PAID"
@@ -930,7 +987,7 @@ export function Checkout({ orderId }: { orderId: string }) {
               </dd>
             </div>
           </dl>
-          {appmaxPaymentPanel && showingPaymentChoices && deliveryEmail && (
+          {deliveryEmail && showDeliveryInSummary && (
             <div className="mt-3">
               <DeliveryEmail email={deliveryEmail} />
             </div>
@@ -947,14 +1004,16 @@ export function Checkout({ orderId }: { orderId: string }) {
               {message}
             </p>
           )}
-          {!message && order.payment_status === "FAILED" && (
-            <p
-              role="alert"
-              className="checkout-alert mb-4 rounded-lg p-3 text-sm"
-            >
-              {t("Payment failed. Check your details or try another method.")}
-            </p>
-          )}
+          {!message &&
+            order.payment_status === "FAILED" &&
+            !isHostedPaymentLink && (
+              <p
+                role="alert"
+                className="checkout-alert mb-4 rounded-lg p-3 text-sm"
+              >
+                {t("Payment failed. Check your details or try another method.")}
+              </p>
+            )}
           {order.payment_status === "PAID" ? (
             <>
               <CheckCircle2 className="text-emerald-300" size={32} />
@@ -993,13 +1052,24 @@ export function Checkout({ orderId }: { orderId: string }) {
             </>
           ) : submitted ? (
             <>
-              <Clock3 className="checkout-accent" />
-              <h2 className="mt-4 text-xl font-bold">
-                {t(
-                  purchasePaymentLabels[order.payment_status] ??
-                    "Purchase under review",
-                )}
-              </h2>
+              {hostedLinkReady ? (
+                <>
+                  <h2 className="text-lg font-bold">{t("Payment method")}</h2>
+                  <p className="checkout-muted my-4 text-sm leading-6">
+                    {t("Choose Pix or credit card on the payment page.")}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Clock3 className="checkout-accent" />
+                  <h2 className="mt-4 text-xl font-bold">
+                    {t(
+                      purchasePaymentLabels[order.payment_status] ??
+                        "Purchase under review",
+                    )}
+                  </h2>
+                </>
+              )}
               {attempt?.uncertain ? (
                 <p className="checkout-muted mt-3 text-sm leading-6">
                   {t(
@@ -1008,7 +1078,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                 </p>
               ) : attempt?.pix ? (
                 <PixInstructions pix={attempt.pix} />
-              ) : (
+              ) : !hostedLinkReady ? (
                 <p className="checkout-muted mt-3 text-sm leading-6">
                   {t(
                     attempt?.method === "link"
@@ -1016,7 +1086,7 @@ export function Checkout({ orderId }: { orderId: string }) {
                       : "Your product will be available after payment confirmation.",
                   )}
                 </p>
-              )}
+              ) : null}
               {resumePaymentUrl && recipientConfirmed(data) && (
                 <a
                   href={resumePaymentUrl}
@@ -1026,15 +1096,35 @@ export function Checkout({ orderId }: { orderId: string }) {
                       ? "noopener noreferrer"
                       : undefined
                   }
-                  className="checkout-primary mt-6"
+                  className={
+                    hostedLinkReady
+                      ? "checkout-primary"
+                      : "checkout-primary mt-6"
+                  }
                 >
                   {t(
                     attempt?.method === "link"
-                      ? "Open payment page"
+                      ? "Continue to payment"
                       : "Continue purchase",
                   )}
                 </a>
               )}
+              {hostedLinkReady && (
+                <p className="checkout-muted mt-3 text-sm leading-6">
+                  {t("After paying, return here to check your payment status.")}
+                </p>
+              )}
+              {attempt?.method === "link" &&
+                !resumePaymentUrl &&
+                recipientConfirmed(data) && (
+                  <button
+                    type="button"
+                    disabled
+                    className="checkout-primary mt-6"
+                  >
+                    {t("Continue to payment")}
+                  </button>
+                )}
               <button
                 type="button"
                 className="checkout-accent mt-4 min-h-11 rounded-lg px-2 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 disabled:opacity-50"
@@ -1084,19 +1174,52 @@ export function Checkout({ orderId }: { orderId: string }) {
               <p className="checkout-muted my-4 text-sm leading-6">
                 {t("Choose Pix or credit card on the payment page.")}
               </p>
-              <button
-                type="button"
-                disabled={payDisabled}
-                className="checkout-primary"
-                onClick={() => {
-                  if (payDisabled || inFlight.current) return;
-                  const paymentTab = window.open("", "_blank");
-                  if (paymentTab) paymentTab.opener = null;
-                  void sendPayment(undefined, paymentTab);
-                }}
-              >
-                {t(busy ? "Opening payment page…" : "Continue to payment")}
+              <button type="button" disabled className="checkout-primary">
+                {t("Continue to payment")}
               </button>
+              {busy && (
+                <p role="status" className="checkout-muted mt-3 text-sm">
+                  {t(
+                    linkPreparationFailure === "unknown"
+                      ? "Please wait"
+                      : "Preparing payment link…",
+                  )}
+                </p>
+              )}
+              {!busy &&
+                linkPreparationFailure === "retry" &&
+                canPreparePaymentLink(data) && (
+                  <>
+                    {!message && (
+                      <p role="alert" className="checkout-muted mt-3 text-sm">
+                        {t("We could not prepare your payment link.")}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="checkout-accent mt-2 min-h-11 text-sm font-medium underline underline-offset-4"
+                      onClick={() => void sendPayment()}
+                    >
+                      {t("Prepare payment link again")}
+                    </button>
+                  </>
+                )}
+              {!busy && linkPreparationFailure === "unknown" && (
+                <>
+                  <p role="alert" className="checkout-muted mt-3 text-sm">
+                    {t(
+                      "We could not confirm your payment link. Check the order status before trying again.",
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className="checkout-accent mt-2 min-h-11 text-sm font-medium underline underline-offset-4"
+                    onClick={() => void checkPaymentStatus(true)}
+                  >
+                    {t("Check payment status")}
+                  </button>
+                </>
+              )}
               <p className="checkout-muted mt-3 text-sm leading-6">
                 {t("After paying, return here to check your payment status.")}
               </p>
@@ -1389,37 +1512,6 @@ export function Checkout({ orderId }: { orderId: string }) {
                 </p>
               )}
             </>
-          )}
-          {order.can_cancel && (
-            <button
-              className="checkout-muted mt-6 min-h-11 text-sm underline underline-offset-4 disabled:opacity-40"
-              disabled={busy}
-              onClick={async () => {
-                if (inFlight.current) return;
-                inFlight.current = true;
-                setBusy(true);
-                setMessage("");
-                try {
-                  const result = await checkoutRequest(
-                    `/api/v1/orders/${orderId}`,
-                    { action: "cancel" },
-                  );
-                  await mutate(result, { revalidate: false });
-                } catch {
-                  setMessage(
-                    t(
-                      "We could not cancel this order. Check your payment status.",
-                    ),
-                  );
-                  await mutate();
-                } finally {
-                  inFlight.current = false;
-                  setBusy(false);
-                }
-              }}
-            >
-              {t("Cancel order")}
-            </button>
           )}
         </section>
       </div>

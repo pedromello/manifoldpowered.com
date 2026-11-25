@@ -868,7 +868,7 @@ test.each([
       description: "Synthetic email gift card",
       value: 2500,
       product_type: "digital",
-      payments: [["pix", "creditcard"]],
+      payments: ["pix", "creditcard"],
       max_installments: 1,
       fee_transfer_from_installment: 0,
       allow_multiple_sales: false,

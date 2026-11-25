@@ -133,12 +133,16 @@ export const ptBR: Record<string, string> = {
   "Pay by card": "Pagar com cartão",
   "Pay {amount}": "Pagar {amount}",
   "Continue to payment": "Continuar para o pagamento",
-  "Opening payment page…": "Abrindo página de pagamento…",
+  "Preparing payment link…": "Preparando link de pagamento…",
   "Choose Pix or credit card on the payment page.":
     "Escolha Pix ou cartão de crédito na página de pagamento.",
   "After paying, return here to check your payment status.":
     "Depois de pagar, volte aqui para acompanhar o status do pagamento.",
-  "Open payment page": "Abrir página de pagamento",
+  "Prepare payment link again": "Tentar preparar o link novamente",
+  "We could not prepare your payment link.":
+    "Não foi possível preparar o link de pagamento.",
+  "We could not confirm your payment link. Check the order status before trying again.":
+    "Não foi possível confirmar o link de pagamento. Verifique o status do pedido antes de tentar novamente.",
   "Pay with Pix": "Pague com Pix",
   "Scan the QR code in your bank app or copy the Pix code.":
     "Leia o QR Code no aplicativo do seu banco ou copie o código Pix.",

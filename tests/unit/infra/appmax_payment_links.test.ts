@@ -69,7 +69,7 @@ function paidOrder(
   });
 }
 
-test("creates one single-sale hosted link with Pix and card at the local price", async () => {
+test("creates a fixed-quantity hosted link with Pix and card at the local price", async () => {
   const { provider, request } = providerWith(
     Response.json(
       { data: { id: 123, checkout_url: checkoutUrl } },
@@ -93,7 +93,7 @@ test("creates one single-sale hosted link with Pix and card at the local price",
     description: context.product_name,
     value: 2500,
     product_type: "digital",
-    payments: [["pix", "creditcard"]],
+    payments: ["pix", "creditcard"],
     max_installments: 1,
     fee_transfer_from_installment: 0,
     allow_multiple_sales: false,
@@ -164,9 +164,11 @@ test("distinguishes a definite API rejection from an unsafe returned checkout UR
   const rejected = providerWith(
     Response.json({ message: "Synthetic provider response" }, { status: 422 }),
   );
-  await expect(rejected.provider.pay(context)).rejects.toBeInstanceOf(
-    PaymentLinkRejectedError,
-  );
+  const rejection = rejected.provider.pay(context);
+  await expect(rejection).rejects.toBeInstanceOf(PaymentLinkRejectedError);
+  await expect(rejection).rejects.toMatchObject({
+    validationCategory: "validation_without_fields",
+  });
   expect(rejected.request).toHaveBeenCalledTimes(2);
 
   const unsafe = providerWith(
@@ -180,6 +182,37 @@ test("distinguishes a definite API rejection from an unsafe returned checkout UR
     stage: "payment_link_url",
   });
   expect(unsafe.request).toHaveBeenCalledTimes(2);
+});
+
+test("exposes only documented field names for Appmax link validation errors", async () => {
+  const { provider, request } = providerWith(
+    Response.json(
+      {
+        errors: {
+          document: ["sensitive-provider-value"],
+          message: {
+            "payments.0": ["sensitive-provider-value"],
+            payments: ["sensitive-provider-value"],
+            "synthetic-private-key": ["sensitive-provider-value"],
+          },
+        },
+      },
+      { status: 422 },
+    ),
+  );
+  const error: unknown = await provider
+    .pay(context)
+    .catch((failure: unknown) => failure);
+  expect(error).toBeInstanceOf(PaymentLinkRejectedError);
+  expect(error).toMatchObject({
+    httpStatus: 422,
+    stage: "payment_link_rejected",
+    validationCategory: "field_validation",
+    fields: ["document", "payments"],
+  });
+  expect(JSON.stringify(error)).not.toContain("sensitive-provider-value");
+  expect(JSON.stringify(error)).not.toContain("synthetic-private-key");
+  expect(request).toHaveBeenCalledTimes(2);
 });
 
 test("keeps Appmax payment-link notifications separate from direct order references", () => {

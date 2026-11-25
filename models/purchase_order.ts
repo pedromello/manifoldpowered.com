@@ -648,6 +648,13 @@ export function createPurchaseOrderService({
         console.warn("[payments] Appmax link unavailable", {
           stage: error.stage,
           upstreamStatus: error.httpStatus,
+          ...(error instanceof PaymentLinkRejectedError &&
+          error.validationCategory
+            ? {
+                validationCategory: error.validationCategory,
+                validationFields: error.fields,
+              }
+            : {}),
         });
       if (!orderCreationStarted || error instanceof PaymentLinkRejectedError) {
         // No remote order or charge was attempted: retrying with a new quote is safe.

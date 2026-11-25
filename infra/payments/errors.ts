@@ -38,4 +38,11 @@ export class PaymentTransportError extends ServiceError {
     this.fields = fields;
   }
 }
-export class PaymentLinkRejectedError extends PaymentTransportError {}
+export class PaymentLinkRejectedError extends PaymentTransportError {
+  get validationCategory() {
+    if (this.httpStatus === 422)
+      return this.fields?.length
+        ? "field_validation"
+        : "validation_without_fields";
+  }
+}
